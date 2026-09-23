@@ -1,6 +1,252 @@
 {
   "components": {
     "schemas": {
+      "Adjudication": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_readings": {
+            "items": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Accepted Readings",
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "unresolved": {
+            "title": "Unresolved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted_readings",
+          "unresolved",
+          "reason"
+        ],
+        "title": "Adjudication",
+        "type": "object"
+      },
+      "AlignmentDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "ACCEPT_FOR_CONDITIONAL_ANALYSIS",
+              "REJECT",
+              "UNRESOLVED"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "evidence_refs": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "proposal_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Proposal Hash",
+            "type": "string"
+          },
+          "rationale": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_hash",
+          "decision",
+          "rationale",
+          "evidence_refs"
+        ],
+        "title": "AlignmentDecision",
+        "type": "object"
+      },
+      "AlignmentSubmission": {
+        "additionalProperties": false,
+        "properties": {
+          "left_node_id": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "title": "Left Node Id",
+            "type": "string"
+          },
+          "proposal": {
+            "$ref": "#/components/schemas/Correspondence"
+          },
+          "right_node_id": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "title": "Right Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "left_node_id",
+          "right_node_id",
+          "proposal"
+        ],
+        "title": "AlignmentSubmission",
+        "type": "object"
+      },
+      "Annotation": {
+        "additionalProperties": false,
+        "properties": {
+          "alternatives": {
+            "items": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Alternatives",
+            "type": "array"
+          },
+          "duty": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Duty",
+            "type": "string"
+          },
+          "effective_time": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Effective Time",
+            "type": "string"
+          },
+          "exceptions": {
+            "items": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Exceptions",
+            "type": "array"
+          },
+          "missing_authorities": {
+            "items": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Missing Authorities",
+            "type": "array"
+          },
+          "packet_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Packet Hash",
+            "type": "string"
+          },
+          "scope": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Scope",
+            "type": "string"
+          },
+          "source_unit_id": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "title": "Source Unit Id",
+            "type": "string"
+          },
+          "uncertainty": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Uncertainty",
+            "type": "string"
+          }
+        },
+        "required": [
+          "packet_hash",
+          "source_unit_id",
+          "duty",
+          "alternatives",
+          "scope",
+          "exceptions",
+          "effective_time",
+          "missing_authorities",
+          "uncertainty"
+        ],
+        "title": "Annotation",
+        "type": "object"
+      },
+      "AnnotationAssignment": {
+        "additionalProperties": false,
+        "properties": {
+          "reviewers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reviewers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reviewers"
+        ],
+        "title": "AnnotationAssignment",
+        "type": "object"
+      },
+      "AnnotationFreeze": {
+        "additionalProperties": false,
+        "properties": {
+          "dispositions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Adjudication"
+            },
+            "title": "Dispositions",
+            "type": "object"
+          },
+          "rationale": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dispositions",
+          "rationale"
+        ],
+        "title": "AnnotationFreeze",
+        "type": "object"
+      },
+      "AnnotationSubmission": {
+        "additionalProperties": false,
+        "properties": {
+          "annotations": {
+            "items": {
+              "$ref": "#/components/schemas/Annotation"
+            },
+            "title": "Annotations",
+            "type": "array"
+          },
+          "attests_independent": {
+            "title": "Attests Independent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "annotations",
+          "attests_independent"
+        ],
+        "title": "AnnotationSubmission",
+        "type": "object"
+      },
       "Build": {
         "additionalProperties": false,
         "properties": {
@@ -108,6 +354,66 @@
           "members"
         ],
         "title": "Configure",
+        "type": "object"
+      },
+      "Correspondence": {
+        "additionalProperties": false,
+        "properties": {
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Quote"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Citations",
+            "type": "array"
+          },
+          "left_commitment": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Left Commitment",
+            "type": "string"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/FactLink"
+            },
+            "maxItems": 30,
+            "title": "Links",
+            "type": "array"
+          },
+          "output_meaning_assumption": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Output Meaning Assumption",
+            "type": "string"
+          },
+          "rationale": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "right_commitment": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Right Commitment",
+            "type": "string"
+          },
+          "source_packet_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Packet Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_packet_hash",
+          "left_commitment",
+          "right_commitment",
+          "links",
+          "rationale",
+          "output_meaning_assumption",
+          "citations"
+        ],
+        "title": "Correspondence",
         "type": "object"
       },
       "Coverage": {
@@ -322,6 +628,69 @@
           "expected_revision"
         ],
         "title": "EventAppend",
+        "type": "object"
+      },
+      "Execute": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "At",
+            "type": "string"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          }
+        },
+        "required": [
+          "at"
+        ],
+        "title": "Execute",
+        "type": "object"
+      },
+      "FactLink": {
+        "additionalProperties": false,
+        "properties": {
+          "assumption": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assumption"
+          },
+          "left": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "title": "Left",
+            "type": "string"
+          },
+          "right": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "title": "Right",
+            "type": "string"
+          }
+        },
+        "required": [
+          "left",
+          "right",
+          "assumption"
+        ],
+        "title": "FactLink",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -647,6 +1016,28 @@
         "title": "Proposal",
         "type": "object"
       },
+      "Quote": {
+        "additionalProperties": false,
+        "properties": {
+          "quote": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          },
+          "unit_id": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit_id",
+          "quote"
+        ],
+        "title": "Quote",
+        "type": "object"
+      },
       "Release": {
         "additionalProperties": false,
         "properties": {
@@ -771,6 +1162,125 @@
         ],
         "type": "object"
       },
+      "Settings": {
+        "additionalProperties": false,
+        "properties": {
+          "deadline_seconds": {
+            "default": 1200,
+            "maximum": 3600.0,
+            "minimum": 10.0,
+            "title": "Deadline Seconds",
+            "type": "integer"
+          },
+          "exploration_weight_milli": {
+            "default": 1414,
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "Exploration Weight Milli",
+            "type": "integer"
+          },
+          "max_actions_per_root": {
+            "default": 3,
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Max Actions Per Root",
+            "type": "integer"
+          },
+          "max_argument_nodes": {
+            "default": 12,
+            "maximum": 16.0,
+            "minimum": 1.0,
+            "title": "Max Argument Nodes",
+            "type": "integer"
+          },
+          "max_candidates": {
+            "default": 24,
+            "maximum": 64.0,
+            "minimum": 6.0,
+            "title": "Max Candidates",
+            "type": "integer"
+          },
+          "max_comparisons": {
+            "default": 24,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Max Comparisons",
+            "type": "integer"
+          },
+          "max_depth": {
+            "default": 3,
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Max Depth",
+            "type": "integer"
+          },
+          "max_input_bytes": {
+            "default": 100000,
+            "maximum": 200000.0,
+            "minimum": 1000.0,
+            "title": "Max Input Bytes",
+            "type": "integer"
+          },
+          "max_model_calls": {
+            "default": 8,
+            "maximum": 40.0,
+            "minimum": 3.0,
+            "title": "Max Model Calls",
+            "type": "integer"
+          },
+          "max_no_progress": {
+            "default": 2,
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Max No Progress",
+            "type": "integer"
+          },
+          "max_output_bytes": {
+            "default": 100000,
+            "maximum": 200000.0,
+            "minimum": 1000.0,
+            "title": "Max Output Bytes",
+            "type": "integer"
+          },
+          "max_output_repairs": {
+            "default": 1,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Max Output Repairs",
+            "type": "integer"
+          },
+          "max_rounds": {
+            "default": 3,
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Max Rounds",
+            "type": "integer"
+          },
+          "reconstruction_required": {
+            "default": true,
+            "title": "Reconstruction Required",
+            "type": "boolean"
+          },
+          "scheduler": {
+            "default": "bfs",
+            "enum": [
+              "bfs",
+              "uct"
+            ],
+            "title": "Scheduler",
+            "type": "string"
+          },
+          "timeout_seconds": {
+            "default": 180,
+            "maximum": 300.0,
+            "minimum": 1.0,
+            "title": "Timeout Seconds",
+            "type": "integer"
+          }
+        },
+        "title": "Settings",
+        "type": "object"
+      },
       "Snapshot": {
         "additionalProperties": false,
         "properties": {
@@ -843,6 +1353,23 @@
           "media_type"
         ],
         "title": "SourceImport",
+        "type": "object"
+      },
+      "Start": {
+        "additionalProperties": false,
+        "properties": {
+          "packet": {
+            "$ref": "#/components/schemas/Packet"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/Settings"
+          }
+        },
+        "required": [
+          "packet",
+          "settings"
+        ],
+        "title": "Start",
         "type": "object"
       },
       "Supersede": {
@@ -3263,6 +3790,7 @@
           "use": {
             "enum": [
               "DETERMINISTIC_FIXTURE_ONLY",
+              "RESEARCH_SEARCH",
               "PAID_RUN"
             ]
           }
@@ -6571,6 +7099,1140 @@
           }
         },
         "summary": "Fact Record"
+      }
+    },
+    "/v1/interpretation-search": {
+      "post": {
+        "operationId": "create_v1_interpretation_search_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Start"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Create"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/alignments": {
+      "post": {
+        "operationId": "propose_alignment_v1_interpretation_search__run_id__alignments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlignmentSubmission"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Propose Alignment"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/alignments/{alignment_id}": {
+      "get": {
+        "operationId": "read_alignment_v1_interpretation_search__run_id__alignments__alignment_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "alignment_id",
+            "required": true,
+            "schema": {
+              "title": "Alignment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Read Alignment"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/alignments/{alignment_id}/analyze": {
+      "post": {
+        "operationId": "analyze_alignment_v1_interpretation_search__run_id__alignments__alignment_id__analyze_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "alignment_id",
+            "required": true,
+            "schema": {
+              "title": "Alignment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Execute"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Analyze Alignment"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/alignments/{alignment_id}/review": {
+      "post": {
+        "operationId": "review_alignment_v1_interpretation_search__run_id__alignments__alignment_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "alignment_id",
+            "required": true,
+            "schema": {
+              "title": "Alignment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlignmentDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Review Alignment"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/annotation-assignment": {
+      "post": {
+        "operationId": "assign_v1_interpretation_search__run_id__annotation_assignment_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotationAssignment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Assign"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/annotation-packet": {
+      "get": {
+        "operationId": "packet_v1_interpretation_search__run_id__annotation_packet_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Packet"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/annotations": {
+      "post": {
+        "operationId": "submit_v1_interpretation_search__run_id__annotations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotationSubmission"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Submit"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/execute": {
+      "post": {
+        "operationId": "execute_v1_interpretation_search__run_id__execute_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Execute"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Execute"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/fact-correspondence": {
+      "get": {
+        "operationId": "correspondence_packet_v1_interpretation_search__run_id__fact_correspondence_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "left_node_id",
+            "required": true,
+            "schema": {
+              "title": "Left Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "right_node_id",
+            "required": true,
+            "schema": {
+              "title": "Right Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Correspondence Packet"
+      }
+    },
+    "/v1/interpretation-search/{run_id}/reference-freeze": {
+      "post": {
+        "operationId": "freeze_v1_interpretation_search__run_id__reference_freeze_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotationFreeze"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Caller lacks the required role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Record not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Revision, idempotency or release conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Resource budget exceeded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            },
+            "description": "Invalid request or domain record"
+          }
+        },
+        "summary": "Freeze"
       }
     },
     "/v1/interpretation-sources/{source_key}/invalidate": {

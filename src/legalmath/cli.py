@@ -9,6 +9,23 @@ def main():
     parser = argparse.ArgumentParser(prog="legalmath")
     parser.add_argument("--version", action="version", version=__version__)
     subs = parser.add_subparsers(dest="command")
+    search = subs.add_parser('interpretation-search',help='Generate and investigate competing readings in fresh Codex contexts')
+    for name in ('data-dir','identities','caller','packet','settings','jdk','at','allowance','total-calls','key'):
+        search.add_argument('--'+name,required=True,type=int if name=='total-calls' else str)
+    search.add_argument('--domain')
+    search.add_argument('--output')
+    assurance = subs.add_parser('interpretation-assurance',help='Check original sources, search readings and repair semantic discrepancies')
+    monitor = subs.add_parser('assurance-monitor',help='Run one bounded source-change and method-change monitoring tick')
+    for command in (assurance,monitor):
+        for name in ('out','jdk','at'):
+            command.add_argument('--'+name,required=True)
+        command.add_argument('--settings')
+        command.add_argument('--allowance')
+        command.add_argument('--total-calls',type=int,default=100)
+        command.add_argument('--replay-responses',help='Explicit offline fixture mode; no live-evidence claim')
+    assurance.add_argument('--manifest',required=True)
+    monitor.add_argument('--config',required=True)
+    monitor.add_argument('--now',type=int,help='Explicit UTC epoch seconds for scheduler tests')
     evaluate = subs.add_parser("evaluate", help="Evaluate an explicit bundle/snapshot request")
     evaluate.add_argument("request")
     demo = subs.add_parser("demo", help="Run the full offline synthetic SPI walkthrough")
@@ -46,7 +63,16 @@ def main():
     args = parser.parse_args()
     from .canonical import loads
     try:
-        if args.command == "evaluate":
+        if args.command == 'interpretation-assurance':
+            from .interpretation.assurance.cli import execute
+            result=execute(args)
+        elif args.command == 'assurance-monitor':
+            from .interpretation.assurance.cli import monitor
+            result=monitor(args)
+        elif args.command == 'interpretation-search':
+            from .interpretation.search.cli import execute
+            result=execute(args)
+        elif args.command == "evaluate":
             from .conformance import evaluate_case
             result = evaluate_case(loads(Path(args.request).read_bytes()))
         elif args.command == "demo":

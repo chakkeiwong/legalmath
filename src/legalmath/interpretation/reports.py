@@ -80,6 +80,10 @@ class Reports:
                 rounds_issued=run['rounds_issued'],actions_issued=run['actions_issued'],probability_of_legal_correctness=None,release_eligible=False,
                 next_decision='Review exact candidate and source evidence' if status=='READY_FOR_REVIEW' else 'Resolve recorded uncertainty in an explicit successor investigation',
                 next_decision_owner_role='meaning',evidence_limitations=['Deterministic scripted members; no measured English interpretation accuracy','LOCAL_SYNTHETIC authority; no bank approval','Formal checks concern encoded rules and stated test domains'],created_at=self.s.clock())
+            if self.s._list(con,run_id,'search-config'):
+                report['evidence_limitations']=['Bounded source-driven research search; independent legal accuracy not established',
+                    'Provider identity and actual calls are retained in search records; fresh contexts can share model errors',
+                    'LOCAL_SYNTHETIC reviewer registry; no bank approval','Formal checks concern encoded rules and declared domains']
             self.s._save(con,'report',report);run.update(status=status,report_id=report['report_id'],passed_mandatory_checks=m['checks']);self.s._save_run(con,run)
             self.db.audit(con,dict(event='interpretation.report',run_id=run_id,report_hash=digest(report)))
             return report

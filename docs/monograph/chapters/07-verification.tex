@@ -21,6 +21,9 @@ formula while giving different advice in practice. A Java adapter that labels
 all rebates as discounts has changed the rule's application even if its Boolean
 operator code is flawless.
 
+% BEGIN REVISION ADDITION teach-M07-00
+\input{\LegalMathRoot teaching/teach-M07-00}
+% END REVISION ADDITION teach-M07-00
 The verification target must therefore name the complete bundle and its
 permitted input domain. The bundle is immutable and content-addressed. The
 comparison includes the decision, missing and blocking facts, errors, source
@@ -59,6 +62,9 @@ timing rule and evidence by which performance can be assessed. A missing source
 deadline remains missing; operational escalation times belong to a separately
 identified bank policy.
 
+% BEGIN REVISION ADDITION teach-P-03-product-02
+\input{\LegalMathRoot teaching/teach-P-03-product-02}
+% END REVISION ADDITION teach-P-03-product-02
 Definitions should be reusable and versioned. A field for portfolio value must
 refer to the adopted portfolio definition, relevant ownership rules, valuation
 date and currency conversion convention. The application mapping records where
@@ -113,6 +119,9 @@ an external reviewed rounding policy resolves it. Date arithmetic is kept in
 the separate scheduler so ordinary library behavior cannot choose a legal
 anniversary convention unnoticed.
 
+% BEGIN REVISION ADDITION teach-P-03a-rule-contract-00
+\input{\LegalMathRoot teaching/teach-P-03a-rule-contract-00}
+% END REVISION ADDITION teach-P-03a-rule-contract-00
 An implementer can express the grammar below directly as tagged records. Every
 \texttt{Expr} additionally carries a unique \texttt{node\_id}. A rule is
 \texttt{(id, type, scope, body, interpretation\_id, source\_span\_ids)};
@@ -170,6 +179,9 @@ supersedes. Two admissible, non-superseded records with different values create 
 conflict. Arrival order is not a source-priority rule. If both records agree,
 their evidence may be combined without inventing a conflict.
 
+% BEGIN REVISION ADDITION teach-M07-01
+\input{\LegalMathRoot teaching/teach-M07-01}
+% END REVISION ADDITION teach-M07-01
 Intervals are half-open: $[a,b)$ includes the start and excludes the end. If a
 record is valid until midnight, it is not valid at that midnight. This convention
 avoids overlapping adjacent intervals when one record ends exactly as another
@@ -196,20 +208,23 @@ supply a known value merely to satisfy a required input field.
 \label{merge:P-03a-rule-contract:01}
 
 
-A normalized fact is known, unknown or conflicting. Known facts have an exact
-value, evidence identifiers, a validity interval and a recorded timestamp.
-Unknown facts explain whether evidence is missing, stale or awaiting assessment.
-Conflicts preserve the disagreeing records. Two admissible records with the
-same value can combine their evidence; different values require resolution.
-Arrival order is not a ranking of legal authority.
+Use one synthetic correction to see why a fact carries its own history. A portfolio
+record says HK\$60m at valid time 1 October and is recorded on 2 October. A second
+record, recorded on 10 October, says the value was HK\$55m for the same valid
+interval and explicitly supersedes the first. The first assessment may use the
+record only when its \texttt{known\_at} cut-off reaches 2 October; a later corrected
+assessment may use the second. Both assessments retain their evidence identities.
 
-Every request supplies \texttt{valid\_at}, the instant being assessed, and
-\texttt{known\_at}, the latest evidence the assessment may use. Intervals are
-half-open: an amount valid until midnight is unavailable at that midnight.
-A correction names the record it supersedes and becomes visible only when its
-recorded time is eligible. Thus a corrected assessment can use new information
-while the original decision remains reproducible.
+The same case distinguishes the three information states. If no eligible record exists,
+the value is unknown because evidence is missing or stale. If two admissible,
+non-superseded records disagree, the value is conflicting and both records remain
+visible. Matching records can combine their evidence. Arrival order is not legal
+priority. Every request still supplies \texttt{valid\_at} and \texttt{known\_at},
+and the half-open interval convention makes an amount ending at midnight unavailable at that endpoint.
 
+% BEGIN REVISION ADDITION teach-P-03a-rule-contract-01
+\input{\LegalMathRoot teaching/teach-P-03a-rule-contract-01}
+% END REVISION ADDITION teach-P-03a-rule-contract-01
 Before Boolean evaluation, the engine checks conflicts in the static transitive
 dependency closure, including branches that might later be skipped. A conflicting
 portfolio amount therefore returns \texttt{CONFLICT} even if the net-asset route
@@ -249,6 +264,9 @@ nonzero remainder means that the result is not an integer number of cents. The
 current contract returns \texttt{E\_INEXACT\_SCALE}; it does not choose a rounding
 policy on the user's behalf.
 
+% BEGIN REVISION ADDITION teach-M07-02
+\input{\LegalMathRoot teaching/teach-M07-02}
+% END REVISION ADDITION teach-M07-02
 If a bank requires rounding, that is a substantive extension. The rule must state
 which quantity is rounded, at what stage, in which direction and under whose
 policy. Rounding each component before summation can differ from rounding the
@@ -295,6 +313,9 @@ true scope permits evaluation of the body. A body that would be false does not
 turn unknown scope into a known result. The system is answering a scoped
 condition, and the applicability question remains unresolved.
 
+% BEGIN REVISION ADDITION teach-M07-03
+\input{\LegalMathRoot teaching/teach-M07-03}
+% END REVISION ADDITION teach-M07-03
 Within the body, conjunction and disjunction evaluate all operands in declared
 order. This eager behavior retains complete evaluated evidence and exposes errors
 or conflicts even if an earlier operand would determine an ordinary Boolean
@@ -328,21 +349,26 @@ the current operators ad hoc.
 \label{merge:P-03a-rule-contract:02}
 
 
-A default contains a base value and named exceptions. Each exception has a
-Boolean guard, a value, an interpretation identifier and source spans. Evaluate
-all guards first. Two true guards produce a conflict, even if the proposed values
-agree. Otherwise any unknown guard yields an unknown result, because it might
-become a competing exception. With exactly one true guard and all others false,
-evaluate that exception's value. With all false, evaluate the base. Priority is
-expressed only through explicitly reviewed nesting, never row order.
+The conformance fixtures should force the evaluator to reveal which rule it uses. Start
+with a false base and two exceptions: one true guard with all other guards false selects
+its value; all false guards select the base; two true guards return conflict even when
+their values agree; and one true guard plus an unknown competitor returns unknown. The
+guard carries its interpretation identifier and source spans, so the trace can explain
+why the result was selected or blocked. Priority enters only through reviewed nesting;
+row order cannot supply it.
 
-Boolean combinations evaluate all operands in source order. A runtime error or
-exception conflict cannot disappear because a different operand is sufficient.
-A conditional evaluates its condition and then only the selected branch; an
-unknown condition yields unknown, even when both branch values happen to be
-equal. Skipped branches are still type checked. These choices eliminate
-implementation-dependent short-circuit behavior while retaining precise traces.
+The fixtures also separate eager combinations from selective conditionals. An \texttt{all} or \texttt{any}
+expression evaluates its operands in source order, retaining
+errors, conflicts and evidence even when an ordinary Boolean shortcut would already
+determine the answer. A conditional evaluates only its selected branch; an unknown
+condition evaluates neither branch and returns unknown. The unselected branch remains
+type checked and appears as skipped in the trace. These cases are more useful than another rule
+recital because each one distinguishes a possible Java implementation
+from the specified behavior.
 
+% BEGIN REVISION ADDITION teach-P-03a-rule-contract-02
+\input{\LegalMathRoot teaching/teach-P-03a-rule-contract-02}
+% END REVISION ADDITION teach-P-03a-rule-contract-02
 The rule's scope is evaluated separately. A false scope yields
 \texttt{OUT\_OF\_SCOPE}; an unknown scope yields \texttt{UNKNOWN}. In scope,
 Boolean bodies return \texttt{TRUE} or \texttt{FALSE}, other known bodies return
@@ -378,6 +404,9 @@ runtime from accessing an invalid reference before discovering that the bundle
 should have been rejected. Fixed error codes and pointers are compared across
 backends; dependency-library exception text is not the public contract.
 
+% BEGIN REVISION ADDITION teach-M07-04
+\input{\LegalMathRoot teaching/teach-M07-04}
+% END REVISION ADDITION teach-M07-04
 Resource limits are explicit. The present canonical JSON boundary is bounded in
 size and depth, and the rule graph has node and expanded-call-depth limits. An
 oversized acyclic expression is a resource error; a cycle is a cycle error. An
@@ -423,6 +452,9 @@ adjudicated with reasons or retained as alternative acceptable outcomes. The
 reference then has a defined relationship to the evidence rather than being a
 single unexplained label.
 
+% BEGIN REVISION ADDITION teach-M07-05
+\input{\LegalMathRoot teaching/teach-M07-05}
+% END REVISION ADDITION teach-M07-05
 For engineering checks, a small executable oracle can be valuable when its method
 is genuinely different. The second-circular body has a read-once unate structure,
 which permits its Boolean-completion check to agree with the specified
@@ -455,6 +487,9 @@ both inclusive comparisons and their alternative, returning \texttt{TRUE} for
 \texttt{spi.financial}. It also identifies the exact source revision, input
 snapshot and engine version.
 
+% BEGIN REVISION ADDITION teach-P-03c-storage-review-01
+\input{\LegalMathRoot teaching/teach-P-03c-storage-review-01}
+% END REVISION ADDITION teach-P-03c-storage-review-01
 The reviewer next opens \texttt{f02}, one cent below the portfolio threshold,
 with the other route still false. This returns \texttt{FALSE}. In \texttt{f07},
 the portfolio is unknown and net assets are HK\$70 million, so the answer is
@@ -489,6 +524,9 @@ The retained named cases detect all four after compilation. This is more
 informative than mutating arbitrary characters because each change corresponds
 to a failure a reviewer or programmer could plausibly make.
 
+% BEGIN REVISION ADDITION teach-M07-06
+\input{\LegalMathRoot teaching/teach-M07-06}
+% END REVISION ADDITION teach-M07-06
 The ensemble extension should add source and process mutations. Remove a footnote
 from one extraction; supply a stale dependency to one member; label a speculative
 classification as established; suppress a minority candidate in the report; reset
@@ -530,6 +568,9 @@ leave its result unchanged. Such metamorphic checks must name their domain:
 adding wealth might be monotone for Equation~\eqref{eq:financial}, but does not
 establish monotonicity of every suitability or product-distribution decision.
 
+% BEGIN REVISION ADDITION teach-P-04-prototype-05
+\input{\LegalMathRoot teaching/teach-P-04-prototype-05}
+% END REVISION ADDITION teach-P-04-prototype-05
 Mutation tests should deliberately replace inclusive with strict comparisons,
 alternatives with conjunctions, category-specific predicates with global ones,
 conditional requests with unconditional duties, and named exceptions with generic
@@ -563,6 +604,9 @@ A solver result alone can be wrong relative to the claimed runtime if the
 encoding mishandles unknown values, scope or arithmetic. The witness and both
 results belong in the report.
 
+% BEGIN REVISION ADDITION teach-M07-07
+\input{\LegalMathRoot teaching/teach-M07-07}
+% END REVISION ADDITION teach-M07-07
 An unsatisfiable difference query establishes no differing result within the
 checked fragment and domain, subject to the solver and encoding assumptions. It
 does not establish that the candidates use the same legal definition, cover the
@@ -602,6 +646,9 @@ additions, and stable source references under deterministic rendering. Each
 property needs a precise precondition. Adding a conflicting record in the static
 dependency closure is not an irrelevant addition.
 
+% BEGIN REVISION ADDITION teach-M07-08
+\input{\LegalMathRoot teaching/teach-M07-08}
+% END REVISION ADDITION teach-M07-08
 Metamorphic tests compare related inputs when a direct oracle is difficult. If a
 known amount increases while all other facts remain fixed, a simple lower-bound
 threshold condition should not change from true to false. This monotonicity
@@ -667,6 +714,9 @@ supports the specified decision operators and its finite duty profile; those
 features are outside this earlier demo API. The demonstration response is its own smaller API profile,
 not a claim to implement every field and trace node of the full RuleIR service.
 
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-01
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-01}
+% END REVISION ADDITION teach-P-03d-java-delivery-01
 The distinction matters for an implementing agent. The example demonstrates an
 actual compiler and integration path that can be extended. It does not silently
 turn the 35 general RuleIR contract fixtures into executed tests. Those fixtures were the completion target for the full interpreter and
@@ -721,6 +771,9 @@ discard the property the specification is trying to preserve. For a currency
 conversion, the exchange-rate source, date, direction and rounding rule are part
 of the evidence mapping.
 
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-02
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-02}
+% END REVISION ADDITION teach-P-03d-java-delivery-02
 The result contains a logical status and an operational disposition:
 \begin{center}\small
 \begin{tabularx}{\textwidth}{P{0.18\textwidth}P{0.34\textwidth}Y}
@@ -780,6 +833,9 @@ The context memoizes referenced rules and records their results in a stable
 order. A precheck detects conflicting facts in this profile's dependency set
 before normal expression evaluation.
 
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-03
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-03}
+% END REVISION ADDITION teach-P-03d-java-delivery-03
 The production emitter should implement one mapping per supported operator,
 with an explicit error for every unsupported construct. It must not ask an LLM
 to write new Java on each regulatory change. The LLM can propose the typed
@@ -824,6 +880,9 @@ ZIP timestamps to make repeated builds with the same toolchain reproducible.
 The verification record stores compiler identity, source/compiler/JAR digests,
 the executed command, results and limitations.
 
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-04
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-04}
+% END REVISION ADDITION teach-P-03d-java-delivery-04
 The delivered files below are operational copies of the design, not additional
 reading needed to understand why it works:
 \begin{center}\small
@@ -896,6 +955,9 @@ times and the requested mode. The mode does not grant authority. A caller cannot
 turn a draft into an approved control by passing the word ``production.'' The
 release service and host must establish approval and applicability separately.
 
+% BEGIN REVISION ADDITION teach-M07-09
+\input{\LegalMathRoot teaching/teach-M07-09}
+% END REVISION ADDITION teach-M07-09
 The conceptual integration looks as follows. The symbolic class name in the
 listing is replaced by the actual generated name when the integration fixture is
 built; the release lookup and transaction methods are host responsibilities.
@@ -943,6 +1005,9 @@ evaluated a skipped branch. A regulator-facing explanation assembled from that
 trace could be misleading even though the Boolean result matches. The comparison
 therefore includes trace structure and evidence, not just the top-level status.
 
+% BEGIN REVISION ADDITION teach-M07-10
+\input{\LegalMathRoot teaching/teach-M07-10}
+% END REVISION ADDITION teach-M07-10
 Natural-language explanations are generated from the verified trace and approved
 source mappings. A language model may help render a readable summary, but it
 cannot alter the computed result or invent a justification. If a summary mentions
@@ -988,6 +1053,9 @@ cannot cover a time later than the recording instant of its assertion. A
 withdrawal ends the applicable consent generation, and a later regrant uses a new
 evidence identity rather than resurrecting a previously withdrawn record.
 
+% BEGIN REVISION ADDITION teach-M07-11
+\input{\LegalMathRoot teaching/teach-M07-11}
+% END REVISION ADDITION teach-M07-11
 For an achievement obligation, activation opens a duty with a deadline. The
 selected contract uses the interval from activation up to, but excluding, the
 deadline for timely performance. Performance exactly at the excluded endpoint is
@@ -1033,6 +1101,9 @@ checks. An annual-review event creates work that must later be evidenced as
 completed. The exact consequences require review of the cited guidance and the
 bank's operating procedure \citep{sfcspiannex1,sfcspiannex2}.
 
+% BEGIN REVISION ADDITION teach-P-03-product-04
+\input{\LegalMathRoot teaching/teach-P-03-product-04}
+% END REVISION ADDITION teach-P-03-product-04
 An obligation record should distinguish its creation, due condition, performance,
 breach and any later remediation. If a transaction occurs after a withdrawal, the
 audit view must retain the transaction and identify the issue; it cannot erase
@@ -1062,22 +1133,25 @@ order in which messages happen to arrive establishes legal priority.
 \label{merge:P-03b-event-contract:00}
 
 
-The first event implementation supports consent and non-preemptive achievement
-duties. Events have immutable identifiers, stream identifiers, occurrence and
-recorded timestamps, and an authoritative sequence number. Timestamps are UTC
-with microsecond precision; legal date conversion explicitly uses
-\texttt{Asia/Hong\_Kong}. Equal occurrence times can use sequence order only
-when the connector declares that ordering authority. Otherwise the result is
-\texttt{E\_ORDER\_UNRESOLVED}. A duplicate event with identical bytes is a
-no-op; reuse of its identifier for different content is an error.
+Apply the state model to a single stream: a grant creates generation $g_1$,
+a withdrawal closes $g_1$, and a later grant creates $g_2$. A transaction carrying
+$g_1$ after the withdrawal is still an observed event, but it cannot be treated as
+an active-consent action. If the withdrawal and transaction have the same
+occurrence time and the connector supplies no ordering authority, the profile
+returns \texttt{E\_ORDER\_UNRESOLVED} rather than guessing from arrival order.
 
-Consent begins as not established only when the stream is complete from its
-declared inception, or is complete after a reviewed initial snapshot. An incomplete export
-instead yields an unknown history. A grant creates an active consent generation;
-withdrawal makes it withdrawn; a new grant needs new evidence and creates a new
-generation. Observed transactions remain in the audit history even when the
-current consent state would prevent streamlined use.
+The trace header binds subject, category, actor, action, profile and inception.
+Each event has an immutable identifier, occurrence and recorded timestamps, and
+an authoritative sequence number when one exists. Identical duplicate bytes are
+idempotent; reusing an identifier with different content is an error. A grant or
+withdrawal can establish the state only when the stream is complete from its
+declared inception or a reviewed initial snapshot. An incomplete export remains
+an unknown history, and observed transactions remain in the audit record even
+when the current state would have blocked streamlined treatment.
 
+% BEGIN REVISION ADDITION teach-P-03b-event-contract-00
+\input{\LegalMathRoot teaching/teach-P-03b-event-contract-00}
+% END REVISION ADDITION teach-P-03b-event-contract-00
 An obligation records actor, action, subject, source version, activation and a
 deadline or explicit absence of a deadline. Let $a$ be activation and $d$ the
 exclusive deadline. Under this proposed profile, a matching performance at time
@@ -1127,6 +1201,9 @@ these records external and acyclic. A reviewer approves the exact tested bytes
 through the final manifest, rather than approving a mutable directory or a
 human-readable version label.
 
+% BEGIN REVISION ADDITION teach-M07-12
+\input{\LegalMathRoot teaching/teach-M07-12}
+% END REVISION ADDITION teach-M07-12
 Candidate compilation occurs before legal approval, because reviewers need a
 concrete package and verification evidence to inspect. Compilation does not grant
 deployment authority. Export into a controlled release route occurs only after
@@ -1166,6 +1243,9 @@ rereads and reevaluates under a bounded transaction retry policy. That policy is
 separate from interpretation-resolution retries and must not share an ambiguous
 counter called simply ``attempts.''
 
+% BEGIN REVISION ADDITION teach-M07-13
+\input{\LegalMathRoot teaching/teach-M07-13}
+% END REVISION ADDITION teach-M07-13
 Idempotency protects against duplicate submissions. Repeating the same order
 identifier and payload should recover the same committed result or reservation.
 Using the same identifier with a different payload is a conflict. The identity
@@ -1211,6 +1291,9 @@ again. A withdrawal must invalidate a stale consent version before a new order
 can consume the decision. Market-exposure policy, release timing and retry limits
 must be agreed with the bank's order and risk owners.
 
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-05
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-05}
+% END REVISION ADDITION teach-P-03d-java-delivery-05
 An implementable host sequence is:
 \begin{enumerate}
 \item Resolve an idempotency key from the order request. A retry with the same
@@ -1253,12 +1336,15 @@ independent legal review can reject a perfectly verified expression because it
 misreads an exception. The dossier should state the role of each result so that
 one strong component does not hide a missing one.
 
+% BEGIN REVISION ADDITION teach-M07-14
+\input{\LegalMathRoot teaching/teach-M07-14}
+% END REVISION ADDITION teach-M07-14
 For the current project, the retained engineering evidence includes the local
-MVP test suite and the separate second-circular exercise. The new ensemble is not
-yet an implemented live-model product. The appropriate next engineering step is
-to implement its controller and contracts, then run deterministic acceptance
-scenarios, then evaluate interpretation performance with independent reference
-judgments. Declaring the entire product ready because the Java path works would
+MVP test suite, the separate second-circular exercise and the later E01--E09
+scripted controller acceptance. The controller and its deterministic
+acceptance scenarios now exist. The next empirical step requires independent
+reference judgments and restricted live-provider evaluation. No implemented
+live-model product has yet established legal-interpretation performance. Declaring the entire product ready because the Java path works would
 skip the central problem this book is designed to address.
 
 A release reviewer should be able to answer four concrete questions from the

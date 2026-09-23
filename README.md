@@ -3,6 +3,12 @@
 Turn selected Hong Kong regulatory requirements into reviewable specifications
 and generated Java controls.
 
+- [Automated source and interpretation assurance](docs/implementation/interpretation-round3/operator-guide.md):
+  source-only inventories, executable-meaning checks, bounded repairs and continuing change detection.
+  [Execution evidence](docs/implementation/interpretation-round3/execution-report.md),
+  [current reset memo](docs/implementation/interpretation-round3/reset-memo.md),
+  [implemented method boundaries](docs/implementation/interpretation-round3/method-profile.md), and
+  [next implementation work](docs/implementation/interpretation-round3/next-phase-plan.md).
 - [Bounded interpretation workbench](docs/implementation/interpretation-round1/operator-guide.md):
   source inventories, competing readings, bounded scripted repairs and exact-evidence review.
 - [Executed next-round master program](docs/implementation/interpretation-round1/execution-report.md):

@@ -39,10 +39,9 @@ def extract(raw, media_type):
         if len(text.encode("utf-8")) > 20 * 1024 * 1024:
             raise LegalMathError("E_RESOURCE_LIMIT")
         return normalize_text(text), {"name": "pypdf", "version": version("pypdf"), "configuration": {"page_separator": "\f"}}
-    if media_type == "application/json":
+    if media_type in ("application/json", "text/html"):
         try:
-            data = json.loads(raw)
-            html = data["html"]
+            html = json.loads(raw)["html"] if media_type == "application/json" else raw.decode("utf-8")
             if not isinstance(html, str): raise ValueError("Non-text HTML")
         except (ValueError, KeyError, TypeError) as exc:
             raise LegalMathError("E_SCHEMA") from exc

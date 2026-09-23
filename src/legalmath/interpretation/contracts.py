@@ -36,13 +36,15 @@ def reference_policy():
 def policy(value):
     validate('policy', value)
     ref = reference_policy()
-    if value['use'] != 'DETERMINISTIC_FIXTURE_ONLY' or any(value[x] is not None for x in ('token_cap','cost_cap_minor_units','billing_currency')):
+    if value['use'] not in ('DETERMINISTIC_FIXTURE_ONLY','RESEARCH_SEARCH') or any(value[x] is not None for x in ('token_cap','cost_cap_minor_units','billing_currency')):
         raise LegalMathError('E_UNSUPPORTED_PROFILE')
     if value['required_initial_roles'] != ref['required_initial_roles'] or value['mandatory_checks'] != ref['mandatory_checks']:
         raise LegalMathError('E_SCHEMA')
     # Hard prototype ceilings keep caller-supplied fixture budgets finite in practice.
     ceilings = {k: max(v, 100) for k,v in ref.items() if type(v) is int}
     ceilings.update(run_deadline_seconds=600, action_timeout_seconds=30, max_candidates=64, max_argument_nodes=500)
+    if value['use']=='RESEARCH_SEARCH':
+        ceilings.update(run_deadline_seconds=3600,action_timeout_seconds=300)
     if any(value[k] > n for k,n in ceilings.items()):
         raise LegalMathError('E_RESOURCE_LIMIT')
     if value['max_initial_actions'] < len(ref['required_initial_roles']) or value['max_actions_total'] < value['max_initial_actions']:
@@ -89,4 +91,8 @@ def parse(model, value):
     try:
         return model.model_validate(value).model_dump()
     except ValidationError as exc:
-        raise LegalMathError('E_SCHEMA') from exc
+        errors = exc.errors(include_url=False, include_context=False, include_input=False)
+        details = {'model': model.__name__, 'total_errors': len(errors),
+                   'validation_errors': [dict(e, loc=list(e['loc'])) for e in errors[:64]],
+                   'truncated': len(errors) > 64}
+        raise LegalMathError('E_SCHEMA', details=details) from exc

@@ -27,7 +27,7 @@ from .jobs import Jobs
 from . import models
 
 
-def create_app(data_dir, identities=None, *, jdk=None, comparison_jar=None, run_jobs=True):
+def create_app(data_dir, identities=None, *, jdk=None, comparison_jar=None, run_jobs=True, search_provider=None):
     db, lc = Database(data_dir), None
     lc = Lifecycle(db)
     if identities: lc.register(identities)
@@ -248,6 +248,8 @@ def create_app(data_dir, identities=None, *, jdk=None, comparison_jar=None, run_
     install_views(app, db)
     from ..interpretation.api import install as install_interpretations
     install_interpretations(app, db, caller, key, run_jobs)
+    from ..interpretation.search.api import install as install_search
+    install_search(app,app.state.interpretations,caller,key,jdk,search_provider,run_jobs)
     from .openapi import install_contracts
     install_contracts(app)
     return app

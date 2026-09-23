@@ -18,6 +18,8 @@ PLAN = ROOT / 'docs/implementation/interpretation-round1/master-plan.json'
 BASE = ROOT / '.localresources/interpretation-round1/baseline'
 PYTHON = ROOT / '.venv/bin/python'
 PHASES = ('P0', 'P1', 'P2', 'P3', 'P4')
+COMMAND_TIMEOUT_SECONDS = 600
+PREDECESSORS = None
 
 
 def sha(path):
@@ -114,7 +116,8 @@ def note(path):
 def run(phase,s):
     ps=s['phases'][phase]
     if ps['status']=='PASSED':raise ValueError('Phase already passed; do not overwrite acceptance')
-    if any(s['phases'][p]['status']!='PASSED' for p in PHASES[:PHASES.index(phase)]):
+    required=PREDECESSORS[phase] if PREDECESSORS is not None else PHASES[:PHASES.index(phase)]
+    if any(s['phases'][p]['status']!='PASSED' for p in required):
         raise ValueError('Predecessor has not passed')
     if ps['status']=='REPAIR_REQUIRED':raise ValueError('Record an executed repair before rerunning')
     if ps['status']=='RUNNING':raise ValueError('Interrupted supervisor: recover the existing attempt first')
@@ -146,7 +149,7 @@ def run(phase,s):
                                       env={**os.environ,'CUDA_VISIBLE_DEVICES':'-1'})
                 record['running_process']={'pid':proc.pid,'proc_start':Path(f'/proc/{proc.pid}/stat').read_text().split()[21]}
                 write(attempt/'run-manifest.json',record)
-                try:code=proc.wait(timeout=600)
+                try:code=proc.wait(timeout=COMMAND_TIMEOUT_SECONDS)
                 except subprocess.TimeoutExpired:
                     os.killpg(proc.pid,signal.SIGKILL);proc.wait();code=124
             record['commands'].append({'name':name,'argv':cmd,'exit_code':code,'wall_seconds':round(time.monotonic()-started,3),'log':str((attempt/(name+'.log')).relative_to(ROOT))})

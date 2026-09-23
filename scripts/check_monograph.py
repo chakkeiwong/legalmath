@@ -26,11 +26,16 @@ def main():
     def require(c,msg):
         if not c:errors.append(msg)
     tex=(BOOK/'monograph.tex').read_text()
-    includes=INPUT.findall(tex)
+    includes=[n for n in INPUT.findall(tex) if re.search(
+        r'\\chapter(?:\[[^\]]*\])?\{', (BOOK/(n+'.tex')).read_text())]
     require(len(includes)==10,'Expected ten chapters')
     chapter_files=[BOOK/(n+'.tex') for n in includes]
-    supplemental_files=[BOOK/(n+'.tex') for p in chapter_files for n in INPUT.findall(p.read_text())]
-    files=[BOOK/'monograph.tex',BOOK/'references.bib']+chapter_files+supplemental_files
+    def included_files(path):
+        found=[path]
+        for n in INPUT.findall(path.read_text()):
+            found.extend(included_files(BOOK/(n+'.tex')))
+        return found
+    files=list(dict.fromkeys(included_files(BOOK/'monograph.tex')+[BOOK/'references.bib']))
     require(all(p.is_file() for p in files),'Missing manuscript source')
     full='\n'.join(p.read_text() for p in files if p.suffix=='.tex')
     labels=re.findall(r'\\label\{([^}]+)\}',full)

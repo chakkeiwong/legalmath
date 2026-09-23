@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 import fitz
+from monograph_revision_support import restore_revision
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / '.localresources/unification/baseline'
@@ -93,7 +94,7 @@ def main():
             at = heading.end() if heading else 0
             body = body[:at] + '\n\n' + unit['added_bridge'] + body[at:]
         body = body.strip() + '\n'
-        destination = (ROOT / unit['destination']).read_text()
+        destination = restore_revision((ROOT / unit['destination']).read_text(), ROOT / unit['destination'])
         marker = re.search(r'% BEGIN SOURCE UNIT ' + re.escape(unit['id']) +
                            r'\n(.*?)% END SOURCE UNIT ' + re.escape(unit['id']) + r'\n',
                            destination, re.S)
@@ -141,9 +142,36 @@ def main():
     accepted = json.loads((ROOT / 'artifacts/runs/acceptance/run-manifest.json').read_text())
     repair = json.loads((ROOT / 'artifacts/runs/acceptance/final-artifacts.json').read_text())['browser_harness_repair']
     runtime = dict(accepted['input_sha256'])
+    # E01–E09 was accepted after the original T00–T22 snapshot. Use that
+    # immutable acceptance for the four runtime files it deliberately extended.
+    extension_path = ROOT / 'artifacts/interpretation/round1/P4/attempt-03/run-manifest.json'
+    require(sha(extension_path) == '57db782787f9bf6e45ba643dcc6e35b9d064021455b6aa86dbd8f36119c17ef4',
+            'Interpretation acceptance manifest identity changed')
+    extension = json.loads(extension_path.read_text())
+    require(extension['status'] == 'PASSED', 'Interpretation acceptance did not pass')
+    extended_paths = {'src/legalmath/api/app.py', 'src/legalmath/review/lifecycle.py',
+                      'src/legalmath/review/releases.py', 'src/legalmath/storage/archive.py'}
+    concurrent_path = ROOT / 'docs/monograph/review/revision/concurrent-runtime-change.json'
+    concurrent = json.loads(concurrent_path.read_text()) if concurrent_path.exists() else None
+    concurrent_api_path = ROOT / 'docs/monograph/review/revision/concurrent-api-change.json'
+    concurrent_api = json.loads(concurrent_api_path.read_text()) if concurrent_api_path.exists() else None
     for path, value in runtime.items():
         expected_hash = repair['after_sha256'] if value == repair['before_sha256'] else value
-        require(sha(ROOT / path) == expected_hash, 'Accepted runtime input changed: ' + path)
+        if path in extended_paths:
+            expected_hash = extension['input_sha256'][path]
+        current_hash = sha(ROOT / path)
+        if concurrent_api and path == concurrent_api['path'] and current_hash != expected_hash:
+            require(current_hash == concurrent_api['current_sha256'], 'Concurrent API changed beyond reviewed diff')
+        elif concurrent and path == concurrent['path'] and current_hash != expected_hash:
+            require(current_hash == concurrent['after_sha256'], 'Concurrent CLI changed beyond reviewed diff')
+            restored = (ROOT / path).read_text()
+            for edit in concurrent['inverse_edits']:
+                require(restored.count(edit['old']) == 1, 'Concurrent CLI inverse edit is ambiguous')
+                restored = restored.replace(edit['old'], edit['new'], 1)
+            require(hashlib.sha256(restored.encode()).hexdigest() == expected_hash,
+                    'Concurrent CLI change did not preserve accepted commands')
+        else:
+            require(current_hash == expected_hash, 'Accepted runtime input changed: ' + path)
 
     chapter_pages = [(title, page) for level, title, page in pdf.get_toc()
                      if level == 1 and title != 'The decision this book supports']
