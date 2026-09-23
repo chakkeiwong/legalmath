@@ -1,0 +1,1851 @@
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+Argument & Computation
+Vol. 00, No. 00, Month 200x, 1–31
+
+RESEARCH ARTICLE
+An abstract framework for argumentation with structured arguments
+Henry Prakken
+Department of Information and Computing Sciences, Utrecht University
+& Faculty of Law, University of Groningen
+(Received 00 Month 200x; final version received 00 Month 200x)
+An abstract framework for structured arguments is presented that instantiates Dung’s (1995) abstract argumentation frameworks. Arguments are defined as inference trees formed by applying two kinds of inference
+rules: strict and defeasible rules. This naturally leads to three ways of attacking an argument: attacking a
+premise, attacking a conclusion and attacking an inference. To resolve such attacks, preferences may be
+used, which leads to three corresponding kinds of defeat: undermining, rebutting and undercutting defeat.
+The nature of the inference rules, the structure of the logical language on which they operate and the origin
+of the preferences are, apart from some basic assumptions, left unspecified.
+The resulting framework integrates work of Pollock, Vreeswijk and others on the structure of arguments
+and the nature of defeat, and extends it in several respects. Various rationality postulates are proven to be
+satisfied by the framework, and several existing approaches are proven to be a special case of the framework,
+including assumption-based argumentation and DefLog.
+
+1.
+
+Introduction
+
+In 1995 Phan Minh Dung introduced an abstract formalism for argumentation-based inference (Dung 1995), which assumes as input nothing else but a set (of arguments) ordered
+by a binary relation (of attack). Although he thus fully abstracted from the structure of
+arguments and the nature of the attack relation, he was still able to develop an extremely
+interesting theory. His article was a breakthrough in three ways: it provided a general
+and intuitive semantics for the consequence notions of argumentation logics (and for nonmonotonic logics in general); it made a precise comparison possible between different
+systems (by translating them into his abstract format); and it made a general study of formal properties of systems possible, which are inherited by instantiations of his framework.
+In consequence, Dung’s work has given an enormous boost to research in computational
+argumentation. Yet it has also been criticised for not specifying the structure of arguments
+and the nature of the attack relation, which makes it less suitable for modelling specific argumentation problems. I believe that such criticism fails to appreciate the nature of Dung’s
+formalism. It is best seen not as a formalism for directly representing argumentation-based
+inference problems but as a tool for analysing particular argumentation systems and for
+developing a metatheory of such systems. As such it has been very successful: differences between particular systems can be characterised in terms of some simple notions,
+and formal results established for the framework are inherited by its instantiations. This
+was already illustrated by Dung (1995) with reconstructions of Pollock’s (1987) system,
+various logic-programming semantics and Reiter’s (1980) default logic in his formalism.
+
+This work was partially supported by a Distinguished Visitor grant from the Scottish Informatics and Computer Science
+Alliance (SICSA). I thank Chris Reed and the School of Computing, University of Dundee, Scotland, for their hospitality
+during the summer of 2009 and Chris Reed for encouraging me to write this paper. Floris Bex, Phan Minh Dung, Tom
+Gordon, Sanjay Modgil, Leon van der Torre, Bart Verheij and Gerard Vreeswijk gave useful feedback on earlier versions
+of this paper. Finally, I thank my former collaborators in the ASPIC project for working with me on previous versions of
+the ASPIC framework.
+ISSN: 1946-2166 print/ISSN 1946-2174 online
+c 200x Taylor & Francis
+DOI: 10.1080/1946216YYxxxxxxxx
+http://www.informaworld.com
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+2
+
+Nevertheless, it is true that when actual argumentation-based inference has to be modelled, Dung’s framework is by itself usually too abstract and instead an instantiated version of his approach should be used. However, here too abstraction is still possible and
+worthwhile. The aim of this paper is to instantiate Dung’s abstract approach with a general
+account of the structure of arguments and the nature of the defeat relation1 . The framework defines arguments as inference trees formed by applying two kinds of inference
+rules, strict and defeasible rules. This naturally leads to three ways of attacking an argument: attacking a premise, attacking a conclusion and attacking an inference. To resolve
+such attacks, preferences may be used, which leads to three corresponding kinds of defeat:
+undermining, rebutting and undercutting defeat. To characterise them, some minimal assumptions on the logical object language must be made, namely that certain well-formed
+formulas are a contrary or contradictory of certain other well-formed formulas. Apart
+from this the framework is still abstract: it applies to any set of inference rules, as long
+as it is divided into strict and defeasible ones, and to any logical language with a contrary
+relation defined over it.
+The choice for tree-structured arguments based on two types of inference rules arguably
+is very natural both in light of logic and argumentation theory and when looking at argumentation as it occurs in human thinking and dialogue. The notion of arguments as trees
+of inferences is very common in standard logic and in argumentation theory, and is the basis of many software tools for argument visualisation. Moreover, in actual argumentation
+humans often express their arguments as claims supported with one or more premises,
+which can in turn be supported with further premises, and so on. Finally, as will be further
+explained in Section 4, the setup with general defeasible inference rules is very suited for
+modelling reasoning with argumentation schemes (Walton et al. 2008).
+The account offered in this paper is not completely new. In fact, a rhetorical aim of the
+paper is to counter the idea that the computational study of argumentation started with
+Dung’s abstract approach and that only then researchers made it more concrete with accounts of the structure of arguments and the nature of defeat. As a matter of fact, much
+work on these two issues was already done or going on at the time when Dung wrote
+his paper, and some of this work is still state-of the art. For instance, both John Pollock
+(1987, 1994) and Gerard Vreeswijk (1993, 1997) did important work on the structure of
+arguments, while Pollock (1974, 1987) introduced an important distinction between two
+kinds of defeat, namely rebutting defeat (attack on a conclusion) and undercutting defeat
+(attack on an inference rule). One aim of the present paper is to profit from, integrate and
+build on this and other important work as much as possible. As such this paper is a further development of the integration attempt that was undertaken in the European ASPIC
+project (Amgoud et al. 2006). In this project, Vreeswijk’s formalisation of the structure of
+arguments was combined with Pollock’s definitions of rebutting and undercutting defeat
+in a way that also used insights from other work. The result was a characterisation of a set
+of tree-structured arguments ordered with a binary defeat relation, so that an instantiation
+of Dung’s abstract approach was achieved and any of Dung’s semantics could be used to
+compute the acceptability status of the structured arguments.
+The ASPIC framework was developed by Leila Amgoud, Martin Caminada, Claudette
+Cayrol, Marie-Christine Lagasquie-Schieux, myself and Gerard Vreeswijk, and was first
+reported in a European project deliverable (Amgoud et al. 2006). The added expressiveness compared to Dung’s abstract formalism gave rise to further work by Caminada and
+Amgoud (2007) on rationality postulates for systems instantiating the ASPIC framework.
+The aim of this work was to propose the idea of rationality postulates and to criticise
+some specific rule-based argumentation systems for failing to satisfy them. For this aim
+
+1 For reasons explained in Section 3 this paper will rename Dung’s attack relations to ‘defeat’ relations and reserve the term
+
+‘attack’ for something else.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+3
+
+only a simplified version of the ASPIC framework was needed, without preferences and
+without the notion of a knowledge base. Moreover, the examples discussed by Caminada
+and Amgoud (2007) were all with domain-specific inference rules instead of with general
+inference patterns, which in effect somewhat obscured the potential of the framework to
+be a general account of structured argumentation.
+By contrast, the present paper aims to present the ASPIC framework as a general abstract model of argumentation with structured arguments.1 To achieve this aim, the ASPIC
+framework will be extended and generalised in four respects.
+(1) A third way of argument attack, namely premise attack or ‘undermining’ will be
+added, in a way inspired by Vreeswijk’s (1993, Ch. 8) combination of “plausible”
+and “defeasible” argumentation. Apart from the naturalness of having all three
+kinds of attack in a general framework for argumentation, this will make it easier
+to formalise argument schemes in the framework and it will make it possible to
+regard existing systems with premise attack as special cases of the framework.
+(2) The three notions of attack will be generalised from the notion of contradiction
+between formulas ϕ and ¬ϕ to an abstract relation of contrariness between formulas which is not necessarily symmetric. This idea is taken from Bondarenko
+et al. (1997) and Verheij (2003) and will help in showing that their systems are a
+special case of the present framework.
+(3) Four types of premises will be distinguished, inspired by a similar distinction of
+Gordon et al. (2007).
+(4) Attack relations will be partly resolved with preference orderings on arguments,
+defeasible rules and the knowledge base (although Amgoud et al. 2006 also has
+preferences, the results of Caminada and Amgoud 2007 do not cover them).
+It will then be investigated to what extent the results of Caminada and Amgoud (2007) on
+rationality postulates generalise to the thus extended ASPIC framework. The final aim of
+this paper is to compare the resulting framework with recent related work. It will turn out
+that assumption-based argumentation (Bondarenko et al. 1997, Dung et al. 2006, 2007),
+DefLog (Verheij 2003) and Amgoud and Cayrol (2002)’s version of deductive argumentation are special cases of this paper’s version of the ASPIC framework.
+
+2.
+
+Dung’s abstract argumentation frameworks
+
+First without explanation the basic concepts and insights of Dung’s abstract argumentation
+approach are listed. For a state-of the art introduction see Baroni and Giacomin (2009).
+Definition 2.1 : [Abstract argumentation framework] An abstract argumentation framework (AF ) is a pair hA, Def i. A is a set arguments and Def ⊆ A × A is a binary relation
+of defeat. We say that an argument A defeats an argument B iff (A, B ) ∈ Def .
+Definition 2.2 : [Conflict-free, Defence] Let B ⊆ A.
+• A set B is conflict-free iff there exist no Ai , Aj in B such that Ai defeats Aj .
+• A set B defends an argument Ai iff for each argument Aj ∈ A, if Aj defeats Ai , then
+there exists Ak in B such that Ak defeats Aj .
+
+Definition 2.3 : [Acceptability semantics] Let B be a conflict-free set of arguments, and
+let F : 2A 7→ 2A be a function such that F(B) = {A | B defends A}.
+
+1 In this paper the term ‘framework’ will be used to denote the general model, to highlight that it can be instantiated in
+
+various ways (such instantiations will in turn be called argumentation systems). This contrasts with Dung’s (1995) use of
+the term ‘argumentation framework’, which denotes a specific set of arguments with a specific attack relation. In the present
+paper such specific inputs to an argumentation system will be called argumentation theories.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+4
+
+• B is admissible iff B ⊆ F(B).
+• B is a complete extension iff B = F(B).
+• B is a grounded extension iff it is the smallest (w.r.t. set-inclusion) complete extension.
+• B is a preferred extension iff it is a maximal (w.r.t. set-inclusion) complete extension
+(or, equivalently, if B is a maximal (w.r.t. set inclusion) admissible set).
+• B is a stable extension iff it is a preferred extension that defeats all arguments in A\B .
+
+Note that this implies that each grounded, preferred or stable extension of an AF is also
+a complete extension of that AF . Some other known results are that
+• the grounded extension is indeed unique but all other semantics allow for multiple
+extensions of an AF ;
+• each AF has a grounded and at least one preferred and complete extension, but there
+are AF s without stable extensions;
+• the grounded extension of an AF is contained in all other extensions of that AF .
+
+3.
+
+Argumentation systems with structured arguments
+
+In this section the arguments of Dung’s argumentation frameworks are given structure and
+its defeat relation is defined in terms of the structure of arguments plus external preference information. Apart from this, the resulting formalism is still as abstract as possible,
+allowing for different logical languages, different sets of inference rules for building arguments and different preference orderings. The framework uses Vreeswijk’s (1993, 1997)
+definition of the structure of arguments and then adds Pollock’s (1987, 1994) distinction
+between rebutting and undercutting attack, as well as a variant of the notion of premise attack proposed by Vreeswijk (1993, Ch. 8). These notions are then generalised to languages
+with arbitrary relations of contrariness and contradiction between well-formed formulas.
+Then the three notions of attack are combined into a notion of defeat in a way inspired by
+Vreeswijk (1993, Ch. 8) and Prakken and Sartor (1997). It is this combination that makes
+it possible to regard the system as an instantiation of Dung’s abstract framework.
+The resulting framework unifies two ways to capture the defeasibility of reasoning.
+Some, e.g. Amgoud and Cayrol (2002), Besnard and Hunter (2008), Bondarenko et al.
+(1997), Verheij (2003), locate the defeasibility of arguments in the uncertainty of their
+premises, so that arguments can only be attacked on their premises. Others, e.g. Pollock
+(1994), Vreeswijk (1997), instead locate the defeasibility of arguments in the riskiness of
+their inference rules: in these logics inference rules are of two kinds, being either deductive or defeasible, and arguments can only be attacked on their applications of defeasible
+inference rules. Typically, in this approach inconsistency of the knowledge base makes
+the system collapse. Vreeswijk (1993, Ch. 8) called these two approaches plausible and
+defeasible reasoning: he described plausible reasoning as sound (i.e, deductive) reasoning
+on an uncertain basis, and defeasible reasoning as unsound (but still rational) reasoning on
+a solid basis. In his chapter 8, Vreeswijk attempted to combine both forms of reasoning in
+a single formalism, but since then most formal accounts of argumentation have modelled
+either only plausible or only defeasible reasoning.
+3.1.
+
+Basic definitions
+
+The basic notion of the present framework is that of an argumentation system, which extends the familiar notion of a proof system with a distinction between strict and defeasible
+inference rules 1 and a preference ordering on the defeasible inference rules.
+1 Pollock (1987, 1994) calls these ‘conclusive’ and ‘prima facie reasons’.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+5
+
+Definition 3.1 : [Argumentation system] An argumentation system is a tuple AS =
+(L, − , R, ≤) where
+• L is a logical language,
+• − is a contrariness function from L to 2L ,
+• R = Rs ∪ Rd is a set of strict (Rs ) and defeasible (Rd ) inference rules such that
+Rs ∩ Rd = ∅,
+• ≤ is a partial preorder on Rd .
+
+Amgoud et al. (2006) and Caminada and Amgoud (2007) assume that arguments are
+expressed in a logical language that is left unspecified except that it is closed under classical negation. In this paper this assumption will be generalised in two ways. Firstly, nonsymmetric conflict relations between formulas will be allowed, such as the contrariness
+relation of Bondarenko et al. (1997) (which captures, for instance, negation as failure)
+and its inverse, the dialectical negation of Verheij (2003) (which means ‘it is defeated
+that’). Secondly, in addition to classical negation, other symmetric conflict relations will
+be allowed, so that, for instance, formulas like ‘bachelor’ and ‘married’ can, if desired, be
+declared contradictory without having to reason with an axiom ¬(bachelor ∧ married).
+Definition 3.2 : [Logical language] Let L, a set, be a logical language and − a contrariness function from L to 2L . If ϕ ∈ ψ then if ψ 6∈ ϕ then ϕ is called a contrary of ψ ,
+otherwise ϕ and ψ are called contradictory. The latter case is denoted by ϕ = −ψ (i.e.,
+ϕ ∈ ψ and ψ ∈ ϕ).
+In examples with classical negation ¬, it will be assumed that ¬ϕ ∈ ϕ and ϕ ∈ ¬ϕ.
+Now that the notion of negation has been generalised, the same must be done with the
+notion of consistency.
+Definition 3.3 : [consistent set] Let P ⊆ L. P is consistent iff ∄ ψ , ϕ ∈ P such that
+ψ ∈ ϕ, otherwise it is inconsistent.
+Note that this is a weak form of consistency, determined by whether a set contains contrary
+or contradictory formulas. Caminada and Amgoud (2007) call this direct consistency and
+they call consistency of the closure of a set under strict inference indirect consistency.
+Arguments are built by applying inference rules to subsets of L. Inference rules are
+either strict or defeasible. This distinction goes back to Lin and Shoham (1989), Pollock
+(1987) and Vreeswijk (1993), as does the idea of abstracting from their nature.
+Definition 3.4 : [Strict and defeasible rules] Let ϕ1 , . . ., ϕn , ϕ be elements of L.
+• A strict rule is of the form ϕ1 , . . . , ϕn → ϕ, informally meaning that if ϕ1 , . . . , ϕn
+hold, then without exception it holds that ϕ.
+• A defeasible rule is of the form ϕ1 , . . . , ϕn ⇒ ϕ, informally meaning that if ϕ1 , . . . , ϕn
+hold, then it presumably holds that ϕ.
+ϕ1 , . . . , ϕn are called the antecedents of the rule and ϕ its consequent.
+
+As usual in logic, inference rules will often be specified by schemes in which a rule’s
+antecedents and consequent are metavariables ranging over L.
+Arguments are constructed from a knowledge base which, inspired by Gordon et al.
+(2007), is assumed to contain four kinds of formulas.
+Definition 3.5 : [Knowledge bases] A knowledge base in an argumentation system
+(L, − , R, ≤) is a pair (K, ≤′ ) where K ⊆ L and ≤′ is a partial preorder on K \ Kn .
+Here K = Kn ∪ Kp ∪ Ka ∪ Ki where these subsets of K are disjoint and
+• Kn is a set of (necessary) axioms. Intuitively, arguments cannot be attacked on their
+axiom premises.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+6
+
+• Kp is a set of ordinary premises. Intuitively, arguments can be attacked on their ordinary premises, and whether this results in defeat must be determined by comparing the
+attacker and the attacked premise (in a way specified below).
+• Ka is a set of assumptions. Intuitively, arguments can be attacked on their assumptions,
+where these attacks always succeed.
+• Ki is a set of issues. Intuitively, arguments of which the premises include an issue are
+never acceptable: an issue must always be backed with a further argument.
+
+(Gordon et al. 2007 call ordinary premises “assumptions”, they regard assumptions as
+the contradictories of “exceptions” and they call issues “ordinary premises”. Their counterpart to axioms is “accepted” and “rejected” statements.) As explained by Gordon et al.
+(2007), the category of issue premises is useful if an argumentation system is embedded
+in a dialogical context, defining the acceptability status of arguments relative to a stage in
+a dialogue. For example, in legal proceedings legal claims that are not backed by factual
+evidence usually do not stand: for instance, an argument ‘we have a contract by Section
+X of the Civil Code since I made an offer and you accepted’ will be unacceptable as long
+as no factual evidence for the offer and acceptance is provided. In the present framework
+this can be captured by giving the non-supported premises issue status.
+3.2.
+
+Arguments
+
+Next the arguments that can be constructed from a knowledge base in an argumentation system are defined. Arguments can be constructed step-by-step by chaining inference
+rules into trees. Arguments thus contain subarguments, which are the structures that support intermediate conclusions (plus the argument itself and its premises as limiting cases).
+In what follows, for a given argument, the function Prem returns all the formulas of K
+(called premises) used to build the argument, Conc returns its conclusion, Sub returns all
+its sub-arguments, DefRules returns all the defeasible rules of the argument and, finally,
+TopRule returns the last inference rule used in the argument.
+Definition 3.6 : [Argument] An argument A on the basis of a knowledge base (K, ≤′ )
+in an argumentation system (L, − , R, ≤) is:
+(1) ϕ if ϕ ∈ K with:
+Prem(A) = {ϕ},
+Conc(A) = ϕ,
+Sub(A) = {ϕ},
+DefRules(A) = ∅,
+TopRule(A) = undefined.
+(2) A1 , . . . An → ψ if A1 , . . . , An are arguments such that there exists a strict rule
+Conc(A1 ), . . . , Conc(An ) → ψ in Rs ,
+Prem(A) = Prem(A1 ) ∪ . . . ∪ Prem(An ),
+Conc(A) = ψ ,
+Sub(A) = Sub(A1 ) ∪ . . . ∪ Sub(An ) ∪ {A},
+DefRules(A) = DefRules(A1 ) ∪ . . . ∪ DefRules(An ),
+TopRule(A) = Conc(A1 ), . . . Conc(An ) → ψ .
+(3) A1 , . . . An ⇒ ψ if A1 , . . . , An are arguments such that there exists a defeasible
+rule Conc(A1 ), . . . , Conc(An ) ⇒ ψ in Rd ,
+Prem(A) = Prem(A1 ) ∪ . . . ∪ Prem(An ),
+Conc(A) = ψ ,
+Sub(A) = Sub(A1 ) ∪ . . . ∪ Sub(An ) ∪ {A},
+DefRules(A)
+=
+DefRules(A1 ) ∪ . . . ∪ DefRules(An ) ∪
+{Conc(A1 ), . . . Conc(An ) ⇒ ψ},
+TopRule(A) = Conc(A1 ), . . . Conc(An ) ⇒ ψ .
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+7
+
+Example 3.7 Consider a knowledge base in an argumentation system with
+Rs =
+Rd =
+Kn =
+Kp =
+Ka =
+
+{p, q → s; u, v → w}
+{p ⇒ t; s, r, t ⇒ v}
+{q}
+{p, u}
+{r}
+
+An argument for w is displayed in traditional proof-tree format in Figure 1, where a single
+line stands for a strict inference and a double line for a defeasible inference. The type of
+a premise is indicated with a superscript. Formally the argument and its subarguments are
+
+Figure 1. An argument
+
+written as follows:
+A1 : p
+A2 : q
+A3 : r
+A4 : u
+
+A5 : A1 ⇒ t
+A6 : A1 , A2 → s
+A7 : A5 , A3 , A6 ⇒ v
+A8 : A7 , A4 → w
+
+We have that
+Prem(A8 ) =
+Conc(A8 ) =
+Sub(A8 ) =
+DefRules(A8 ) =
+TopRule(A8 ) =
+
+{p, q, r, u}
+w
+{A1 , A2 , A3 , A4 , A5 , A6 , A7 , A8 }
+{p ⇒ t; s, r, t ⇒ v}
+v, u → w
+
+Definition 3.8 : [Argument properties] An argument A is
+• strict if DefRules(A) = ∅;
+• defeasible if DefRules(A) 6= ∅;
+• firm if Prem(A) ⊆ Kn ;
+• plausible if Prem(A) 6⊆ Kn .
+
+We write S ⊢ ϕ if there exists a strict argument for ϕ with all premises taken from S , and
+S |∼ ϕ if there exists a defeasible argument for ϕ with all premises taken from S .
+Example 3.9 In Example 3.7 the argument A2 is strict and firm, while A1 , A3 , A4 and
+A6 are strict and plausible and A5 , A7 and A8 are defeasible and plausible. Furthermore,
+we have that K ⊢ p, K ⊢ q , K ⊢ r, K ⊢ u, K ⊢ s and K |∼ t, K |∼ v , K |∼ w.
+(From hereon the theory will be left implicit if there is no danger for confusion.)
+Now that the notion of an argument has been defined, orderings on arguments can be
+considered. Below  is a partial preorder such that A  B means that B is at least as
+‘good’ as A. As usual A ≺ B means A  B and B 6 A.
+In Section 6 two ways will be discussed to define  as a function from the orderings ≤
+on Rd and ≤′ on K. However, the present framework allows for any partial preorder on
+arguments that satisfies two basic assumptions (taken from Vreeswijk 1993).
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+8
+
+Definition 3.10 : [Admissible argument orderings] Let A be a set of arguments. Then a
+partial preorder  on A is an argument ordering iff
+(1) if A is firm and strict and B is defeasible or plausible, then B ≺ A;
+(2) if A = A1 , . . . An → ψ then for all 1 ≤ i ≤ n, A  Ai and for some 1 ≤ i ≤
+n, Ai  A.
+(Vreeswijk also assumes that an argument cannot be stronger than its weakest subargument but in Section 6 the so-called ‘last-link’ principle will be discussed, which violates
+this assumption.) The first condition says that strict-and-firm arguments are stronger than
+all other arguments, while the second condition says that a strict inference cannot make
+an argument weaker or stronger.
+Definition 3.11 : [Argumentation theories] An argumentation theory is a triple AT =
+(AS , KB , ) where AS is an argumentation system, KB is a knowledge base in AS and
+ is an argument ordering on the set of all arguments that can be constructed from KB in
+AS (below called the set of arguments on the basis of AT ).
+
+3.3.
+
+Attack and defeat
+
+Dung’s use of the term “attack” might at first sight lead to the belief that Dung’s framework has no place for preferences. However, Dung’s attack relation can also be seen as
+abstracting from the use of preferences: in this view an attack relation in his framework
+may be the result of applying preferences to a syntactic conflict. This view on Dung’s
+attack relation was, to my knowledge, first used by Prakken and Sartor (1997), it was also
+employed by Amgoud and Cayrol (2002) and it was the basis of Bench-Capon’s (2003)
+value-based argumentation frameworks. It was also the reason why Prakken and Sartor
+(1997) and Prakken and Vreeswijk (2002) replaced Dung’s term ‘attack’ with ‘defeat’,
+to reflect that it may incorporate evaluative considerations. This convention will also be
+adopted in the present paper, while the term ‘attack’ will be reserved for non-evaluative
+syntactic notions of conflict. The idea then is that defeat is determined by attack plus
+preference (except in some cases, where attack automatically leads to defeat).
+The notion of a defeasible inference rule naturally leads to two notions of rebutting
+and undercutting attack, introduced by Pollock (1974) and first formalised by Pollock
+(1987). The third kind of attack, premise attack (in this paper called undermining) is a
+natural addition (and for deductive inferences it is the only kind of attack) but highlights
+the philosophical distinction between plausible and defeasible reasoning discussed above.
+It was independently introduced by Vreeswijk (1993, Ch. 8) and Elvang-Göransson et al.
+(1993). In line with Prakken and Sartor (1997), rebutting and undercutting attacks can
+also be launched on subarguments. This is essential in making the system an instantiation
+of Dung’s abstract framework.
+3.3.1.
+
+Attack
+
+First the ways in which arguments can be attacked are defined. Recall that these are
+just syntactic categories and do not reflect any preference between arguments. The first
+way of attack corresponds to the case where one argument uses a defeasible rule of which
+another argument says that it does not apply to the case at hand. Its definition assumes
+that inference rules can be named in the object language; the precise nature of this naming
+convention will be left implicit.
+Definition 3.12 : [Undercutting attack] Argument A undercuts argument B (on B ′ ) iff
+Conc(A) ∈ B ′ for some B ′ ∈ Sub(B) of the form B1′′ , . . . , Bn′′ ⇒ ψ .
+Example 3.13 In Example 3.7 argument A8 can be undercut in two ways: by an argument
+with conclusion A5 , which undercuts A8 on A5 , and by an argument with conclusion A7 ,
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+9
+
+which undercuts A8 on A7 .
+Undercutting attackers only say that there is some exceptional situation in which a
+defeasible inference rule cannot be applied, without drawing the opposite conclusion.
+Rebutting attacks do the latter: they provide a contrary or contradictory conclusion for a
+defeasible (sub-)conclusion of the attacked argument.
+Definition 3.14 : [rebutting attack] Argument A rebuts argument B on (B ′ ) iff
+Conc(A) ∈ ϕ for some B ′ ∈ Sub(B) of the form B1′′ , . . . , Bn′′ ⇒ ϕ. In such a case
+A contrary-rebuts B iff Conc(A) is a contrary of ϕ.
+Example 3.15 In Example 3.7 argument A8 can be rebutted on A5 with an argument
+for t and on A7 with an argument for v . Moreover, if t = −t then A5 in turn rebuts
+any argument for t with a defeasible top rule. However, A8 itself does not rebut that
+argument, except in the special case where w ∈ t. This shows that for three reasons
+rebutting attack is not symmetric: the rebuttal can have a strict top rule, rebutting can be
+contrary-rebutting and rebutting can be launched on a subargument. However, the present
+example also shows that in the latter case, if the rebutting attack has a defeasible top rule
+and is not of the contrary-rebutting kind, the directly rebutted subargument in turn rebuts
+its attacker.
+The final way of attack is an attack on a (non-axiom) premise.
+Definition 3.16 : [undermining attack] Argument A undermines B (on ϕ) iff Conc(A) ∈
+ϕ for some ϕ ∈ Prem(B) \ Kn . In such a case argument A contrary-undermines B iff
+Conc(A) is a contrary of ϕ or if ϕ ∈ Ka .
+Example 3.17 In Example 3.7 argument A8 can be undermined with an argument that
+has conclusion p, r or u. If that attacker has a defeasible top rule and, say, a conclusion p
+and does not contrary-undermine A8 , then p as an argument in turn rebuts the attacker.
+The following example (based on Example 4 of Caminada and Amgoud 2007) illustrates the interplay between strict and defeasible rules in rebutting attack.
+Example 3.18
+A1 : WearsRing
+B1 : Partyanimal
+
+A2 : A1 ⇒ Married
+B2 : B1 ⇒ Bachelor
+
+A3 : A2 → ¬Bachelor
+B3 : B2 → ¬Married
+
+A3 rebuts B3 on its subargument B2 while B3 rebuts A3 on its subargument A2 . Note that
+A2 does not rebut B3 , since B3 applies a strict rule; likewise for B2 and A3 .
+
+3.3.2.
+
+Defeat
+
+Now that we know how arguments can be attacked, the argument ordering can be used
+to define which attacks result in defeat. For undercutting attack no preferences will be
+needed to make it result in defeat, since otherwise a weaker undercutter and its stronger
+target might be in the same extension. This would be strange since then the extension
+contains an argument that applies an inference rule of which another argument in the
+same extension says that it should not be applied.1 . The same holds for the other two ways
+of attack as far as they involve contraries (i.e., non-symmetric conflict relations between
+formulas). The reason for this is that otherwise if a rebutting or undermining attacker is
+weaker than its target, both may be in the same extension. For the remaining forms of
+attack the argument ordering will be used to determine whether they result in defeat.
+
+1 Modgil (2009) argues that in some contexts such extensions make sense. It seems that the formal results in Section 6
+
+below on rationality postulates also hold for undercutting defeat with preferences, but this should be formally verified.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+10
+
+Definition 3.19 : [Successful rebuttal] Argument A successfully rebuts argument B if A
+rebuts B on B ′ and either A contrary-rebuts B ′ or A 6≺ B ′ .
+This definition determines whether rebutting attack is successful by comparing the conflicting arguments at the points where they conflict. Thus in Example 3.18 the conflict
+between A3 and B3 is resolved by comparing A3 with B2 and comparing B3 with A2 .
+Now if B2 ≺ A3 (for example, since the married-rule is given priority over the bachelorrule) then A3 successfully rebuts B2 and B3 while B3 does not successfully rebut A2 or
+A3 . If, by contrast, A2 6≺ B3 and B2 6≺ A3 then both A3 and B3 successfully rebut each
+other (while A3 still successfully rebuts B2 and not vice versa, and likewise for B3 and
+A2 ). Note also that if A3 is deleted from the example, then if B3 ≺ A2 , no argument in
+the example is defeated. This may at first sight seem counterintuitive but this is due to the
+fact that the example violates closure of Rs under transposition (cf. Section 5 below).
+As noted by Caminada and Amgoud (2007), Example 3.18 also illustrates why Definitions 3.14 and 3.19 should not allow that a defeasible argument with a strict top rule can
+be (successfully) rebutted on its final conclusion. The reason is that otherwise if all defeasible rules in the example are of equal preference, the set {A1 , A2 , B1 , B2 } is admissible,
+which violates the rationality postulate of indirect consistency (see Section 6 below).
+Definition 3.20 : [Successful undermining] Argument A successfully undermines B if
+A undermines B on ϕ and either A contrary-undermines B or A 6≺ ϕ.
+This definition exploits that an argument premise is also defined to be a subargument.
+In Example 3.7 any argument for r successfully undermines A8 since it contraryundermines it since r ∈ Ka . The same holds for any argument for a contrary of p or
+u while for arguments for contradictories of p or u this depends on the argument ordering
+(which may in turn depend on the ordering ≤′ on K; see Definitions 6.14 and 6.17 below).
+It remains to be discussed how the framework should deal with arguments that have
+issue premises. As explained above, the idea is that arguments with issue premises are
+always unacceptable. There are various ways to formalise this idea. One would be to let
+a special designated argument, or perhaps all strict-and-firm arguments, defeat any argument with an issue premise (as in Modgil 2009, Prakken and Sartor 1997). Here another
+solution is adopted: an argument can defeat another only if it has no issue premises. Then
+in Definition 2.1 only sets B with no issue premises will be considered, so that no argument with issue premises is in any extension.
+The three defeat relations can now be combined in an overall definition of ‘defeat’:
+Definition 3.21 : [Defeat] Argument A defeats argument B iff no premise of A is an
+issue and A undercuts or successfully rebuts or successfully undermines B . Argument A
+strictly defeats argument B if A defeats B and B does not defeat A.
+In the literature other combinations of these kinds of attack have been considered. For
+example, Prakken and Sartor (1997) (who have no undermining) give precedence to undercutting defeat over rebutting defeat, so that if A successfully undercuts B while B
+successfully rebuts A, nevertheless A strictly defeats B . It remains to be investigated how
+crucial the present definition is for the results below.
+Finally, argumentation theories can be linked to Dung-style argumentation frameworks.
+Definition 3.22 : [Argumentation framework] An abstract argumentation framework
+(AF ) corresponding to an argumentation theory AT is a pair <A, Def > such that:
+• A is the set of arguments on the basis of AT as defined by Definition 3.6,
+• Def is the relation on A given by Definition 3.21.
+
+To leave arguments with issue premises out of any extension, Definition 2.1 should now
+start with “Let B be a conflict-free set of arguments that have no issue premises ...”.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+11
+
+It is now also possible to define a consequence notion for well-formed formulas. Several
+definitions are possible. One is:
+Definition 3.23 : [Acceptability of conclusions] For any semantics S and for any argumentation theory AT and formula ϕ ∈ LAT :
+(1) ϕ is skeptically S-acceptable in AT if and only if all S -extensions of AT contain
+an argument with conclusion ϕ;
+(2) ϕ is credulously S-acceptable in AT if and only if there exists an S -extension of
+AT that contains an argument with conclusion ϕ.
+An alternative definition of skeptical acceptability is
+(1) ϕ is skeptically S-acceptable in AT if and only if there exists an argument with
+conclusion ϕ that is contained in all S -extensions of AT .
+While the original definition allows that different extensions contain different arguments
+for a skeptical conclusion, the alternative definition requires that there is one argument for
+it that is in all extensions.
+
+4.
+
+Using the framework: domain-specific vs. general inference rules
+
+The framework defined in the previous section can be used in two ways, depending on
+whether the inference rules are domain-specific or not. The inference rules of argumentation systems are not part of the logical language L but are metalevel constructs. The
+usual practice in standard logic is that inference rules express general patterns of reasoning, such as modus ponens, universal instantiation and so on. Yet Caminada and Amgoud
+(2007) use the inference rules to represent domain knowledge, in line with a long tradition
+in nonmonotonic logic of using domain-specific inference rules (e.g. Garcia and Simari
+2004, Loui 1987, Nute 1994, Reiter 1980). The difference between both approaches is illustrated with the following example. Consider the information that all Frisians are Dutch,
+that the Dutch are usually tall and that Wiebe is Frisian. With domain-specific inference
+rules this can in a propositional language be represented as follows:
+Rs
+Rd
+Kp
+
+=
+=
+=
+
+{Frisian → Dutch}
+{Dutch ⇒ Tall }
+{Frisian}
+
+The argument that Wiebe is tall then has the form as displayed on the left in Figure 2.
+With general inference rules the two rules must instead be represented in the object
+language L. The first one can be represented with the material implication but for the
+second one a connective for defeasible conditionals must be added to L and a defeasible
+modus-ponens inference rule must be added for this connective. For example:
+Rs
+Rd
+Kp
+
+=
+=
+=
+
+{ϕ, ϕ ⊃ ψ → ψ (for all ϕ, ψ ∈ L), . . .}
+{ϕ, ϕ ; ψ ⇒ ψ (for all ϕ, ψ ∈ L), . . .}
+{Frisian ⊃ Dutch, Dutch ; Tall , Frisian}
+
+Then the argument that Wiebe is tall has the form as displayed on the right in Figure 2.
+Although the present system can be used both ways, both Vreeswijk and Pollock intended their inference rules to express general patterns of reasoning, which is much more
+in line with the role of inference rules in standard logic. Indeed, an important part of
+John Pollock’s work was the study of general patterns of (epistemic) defeasible reasoning, which he called prima facie reasons. He formalised prima facie reasons for reasoning
+patterns involving perception, memory, induction, temporal persistence and the statistical
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+12
+
+Figure 2. Domain-specific vs. general inference rules
+
+syllogism, as well as undercutters for these reasons. The ASPIC framework allows for
+such general use of inference rules, by expressing the rules through schemes (in the logical sense, with metavariables ranging over L). When used thus, the framework becomes
+a general framework for argumentation with structured arguments. It thus is also suitable
+for modelling reasoning with argument schemes, which currently is an important topic
+in the computational study of argument (cf. Walton et al. 2008). Argument schemes are
+stereotypical non-deductive patterns of reasoning, consisting of a set of premises and a
+conclusion that is presumed to follow from them. Uses of argument schemes are evaluated in terms of critical questions specific to the scheme. An example of an epistemic
+argument scheme is the scheme from expert opinion (Walton et al. 2008, p. 310):
+E is an expert in domain D
+E asserts that P is true
+P is within D
+P is true
+
+This scheme has six critical questions:
+1.
+2.
+3.
+4.
+5.
+6.
+
+How credible is E as an expert source?
+Is E an expert in domain D?
+What did E assert that implies P ?
+Is E personally reliable as a source?
+Is P consistent with what other experts assert?
+Is E ’s assertion of P based on evidence?
+
+A natural way to formalise reasoning with argument schemes is to regard them as defeasible inference rules and to regard critical questions as pointers to counterarguments
+(this approach was earlier defended by Bex et al. 2003 and Verheij 2003). More precisely,
+the three kinds of attack on arguments correspond to three kinds of critical questions of
+argument schemes. Some critical questions challenge an argument’s premise and therefore point to undermining attacks, others point to undercutting attacks, while again other
+questions point to rebutting attacks. In the scheme from expert opinion questions (2) and
+(3) point to underminers (of, respectively, the first and second premise), questions (4),
+(1) and (6) point to undercutters (the exceptions that the expert is biased or incredible
+for other reasons and that he makes scientifically unfounded statements) while question
+(5) points to rebutting applications of the expert opinion scheme. Thus we also see that
+Pollock’s prima facie reasons are examples of epistemic argument schemes and that his
+undercutters are negative answers to one kind of critical question.
+Now one benefit of having undermining attack in addition to rebutting and undercutting
+attack can be discussed in more detail: if the inference rules are supposed to be domainindependent, then representing facts with non-conditional inference rules (as done by
+Caminada and Amgoud 2007) does not make sense.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+13
+
+5.
+
+Transposition and contraposition
+
+Before it can be studied to what extent the present framework satisfies the rationality
+postulates of Caminada and Amgoud (2007), first some technicalities concerning strict
+inference rules must be discussed. To start with, Caminada and Amgoud define the notions
+of a transposition of a strict rule and closure of sets of strict rules under transposition.
+Definition 5.1 : [Transposition] A strict rule s is a transposition of ϕ1 , . . ., ϕn → ψ iff s
+= ϕ1 , . . ., ϕi−1 , −ψ , ϕi+1 , . . ., ϕn → −ϕi for some 1 ≤ i ≤ n.
+Definition 5.2 : [Transposition operator] Let Rs be a set of strict rules. Cltp (Rs ) is the
+smallest set such that:
+• Rs ⊆ Cltp (Rs ), and
+• If s ∈ Cltp (Rs ) and t is a transposition of s then t ∈ Cltp (Rs ).
+
+We say that Rs is closed under transposition iff Cltp (Rs ) = Rs .
+Now the subclass of argumentation systems closed under transposition can be defined.
+Definition 5.3 : [Closure under transposition] An argumentation system (L, − , R, ≤) is
+closed under transposition if Rs = Cltp (Rs ). An argumentation theory is closed under
+transposition if its argumentation system is.
+Caminada and Amgoud (2007) also define the closure of a set of formulas under application of strict rules.
+Definition 5.4 : [Closure of a set of formulas] Let P ⊆ L. The closure of P under the
+set Rs of strict rules, denoted ClRs (P), is the smallest set such that:
+• P ⊆ ClRs (P).
+• if ϕ1 , . . . , ϕn → ψ ∈ Rs and ϕ1 , . . . , ϕn ∈ ClRs (P) then ψ ∈ ClRs (P).
+
+If P = ClRs (P), then P is said to be closed.
+It is also relevant whether strict inference satisfies contraposition.
+Definition 5.5 : [Closure under contraposition] An argumentation system is closed under
+contraposition if for all S ⊆ L, all s ∈ S and all ϕ it holds that if S ⊢ ϕ then S \ {s} ∪
+{−ϕ} ⊢ −s. An argumentation theory is closed under contraposition if its argumentation
+system is.
+Closure under transposition does not imply closure under contraposition, as shown by
+the following counterexample (in all examples below sets which are empty are not listed).
+Example 5.6 Let Rs = Cltp ({p → q; p → r; p, r → s}). Then {p} ⊢ s but {−s} 6⊢ −p.
+In general it neither holds that closure under contraposition implies closure under transposition, as shown by the following counterexample.
+Example 5.7 Let Rs = {p → q; ¬q → r; r → ¬p; ¬r → q; p → ¬r}. Then Rs is not
+closed under transposition, since it does not include ¬q → ¬p. Still we have
+{p} ⊢ q and {¬q} ⊢ ¬p
+{¬r} ⊢ q and {¬q} ⊢ r
+
+{p} ⊢ ¬r and {r} ⊢ ¬p
+{¬q} ⊢ r and {¬r} ⊢ q
+
+So Rs satisfies contraposition.
+However, contraposition does imply transposition in the following special case.
+Proposition 5.8 : Consider any argumentation theory with L closed under classical
+negation and − defined correspondingly. Then if Rs consists of all valid propositional
+inferences then Rs is closed under contraposition and transposition.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+14
+
+Note that the proposition does not hold if the condition ‘Rs consists of all valid propositional inferences’ is changed to ‘⊢ corresponds to propositional logic’. A counterexample
+is any argumentation theory with a sound and complete axiomatisation of propositional
+logic with modus ponens as the only inference rule.
+
+6.
+
+Rationality postulates
+
+Dung’s semantics can be seen as rationality constraints on evaluating arguments in abstract argumentation frameworks. The refinement of his abstract approach with structured
+arguments naturally leads to the question whether this additional structure gives rise to additional rationality constraints. Caminada and Amgoud (2007) gave a positive answer to
+this question by proposing a number of ‘rationality postulates’ for what they called ‘rulebased argumentation’. Four of their postulates formulate constraints on any extension of
+an argumentation framework corresponding to an argumentation theory:1
+• Closure under subarguments: for every argument in an extension also all its subarguments are in the extension.
+• Closure under strict rules: the set of conclusions of all arguments in an extension is
+closed under strict-rule application.
+• Direct consistency: the set of conclusions of all arguments in an extension is consistent.
+• Indirect consistency: the closure of the set of conclusions of all arguments in an extension under strict-rule application is consistent.
+
+Caminada and Amgoud (2007) proved for their version of the ASPIC framework that the
+first two postulates are always satisfied while the two consistency postulates are satisfied
+if the set of strict rules is consistent and closed under transposition. However, their version
+of the ASPIC framework is considerably simpler than the present one. Firstly, it has no
+knowledge base and facts must be represented as inference rules with empty antecedents;
+because of this, arguments cannot be undermined. Furthermore, it assumes just a basic
+ordering on arguments, according to which strict arguments are strictly preferred over
+defeasible ones and nothing else. Finally, it has a special case of the present − function
+from L to 2L , corresponding to classical negation. The task now is to investigate to which
+extent the results of Caminada and Amgoud (2007) can be generalised to the present case.
+The postulates of closure under subarguments and strict-rule application still hold unconditionally for the present framework. (Here that a given semantics is subsumed by
+complete semantics means that any of its extensions also is a complete extension).
+Proposition 6.1 : Let <A, Def > be an argumentation framework as defined in Definition 3.22 and E any of its extensions under a given semantics subsumed by complete
+semantics. Then for all A ∈ E : if A′ ∈ Sub(A) then A′ ∈ E .
+Proposition 6.2 : Let <A, Def > be an argumentation framework corresponding to an
+argumentation theory, and E any of its extensions under a given semantics subsumed by
+complete semantics. Then {Conc(A)|A ∈ E} = ClRs ({Conc(A)|A ∈ E}).
+As for the two consistency postulates, Caminada and Amgoud’s results do not generalise unconditionally. Consider the following example.
+Example 6.3 Let Rd = {⇒ p; ⇒ q} and Rs = {q → ¬p; p → ¬q}. Then we have
+A: ⇒ p
+B′: ⇒ q
+
+B : B ′ → ¬p
+
+1 Caminada and Amgoud (2007) propose similar postulates for the intersection of extensions but since their results on these
+
+postulates directly follow from the ones for individual extensions, they will below be ignored.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+15
+
+Now assume that A ≻ B , so B does not defeat A. However, A neither defeats B , since
+B ’s last inference is strict. At first sight, it would seem that A can be extended with the
+transposition of q → ¬p (i.e. with p → ¬q ) to an argument
+A+ : A → ¬q
+
+that rebuts B ’s subargument B ′ for q . Then since by condition (2) of Definition 3.10 a
+strict continuation of an argument cannot make it weaker, B ′ ≺ A+ so A+ defeats B ′ .
+Moreover, by the same conditions any argument defeats A if and only if it defeats A+ so
+if A is in an extension E then by Proposition 6.2 A+ will be in E and therefore B will
+not be in E since extensions are conflict-free.
+However, this line of reasoning does not hold without a further assumption on the argument ordering. Consider a more complex variant of Example 6.3.
+Example 6.4 Let Rd = {⇒ p; ⇒ q; ⇒ r} and Rs = {q, r → ¬p; q, p → ¬r; p, r →
+¬q}. Then we have
+A: ⇒ p
+B′: ⇒ q
+
+B ′′ : ⇒ r
+
+B : B ′ , B ′′ → ¬p
+
+The problem is that A cannot be extended with any transposition of q, r → ¬p to obtain
+A+ unless it is combined with either B ′ or B ′′ but then A is extended with a defeasible
+rule, so A+ might be weaker than A. This problem holds whenever B has more than one
+maximal defeasible or plausible subargument.
+However, assuming contraposition or transposition, direct consistency can still be
+proven if it can also be assumed that there is a way to extend A with all but one of
+B ’s maximal defeasible subarguments that is not weaker than the remaining one. In our
+example this means that either A extended with B ′ is not weaker than B ′′ or A extended
+with B ′′ is not weaker than B ′ . Intuitively this assumption seems acceptable given that A
+is stronger than both B ′ and B ′′ . It is therefore to be expected that it will be satisfied by
+many reasonable argument orderings. Since similar situations can arise with undermining
+attack, the notion of a maximal fallible subargument is needed.
+Definition 6.5 : [Maximal fallible subarguments] For any argument A, an argument A′ ∈
+Sub(A) is a maximal fallible subargument of A if
+(1) A′ ’s final inference is defeasible or A′ is a non-axiom premise; and
+(2) there is no A′′ ∈ Sub(A) such that A′′ 6= A and A′ ∈ Sub(A′′ ) and A′′ satisfies
+condition (1).
+The set of maximal fallible subarguments of an argument A will be denoted by M (A).
+Corollary 6.6 :
+
+For any argument A it holds that Conc(M (A)) ⊢ Conc(A).
+
+Definition 6.7 : [Reasonable argument orderings] Argument ordering  is reasonable if
+it satisfies the following condition. Let A and B be arguments with contradictory conclusions such that B ≺ A. Then there exists a Bi ∈ M (B) and an A+ with A ∈ Sub(A+ )
+such that Conc(A+ ) = −Conc(Bi ) and A+ 6≺ Bi .
+A final problem to deal with is that in Example 6.3, Conc(A) could be a contrary of
+Conc(B); the problem is that the solution with closure under contraposition and transposition does not apply to this case. Therefore the focus must be restricted to argumentation
+theories that respect the intended use of assumptions and contraries.
+Definition 6.8 :
+
+An argumentation theory is well-formed if:
+
+(1) no consequent of a defeasible rule is a contrary of the consequent of a strict rule;
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+16
+
+(2) if ϕ ∈ Ka and ϕ is a contrary of ψ , then ψ 6∈ Kn ∪ Kp and ψ is not the conclusion
+of a rule in R.
+Condition (2) in effect says that assumptions can only be contraries of other assumptions. An example of an argumentation theory that is not well-formed is
+Rs = {p → q}, Rd = {r ⇒ s, t ⇒ u}, Kp = {p, r}, Ka = {v}
+
+and such that s is a contrary of q and v is a contrary of u. Then condition (1) of Definition 6.8 is violated since we have arguments A: p → q and B : r ⇒ s. Moreover, condition
+(2) is violated since v ∈ Ka and t ⇒ u ∈ Rd .
+Now it can be proven that under certain conditions an argumentation theory satisfies the
+postulate of direct consistency.
+Theorem 6.9 : Let <A, Def > be an argumentation framework corresponding to a wellformed argumentation theory that is closed under contraposition or transposition and
+has a reasonable argument ordering and a consistent ClRs (Kn ), and let E be any of
+its extensions under a given semantics subsumed by complete semantics. Then the set
+{Conc(A) | A ∈ E} is consistent.
+Caminada and Amgoud (2007) also prove that their system satisfies the postulate of
+indirect consistency. This follows from their Proposition 7, which says that if an argumentation theory satisfies closure and direct consistency, it also satisfies indirect consistency. Since in the present case the conditions of the proof of direct consistency had to be
+strengthened, the same holds for indirect consistency.
+Theorem 6.10 : Let <A, Def > be an argumentation framework corresponding to a
+well-formed argumentation theory that is closed under contraposition or transposition
+and has a reasonable argument ordering and a consistent ClRs (Kn ), and let E be any
+of its extensions under a given semantics subsumed by complete semantics. Then the set
+ClRs ({Conc(A) | A ∈ E}) is consistent.
+Corollary 6.11 : If the conditions of Theorem 6.10 are satisfied, then for any extension
+E under a given semantics subsumed by complete semantics the set {ϕ | ϕ is a premise
+of an argument in E} is consistent.
+Concluding this section, two intuitively plausible argument orderings will be shown
+to be reasonable, namely, the weakest-link and last-link orderings from Amgoud et al.
+(2006). The versions below are slightly revised to make the principles arguably more intuitive. Both orderings define a strict partial order ≺s on sets in terms of a partial preorder
+≤e on their elements, as follows: S1 ≺s S2 iff there exists an e1 ∈ S1 such that for all
+e2 ∈ S2 it holds that e1 <e e2 .
+The last-link principle prefers an argument A over another argument B if the last
+defeasible rules used in B are less preferred than the last defeasible rules in A or, in case
+both arguments are strict, if the premises of B are less preferred than the premises of A.
+The concept of ‘last defeasible rules’ is defined as follows and is essentially the same as
+Prakken and Sartor’s (1997) notion of a ‘relevant set’.
+Definition 6.12 : [Last defeasible rules] Let A be an argument.
+• LastDefRules(A) = ∅ iff DefRules(A) = ∅.
+• If A = A1 , . . ., An ⇒ φ, then LastDefRules(A) = {Conc(A1 ), . . ., Conc(An ) ⇒ φ},
+otherwise LastDefRules(A) = LastDefRules(A1 ) ∪ . . . ∪ LastDefRules(An ).
+
+Corollary 6.13 :
+
+LastDefRules(A) = {TopRule(A′ ) | A′ ∈ M (A)}.
+
+An example with more than one last defeasible rule is with K = {p; q} and Rd = {p ⇒
+r; q ⇒ s}. Then for argument A for r ∧s we have LastDefRules(A) = {p ⇒ r; q ⇒ s}.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+17
+
+The above definition is now used to compare pairs of arguments as follows:
+Definition 6.14 : [Last link principle] Let A and B be two arguments. Then A ≺ B iff
+either
+(1) condition (1) of Definition 3.10 holds; or
+(2) LastDefRules(A) ≺s LastDefRules(B); or
+(3) LastDefRules(A) and LastDefRules(B) are empty and Prem(A) ≺s Prem(B).
+(Amgoud et al. 2006 do not include the second condition so if both arguments are strict
+the ordering on the knowledge base is ignored.) This definition in effect compares sets on
+their weakest elements.
+Proposition 6.15 :
+
+The last-link argument ordering is reasonable.
+
+Consider the following example (taken from Prakken 1997) on whether people misbehaving in a university library may be denied access to the library.
+Example 6.16 Let Kp = {Snores; Professor }, Rd =
+{Snores ⇒r1 Misbehaves;
+Misbehaves ⇒r2 AccessDenied ;
+Professor ⇒r3 ¬AccessDenied }.
+
+Assume that Snores <′ Professor and r1 < r2 , r1 < r3 , r3 < r2 , and consider the
+following arguments.
+A1 : Snores
+B1 : Professor
+
+A2 : A1 ⇒ Misbehaves
+B2 : B1 ⇒ ¬AccessDenied
+
+A3 : A2 ⇒ AccessDenied
+
+To resolve the conflict between A3 and B2 , the rule sets to be compared are
+LastDefRules(A3 ) = {r2 } and LastDefRules(B2 ) = {r3 }. Since r3 < r2 we have
+that B2 ≺s A3 so A3 strictly defeats B2 .
+The weakest-link principle considers not the last but all uncertain elements in an argument. It prefers an argument A over an argument B if A is preferred to B on both their
+premises and their defeasible rules.
+Definition 6.17 : [Weakest link principle] Let A and B be two arguments. Then A ≺ B
+iff either condition (1) of Definition 3.10 holds; or
+(1) Prem(A) ≺s Prem(B); and
+(2) If DefRules(B) 6= ∅ then DefRules(A) ≺s DefRules(B).
+(Amgoud et al. 2006 do not have the condition of (2), so that with two strict arguments
+neither of them can be preferred.)
+Proposition 6.18 :
+
+The weakest-link argument ordering is reasonable.
+
+Example 6.19 Consider again Example 6.16. With the weakest-link principle the outcome is different. To resolve the conflict between A3 and B2 , the rule sets to be compared
+are now DefRules(A3 ) = {r1 , r2 } and DefRules(B2 ) = {r3 }. Since r1 < r3 we have
+that DefRules(A3 ) ≺s DefRules(B2 ). Moreover, since Snores <′ Professor we also
+have that Prem(A3 ) ≺s Prem(B2 ). Hence B2 now strictly defeats A3 .
+Example 6.20 We finally return to Example 3.18. Let
+r1 =
+r2 =
+
+WearsRing ⇒ Married
+PartyAnimal ⇒ Bachelor
+
+Note that since both arguments apply just one defeasible rule and no premise is attacked,
+the weakest- and last-link ordering produce the same result. Now if r1 < r2 we have
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+18
+
+that A3 strictly defeats B3 by successfully rebutting it on B2 , while if both r1 6< r2 and
+r2 6< r1 then A3 and B3 defeat each other since A3 successfully rebuts B3 on B2 while
+B3 successfully rebuts A3 on A2 .
+7.
+
+Self-defeat
+
+As discussed by Pollock (1994) and Caminada and Amgoud (2007), self-defeating arguments can cause problems if argumentation systems are not carefully defined, particularly
+if they include standard propositional logic. In the present framework two types of selfdefeating arguments are possible: serial self-defeat occurs when an argument defeats one
+if its earlier steps, while parallel self-defeat occurs when the contradictory conclusions of
+two or more arguments are taken as the premises for ⊥. Pollock (1994) gives an example
+of serial self-defeat of the following form:
+Example 7.1 Let Rd = {p ⇒ q}, Rs = { q → ¬A2 } and K = {p, q}. Then we have
+A1 : p
+
+A2 : A1 ⇒ q
+
+A3 : A2 → ¬A2
+
+(Read p as “witness John says that he is unreliable” and q as “witness John is unreliable”).
+Argument A3 is self-defeating since it undercuts itself on A2 . This example is arguably
+handled properly by preferred and grounded semantics, who both have E = {A1 } as the
+only extension.
+One of Pollock’ (1994) examples of parallel self-defeat has the following form.
+Example 7.2 Let Rd = {p ⇒ q; r ⇒ ¬q; t ⇒ s} and K = {p, r, t} while Rs contains
+all propositionally valid inferences. Then:
+A1 : p
+B1 : r
+C1 : A2 , B2 → ⊥
+D1 : t
+
+A2 : A1 ⇒ q
+B2 : B1 ⇒ ¬q
+C2 : C1 → ¬s
+D 2 : D1 ⇒ s
+
+Here a problem arises since s can be any formula, so any defeasible argument unrelated to
+A2 or B2 , such as D2 , can, depending on the rule priorities, be rebutted by C2 . Clearly, this
+is extremely harmful, since the existence of just a single case of mutual rebutting defeat,
+which is very common, could trivialise the system. In fact, of the semantics defined by
+Dung (1995) this is only a problem for grounded semantics. Since all preferred/stable
+extensions contain either A2 or B2 , argument C2 is not in any of these extensions so D2
+is. However, if neither of A2 and B2 strictly defeats the other, then neither of them is in
+the grounded extension so that extension does not defend D2 against C2 and therefore
+does not contain D2 .
+Pollock (1994) also discusses the following variant of this example (with the same
+argumentation theory):
+A1 : p
+B1 : r
+C1 : A2 , B2 → ¬s
+D1 : t
+
+A2 : A1 ⇒ q
+B2 : B1 ⇒ ¬q
+
+A3 : A2 → q ∨ ¬s
+
+D 2 : D1 ⇒ s
+
+Again with grounded semantics the problem is that s can be any formula, so any defeasible
+argument unrelated to A2 or B2 can be rebutted by C1 .
+According to Caminada (personal communication) the only way to solve this problem
+is to make parallel self-defeat impossible. One way to implement this solution is to disallow arguments with a contradictory set of sub-conclusions. However, this affects the
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+19
+
+proof of Theorems 6.9 and 6.10. The reason is that for such systems the argument A+ that
+according to Lemma 10.1 can be constructed sometimes has to have contradictory subconclusions, as the following example (with a system closed under transposition) shows.
+Example 7.3 Let p ∈ Kn , q ∈ Ka and Rs = Cltp ({p → t; q → r; q → s; r, s → ¬t}).
+A1 : p
+B1 : q
+
+A2 : A1 → t
+B2 : B1 → r
+
+B3 : B1 → s
+
+B4 : B2 , B3 → ¬t
+
+Now if A2 is to be extended to an argument A+ that undermines B4 , then B1 must be
+included in A+ .
+An similar example for systems closed under contraposition is:
+Example 7.4 Let Kp = {p, q, ¬p, ¬q} and let Rs consist of all valid propositional inferences. Then
+A1 : p
+B1 : ¬p
+
+A1 : q
+B2 : ¬q
+
+A3 : A1 , A2 → p ∧ q
+B3 : B1 , B2 → ¬(p ∧ q)
+
+Note that M (B3 ) = Prem(B3 ). Now any addition of a premise of B3 to Prem(A3 ) makes
+Prem(A3 ) inconsistent.
+Since these problems only arise in particular argumentation systems and with particular
+semantics, no general solution will be pursued here; instead such solutions are left for future research on instantiations of the framework. Note also that Examples 7.3 and 7.4 only
+contain strict rules, so that the problem may also arise in assumption-based frameworks,
+which will in the next section be proven to be a special case of the ASPIC framework.
+
+8.
+
+The relation with assumption-based argumentation
+
+After having presented his fully abstract approach to argumentation, Dung joined Kowalski, Toni and others in their development of a more concrete version of his approach
+(e.g. Bondarenko et al. 1997, Dung et al. 2006, 2007). In this approach arguments essentially are sets of formulas called “assumptions”, from which conclusions can be drawn
+with strict inference rules. Arguments can be attacked with arguments that conclude to
+the “contrary” of one of their assumptions. In fact, the extensions defined by the various
+semantics of Bondarenko et al. (1997) are not sets of arguments but sets of assumptions.
+However, Dung et al. (2007) showed that an equivalent fully argument-based formulation
+can be given.
+In this section it will be shown that assumption-based argumentation (ABA) is a special case of the present framework with only strict inference rules, only assumption-type
+premises and no preferences. The proof will be given for the argument-based version of
+Dung et al. (2007) and carries over to Bondarenko et al. (1997) by the equivalence result
+of Dung et al. (2007).
+First the main definitions of ABA are recalled (in the formulation of Dung et al. 2007).
+Definition 8.1 : (Def. 2.3 of Dung et al. 2007.) A deductive system is a pair (L, R) where
+• L is a formal language consisting of countably many sentences, and
+• R is a countable set of inference rules of the form α1 , . . . , αn → α.1 α ∈ L is called
+the conclusion of the inference rule, α1 , . . . , αn ∈ L are called the premises of the
+inference rule and n ≥ 0.
+1 In (Dung et al. 2007) the arrows are from right to left.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+20
+
+Definition 8.2 : (Def. 2.5 of Dung et al. 2007.) An assumption-based argumentation
+framework (ABF ) is a tuple (L, R, A, − ) where
+• (L, R) is a deductive system.
+• A ∈ L, A 6= ∅. A is the set of candidate assumptions .
+• If α ∈ A, then there is no inference rule of the form α1 , . . . , αn → α ∈ R.
+• − is a total mapping from A into L. α is the contrary of α.
+
+The third condition amounts to a restriction to so-called flat ABF s. This restriction is
+not entirely innocent, since in debates it may occur that someone first assumes a premise
+and, after it is defeated, constructs an argument for it, in an attempt to rebut the defeater.
+To make Dung et al.’s analysis apply to all stages of such a debate, assumptions should be
+deleted from A as soon as they are supported with an argument.
+Since the notion of an argument is central to the present concerns, the informal explanation of Dung et al. (2007, p. 646) will be quoted in (almost) full.
+Deductions can be understood as proof trees: the root of the tree is labelled by the conclusion
+of the deduction and the leaves are labelled by the premises supporting the deduction. For
+every non-terminal node in the tree, there is an inference rule whose conclusion matches
+the sentence labelling the node, and the children of the node are labelled by the premises
+of the inference rule. (..) we define deductions as sequences of frontiers S1 , . . . , Sm of the
+proof trees. Each frontier is represented by a multi-set, in which the same sentence can have
+several occurrences, if it is generated more than once as a premise of different inference
+steps. In order to generate proof trees, a selection strategy is needed to identify which node
+to expand next. We formalise this selection strategy by means of a selection function, as in
+the formalisation of SLD resolution. A selection function, in this context, takes as input a
+sequence of multi-sets Si and returns as output a sentence occurrence in Si . We restrict the
+selection function so that if a sentence occurrence is selected in a multi-set in a sequence
+then it will not be selected again in any later multi-set in that sequence.
+
+Essentially, a backward deduction thus presents one particular order in which an argument in the sense of Definition 3.6 can be constructed by reasoning backwards from the
+conclusion to the premises.
+Definition 8.3 : (Def. 2.4 of Dung et al. 2007.) Given a selection function f , a (backward) deduction of a conclusion α based on (or supported by) a set of premises P is a
+sequence of multi-sets S1 , . . . , Sm , where S1 = {α}, Sm = P , and for every 1 ≤ i < m,
+where σ is the sentence occurrence in Si selected by f :
+(1) If σ is not in P then Si+1 = Si − {σ} ∪ S for some inference rule of the form
+S → σ ∈ R.
+(2) If σ is in P then Si+1 = Si .
+Each Si is a step in the deduction.
+Now an assumption-based argument is defined as follows.
+Definition 8.4 : (Def. 2.6 of Dung et al. 2007.) An argument for a conclusion on the
+basis of an ABF is a deduction of that conclusion whose premises are all assumptions (in
+A).
+As for notation, the existence of an argument for a conclusion α supported by a set of
+assumptions A is denoted by A ⊢ α, or by A ⊢ABF α if it has to be distinguished from
+the existence of a strict argument according to Definition 3.6 with the same premises and
+conclusion; the latter will below be denoted by A ⊢AT α.
+Finally, Dung et al.’s notion of argument attack is defined as follows.
+Definition 8.5 : (Def. 2.7 of Dung et al. 2007.)
+• An argument A ⊢ α attacks an argument B ⊢ β if and only if A ⊢ α attacks an
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+21
+
+assumption in B ;
+• an argument A ⊢ α attacks an assumption β if and only if α is the contrary β of β .
+The argumentation theory corresponding to an assumption-based framework is now
+defined as follows.
+Definition 8.6 :
+Given an assumption-based framework ABF
+=
+−
+(LABF , RABF , A, ABF
+), the corresponding argumentation theory ATABF = (AS , KB ),
+′
+where AS = (LAT , −
+AT , RAT , ≤) and KB = (K, ≤ ), is defined as follows:
+• LAT = LABF
+• ϕ ∈ ψ AT iff ϕ = ψ ABF
+• RAT = Rs = RABF
+• Kn = Kp = Ki = ∅
+• Ka = A
+• ≤=≤′ == ∅
+
+Note that ATABF is well-formed and all AT ABF arguments are strict and plausible.
+The main task now is to prove that there is an ABF -argument for α from P if and only
+if there is an AT ABF -argument for α with premises P . In fact, this can only be proven for
+the special case of argumentation theories that do not allow for arguments with an infinite
+number of subarguments. Technically the present framework allows for such arguments
+even if they are noncircular. For example, an AT with Rs = {pi+1 → pi | i ≥ 1} allows
+for an argument for p1 with an infinite number of subarguments (and an empty set of
+premises). So far no proof has depended on finiteness of arguments. In an ABF , however,
+arguments are by definition finite even if the set of inference rules allows for infinite ones,
+as in the just-given example.
+Proposition 8.7 : For all ABF such that AT = AT ABF does not allow arguments with
+an infinite number of subarguments, there exists an argument A ⊢ABF α if and only if
+there exists an argument A ⊢AT α.
+From this it follows that
+Proposition 8.8 : For all ABF such that AT = AT ABF does not allow arguments with
+an infinite number of subarguments it holds for every argument A ⊢ABF α and every
+argument A ⊢AT α that A ⊢ABF α is defeated by an argument B ⊢ABF β if and only if
+A ⊢AT α is defeated by an argument B ⊢AT β .
+Now the main correspondence result can be proven.
+Theorem 8.9 :
+set E :
+
+For all ABF , any semantics S subsumed by complete semantics and any
+
+(1) if E is an S -extension of ABF then EAT is an S -extension of AT , where EAT =
+{A ⊢AT α | A ⊢ABF α ∈ E};
+(2) if E is an S -extension of AT then EABF is an S -extension of ABF , where
+EABF = {A ⊢ABF α | A ⊢AT α ∈ E}.
+Theorem 8.9 in fact says that there is a one-to-one correspondence between the extensions of an ABF and those of its corresponding AT . From this it follows that:
+Corollary 8.10 : For any ABF , any semantics S subsumed by complete semantics, and
+for any formula ϕ it holds that ϕ is skeptically (credulously) S -acceptable in ABF if and
+only if ϕ is skeptically (credulously) S -acceptable in AT ABF .
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+22
+
+9.
+
+Other related research
+
+As was said above, the present framework is inspired by the work of Pollock (1987, 1994)
+and Vreeswijk (1993, 1997). Essentially, it takes from both the idea that defeasible reasoning proceeds by chaining two kinds of inference rules into inference trees. The present
+mathematical formulation of this idea is directly adopted from Vreeswijk (1993, 1997).
+The present notions of undercutting and rebutting defeat are taken from Pollock’s work
+and then generalised to arbitrary preference relations on arguments (Pollock only has a notion of probabilistic strength), and to logical languages with arbitrary contrary mappings.
+They are then combined with a notion of undermining defeat.
+In fact, the system of Pollock (1994) is not formalised in terms of arguments but in
+terms of so-called ‘inference graphs’, in which nodes are connected either by inference
+links (applications of inference rules) or by defeat links. The nodes are ‘lines of argument’, which are propositions plus an encoding of the argument lines from which they
+are derived. So if a proposition is derived in more than one way, it occurs in more than
+one line of argument. Such duplications cannot be avoided, since defeat relations depend
+on the strength of a proposition, which in turn depends on the way in which it is derived.
+Nodes are evaluated in terms of the recursive structure of the graph. Jakobovits and Vermeir (1999) proved that Pollock’s system can be given an equivalent formulation as an
+instance of Dung’s abstract argumentation frameworks with preferred semantics.
+With Vreeswijk’s framework the relation with Dung-style semantics is still an open
+issue, since it models conflict not as a relation between two individual arguments but as a
+property of sets of arguments: a set of arguments is said to be in conflict if there exists a
+strict argument from their conclusions for ⊥. Vreeswijk then defines a notion of warrant
+for arguments which resembles stable semantics.
+Gordon et al. (2007) propose the Carneades framework ‘of argument and burden of
+proof’. Carneades’ main structure is that of an argument graph, which, despite its name,
+is similar to Pollock’s inference graphs. Statement nodes are linked to each other via argument nodes, which record the inferences from one or more nodes to another. This notion
+of an argument does not have the recursive structure of Definition 3.6 but instead stands
+for a single inference step. As explained in Section 3.1, the premises of an argument can
+be of three types: presumptions (similar to the present issues), assumptions (similar to
+the present ordinary premises) and exceptions (similar to contradictories of the present
+assumptions). Carneades has no distinction between strict and defeasible inference rules
+and, unlike Pollock, does not express conflicts as a special type of link between statement
+nodes. Instead, inferences (i.e., arguments) can be either pro or con a statement. Because
+of this, statements occur only once in the graph. Also, attack relations are thus expressed
+either as arguments pro and con the same statement or as an argument pro an exceptiontype premise of another argument. Carneades thus allows for rebutting and undermining
+but not for undercutting; instead, undercutters are simulated by arguments pro exceptions.
+Carneades’ inference graphs are assumed to contain no cycles, which excludes the representation of mutual attack relations through exceptions.
+In Carneades the evaluation of statements in an argument graph is, as with Pollock’s
+inference graphs, defined in terms of the recursive structure of the graph. Statements are
+acceptable if they satisfy their ‘proof standard’. The general framework abstracts from
+their nature but Gordon et al. (2007) give several examples of proof standards. The proof
+standards are at the heart of Carneades’ acceptability notion, just like the notions of defence and admissibility are at the heart of Dung-style semantics. None of the examples
+given by Gordon et al. (2007) have a known relation with any existing Dung-style semantics or the present framework, which thus is an issue for future research. Here it is also
+relevant that Carneades incorporates dialogical elements since it matters whether a statement is ‘stated’, ‘questioned’, ‘accepted’ or ‘rejected’. These statuses of a statement are
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+23
+
+assumed to be provided by a dialogical context in which Carneades is embedded.
+Verheij (2003) presents a “sentence-based” (as opposed to “argument-based”) logic for
+defeasible reasoning, called DefLog. Verheij assumes a logical language with just two
+connectives, a unary connective × which informally stands for ‘it is defeated that’ and
+a binary connective ; for expressing defeasible conditionals. He then assumes a single
+inference scheme for this language, namely, modus ponens for ;. A set of sentences T
+is said to support a sentence ϕ if “ϕ is in T or follows from T by repeated application
+of ;-modus ponens” (Verheij 2003, p. 327). It seems reasonable to formalise this as the
+backward deductions of assumption-based argumentation or the strict arguments of the
+present framework. Moreover, T is said to attack ϕ if T supports ×ϕ. Verheij then considers partitions (J, D) of sets of sentences ∆ which he calls dialectical interpretations
+and which are such that J (the “justified” sentences) is conflict-free and attacks every
+sentence in D (the “defeated” sentences).
+As already suggested by Verheij, there is a close formal relation between DefLog and
+assumption-based argumentation. Firstly, dialectical interpretations are easily proven to
+be equivalent to stable labellings, which are known to be equivalent to stable semantics
+(first proven by Verheij 1996; see also Caminada 2006, Jakobovits and Vermeir 1999).
+Furthermore, DefLog theories can be mapped onto assumption-based frameworks by letting an ABF contrary mapping be ×ϕ = ϕ for any ϕ, by regarding any set of dialectically
+interpreted sentences as the assumptions A of an ABF and by having ϕ, ϕ ; ψ → ψ ,
+for any ϕ and ψ in DefLog’s language, as the set R of inference rules of the ABF . The
+result is an assumption-based framework in the sense of Definition 8.2 with stable semantics. The correspondence results of Dung et al. (2007) with Bondarenko et al. (1997) then
+also apply to the special case of a DefLog-style ABF so that by the above Theorem 8.9
+DefLog is a special case of the present framework with only strict arguments and only
+undermining defeat.
+Several argumentation systems model deductive argumentation. Here arguments are
+proofs according to some deductive logic with consistent premises taken from a possibly inconsistent knowledge base expressed in the language of the logic (usually taken to
+be standard propositional or first-order logic). In Amgoud and Cayrol (2002), which is
+based on propositional logic, the structure of arguments is left undefined, except that the
+premises imply the conclusion according to propositional logic. Several notions of defeat
+are then considered. One of them corresponds to the present undermining defeat, where
+arguments are compared in terms of a partial preorder on the belief base from which their
+premises are taken. Argument acceptability is defined according to grounded semantics.
+This variant of Amgoud and Cayrol (2002) can be reconstructed as a special case of
+the present framework as follows. Firstly, L is any propositional language closed under
+classical negation, where ϕ = ψ if ϕ = ¬ψ or ψ = ¬ϕ. Then Rs consists of all valid
+propositional inferences while Rd is empty. The knowledge base equals Kp . Finally, as
+with Deflog, it seems reasonable to formalise arguments as the strict arguments of the
+present framework, although the extra constraint must be added that such arguments have
+classically consistent premises. This consistency constraint makes that not all results of
+this paper hold without further qualification. It is easy to verify that Propositions 5.8, 6.1
+and 6.2 still hold with this constraint (for Proposition 5.8 note that in this case S ⊢ ϕ
+by definition implies that the strict argument that exists for ϕ has consistent premises).
+However, the proofs of Theorems 6.9 and 6.10 do not apply to this case, for similar reasons
+as explained above in Section 7 with Example 7.4. It remains to be investigated whether
+these theorems can be proven for this case under alternative conditions.
+Besnard and Hunter’s (2008) version of deductive argumentation is similar to that of
+Amgoud and Cayrol (2002), except for a generalised notion of undermining: an argument
+is undermined by any argument of which the conclusion negates the conjunction if its
+premises. It remains to be seen whether this version of undermining can be reduced to the
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+24
+
+present version.
+Two other logics for defeasible reasoning with both (domain-specific) strict and defeasible inference rules are Defeasible Logic (DL), first proposed by Nute (1994), and
+Defeasible Logic Programming (DeLP; e.g. Garcia and Simari 2004). In both systems the
+logical language is restricted in logic-programming style. DL is not explicitly argumentbased but defines the notion of a proof tree, which interleaves support and attack. Governatori et al. (2004) investigate the relation with Dung-style semantics. One variant of DL
+is proven to instantiate grounded semantics. In DeLP the only way to attack an argument
+is on a (sub-)conclusion. DeLP’s notion of argument acceptability has no known relation
+to any of the current argumentation semantics.
+Prakken and Sartor (1997) presented an argument-based version of extended logic programming, designed as an instance of Dung’s abstract argumentation frameworks with
+grounded semantics. Their system comes close to being a special case of the present
+framework. It has (domain-specific) strict and defeasible inference rules and allows for
+rebutting and undercutting defeat. Furthermore, its notion of an argument comes close to
+a ‘deduction’ version of Definition 3.6, i.e., it represents a particular order in which an
+argument can be constructed. A difference is that in Prakken and Sartor (1997) two parallel subarguments do not need to be completed with an inference from their conclusion, so
+that, for example (in the present notation) p, p ⇒ q, r, r ⇒ s is an argument with conclusions q and s. In Prakken and Sartor (1997) this was convenient for modelling reasoning
+about defeasible priorities in the system. A more substantial difference is that while the
+present framework considers rebutting and undercutting attack on equal footing, Prakken
+and Sartor (1997) give priority to undercutting attack, so that if A undercuts B while B
+rebuts A, A strictly defeats B . It seems that the present results do not crucially rely on
+this difference, but this should be further investigated.
+A final difference with the present framework is that in Prakken and Sartor (1997) the
+role of strict rules in defeat is different. As in the present framework, only defeasible
+inferences can be attacked, but an argument A with conclusion ϕ rebuts an argument B
+with conclusion ϕ′ if there exists sets of strict rules Sa and Sb and a formula ψ such that
+(with present notation) Sa ∪ {ϕ} ⊢ ψ and Sb ∪ {ϕ′ } ⊢ ψ . The difference can be best
+explained with Examples 3.18 and 6.20. The motivation behind the definition of Prakken
+and Sartor (1997) was that intuitively the ‘real’ conflict is between the two defaults on
+whether someone is a bachelor or married. This is captured by their definition of rebutting
+attack, since A2 can be extended with A3 to contradict B2 ’s conclusion and vice versa.
+Hence the rule priorities are applied to A2 and B2 . By contrast, in the present framework
+these arguments do not rebut each other since their top rules are strict. Instead, we saw
+that their conflict is decided indirectly, by comparing A3 with B2 and B3 with A2 . The
+present treatment of such examples can be defended by saying that conflicts are recognised
+only when they are made explicit in an argument’s conclusion, which seems to better
+respect the general nature of argumentation as providing explicit grounds for conclusions.
+It remains to be investigated whether this difference affects the present results on the
+rationality postulates (note that, although Prakken and Sartor 1997 do not assume that the
+strict rules are closed under transposition, this assumption can be easily added).
+In one respect Prakken and Sartor (1997) go beyond the present framework, namely,
+in making the preference relation on the set of defeasible inference rules defeasible and
+derivable within the framework. In this respect the system is a forerunner of Modgil’s
+(2009) extended argumentation frameworks.
+10.
+
+Conclusion
+
+The main rhetorical aim of this paper has been to present the ASPIC framework as a
+general abstract framework for rule-based argumentation. In previous publications on
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+25
+
+the ASPIC framework its unifying potential was underexposed because of a focus on
+domain-specific inference rules instead of on general inference patterns. Here it has been
+argued that ASPIC, although it can be used as a specific logic at the same level of abstraction as systems like DeLP, DL and Prakken and Sartor (1997), can also be used
+as an abstract framework for reasoning with general inference rules, including argument
+schemes. Moreover, it has been shown that by including undermining attack and generalising negation to arbitrary contrary mappings, the ASPIC framework unifies rule- and
+assumption-based approaches to argumentation. The latter claim has been backed by a
+formal proof that assumption-based argumentation (Bondarenko et al. 1997, Dung et al.
+2007) is a special case of the framework and by semi-formal explanations that the same
+holds for Verheij’s (2003) DefLog and (to a large extent) Amgoud and Cayrol’s (2002)
+version of deductive argumentation.
+In addition, the following technical contributions have been made:
+• a generalisation of the ASPIC framework to arbitrary relations of contrariness between
+well-formed formulas;
+• an extension of the ASPIC framework with preference information for resolving conflicts between arguments;
+• an extension of the ASPIC framework with four types of premises and with undermining attack;
+• proof that Caminada and Amgoud’s (2007) rationality postulates still hold for the thus
+generalised and extended framework, and that they hold not only for systems closed
+under transposition but also for systems closed under contraposition.
+
+The framework can be further extended and investigated in several ways. Firstly, as indicated above in Section 3.3.2, several alternative ways to define the relation between the
+three kinds of defeat are possible. It could be investigated to what extent such alternatives
+affect the present results. The same holds for the use of preferences to resolve undercutting
+attack (also discussed in Section 3.3.2), for the constraint that arguments have consistent
+premises (cf. the discussion of deductive argumentation in Section 9) and for alternative
+ways to define argument conflicts involving strict rules (cf. the discussion of Prakken and
+Sartor 1997 in Section 9).
+Finally, as touched upon at the end of Section 9, an important extension of the present
+framework is making the preference relations that are used for resolving conflicts defeasible and derivable within the framework. This could be done along the lines of Prakken and
+Sartor (1997), after which it should be investigated whether Modgil’s (2009) reconstruction of Prakken and Sartor (1997) as an instance of his extended argumentation frameworks can be adapted to the extended ASPIC framework.
+
+Appendix: proofs
+
+Proposition 5.8 Consider any argumentation theory with L closed under classical negation and − defined accordingly. Then if Rs consists of all valid propositional inferences
+then Rs is closed under contraposition and transposition.
+Proof : Note first that if Rs consists of all valid propositional inferences, then ⊢ satisfies
+the deduction theorem, i.e., it satisfies
+{p1 , . . . , pn } ⊢ q ⇔ ⊢ (p1 ∧ . . . pn ) ⊃ q
+
+Now consider any rule p1 , . . . , pn → q . Then {p1 , . . . , pn } ⊢ q so by the deduction
+theorem ⊢ (p1 ∧. . . pn ) ⊃ q . Then also (by propositional reasoning) ⊢ (¬q∧p2 ∧. . . pn ) ⊃
+¬p1 . But then by the deduction theorem {¬q, p2 , . . . , pn } ⊢ ¬p1 so since Rs contains all
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+26
+
+valid propositional inferences, Rs contains ¬q, p2 , . . . , pn → ¬p1 .
+
+
+
+Proposition 6.1 Let <A, Def > be an argumentation framework as defined in Definition 3.22 and E any of its extensions under a given semantics subsumed by complete
+semantics. Then for all A ∈ E : if A′ ∈ Sub(A) then A′ ∈ E .
+Proof : The proof is a trivial adaptation of the proof of Proposition 1 of Caminada and
+Amgoud (2007), taking the possibility of undermining defeat into account.
+
+Proposition 6.2. Let <A, Def > be an argumentation framework corresponding to an
+argumentation theory, and E any of its extensions under a given semantics subsumed by
+complete semantics. Then {Conc(A)|A ∈ E} = ClRs ({Conc(A)|A ∈ E}).
+Proof : Caminada and Amgoud’s proof of their Proposition 8 depends on Proposition 6.1,
+which also holds for the present framework, and makes no assumptions on the use of
+priorities. Therefore the proof also holds for the present version.
+
+Theorem 6.9. Let <A, Def > be an argumentation framework corresponding to a wellformed argumentation theory that is closed under contraposition or transposition and
+has a reasonable argument ordering and a consistent ClRs (Kn ), and let E be any of
+its extensions under a given semantics subsumed by complete semantics. Then the set
+{Conc(A) | A ∈ E} is consistent.
+Proof : Let E be a complete extension. Suppose that {Conc(A) | A ∈ E} is inconsistent.
+This means that ∃A, B ∈ E, Conc(A) = Conc(B). Since E is a complete extension, E
+is conflict-free. This means that A does not defeat B and B does not defeat A. It will be
+shown that this leads to a contradiction.
+First the following lemmas are proven.
+Lemma 10.1 : Let A be an argument and B a plausible or defeasible argument in
+an argumentation theory that is closed under contraposition or transposition such that
+Conc(A) and Conc(B) are contradictories. Then A can be extended to an argument A+
+that rebuts or undermines B .
+Proof : Consider first systems closed under contraposition. By Corollary 6.6 it holds
+that Conc(M (B)) ⊢ Conc(B) so with contraposition (which is assumed to hold) and
+since Conc(A) and Conc(B) contradict each other we have for any Bi ∈ M (B) that
+Conc(M (B) \ {Bi }) ∪ Conc(A) ⊢ −Conc(Bi ). Then clearly M (B) \ {Bi } and M (A)
+are the maximal fallible subarguments of an argument A+ for −Conc(Bi ). Since by construction of M (B) either Bi is a non-axiom premise or ends with a defeasible inference,
+A+ either undermines or rebuts Bi . But then A also undermines or rebuts B .
+For systems closed under transposition the existence of arguments A+ and Bi is proven
+by straightforward generalisation of Lemma 6 of Caminada and Amgoud (2007). Then
+the proof can be completed as above.
+
+Corollary 10.2 : If the argumentation theory has a reasonable argument ordering then
+if B ≺ A, then A+ defeats B .
+Proof : (Continuing the proof of Lemma 10.1) Since  is reasonable, there exist such a
+Bi and A+ such that A+ 6≺ Bi . Then A+ defeats Bi so A+ defeats B .
+
+Now for proving Theorem 6.9 the following cases must be distinguished.
+(1) A ∈ Ki . Then A is not in any extension.
+(2) A is an assumption. If A is a contradictory of Conc(B), then B defeats A. If
+instead A is a contrary of Conc(B), then since the argumentation theory is wellformed, B is also an assumption so A defeats B . Contradiction.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+27
+
+(3) A is firm and strict. If B is also firm and strict, then ClRs (Kn ) is inconsistent,
+which contradicts the assumption that it is consistent. If B is plausible or defeasible, then A defeats B by condition (1) of Definition 3.10. Contradiction.
+(4) A is plausible or defeasible. If B is firm and strict then this is case (3), since the
+case that Conc(A) is a contrary of Conc(B) is then excluded by well-formedness
+of the argumentation theory. If B ’s top rule is defeasible and Conc(A) is a contrary of Conc(B) then A defeats B , while if Conc(A) and Conc(B) contradict
+each other, either A defeats B or B defeats A. If B ’s top rule is strict then by the
+assumption that the argumentation theory is well-formed, Conc(A) and Conc(B)
+contradict each other. If B 6≺ A then B defeats A while otherwise A can by
+Lemma 10.1 and Corollary 10.2 be extended to an argument A+ that defeats B .
+It is then left to prove that A+ ∈ E . Any defeater C of A+ will by construction of
+A+ do so by defeating an element of M (A) or M (B) (since all inferences that are
+not in M (A) or M (B) are strict and there are no new premises). However, this
+defeated element is in E by Proposition 6.1, so since E is conflict-free, C 6∈ E .
+But then A+ ∈ E , which contradicts the fact that E is conflict-free.
+
+
+Theorem 6.10 Let <A, Def > be an argumentation framework corresponding to a wellformed argumentation theory that is closed under contraposition or transposition and
+has a reasonable argument ordering and a consistent ClRs (Kn ), and let E be any of
+its extensions under a given semantics subsumed by complete semantics. Then the set
+ClRs ({Conc(A) | A ∈ E}) is consistent.
+Proof : As in Caminada and Amgoud (2007).
+
+
+
+Corollary 6.11 If the conditions of Theorem 6.10 are satisfied, then for any extension E
+under a given semantics subsumed by complete semantics the set {ϕ | ϕ is a premise of
+an argument in E} is consistent.
+Proof : let A be any argument in E and ϕ any premise of A. By definition of an argument,
+ϕ is a subargument of A so by Proposition 6.1 we have that ϕ ∈ E . Then the corollary
+follows from Theorem 6.10 and the fact that subsets of consistent sets are consistent. 
+Proposition 6.15 The last-link argument ordering is reasonable.
+Proof :
+Lemma 10.3 : Consider any ordering s on sets ordered by a partial preorder ≤e such
+that S1 ≺s S2 iff there exists an e1 ∈ S1 such that for all e2 ∈ S2 it holds that e1 <e e2 .
+Then if S1 ≺s S2 and e1 is a non-smallest element of S1 (w.r.t. ≤e ), then S2 ∪ {e1 } 6≺s S1 .
+Proof : Straightforward.
+
+
+
+Now by Corollary 6.13 that B ≺ A means that there exists a Bi ∈ M (B) with top rule
+b such that for all A′ ∈ M (A) with top rule a it holds that b < a. Choose such a Bi with
+minimal b (w.r.t. ≤e ) to form A+ as in the proof of Corollary 10.2. Then by Lemma 10.3
+LastDefRules(A+ ) 6≺s LastDefRules(Bi ). But then A+ 6≺ Bi .
+
+Proposition 6.18 The weakest-link argument ordering is reasonable.
+Proof :
+That B ≺ A now means that Prem(B) ≺s Prem(A) and DefRules(B) ≺s
+DefRules(A).
+If DefRules(B) 6= ∅ then there exists a Bi ∈ DefRules(B) with top rule b such that
+for all A′ ∈ DefRules(A) with top rule a it holds that b < a. Choose such a Bi with
+minimal b (w.r.t. ≤) in the construction of A+ and Bi in the proof of Corollary 10.2. Then
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+28
+
+since all new defeasible rules of the corresponding A+ are from elements of M (B), by
+Lemma 10.3 DefRules(A+ ) 6≺s DefRules(B). But then A+ 6≺ Bi .
+If DefRules(B) = ∅ then DefRules(A) = ∅. Since Prem(B) ≺s Prem(A) there exists
+a premise p in Prem(B) such that for all premises p′ in Prem(A) it holds that p′ < p .
+Then in the construction of A+ and Bi in the proof of Corollary 10.2, choose Bi to be an
+argument containing a minimal such p. Then since all new premises of the corresponding
+A+ are from Prem(B), by Lemma 10.3 Prem(A+ ) 6≺s Prem(B). But then A+ 6≺ Bi . 
+Proposition 8.7 For all ABF such that AT = AT ABF does not allow arguments with an
+infinite number of subarguments, there exists an argument A ⊢ABF α if and only if there
+exists an argument A ⊢AT α.
+Proof :
+⇒ For the only-if part, let S1 , . . . , Sn be a backward deduction of α. It will be shown
+by induction on the structure of backward deductions that there exists an AT -argument
+with conclusion α and premises Sn .
+Note first that since all elements of Sn are in A so in Ka , by clause (1) of Definition 3.6
+they are all an AT -argument and their premises are all in Sn .
+Consider next any set Si such that all elements of Si+1 are the conclusion of an AT argument with premises from Sn . Then for any element αi of Si , if αi is also in Si+1 ,
+then trivially αi is the conclusion of an AT -argument with premises in Sn , otherwise for
+some set S = {β1 , . . . , βm } ⊆ Si+1 there exists a rule β1 , . . . , βm → αi in RABF . But
+then this rule is also in Rs . Let, furthermore, the AT -arguments for β1 , . . . , βm (which
+exist by the induction hypothesis) be B1 , . . . , Bm : then by clause (2) of Definition 3.6,
+B1 , . . . , Bm → αi is an AT -argument for αi with all its premises in Sn .
+Next it is proven that for any Si the union of all premises of all AT -arguments
+for elements in Si is Sn . Note that for any pair Si , Si+1 , the set Si+1 is formed by
+replacing at most one element σ in Si with a set S in Si+1 . As just proven, there exists
+an AT -argument B1 , . . . , Bm → αi , where B1 , . . . , Bm are the AT -arguments for all
+elements in S . By clause (2) of Definition 3.6 the premises of this argument are the union
+of the premises of the arguments B1 , . . . , Bn . But then no premises have been added
+or deleted by creating Si+1 from Si . Note finally, that the union of the premises of all
+AT -arguments for any element in Sn (which are these elements themselves) trivially
+equals Sn . But then this set equals Sn for all Si .
+⇐ For the if-part, suppose P ⊢AT α. A backward deduction with multisets S1 , . . . , Sn
+such that S1 = {α} and Sn = P can be created as a maximal sequence such that:
+
+(1) S1 = {α},
+(2) For all Si (i ≥ 1): create Si+1 by selecting one element σ from Si not selected
+before and:
+a) if σ ∈ P then Si+1 = Si ; otherwise
+b) Si+1 = Si − {σ} ∪ S for some S = {Conc(B1 ), . . . , Conc(Bn )} such that
+there exists an argument B ∈ Sub(A) of the form B1 , . . . , Bn → σ .
+It is now proven that for any Si and any σ ∈ Si one of these two conditions is satisfied,
+i.e., either σ ∈ P or σ is the conclusion of an argument in Sub(A). The proof is with
+induction on the structure of S1 , . . . , Sn . Consider first S1 = {α}. Then if A = α ∈
+Ka , then trivially α ∈ P , otherwise A = A1 , . . . , An → α so trivially A ∈ sub(A).
+Consider next any Si such that all its elements satisfy conditions (2)a and (2)b. Then if
+Si+1 = Si this trivially also holds for Si+1 , otherwise if S replaces σ in Si+1 then by
+the induction hypothesis this is since there exists a subargument B ∈ Sub(A) of the form
+B1 , . . . , Bn → σ such that S = {Conc(B1 ), . . . , Conc(Bn )}. Then clearly for any new
+element Conc(Bi ) ∈ S there exists a subargument for it in Sub(A), namely, Bi .
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+29
+
+Next, since all steps in the sequence apply an inference rule from Rs , which by Definition 8.6 is also in RABF , the sequence clearly is a backward deduction.
+Finally it is proven that the sequence ends with Sn = P . Let Sub∗ (A) be the multiset consisting of, for all A′ ∈ Sub(A) , as many occurrences as there are inferences
+in A that use A′ . Note that by the assumption that Sub(A) is finite, Sub∗ (A) is also
+finite. Then let for any Si the set UnusedSub(Si ) be the subset of all arguments in
+Sub∗ (A) that were not used to create Si from S1 . (So UnusedSub(S1 ) = Sub∗ (A) and
+e.g. UnusedSub(S2 ) = Sub∗ (A) − {A}). Then note that by any application of condition (2)b this multiset loses one element. Then since S1 , . . . , Sn is a maximal sequence
+of elements satisfying conditions (1) and (2), we have that UnusedSub(Sn ) = ∅. Then
+since P ⊆ Sub∗ (A), we have that P ⊆ Sn . Assume next for contradiction that there is
+an element σ ∈ Sn which is not in P : then, as proven above, σ can be replaced by a set
+S such that S → σ is an inference in A, so S1 , . . . , Sn is not maximal. Contradiction, so
+Sn = P .
+
+Proposition 8.8 For all ABF such that AT = AT ABF does not allow arguments with
+an infinite number of subarguments it holds for every argument A ⊢ABF α and every
+argument A ⊢AT α that A ⊢ABF α is defeated by an argument B ⊢ABF β if and only if
+A ⊢AT α is defeated by an argument B ⊢AT β .
+Proof : ⇒ Assume A ⊢ABF α and B ⊢ABF β defeats A ⊢ABF α. Then according to
+the contrariness mapping in ABF we have that β = p for some p ∈ A. Furthermore, by
+Proposition 8.7 there exists an A ⊢AT α and an argument B ⊢AT β . Then by identity
+of the contrariness mappings we also have that β = p for some p ∈ A according to AT .
+Then since p ∈ Ka , clearly B ⊢AT β defeats A ⊢AT α.
+⇐ Assume A ⊢AT α and B ⊢AT β defeats A ⊢AT α. Then since all arguments in AT
+are strict, B undermines A and according to the contrariness mapping in AT we have that
+β = p for some p ∈ A. Furthermore, by Proposition 8.7 there exists an A ⊢ABF α and
+an argument B ⊢ABF β . Then by identity of the contrariness mappings we also have that
+β = p for some p ∈ A according to ABF . Then since p ∈ A, clearly B ⊢ABF β defeats
+A ⊢ABF α.
+
+Theorem 8.9 For all ABF , any semantics S subsumed by complete semantics and any
+set E :
+(1) if E is an S -extension of ABF then EAT is an S -extension of AT , where EAT =
+{A ⊢AT α | A ⊢ABF α ∈ E};
+(2) if E is an S -extension of AT then EABF is an S -extension of ABF , where
+EABF = {A ⊢ABF α | A ⊢AT α ∈ E}.
+Proof : As before, the proof for complete semantics suffices.
+(1) Consider any complete extension E of ABF . It is first proven that any member
+of EAT is defended by EAT . Since E is conflict-free, by construction of EAT and
+Proposition 8.8 also EAT is conflict-free. Consider next any A ⊢AT α ∈ EAT
+defeated by some B ⊢AT β . By construction of EAT , there exists an A ⊢ABF
+α ∈ E . Then by Propositions 8.7 and 8.8 there exists a B ⊢ABF β defeating
+A ⊢ABF α. But since E is a complete extension, B ⊢ABF β is in turn defeated
+by some C ⊢ABF γ ∈ E . Then by construction of EAT and Proposition 8.7,
+also C ⊢AT γ ∈ EAT and by Proposition 8.8, C ⊢AT γ defeats B ⊢AT β . So
+A ⊢AT α is defended by EAT .
+Next, to prove that any argument defended by EAT is a member of EAT , assume A ⊢AT α is defended by EAT . Then any of its defeaters B ⊢AT β is in turn
+defeated by an element C ⊢AT γ ∈ EAT . But then by Proposition 8.8 the same
+holds for their corresponding ABF -arguments, which exist by Proposition 8.7.
+Moreover, by construction of EAT we have that C ⊢ABF γ ∈ E so, since E
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+30
+
+aspicAF
+
+REFERENCES
+
+is a complete extension, also A ⊢ABF α ∈ E . But then A ⊢AT α ∈ EAT by
+construction of EAT and Proposition 8.7.
+(2) The proof of (2) is entirely similar and therefore omitted.
+
+
+Corollary 8.10 For any ABF , any semantics S subsumed by complete semantics, and for
+any formula ϕ it holds that ϕ is skeptically (credulously) S -acceptable in ABF if and
+only if ϕ is skeptically (credulously) S -acceptable in AT ABF .
+Proof : Straightforward.
+
+
+
+References
+Amgoud, L., Bodenstaff, L., Caminada, M., McBurney, P., Parsons, S., Prakken, H., van Veenen, J., and Vreeswijk, G.
+(2006), “Final review and report on formal argumentation system,” Deliverable D2.6, ASPIC IST-FP6-002307.
+Amgoud, L., and Cayrol, C. (2002), “A model of reasoning based on the production of acceptable arguments,” Annals of
+Mathematics and Artificial Intelligence, 34, 197–216.
+Baroni, P., and Giacomin, M. (2009), “Semantics of abstract argument systems,” in Argumentation in Artificial Intelligence
+eds. I. Rahwan and G. Simari, Berlin: Springer, pp. 25–44.
+Bench-Capon, T. (2003), “Persuasion in practical argument using value-based argumentation frameworks,” Journal of Logic
+and Computation, 13, 429–448.
+Besnard, P., and Hunter, A., Elements of Argumentation, Cambridge, MA: MIT Press (2008).
+Bex, F., Prakken, H., Reed, C., and Walton, D. (2003), “Towards a formal account of reasoning about evidence: argumentation schemes and generalisations,” Artificial Intelligence and Law, 12, 125–165.
+Bondarenko, A., Dung, P., Kowalski, R., and Toni, F. (1997), “An abstract, argumentation-theoretic approach to default
+reasoning,” Artificial Intelligence, 93, 63–101.
+Caminada, M. (2006), “On the issue of reinstatement in argumentation,” in Proceedings of the 11th European Conference
+on Logics in Artificial Intelligence (JELIA 2006), no. 4160 in Springer Lecture Notes in AI, Berlin: Springer Verlag, pp.
+111–123.
+Caminada, M., and Amgoud, L. (2007), “On the evaluation of argumentation formalisms,” Artificial Intelligence, 171,
+286–310.
+Dung, P. (1995), “On the acceptability of arguments and its fundamental role in nonmonotonic reasoning, logic programming, and n–person games,” Artificial Intelligence, 77, 321–357.
+Dung, P., Kowalski, R., and Toni, F. (2006), “Dialectic proof procedures for assumption-based, admissible argumentation,”
+Artificial Intelligence, 170, 114–159.
+Dung, P., Mancarella, P., and Toni, F. (2007), “Computing ideal sceptical argumentation,” Artificial Intelligence, 171, 642–
+674.
+Elvang-Göransson, M., Fox, J., and Krause, P. (1993), “Acceptability of arguments as logical uncertainty,” in Proceedings of
+the 2nd European Conference on Symbolic and Quantitative Approaches to Reasoning with Uncertainty (ECSQARU93),
+Berlin: Springer Verlag, pp. 85–90.
+Garcia, A., and Simari, G. (2004), “Defeasible Logic Programming: An Argumentative Approach,” Theory and Practice of
+Logic Programming, 4, 95–138.
+Gordon, T., Prakken, H., and Walton, D. (2007), “The Carneades model of argument and burden of proof,” Artificial Intelligence, 171, 875–896.
+Governatori, G., Maher, M., Antoniou, G., and Billington, D. (2004), “Argumentation semantics for defeasible logic,”
+Journal of Logic and Computation, 14, 675–702.
+Jakobovits, H., and Vermeir, D. (1999), “Robust semantics for argumentation frameworks,” Journal of Logic and Computation, 9, 215–261.
+Lin, F., and Shoham, Y. (1989), “Argument systems. A uniform basis for nonmonotonic reasoning,” in Principles of Knowledge Representation and Reasoning: Proceedings of the First International Conference, San Mateo, CA: Morgan Kaufmann Publishers, pp. 245–255.
+Loui, R. (1987), “Defeat among arguments: a system of defeasible inference,” Computational Intelligence, 2, 100–106.
+Modgil, S. (2009), “Reasoning about preferences in argumentation frameworks,” Artificial Intelligence, 173, 901–934.
+Nute, D. (1994), “Defeasible logic,” in Handbook of Logic in Artificial Intelligence and Logic Programming eds. D. Gabbay,
+C. Hogger and J. Robinson, Oxford: Clarendon Press, pp. 253–395.
+Pollock, J., Knowledge and Justification, Princeton: Princeton University Press (1974).
+Pollock, J. (1987), “Defeasible reasoning,” Cognitive Science, 11, 481–518.
+Pollock, J. (1994), “Justification and Defeat,” Artificial Intelligence, 67, 377–408.
+Prakken, H., Logical Tools for Modelling Legal Argument. A Study of Defeasible Argumentation in Law, Law and Philosophy Library, Dordrecht/Boston/London: Kluwer Academic Publishers (1997).
+Prakken, H., and Sartor, G. (1997), “Argument-based extended logic programming with defeasible priorities,” Journal of
+Applied Non-classical Logics, 7, 25–75.
+Prakken, H., and Vreeswijk, G. (2002), “Logics for defeasible argumentation,” in Handbook of Philosophical Logic (Vol. 4,
+Second ed.), eds. D. Gabbay and F. Günthner, Dordrecht/Boston/London: Kluwer Academic Publishers, pp. 219–318.
+Reiter, R. (1980), “A logic for default reasoning,” Artificial Intelligence, 13, 81–132.
+Verheij, B. (1996), “Two approaches to dialectical argumentation: admissible sets and argumentation stages,” in Proceedings of the Eighth Dutch Conference on Artificial Intelligence (NAIC-96), Utrecht, The Netherlands, pp. 357–368.
+Verheij, B. (2003), “DefLog: on the logical interpretation of prima facie justified assumptions,” Journal of Logic and
+Computation, 13, 319–346.
+
+May 17, 2010
+
+16:22
+
+Argument & Computation
+
+aspicAF
+
+REFERENCES
+
+31
+
+Verheij, B. (2003), “Dialectical argumentation with argumentation schemes: an approach to legal logic,” Artificial Intelligence and Law, 11, 167–195.
+Vreeswijk, G., Studies in Defeasible Argumentation, Doctoral dissertation Free University Amsterdam (1993).
+Vreeswijk, G. (1997), “Abstract argumentation systems,” Artificial Intelligence, 90, 225–279.
+Walton, D., Reed, C., and Macagno, F., Argumentation Schemes, Cambridge: Cambridge University Press (2008).
+
+

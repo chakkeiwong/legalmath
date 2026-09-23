@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="8" time="0.272" timestamp="2026-09-23T18:39:22.208319+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="tests.assurance.test_sources" name="test_independent_inventory_detects_dropped_footnote_and_forged_text" time="0.003"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_REFERENCE'&#10;  Actual message: 'Reference does not resolve.'">def test_independent_inventory_detects_dropped_footnote_and_forged_text():
+        context = acquire_context([doc()]); packet = packet_from_context(context, 'Disclosures')
+        assert context['status'] == 'EXPLICIT_REFERENCES_CHECKED'
+        assert audit_packet(packet, context) == []
+        omitted = deepcopy(packet); omitted['units'].pop()
+        assert audit_packet(omitted, context)[0]['kind'] == 'MISSING_SOURCE_TEXT'
+        forged = deepcopy(packet); forged['units'][0]['text'] = 'A distributor may hide risks.'
+        with pytest.raises(LegalMathError, match='E_REFERENCE'):
+&gt;           audit_packet(forged, context)
+
+tests/assurance/test_sources.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+packet = {'authority': 'RETAINED_SOURCE', 'dependencies': [], 'family_ids': ['scope', 'definitions', 'exceptions', 'modality', 'time', 'dependencies'], 'selected_slice': 'Disclosures', ...}
+context = {'attempted_urls': ['https://www.sfc.hk/test/circular'], 'documents': [{'agreement': True, 'data': b'{"html": "&lt;p&gt;A di... 'findings': [], 'media_type': 'application/json', ...}], 'findings': [], 'limits': {'depth': 3, 'documents': 20}, ...}
+
+    def audit_packet(packet, context):
+        """Check retained spans and complete text coverage, independently of unit labels."""
+        packet = parse(Packet, packet); findings = []
+        by_id = {'d' + digest(d['url'])[:12]: d for d in context['documents']}
+        coverage = {key: [] for key in by_id}
+        seen = set()
+        for unit in packet['units']:
+            if unit['unit_id'] in seen:
+                raise LegalMathError('E_DUPLICATE_ID')
+            seen.add(unit['unit_id']); span = unit['span']
+            if not span or span['source_id'] not in by_id:
+                findings.append({'kind': 'UNBOUND_SOURCE_UNIT', 'unit_id': unit['unit_id']}); continue
+            doc = by_id[span['source_id']]
+            from ...sources.anchors import verify_span
+            retained_quote = verify_span(span, doc['data'], doc['text'])
+            if unit['text'] != retained_quote:
+&gt;               raise LegalMathError('E_REFERENCE', details='Unit text differs from retained quote')
+E               legalmath.errors.LegalMathError: Reference does not resolve.
+
+src/legalmath/interpretation/assurance/sources.py:207: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+    def test_independent_inventory_detects_dropped_footnote_and_forged_text():
+        context = acquire_context([doc()]); packet = packet_from_context(context, 'Disclosures')
+        assert context['status'] == 'EXPLICIT_REFERENCES_CHECKED'
+        assert audit_packet(packet, context) == []
+        omitted = deepcopy(packet); omitted['units'].pop()
+        assert audit_packet(omitted, context)[0]['kind'] == 'MISSING_SOURCE_TEXT'
+        forged = deepcopy(packet); forged['units'][0]['text'] = 'A distributor may hide risks.'
+&gt;       with pytest.raises(LegalMathError, match='E_REFERENCE'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_REFERENCE'
+E         Actual message: 'Reference does not resolve.'
+
+tests/assurance/test_sources.py:24: AssertionError</failure></testcase><testcase classname="tests.assurance.test_sources" name="test_annex_is_acquired_and_bounded_missing_annex_cannot_pass" time="0.003" /><testcase classname="tests.assurance.test_sources" name="test_reference_cycles_missing_sources_and_untrusted_hosts_are_visible" time="0.000" /><testcase classname="tests.assurance.test_sources" name="test_changed_and_superseded_versions_do_not_reuse_old_results" time="0.000" /><testcase classname="tests.assurance.test_sources" name="test_secondary_parser_disagreement_and_unavailable_are_findings" time="0.001" /><testcase classname="tests.assurance.test_sources" name="test_real_circular_inventory_is_reproducible_and_contains_discount" time="0.006" /><testcase classname="tests.assurance.test_sources" name="test_whitespace_change_preserves_inventory_but_not_source_version" time="0.000" /><testcase classname="tests.assurance.test_sources" name="test_unbound_and_duplicate_units_rejected" time="0.001"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_DUPLICATE_ID'&#10;  Actual message: 'Identifier is not unique.'">def test_unbound_and_duplicate_units_rejected():
+        context = acquire_context([doc()]); packet = packet_from_context(context, 'Rule')
+        packet['units'][0]['span'] = None
+        assert audit_packet(packet, context)[0]['kind'] == 'UNBOUND_SOURCE_UNIT'
+        packet['units'].append(deepcopy(packet['units'][0]))
+        with pytest.raises(LegalMathError, match='E_DUPLICATE_ID'):
+&gt;           audit_packet(packet, context)
+
+tests/assurance/test_sources.py:91: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+packet = {'authority': 'RETAINED_SOURCE', 'dependencies': [], 'family_ids': ['scope', 'definitions', 'exceptions', 'modality', 'time', 'dependencies'], 'selected_slice': 'Rule', ...}
+context = {'attempted_urls': ['https://www.sfc.hk/test/circular'], 'documents': [{'agreement': True, 'data': b'{"html": "&lt;p&gt;A di... 'findings': [], 'media_type': 'application/json', ...}], 'findings': [], 'limits': {'depth': 3, 'documents': 20}, ...}
+
+    def audit_packet(packet, context):
+        """Check retained spans and complete text coverage, independently of unit labels."""
+        packet = parse(Packet, packet); findings = []
+        by_id = {'d' + digest(d['url'])[:12]: d for d in context['documents']}
+        coverage = {key: [] for key in by_id}
+        seen = set()
+        for unit in packet['units']:
+            if unit['unit_id'] in seen:
+&gt;               raise LegalMathError('E_DUPLICATE_ID')
+E               legalmath.errors.LegalMathError: Identifier is not unique.
+
+src/legalmath/interpretation/assurance/sources.py:199: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+    def test_unbound_and_duplicate_units_rejected():
+        context = acquire_context([doc()]); packet = packet_from_context(context, 'Rule')
+        packet['units'][0]['span'] = None
+        assert audit_packet(packet, context)[0]['kind'] == 'UNBOUND_SOURCE_UNIT'
+        packet['units'].append(deepcopy(packet['units'][0]))
+&gt;       with pytest.raises(LegalMathError, match='E_DUPLICATE_ID'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_DUPLICATE_ID'
+E         Actual message: 'Identifier is not unique.'
+
+tests/assurance/test_sources.py:90: AssertionError</failure></testcase></testsuite></testsuites>

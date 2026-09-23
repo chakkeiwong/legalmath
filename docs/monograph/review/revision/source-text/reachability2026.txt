@@ -1,0 +1,2220 @@
+International Journal on Software Tools for Technology Transfer (2026) 28:255–275
+https://doi.org/10.1007/s10009-026-00841-5
+
+GENERAL
+Special Issue CSV 2025
+
+Clause-reachability is undecidable in legal contracts
+Giorgio Delzanno1 · Cosimo Laneve2 · Arnaud Sangnier1 · Gianluigi Zavattaro2
+Accepted: 20 February 2026 / Published online: 19 March 2026
+© The Author(s) 2026
+
+Abstract
+Micro-Stipula is a stateful calculus in which clauses can be activated either through interactions with the external environment
+
+or by the evaluation of time expressions. Despite the apparent simplicity of its syntax and operational model, the combination
+of state evolution, time reasoning, and nondeterminism gives rise to signiﬁcant analytical challenges. In particular, we show
+that determining whether a clause is never executed is undecidable. We formally prove that this undecidability result holds
+even for syntactically restricted fragments: namely, the time-ahead fragment, where all time expressions are strictly positive,
+the instantaneous fragment, where all time expressions evaluate to zero, and the determinate fragment, where the initial
+states of functions and events are disjoint. On the other hand, we identify a decidable subfragment: at the intersection of the
+instantaneous and determinate fragments reachability becomes decidable.
+Keywords Reachability analysis · Legal contracts · Stipula · Minsky machines · Well-structured transition systems
+
+1 Introduction
+Micro-Stipula, noted 𝜇 Stipula, is a basic calculus deﬁning
+
+legal contracts, namely sets of clauses that are either (a)
+parameterless functions, to be invoked by the external environment (e.g. by the parties involved in the contract), or (b)
+events that are triggered at given times (e.g. actions to be executed as soon as a deadline expires). The calculus has been
+devised to study the presence of clauses in legal contracts
+written in Stipula [11, 12] that can never be applied because
+of unreachable circumstances or of wrong time constraints –
+so-called unreachable clauses. In the legal contract domain,
+removing such clauses when the contract is drawn up is substantial because they might be considered too oppressive by
+parties and make the legal relationship fail.
+While dropping unreachable code is a very common optimization in compiler construction of programming lan-
+
+✉ G. Delzanno
+
+giorgio.delzanno@unige.it
+C. Laneve
+cosimo.laneve@unibo.it
+A. Sangnier
+arnaud.sangnier@unige.it
+G. Zavattaro
+gianluigi.zavattaro@unibo.it
+
+guages [1, 4], the presence of time expressions in 𝜇 Stipula
+events makes the optimization complex. In particular, when
+the time expressions are logically inconsistent with the contract behaviour, the corresponding event (and its continuation) becomes unreachable.
+In [24] we have deﬁned an unreachable clauses analyzer
+that uses symbolic expressions to approximate time expressions at static-time and that computes an over-approximation
+of reachable clauses by means of a closure operation based
+on a ﬁxpoint technique. The analyzer, whose prototype is
+at [30], is sound (every clause it spots is unreachable) but
+not complete (there may be unreachable clauses that are not
+recognized). The deﬁnition of a complete algorithm for unreachable clauses was left as an open problem.
+In this paper we study the foregoing problem for three
+fragments of 𝜇 Stipula that are used to model distinctive elements of legal contracts:
+𝜇 StipulaTA : time expressions are always positive – the corresponding events allow one to deﬁne future obligations
+such as the power to exercise an option may only last until
+a deadline is met. For example, a standard clause in a legal
+contract for renting a device is
+
+1
+
+DIBRIS, University of Genova, Genova, Italy
+
+– If the Borrower returns the device k hours after the rental,
+she shall pay Euro cost to the Lender. (The amount has
+been pre-payed at the start of the rental.)
+
+2
+
+DISI, University of Bologna, Bologna, Italy
+
+This clause is transposed in 𝜇 Stipula with an event like
+Springer
+
+256
+
+which is aﬃrming that the money stored in cost is sent to
+the Lender because the Borrower is Using the device when
+the deadline expires. The expressions @Using and @End
+indicate states of the contract.
+𝜇 StipulaI : time expressions are always now – the corresponding events permit to deﬁne judicial enforcements such
+as the immediate activation of a dispute resolution mechanism by an authority when a party challenges the content
+or the execution of the contract. For example, a contract for
+renting a device might also contain a clause for resolution
+of problems:
+– If the Lender detects a problem, he may trigger a resolution process that is managed by the Authority. The
+Authority will immediately enforce resolution to either
+the Lender or the Borrower.
+In this case, the 𝜇 Stipula clause is the event
+
+where the immediate resolution is implemented by a time
+expression now. In this case, if the Lender and the Borrower
+have not yet resolved the issue – the contract is in a state
+Problem – then the Authority enforces a resolution by,
+for example, sending a part of cost to Lender and the
+remaining part to Borrower.
+𝜇 StipulaD : functions and events do not have initial states
+in common; events in this fragment allow one to model
+exceptional behaviours that must be performed before any
+party may invoke a function. This type of restriction is quite
+common in legal contracts, particularly when formalizing a
+clause that outlines the consequences of a party breaching
+a condition. Section A contains a legal contract written in
+𝜇 StipulaD .
+We demonstrate that, even for the aforesaid fragments of
+𝜇 Stipula, there is no complete algorithm for determining unreachable clauses. The proof technique is based on reducing
+the halting problem for Minsky machines (ﬁnite state machines with two registers) [27] to the clause-unreachability
+problem. The 𝜇 Stipula encodings of Minsky machines model
+registers’ values with multiplicities of events and extensively
+use the features that (a) events preempt both the invocation of
+functions and the progression of time and (b) events that are
+not executed in the current time slot are garbage-collected
+when the time progresses. The encoding of 𝜇 StipulaTA is
+particularly complex because we need to decouple in two
+diﬀerent time slots the events corresponding to the two registers and recreate them when the time progresses.
+We then restrict to 𝜇 StipulaDI , a fragment of 𝜇 Stipula
+that is the intersection of 𝜇 StipulaI and 𝜇 StipulaD , and
+Springer
+
+G. Delzanno et al.
+
+prove that the corresponding contracts are an instance of
+well-structured transition systems (WSTS) [18], whereby the
+reachability of clause is decidable as it is an instance of the
+coverability problem (which is decidable in WSTS [18]).
+To achieve this result, we had to modify the semantics of
+𝜇 Stipula by restricting the application of the time progression to states in which functions can be invoked (thus it is
+disabled in the states where events are executed). Hereafter,
+the correspondence between the models using the two different progression rules has been analyzed to demonstrate
+reachability results for 𝜇 StipulaDI .
+The rest of this paper is structured as follows. Section 2
+presents the calculus 𝜇 Stipula with examples and the semantics. Section 3 contains the undecidability results for
+𝜇 StipulaTA , 𝜇 StipulaI and 𝜇 StipulaD . Section 4 contains the
+decidability results about 𝜇 StipulaDI . Section 5 reports and
+discusses related work and Sect. 6 presents general conclusions and future work. Appendix A highlights the relevance
+in a legal context of the fragments of 𝜇 Stipula studied in this
+paper. The proofs of our propositions, lemmas and theorems
+are reported in Appendix B.
+This paper is a revised and extended version of [14] which
+includes more explanations of the results and the details of
+the (un)decidability proofs.
+
+2 The calculus 𝝁 Stipula
+𝜇 Stipula is a calculus of contracts. A contract is declared by
+the term
+stipula C { init Q
+𝐹 }
+where C is the name of the contract, Q is the initial state
+and a 𝐹 is a sequence of functions. We use a set of states,
+ranged over Q, Q′ , · · · ; and a set of function names f, g, · · · .
+The above contract is deﬁned by the keyword stipula and
+is initially in the state speciﬁed by the init keyword. The
+syntax of functions 𝐹, events 𝑊 and time expressions t is
+the following:
+Functions
+𝐹 ::= - | @Q f { 𝑊 } => @Q′ 𝐹
+Events
+𝑊 ::= - | t >> @Q => @Q′ 𝑊
+Time expressions t ::= now + k
+(k ∈ Nat)
+Contracts transit from one state to another either by
+invoking a function or by running an event. Functions
+@Q f { 𝑊 } => @Q′ are invoked by the external environment
+and deﬁne the state Q when the invocation is admitted and
+the state Q′ when the execution of f terminates.
+Events 𝑊 are sequences of timed continuations that are
+created by functions and schedule a transition in future execution. More precisely, the term t >> @Q => @Q′ schedules a
+transition from Q to Q′ at t time slot ahead the current time
+if the contract will be in the state Q. The time expressions are
+
+Clause-reachability is undecidable in legal contracts
+
+257
+
+Table 1 The operational semantics of 𝜇 Stipula
+[F ᴜɴᴄ ᴛɪ ᴏɴ]
+
+@Q f{ 𝑊 } => @Q′ ∈ C
+
+[E ᴠ ᴇ ɴ ᴛ- M ᴀᴛᴄ ʜ]
+
+Ψ′ = LCQ·f·Q′ (𝑊 )
+
+Ψ = 0 >> n Q => Q′ | Ψ′
+
+Ψ, Q ↛
+
+evn
+
+C(Q , - , Ψ) −→ C(Q , - => Q′ , Ψ′ )
+
+f
+
+C(Q , - , Ψ) −→ C(Q , Ψ′ => Q′ , Ψ)
+
+[T ɪ ᴄ ᴋ]
+
+[Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ]
+
+C(Q , Ψ′ => Q′ , Ψ) −→ C(Q′ ,
+
+additions now + k, where k is a constant (a natural number
+representing, for example, minutes); now is a place-holder
+that will be replaced by 0 during the execution, see rule
+[Fᴜ ɴᴄ ᴛɪ ᴏ ɴ] in Table 1. We always shorten now + 0 into
+now.
+We write @Q f { 𝑊 } => @Q′ ∈
+C when the function @Q f { 𝑊 } => @Q′ is in the contract C.
+Similarly for events. We assume that a function is uniquely
+determined by the tuple Q·f·Q′ , that is the initial and ﬁnal
+states and the function name. In the same way, an event is
+uniquely determined by the tuple Q·evn ·Q′ , where n is the
+line-code of the event.1 Functions and events are generically
+called clauses and, since tuples Q·f·Q′ and Q·evn ·Q′ uniquely
+identify functions and events, we will also call them clauses
+and write Q·f·Q′ ∈ C and Q·evn ·Q′ ∈ C.
+
+Restriction and notations
+
+2.1 Examples
+
+-
+
+Ψ, Q ↛
+
+, Ψ′ | Ψ)
+
+C(Q , - , Ψ) −→ C(Q , - , Ψ ↓)
+
+function is called and the state of the contract is Q. The only
+eﬀect of executing an event is the change of the state. When
+no event can be executed in a state either the time progresses
+(a tick occurs) or a function is invoked. The progression of
+time does not modify a state.
+In the PingPong contract, the initial state is Q0 where
+only ping may be invoked; no event is present because they
+are created by executing functions. The invocation of ping
+makes the contract transit to Q1 and creates the event at line 4,
+noted ev4 . In Q1 there is still a unique possibility: executing
+ev4 . However, to execute it, it is necessary to wait 1 minute
+(assuming that the clock period is 1 minute) due to the time
+expression now + 1. Then the state becomes Q2 indicating
+that pong may be invoked, thus letting the contract transit
+to Q3 where, after 2 minutes (the expression now + 2), the
+event at line 7 can be executed and the contract returns to Q0.
+In PingPong, every clause is reachable.
+The following Sample contract has an event that is unreachable:
+
+As a ﬁrst, simple example considers the PingPong contract:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+stipula PingPong {
+init Q0
+@Q0 ping {
+now + 1 >> @Q1 => @Q2
+} => @Q1
+@Q2 pong {
+now + 2 >> @Q3 => @Q0
+} => @Q3
+}
+
+The contract contains two functions: ping and pong. In
+particular ping may be invoked only if the contract is in the
+state Q0, pong when the contract is in Q2. Functions (i) make
+the contract transit in the state speciﬁed by the term “ => @Q”
+(see lines 5 and 8) and (ii) make the events in their body to be
+scheduled. In particular, an event now + k >> @Q => @Q′
+(see lines 4 and 7) is a timed continuation that can run when
+the time is k time slots ahead to the clock value when the
+1 We assume the code of 𝜇 Stipula contracts to be organized in lines
+of code, and each line contains at most one event deﬁnition.
+
+1
+2
+3
+4
+5
+6
+7
+
+stipula Sample {
+init Init
+@Init f {
+now + 0 >> @Go => @End
+} => @Run
+@Init g { } => @Go
+}
+
+Let us discuss the issue. Sample has two functions at lines
+3 and 6, called f and g, respectively. The two functions
+may be invoked in Init, however the invocation of one of
+them excludes the other because their ﬁnal states are not
+Init. Therefore the event at line 4, which is inside f, is
+unreachable since it can run only if g is executed.
+
+2.2 The operational semantics
+The meaning of 𝜇 Stipula primitives is deﬁned operationally
+by a transition relation between conﬁgurations. A conﬁguration, ranged over by ℂ, ℂ′ , · · · , is a tuple C(Q , Σ , Ψ) where
+• C is the contract name;
+Springer
+
+258
+
+G. Delzanno et al.
+
+• Q is the current state of the contract;
+• Σ is either - or a term Ψ => Q. Σ represents either an empty
+body (hence, a clause can be executed or the time may
+progress) or a continuation where a set of events Ψ must
+be evaluated;
+• Ψ is a (possibly empty) multiset of pending events that
+have been already scheduled for future execution but not
+yet triggered. In particular, Ψ is either - , when there are no
+pending events, or it is k1 >> n1 Q1 => Q1′ |· · ·| kℎ >> nℎ Qℎ => Q′ℎ
+where “|” is commutative and associative with identity - .
+In every term k𝑖 >> n𝑖 Q𝑖 => Q𝑖′ , the constant k𝑖 is obtained
+from the time expression t𝑖 of the corresponding event by
+dropping now. The index n𝑖 is the line-code of the event.
+The function that turns a sequence of events now +
+k >> @Q => @Q′ into a multiset of terms k >> n Q => Q′ is
+LCQ·f·Q′ (𝑊) (see rule [Fᴜ ɴᴄ ᴛ ɪᴏɴ ] , the trivial deﬁnition
+of this function is omitted). This function also drops the
+“@” from the states.
+𝜇
+
+The transition relation of 𝜇 Stipula is ℂ −→ ℂ′ , where 𝜇 is
+either empty _ or f or evn (the label evn indicates the event at
+𝜇
+line n). The formal deﬁnition of ℂ −→ ℂ′ is given in Table 1
+using
+• the predicate Ψ, Q ↛, whose deﬁnition is
+⎧
+true
+⎪
+⎪
+⎪
+⎨ false
+⎪
+Ψ, Q ↛ =
+⎪
+Ψ′ , Q ↛
+⎪
+⎪
+⎪
+⎩
+def
+
+if Ψ = if Ψ = 0 >> n Q => Q′ | Ψ′
+if Ψ = k >> n Q′ => Q′′ | Ψ′
+and (k ≠ 0 or Q′ ≠ Q)
+
+• the function Ψ ↓, whose deﬁnition is
+(Ψ | Ψ′ ) ↓ = Ψ ↓ | Ψ′ ↓
+(k + 1 >> n Q′ => Q′′ ) ↓ = k >> n Q′ => Q′′
+(0 >> n Q′ => Q′′ ) ↓ = A discussion about the four rules follows. Rule [ F ᴜ ɴᴄ ᴛ ɪ ᴏ ɴ ] deﬁnes invocations: the label speciﬁes the function
+name f. The transition may occur provided (i) the contract
+is in the state Q that admits invocations of f and (ii) no event
+can be triggered – cf. the premise Ψ, Q ↛ (event’s execution preempts function invocation). Rule [ Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ ]
+says that a contract changes state by adding the sequence
+of events 𝑊 to the multiset of pending events once now has
+been dropped from time expressions. Rule [E ᴠ ᴇɴ ᴛ-Mᴀᴛ ᴄʜ]
+speciﬁes that an event handler may run provided Σ is - , the
+time guard of the event has value 0 and the initial state of
+the event is the same of the contract’s state. Rule [Tɪᴄᴋ]
+deﬁnes the progression of time. This happens when the contract has an empty Σ and no event can be triggered. In this
+case, the events with time value 0 are garbage-collected and
+the time values of the other events are decreased by one. The
+rules [ F ᴜɴᴄᴛ ɪ ᴏ ɴ] and [ Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ ] might have been
+squeezed in one rule only. We have preferred to keep them
+Springer
+
+apart for compatibility with Stipula (where functions’ and
+events’ bodies may also contain statements).
+The initial conﬁguration of a 𝜇 Stipula contract
+stipula C { init Q
+𝐹 }
+is ℂinit = C(Q , - , -); the set of conﬁgurations of C are denoted by 𝒞C .
+We write ℂ −→ ℂ′ if there is a 𝜇 (as said above, 𝜇 may
+𝜇
+be either - or a function name or an event) such that ℂ −→
+ℂ′ . We also write ℂ −→∗ ℂ′ , called computation, if there
+𝜇1
+𝜇ℎ
+are 𝜇1 , . . . , 𝜇 ℎ such that ℂ −→ · · · −→ ℂ′ . Labels are useful
+in the examples (and proofs) to highlight the clauses that
+are executed. However, while in [24], they were introduced
+to ease the formal reasonings, labels may be overlooked in
+this work. Let 𝕋𝕊(C) = (𝒞C , −→) be the transition system
+associated to C.
+Remark 1
+Few issues about the semantics in Table 1 are worth to be
+remarked.
+– 𝜇 Stipula has three causes for nondeterminism: (i) two distinct functions can be invoked in a state, (ii) either a function is invoked or the time progresses (in this case the
+function may be invoked at a later time), and (iii) if two
+events may be executed at the same time, then one is chosen
+nondeterministically and is executed.
+– Rule [Tɪᴄᴋ] deﬁnes the progression of time. This happens
+when the contract has no event to trigger. Henceforth, the
+complete execution of a function or of an event cannot
+last more than a single time unit. It is worth to notice that
+this semantics admits the paradoxical phenomenon that an
+endless sequence of function invocations does not make
+time progress (cf. the encoding of the Minsky machines
+in 𝜇 StipulaI ). This paradoxical behaviour, which is also
+present in process calculi with time [21, 28], might be
+removed by adjusting the semantics so to progress time
+when a maximal number of functions has been invoked.
+To ease the formal arguments we have preferred to stick to
+the simpler semantics.
+– The semantics of 𝜇 Stipula in this paper is diﬀerent from,
+yet equivalent to, [12, 24]. In the literature, conﬁgurations
+have clock values that are incremented by the tick-rule.
+Then, in the [Fᴜɴᴄᴛɪᴏɴ] rule, the variable now is replaced
+by the current clock value (and not dropped, as in our rule).
+We have chosen the current presentation because it eases
+the reasoning about expressivity.
+To illustrate 𝜇 Stipula semantics, we discuss the computations of the PingPong contract. Consider Ev4 =
+1 >> 4 Q1 => Q2 and Ev7 = 2 >> 7 Q3 => Q0. We write Ev𝑖 (− 𝑗 ) to
+indicate the Ev𝑖 where the time guard has been decreased by
+𝑗 (time) units.
+
+Clause-reachability is undecidable in legal contracts
+
+The contract may initially perform a number of [Tɪᴄᴋ]
+transitions, say 𝑘, and then a [Fᴜ ɴᴄ ᴛ ɪᴏɴ ] one. Therefore we
+have (on the right we write the rule that is used):
+PingPong(Q0 , - , - )
+−→ 𝑘 PingPong(Q0 , - , - )
+[T ɪᴄ ᴋ ]
+ping
+−→ PingPong(Q0 , Ev4 => Q1 , - ) [Fᴜ ɴᴄ ᴛ ɪᴏɴ]
+−→ PingPong(Q1 , - , Ev4 )
+[ Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ ]
+−→ PingPong(Q1 , - , Ev4 (−1) ) [T ɪᴄ ᴋ ]
+ev4
+−→ PingPong(Q1 , - => Q2 , - ) [E ᴠ ᴇɴ ᴛ-Mᴀᴛ ᴄʜ]
+−→ PingPong(Q2 , - , - )
+[ Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ ]
+
+In PingPong(Q2 , - , -), the contract may perform a [ F ᴜ ɴᴄ ᴛ ɪ ᴏ ɴ ] executing pong. Then the computation continues as
+follows:
+pong
+
+−→ PingPong(Q2 , Ev7 => Q3 , - ) [Fᴜ ɴᴄ ᴛ ɪᴏɴ ]
+−→ PingPong(Q3 , - , Ev7 )
+[ Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ ]
+−→2 PingPong(Q3 , - , Ev7 (−2) ) [T ɪᴄ ᴋ ]
+ev7
+
+−→ PingPong(Q3 , - => Q0 , - )
+−→ PingPong(Q0 , - , - )
+
+[E ᴠ ᴇɴ ᴛ-Mᴀᴛ ᴄʜ]
+[ Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ ]
+
+Deﬁnition 1 (State reachability)
+Let C be a 𝜇 Stipula contract with initial conﬁguration ℂinit .
+A state Q is reachable in C if and only if there exists a conﬁguration C(Q , - , Ψ) such that ℂinit −→∗ C(Q , - , Ψ).
+Our notion of state reachability closely relates to several
+well-established properties in the veriﬁcation literature. In
+particular, it aligns with the concept of control state reachability, ﬁrst introduced by Alur and Dill in the context of timed
+automata [2]. There, the problem is deﬁned as determining
+whether, given an automaton 𝐴 and a control state 𝑞, there
+exists a run of 𝐴 that reaches 𝑞. Control state reachability
+has been extensively studied across various computational
+models. For instance, it has been examined in the setting of
+lossy Minsky machines [25], as well as in lossy FIFO channel systems [5, 10]. In the framework of Petri nets, a related
+problem is the coverability of a target marking, as formulated
+in [23].
+As discussed in the Introduction, a corresponding and
+central property in the context of 𝜇 Stipula is what we refer
+to as clause reachability as deﬁned below.
+Deﬁnition 2 (Clause reachability)
+Let C be a 𝜇 Stipula contract with initial conﬁguration ℂinit .
+A clause Q·f·Q′ (or Q·evn ·Q′ ) in C is reachable if there exists
+𝜇
+a computation ℂ −→∗ ℂ′ −→ ℂ′′ with 𝜇 = f (or 𝜇 = evn ).
+Clause reachability and state reachability are closely related in the fragments of 𝜇 Stipula considered in this paper.
+Their equivalence is established in the next subsection.
+
+2.3 Relevant sublanguages
+We will consider the following fragments of 𝜇 Stipula whose
+relevance has been already discussed in the Introduction:
+
+259
+
+𝜇 StipulaI , called instantaneous 𝜇 Stipula, is the fragment
+where the time expression of all the events is always now +
+0;
+𝜇 StipulaTA , called time-ahead 𝜇 Stipula, is the fragment
+where every time expression of the events is now + k, with
+k > 0;
+𝜇 StipulaD , called determinate 𝜇 Stipula, is the fragment
+where the sets of initial states of functions and of events have
+empty intersection; i.e., for each function @Q f { 𝑊 } => @Q′
+and event t >> @Q′′ => @Q′′′ in a contract, we impose Q ≠ Q′′ ;
+𝜇 StipulaDI , called determinate-instantaneous 𝜇 Stipula, is
+the intersection between 𝜇 StipulaD and 𝜇 StipulaI ; i.e., for
+each function @Q f { 𝑊 } => @Q′ and event t >> @Q′′ => @Q′′′
+in a contract, we impose Q ≠ Q′′ and t = now + 0.
+The focus of this paper is about the (un)decidability of
+clause reachability in the above fragments, because our ultimate goal is to investigate the possibility to implement a
+sound and complete unreachable-clause analyser. We now
+prove that clause reachability is decidable if and only if state
+reachability is decidable, for all the considered fragments.
+This will allow us to resort to state reachability that, as
+previously commented, is a more standard property in the
+literature.
+Theorem 1
+Clause reachability is decidable in 𝜇 StipulaI (respectively, 𝜇 StipulaTA , 𝜇 StipulaD and 𝜇 StipulaDI ) if and only
+if state reachability is decidable in 𝜇 StipulaI (respectively,
+𝜇 StipulaTA , 𝜇 StipulaD and 𝜇 StipulaDI ).
+Proof
+We simply show that, in all the considered fragments, each
+of the two problems can be reduced to the other one.
+Consider a contract C, expressed in any of the above four
+fragments of 𝜇 Stipula, and one of its clauses. Consider now
+a modiﬁed contract C′ obtained from C by modifying the
+considered clause in such a way that its eﬀect is that of
+entering a new fresh state Q′ (non present in C). Such contract
+C′ belongs to the same fragment of C and, moreover, we have
+that the considered clause is reachable in C if and only if the
+state Q′ is reachable in C′ .
+Consider now a contract C, expressed in any of the above
+four fragments of 𝜇 Stipula, and one of its states Q. It is
+not restrictive to consider Q diﬀerent from the initial state,
+otherwise state reachability becomes a trivial property that
+always holds. Consider now the set 𝑆 of clauses in C whose
+eﬀect is that of entering in state Q. We have that Q is reachable
+in C if and only if at least one of the clauses in 𝑆 is reachable.
+Notice that the set 𝑆 is ﬁnite, hence checking the reachability
+of one clause in 𝑆 corresponds to the conjunction of ﬁnitely
+many instances of the clause reachability problem.
+□
+Springer
+
+260
+
+G. Delzanno et al.
+
+Table 2 The 𝜇 StipulaI contract modelling a Minsky machine
+
+Let 𝑀 be a Minsky machine with initial state Q0 . Let I 𝑀 be the 𝜇 StipulaI contract
+stipula I 𝑀 { init Start
+
+𝐹𝑀 }
+
+where 𝐹𝑀 contains the functions
+– @Start fstart { now >> @aQ0 => @bQ0 } => @Q0
+– for every instruction Q : Inc(R𝑖 , Q′ ), with 𝑖 ∈ {1, 2}:
+@Q fincQ { now >> @dec𝑖 => @ackdec𝑖
+now >> @bQ => @Q′
+now >> @aQ′ => @bQ′
+} => @aQ
+– for every instruction Q : DecJump(R𝑖 , Q′ , Q′′ ), with 𝑖 ∈ {1, 2}:
+@Q fdecQ { now >> @ackdec𝑖 => @aQ
+now >> @bQ => @Q
+′′
+
+now >> @aQ => @bQ
+
+now >> @bQ => @Q′
+′′
+
+} => @dec𝑖
+– @dec1 fdec1 { } => @zero1
+
+@Q fzeroQ { now >> @zero𝑖 => @aQ
+
+′′
+
+now >> @aQ′ => @bQ′
+} => @dec𝑖
+
+and
+
+@dec2 fdec2 { } => @zero2
+
+3 Undecidability results
+To show the undecidability of state reachability, we rely on a
+reduction technique from a Turing-complete computational
+model to 𝜇 StipulaI , 𝜇 StipulaTA , and 𝜇 StipulaD . As Turingpowerful formalism we consider Minsky machines [27]. A
+Minsky machine is an automaton with two registers R1 and R2
+holding arbitrary large natural numbers, a ﬁnite set of states
+Q, Q′ , . . ., and a program P consisting of a ﬁnite sequence of
+numbered instructions of the following type:
+• Q : Inc(R𝑖 , Q′ ): in the state Q, increment R𝑖 and go to the
+state Q′ ;
+• Q : DecJump(R𝑖 , Q′ , Q′′ ): in the state Q, if the content of R𝑖
+is zero then go to the state Q′ , else decrease R𝑖 by 1 and go
+to the state Q′′ .
+A conﬁguration of a Minsky machine is given by a tuple
+(Q, 𝑣1 , 𝑣2 ) where Q indicates the state of the machine and 𝑣1
+and 𝑣2 are the contents of the two registers. A transition of
+a Minsky machine is denoted by −→M . We assume that the
+machine has an initial state Q0 and a ﬁnal state Q𝐹 that has
+no instruction starting at it. The halting problem of a Minsky machine is assessing whether there exist 𝑣1 , 𝑣2 such that
+(Q𝐹 , 𝑣1 , 𝑣2 ) is reachable starting from (Q0 , 0, 0). This problem
+is undecidable [27]. In the rest of the section, we will demonstrate the undecidability of state reachability for 𝜇 StipulaI ,
+𝜇 StipulaTA , and 𝜇 StipulaD by providing encodings of Minsky
+machines. The encodings we use are increasingly complex.
+Therefore, we will discuss the undecidability results starting
+from the simplest one. Here, we present the Minsky machines
+encodings and informally discuss their correctness while the
+details of the proofs can be found in Appendix B.
+Springer
+
+3.1 Undecidability for 𝝁 StipulaI
+Table 2 deﬁnes the encoding of a Minsky machine 𝑀 into a
+𝜇 StipulaI contract I 𝑀 . The relevant invariant of the encoding is that, every time 𝑀 transits to (Q, 𝑣1 , 𝑣2 ) then I 𝑀 may
+transit to I 𝑀 (Q, -, Ψ), where the number of events
+0 >> @dec1 => @ackdec1 and 0 >> @dec2 => @ackdec2
+in Ψ are 𝑣1 and 𝑣2 , respectively. Additionally, a transition (Q, 𝑣1 , 𝑣2 ) −→M (Q′ , 𝑣1′ , 𝑣2′ ) corresponds to a sequence
+of transitions I 𝑀 (Q, -, Ψ) −→∗ I 𝑀 (Q′ , -, Ψ′ ) with either (i) a fincQ function, if the Minsky machine performs an Inc instruction, or (ii) either a fdecQ or a
+fzeroQ function, if the Minsky machine performs a
+DecJump instruction. In particular, the function fincQ has
+the ability to add one instance of the event 0 >> @dec1
+=> @ackdec1 (or 0 >> @dec2 => @ackdec2 ). The function
+fdecQ has the eﬀect of consuming one instance of the event
+0 >> @dec1 => @ackdec1 (resp. 0 >> @dec2 => @ack- dec2 ),
+by entering the state @dec1 (resp. @dec2 ) which triggers
+such event. Also the function zeroQ enters in one of the
+states @dec𝑖 , but in this case the computation will have the
+ability to continue only if the state @zero𝑖 will be reached
+(this because the produced event 0 >> @zero𝑖 => @aQ must be
+triggered to allow the computation to continue). But @zero𝑖
+can be reached only if no event 0 >> @dec𝑖 is present, because only in this case the function fdec𝑖 can be invoked
+(remember that events have priority w.r.t. function invocations).
+We ﬁnally observe that the transitions I 𝑀 (Q, -, Ψ) −→∗
+I 𝑀 (Q′ , -, Ψ′ ) which mimick the Minsky machine step
+(Q, 𝑣1 , 𝑣2 ) −→M (Q′ , 𝑣1′ , 𝑣2′ ) are not the unique possibile transitions. Nevertheless, in case diﬀerent alternative transitions
+
+Clause-reachability is undecidable in legal contracts
+
+261
+
+Table 3 The 𝜇 StipulaTA contract modelling a Minsky machine
+
+Let 𝑀 be a Minsky machine with initial state Q0 . Let TA 𝑀 be the 𝜇 StipulaTA contract
+stipula TA 𝑀 { init Q0
+
+𝐹𝑀 }
+
+with 𝐹𝑀 containing the functions
+– for every instruction Q : Inc(R𝑖 , Q′ ), with 𝑖 ∈ {1, 2}:
+@Q fincQ { now + 1 >> @dec𝑖 => @ackdec𝑖
+now + 1 >> @Q′ => @end
+} => @Q
+
+′
+
+– for every instruction Q : DecJump(R𝑖 , Q′ , Q′′ ), with 𝑖 ∈ {1, 2}:
+@Q fdecQ { now + 1 >> @ackdec𝑖 => @nextQ′′ 𝑖
+now + 1 >> @wait => @dec1
+now + 2 >> @dec1 => @end
+
+@Q fzeroQ { now + 1 >> @ackdec𝑖 => @end
+
+now + 2 >> @dec2 => @end
+
+now + 2 >> @next => @Q′
+
+now + 2 >> @nextQ′′
+
+now + 1 >> @wait => @dec1
+
+𝑖 => @end
+
+now + 3 >> @Q′ => @end
+
+now + 2 >> @ackdec1 => @end
+now + 2 >> @ackdec2 => @end
+
+} => @wait
+
+now + 3 >> @Q′′ => @end
+} => @wait
+– for 𝑖 ∈ {1, 2} and for every state Q of 𝑀, we have the following functions:
+@wait fwait { } => @end
+
+@dec1 fdec1 { } => @dec2
+
+@ackdec𝑖 fackdec_i { now + 2 >> @dec𝑖 => @ackdec𝑖 } => @dec𝑖
+
+are executed, the contract I 𝑀 will have no longer the possibility to reach a state corresponding to a Minsky machine
+state, thus the simulation of the machine gets stuck. One
+of the alternative transitions is the invocation of the function fdecQ when the corresponding register is empty. In this
+case, the simulation gets stuck because the state @ackdec𝑖 ,
+necessary to trigger the event 0 >> @ackdec𝑖 => @aQ, cannot
+be reached. Similarly, if fzeroQ is invoked when the corresponding register is nonempty the state @zero𝑖 , necessary to
+trigger the event 0 >> @zero𝑖 => @aQ, cannot be reached. Also
+the elapsing of time is problematic because both the events
+0 >> @dec1 => @ackdec1 and 0 >> @dec2 => @ackdec2 , which
+model the content of the registers, are erased by a [Tɪᴄᴋ]
+transition. This could corrupt the modeling of the registers.
+In this case the simulation gets stuck because also the event
+0 >> aQ => bQ is erased, which is necessary to model the transition from a state Q of the Minsky machine to the next one.
+Theorem 2
+State reachability is undecidable for the fragment 𝜇 StipulaI .
+
+3.2 Undecidability for 𝝁 StipulaTA
+Also in this case we reduce from the halting problem of
+Minsky machines to state reachability in 𝜇 StipulaTA . The
+encoding of a machine 𝑀 is deﬁned in Table 3. In this case,
+states of the 𝜇 StipulaTA contract alternate between “machine
+states” occurring, say, at even time clocks, and “management
+
+@dec2 fdec2 { } => @next
+@nextQ𝑖 fnextQ_i { now + 1 >> @next => @Q} => @dec𝑖
+
+states” occurring at odd time clocks. For this reason we add
+erroneous transitions at even time clocks from management
+states to end (a state without outgoing transitions) and at
+odd time clocks from machine states to end. Similarly to
+Table 2, a unit in the register 𝑖 is encoded by an event now +
+1 >> @dec𝑖 => @ackdec𝑖 (assuming to be in a machine state).
+Therefore the instruction Q : Inc(R𝑖 , Q′ ), which occurs in a
+machine state Q, amounts to adding to the next time-clock
+such event and the erroneous event now + 1 >> @Q′ => @end
+that makes the contract transit to end if it is still in Q′ at the
+beginning of the next time-clock.
+The encoding of Q : DecJump(R𝑖 , Q′ , Q′′ ) is more convoluted because we have to move all the events now +
+1 >> @dec𝑖 => @ackdec𝑖 ahead two clock units (except one,
+if the corresponding register value is positive). Assume an
+invocation of fdecQ occurs and 𝑖 = 1. Then a bunch of events
+is created (see the body of fdecQ in Table 3) and the contract
+transits into wait. In this state, a [Tɪᴄᴋ] transition can occur; hence the time values of the events are decreased by one.
+Then 0 >> wait => dec1 is enabled and the protocol responsible for moving ahead all the events 0 >> dec1 => ackdec1
+(except one) and all the events 0 >> dec2 => ackdec2 starts.
+The protocol works as follows:
+1. since the state is dec1 , 0 >> dec1 => ackdec1 is ﬁred (assume the value of 𝑅1 is positive) and the contract transits
+to ackdec1 ;
+Springer
+
+262
+
+G. Delzanno et al.
+
+2. in ackdec1 , 0 >> ackdec1 => nextQ′′ 1 is ﬁred and the contract transits to state nextQ′′ 1 (one of the events 0 >> dec1
+=> ackdec1 has been erased without being moved ahead);
+3. in nextQ′′ 1 , the function
+@nextQ′′ 1 fnextQ′′ _1 { now + 1 >> @next => @Q′′ }
+=> @dec1
+can be invoked. A transition to dec1 happens and the
+event 1 >> next => Q′′ is created. When the transfer protocol terminates, this event will make the contract transit to
+Q′′ ;
+4. at this stage the transfer of events 0 >> dec𝑖 => ackdec𝑖
+occurs. At ﬁrst the protocol moves all the events 0 >> dec1
+=> ackdec1 (every such event is ﬁred and then the function
+fackdec1 that recreates the same event at now + 2 is
+executed) then the function fdec1 is invoked and the same
+protocol is applied to the events 0 >> dec2 => ackdec2 ;
+5. at the end of the transfers, the function fdec2 is invoked
+and the contract transits to next;
+6. in next, no event nor function can be executed, therefore
+a [ Tɪ ᴄ ᴋ] occurs and the time values of the events are
+decreased by one (in particular those 2 >> dec𝑖 => ackdec𝑖
+that were transferred at step 4). Then 0 >> next => Q′′ that
+was created at step 3 is executed and the contract transits
+to Q′′ .
+When the register 𝑅1 is 0 and fdecQ is invoked then the event
+at step 2 cannot be produced and the computation is fated to
+reach an end state (by fdec1, fdec2 or by [ ᴛ ɪ ᴄ ᴋ ] and then
+performing 0 >> dec1 => end). If, on the contrary, the invoked
+function is fzeroQ, the same protocol as above is used to
+transfer the events 0 >> dec𝑖 => ackdec𝑖 (in this case with
+𝑖 = 2 only) and the contract reaches the step 5 where, after a
+[T ɪ ᴄ ᴋ] , the event now + 2 >> next => Q′ can be executed. The
+undecidability result for 𝜇 StipulaTA follows.
+Theorem 3
+State reachability is undecidable for the fragment 𝜇 StipulaTA .
+
+3.3 Undecidability for 𝝁 StipulaD
+Also in this case we reduce from the halting problem of Minsky machines to state reachability in 𝜇 StipulaD . In 𝜇 StipulaD ,
+functions and events start in diﬀerent states. Therefore the
+encoding of Table 3 is inadequate since we used the expedient that events preempt functions when enabled in the same
+state to make the contract transit to the end state (which
+indicates an error). For 𝜇 StipulaD we need to reﬁne the sequence machine-mana-gement states in order to have extra
+management over erroneous operations (decrease of zero
+register or zero-test of a positive register). The idea is to
+manage at diﬀerent times the events dec1 => ackdec1 and
+Springer
+
+dec2 => ack-dec2 that model registers’ units. In particular, if
+the contract is in a (machine) state Q at time 0 then dec1 =>
+ackdec1 are at time 1 and dec2 => ackdec2 are at time 3.
+The states at times 2 and 4 perform management operations.
+Therefore the sequence of states becomes
+machine-state → transfer1-state → management1-state
+→ transfer2-state → management2-state
+where every state is one tick ahead the previous one. The
+states transfer1-state and transfer2-state manage the transfer of all the events dec1 => ackdec1 and of the events
+dec2 => ackdec2 ahead ﬁve clock units.
+Clearly, misplaced [Tɪᴄᴋ] transitions may break the rigidity of the protocol. This means that it is necessary to stop
+the simulation if a wrong [Tɪᴄᴋ] transition is performed. We
+already used a similar mechanism in Table 2. In that case, a
+management event at time 0 (that is created in the past transition) is necessary to simulate the Minsky machine transition;
+in turn, the simulation creates a similar management event
+for the next one. Henceforth, if a tick occurs before the invocation of a function (thus erasing registers’ values that were
+events at time 0, as well) then the simulation stops because
+the management event is also erased.
+A similar expedient cannot be used for the 𝜇 StipulaD encoding because the registers’ values are at diﬀerent times
+(+1 and +3 with respect to the machine state) and erasing the
+management event with a tick may be useless if the 𝜇 StipulaD
+function produces an equal management event, which is the
+case when the corresponding transition is circular (initial
+and ﬁnal states are the same). Therefore we reﬁne the technique in Table 2 by adding sibling functions and the simulation uses standard functions or sibling ones according to
+the presence of the management event 0 >> notickA => cont
+or of 0 >> notickB => cont. For example, the encoding of
+Q : Inc(𝑅1 , Q′ ) is (the events of register 𝑅1 are at now + 1):
+@Q : fAincQ {
+now + 1 >> @dec1 => @ackdec1
+now >> @cont => @Q′
+now >> @notickB => @cont
+} => @notickA
+@Q : fBincQ {
+now + 1 >> @dec1 => @ackdec1
+now >> @cont => @Q′
+now >> @notickA => @cont
+} => @notickB
+Assuming to be in a conﬁguration with state Q and
+event 0 >> notickA => cont, the unique function that can
+be invoked is fAincQ; thereafter, the combined eﬀect of
+0 >> notickA => cont and 0 >> cont => Q′ allows the contract
+
+Clause-reachability is undecidable in legal contracts
+
+263
+
+Table 4 The 𝜇 StipulaD contract modelling a Minsky machine
+
+Let 𝑀 be a Minsky machine with initial state Q0 . Let D 𝑀 be the 𝜇 StipulaD contract
+stipula D 𝑀 { init Start
+
+𝐹𝑀 }
+
+with 𝐹𝑀 contains the functions
+– @Start fstart { now >> @notickA => @cont } => @Q0
+– for every Q : Inc(𝑅1 , Q′ ):
+@Q fAincQ {
+
+@Q fBincQ {
+
+now + 1 >> @dec1 => @ackdec1
+now >> @cont => @Q
+
+′
+
+now + 1 >> @dec1 => @ackdec1
+now >> @cont => @Q′
+
+now >> @notickB => @cont
+} => @notickA
+
+now >> @notickA => @cont
+} => @notickB
+
+– for every Q : Inc(𝑅2 , Q′ ):
+@Q fAincQ {
+
+@Q fBincQ {
+
+now + 3 >> @dec2 => @ackdec2
+
+now + 3 >> @dec2 => @ackdec2
+
+now >> @cont => @Q′
+
+now >> @cont => @Q′
+
+now >> @notickB => @cont
+
+now >> @notickA => @cont
+
+} => @notickA
+
+} => @notickB
+
+– for every Q : DecJump(𝑅1 , Q′ , Q′′ ):
+@Q fAdecQ {
+
+@Q fBdecQ {
+
+now + 1 >> @ackdec1 => @Q′′ _start1
+
+now + 1 >> @ackdec1 => @Q′′ _start1
+
+now + 1 >> @s1notick => @cont
+
+now + 1 >> @s1notick => @cont
+
+now >> @cont => @dec1
+
+now >> @cont => @dec1
+
+} => @notickA
+
+} => @notickB
+
+@Q fAzeroQ {
+
+@Q fBzeroQ {
+
+now >> @cont => @dec1
+
+now >> @cont => @dec1
+
+now + 2 >> @dec1 => @dec2
+
+now + 2 >> @dec1 => @dec2
+
+now + 3 >> @ackdec2 => @copy2
+
+now + 3 >> @ackdec2 => @copy2
+
+now + 3 >> @c2notickA => @cont
+
+now + 3 >> @c2notickA => @cont
+
+now + 5 >> @dec2 => @Q′
+
+now + 5 >> @dec2 => @Q′
+
+now + 5 >> @notickB => @cont
+} => @notickA
+
+now + 5 >> @notickA => @cont
+} => @notickB
+
+– for every Q : DecJump(𝑅2 , Q′ , Q′′ ):
+@Q fAdecQ {
+
+@Q fBdecQ {
+
+now >> @cont => @dec1
+
+now >> @cont => @dec1
+
+now + 1 >> @ackdec1 => @copy1
+
+now + 1 >> @ackdec1 => @copy1
+
+now + 1 >> @c1notickA => @cont
+
+now + 1 >> @c1notickA => @cont
+
+now + 2 >> @dec1 => @dec2
+
+now + 2 >> @dec1 => @dec2
+′′
+
+now + 3 >> @ackdec2 => @Q _start2
+now + 3 >> @s2notick => @cont
+} => @notickA
+
+now + 3 >> @ackdec2 => @Q′′ _start2
+now + 3 >> @s2notick => @cont
+} => @notickB
+
+@Q fAzeroQ {
+
+@Q fBzeroQ {
+
+now >> @cont => @dec1
+
+now >> @cont => @dec1
+
+now + 1 >> @ackdec1 => @copy1
+
+now + 1 >> @ackdec1 => @copy1
+
+now + 1 >> @c1notickA => @cont
+
+now + 1 >> @c1notickA => @cont
+
+now + 2 >> @dec1 => @dec2
+
+now + 2 >> @dec1 => @dec2
+
+now + 5 >> @dec2 => @Q
+
+′
+
+now + 5 >> @notickB => @cont
+} => @notickA
+
+now + 5 >> @dec2 => @Q′
+now + 5 >> @notickA => @cont
+} => @notickB
+
+– the management functions in Table 5.
+
+Springer
+
+264
+
+G. Delzanno et al.
+
+Table 5 The management functions of Table 4 (Q is a state of the Minsky machine)
+
+@Q_start1 fQstart1 {
+now >> @cont => @dec1
+now >> @ackdec1 => @copy1
+now >> @c1notickA => @cont
+now + 1 >> @dec1 => @dec2
+now + 2 >> @ackdec2 => @copy2
+now + 2 >> @c2notickA => @cont
+now + 4 >> @dec2 => @Q
+now + 4 >> @notickA => @cont
+
+@Q_start2 fQstart2 {
+now >> @cont => @dec2
+now >> @ackdec2 => @copy2
+now >> @c2notickA => @cont
+now + 2 >> @dec2 => @Q
+now + 2 >> @notickA => @cont
+} => @s2notick
+
+} => @s1notick
+@copy1 fAcopy1 {
+
+@copy2 fAcopy2 {
+
+@copy1 fBcopy1 {
+
+@copy2 fBcopy2 {
+
+now >> @cont => @dec1
+
+now >> @cont => @dec2
+
+now >> @cont => @dec1
+
+now >> @cont => @dec2
+
+now >> @ackdec1 => @copy1
+
+now >> @ackdec2 => @copy2
+
+now >> @ackdec1 => @copy1
+
+now >> @ackdec2 => @copy2
+
+now >> @c1notickB => @cont
+
+now >> @c2notickB => @cont
+
+now >> @c1notickA => @cont
+
+now >> @c2notickA => @cont
+
+now + 5 >> @dec1 => @ackdec1
+
+now + 5 >> @dec2 => @ackdec2
+
+now + 5 >> @dec1 => @ackdec1
+
+now + 5 >> @dec2 => @ackdec2
+
+} => @c1notickA
+
+} => @c2notickA
+
+to transit to Q′ with an additional event 1 >> dec1 => ackdec1
+(corresponding to a register increment) and the presence of
+0 >> notickB => cont that compels the next instruction, if
+any, to be a sibling one (e.g. fBincQ′ ).
+Tables 4 and 5 deﬁne the encoding of a Minsky machine 𝑀
+into a 𝜇 StipulaD contract D 𝑀 . The reader may notice that the
+management functions fQstart1 and fQstart2 in Table 5
+do not have sibling functions because they always produce
+a management event k >> notickA => cont (with k be either
+2 or 4). Actually this is an optimization: they are invoked
+because a decrement occurred and, in such cases it is not
+possible that the foregoing management events are used in
+the simulation of the current instruction. The undecidability
+result for 𝜇 StipulaD follows.
+Theorem 4
+State reachability is undecidable for the fragment 𝜇 StipulaD .
+
+4 Decidability for 𝝁 StipulaDI
+We demonstrate that state reachability is decidable for
+𝜇 StipulaDI . As for the previous section, here we present our
+proof techique and informally discuss its correctness, while
+the details of the proofs can be found in Appendix B.
+We ﬁrst recall that, in 𝜇 StipulaDI , for every pair of clauses
+Q·f·Q′ and Q′′ ·ev·Q′′′ in C, we have Q ≠ Q′′ . In our decidability
+proof, we resort to a variant of the semantics of 𝜇 StipulaDI
+with an alternative [T ɪᴄ ᴋ ] rule. Let InitEv(C) be the set of
+initial states of events in C, where C is a 𝜇 Stipula contract.
+Let
+Springer
+
+} => @c1notickB
+
+} => @c2notickB
+
+[T ɪ ᴄ ᴋ- P ʟᴜꜱ]
+
+Q ∉ InitEv(C)
+C(Q , - , Ψ) −→ C(Q , - , Ψ ↓)
+That is, unlike [Tɪᴄᴋ] , [ T ɪ ᴄ ᴋ- P ʟᴜ ꜱ ] may only be used in
+states that are not initial states of events. Let 𝜇 StipulaDI
++ be
+the language whose operational semantics uses [ T ɪ ᴄ ᴋ- P ʟᴜ ꜱ ]
+instead of [Tɪᴄᴋ] ; we denote with −→tp the transition relation of 𝜇 StipulaDI
++ . We observe that, syntactically, nothing
+is changed: every 𝜇 StipulaDI contract is a 𝜇 StipulaDI
++ contract and conversely. We denote by 𝕋𝕊tp (C) = (𝒞C , −→tp )
+the transitions system associated to contract C using −→tp
+as transition rule.
+Deﬁnition 3
+Let ℂ be a possible conﬁguration of a 𝜇 Stipula contract. We
+say that ℂ is stuck if, for every computation ℂ −→∗ ℂ′ the
+transitions therein are always instances of [Tɪᴄᴋ] .
+Proposition 1
+Let C ( Q , Σ , Ψ) be a conﬁguration of a 𝜇 StipulaDI contract
+C (or a 𝜇 StipulaDI
++ contract). Then
+(i) whenever Q ∉ InitEv( C) or Σ ≠ - :
+
+C ( Q , Σ , Ψ) −→ ℂ if and only if C ( Q , Σ , Ψ) −→tp ℂ ;
+(ii) whenever Q ∈ InitEv( C) and Ψ = 0 >> n Q => Q′ | Ψ′ :
+
+C ( Q , - , Ψ) −→ ℂ if and only if C ( Q , - , Ψ) −→tp ℂ ;
+(iii) whenever Q ∈ InitEv( C) and Ψ, Q ↛:
+
+C ( Q , - , Ψ) is stuck if and only if C ( Q , - , Ψ) ↛tp .
+
+Clause-reachability is undecidable in legal contracts
+
+A consequence of Proposition 1 is that a state Q is reachable in 𝜇 StipulaDI if and only if it is reachable in 𝜇 StipulaDI
++.
+This allows us to safely reduce state reachability arguments
+to 𝜇 StipulaDI
++ . In particular we demonstrate that 𝕋𝕊tp (C),
+where C is a 𝜇 StipulaDI
++ contract, is a well-structured transition system.
+We begin with some background on well-structured transition systems [18]. A relation ≤ ⊆ 𝑋 × 𝑋 is called quasiordering if it is reﬂexive and transitive. A well-quasiordering is a quasi-ordering ≤ ⊆ 𝑋 × 𝑋 such that, for every
+inﬁnite sequence 𝑥 1 , 𝑥 2 , 𝑥 3 , . . ., there exist 𝑖 < 𝑗 with 𝑥 𝑖 ≤ 𝑥 𝑗 .
+Deﬁnition 4
+A well-structured transition system is a tuple (𝒞, −→, ⪯)
+where (𝒞, −→) is a transition system and ⪯ ⊆ 𝒞 × 𝒞 is a
+quasi-ordering such that:
+(1) ⪯ is a well-quasi-ordering
+(2) ⪯ is upward compatible with −→, i.e., for every
+ℂ1 , ℂ1′ , ℂ2 ∈ 𝒞 such that ℂ1 ⪯ ℂ1′ and ℂ1 −→ ℂ2 there
+exists ℂ2′ in 𝒞 verifying ℂ1′ −→∗ ℂ2′ and ℂ2 ⪯ ℂ2′
+Given a conﬁguration ℂ of a well-structured transition
+system, Pred(ℂ) denotes the set of immediate predecessors
+of ℂ (i.e., Pred(ℂ) = {ℂ′ | ℂ′ −→ ℂ }) while ↑ ℂ denotes the
+set of conﬁgurations greater than ℂ (i.e., ↑ ℂ = { ℂ′ | ℂ ⪯
+ℂ′ }). With abuse of notation, we will denote with Pred(·)
+and ↑· also their natural extension to sets of conﬁgurations.
+A basis of an upward-closed set of conﬁgurations 𝒟 ⊆ 𝒞
+is a set 𝒟 ♭ such that 𝒟 = ∪ℂ∈ 𝒟 ♭ ↑ℂ. We know that every
+upward-closed set of a well-quasi-ordering admits a ﬁnite
+basis [18].
+Several properties are decidable for well-structured transition systems (under some conditions discussed below) [8,
+18], we will consider the following one.
+Deﬁnition 5
+Let (𝒞, −→, ⪯) be a well-structured transition system. The
+coverability problem is to decide, given the initial conﬁguration ℂinit ∈ 𝒞 and a target conﬁguration ℂ ∈ 𝒞, whether
+there exists a conﬁguration ℂ′ ∈ 𝒞 such that ℂ ⪯ ℂ′ and
+ℂinit −→∗ ℂ′ .
+In well-structured transition systems the coverability
+problem is decidable when the transition relation −→, the ordering ⪯ and, for every ℂ ∈ 𝒞, a ﬁnite-basis for ↑Pred(↑ ℂ)
+are eﬀectively computable.
+Let us now deﬁne the relation ⪯ as the least quasi-ordering
+relation such that Ψ ⪯ Ψ | Ψ′ for every Ψ′ . The relation ⪯ is
+lifted to conﬁgurations as follows
+C(Q , Σ , Ψ) ⪯ C(Q , Σ , Ψ′ )
+
+if
+
+Ψ ⪯ Ψ′ .
+
+265
+
+It is worth to observe that, according to the relation ⪯, the
+state reachability problem for Q is equivalent to the coverability problem for the initial conﬁguration ℂinit and the
+target conﬁguration C(Q, -, -).
+Lemma 1
+For a 𝜇 StipulaDI
++ contract C, (𝒞C , −→tp , ⪯) is a wellstructured transition system.
+It is worth to notice that Lemma 1 does not hold for
+𝜇 StipulaDI because −→ is not upward compatible with ⪯. In
+fact, while C(Q, -, -) −→ C(Q, -, -) with a rule [Tɪᴄᴋ ] and
+C(Q, -, -) ⪯ C(Q, -, 0 >> n Q => Q′ ), the unique computation of
+C(Q, -, 0 >> n Q => Q′ ) when Q′ ∈ InitEv(C) is (we recall that,
+in 𝜇 Stipula, events preempt function invocations and ticks):
+C(Q, -, 0 >> n Q => Q′ ) −→ C(Q, - => Q′ , -) −→ C(Q′ , -, -)
+and then it gets stuck. Therefore no conﬁguration ℂ is reachable such that C(Q, -, -) ⪯ ℂ.
+Lemma 2
+Let (𝒞, −→tp , ⪯) be the well-structured transition system
+of a 𝜇 StipulaDI
++ contract. Then, −→tp and ⪯ are decidable
+and there exists an algorithm for computing a ﬁnite basis of
+↑Pred(↑ ℂ) for any ℂ ∈ 𝒞.
+From Lemma 2 and the above mentioned results, on wellstructured transition systems we get the following result.
+Theorem 5
+The state reachability problem is decidable for the fragment
+𝜇 StipulaDI
++.
+As a direct consequence of Proposition 1 and Theorem 5
+we have:
+Corollary 1
+The state reachability problem is decidable for the fragment
+𝜇 StipulaDI .
+We conclude with a few remarks on the 𝜇 StipulaDI fragment. Although certain legal contracts can indeed be modeled within 𝜇 StipulaDI – for example, the contract shown in
+Listing 2 in Appendix A – this fragment is inherently less
+expressive than the others. In particular, 𝜇 StipulaDI cannot
+capture scenarios involving future events, such as the modeling of mortgage installment payments, where events are
+scheduled to occur at future time points. Likewise, deadline
+constraints cannot be expressed: if a deadline is reached before the function terminating the rental has been invoked, it is
+necessary that an event originating from the same state as that
+function triggers a compensation behavior. The restrictions
+imposed on 𝜇 StipulaDI have been deliberately designed so
+that Lemma 2 holds, while ensuring that the expressiveness
+of the fragment is not excessively compromised.
+Springer
+
+266
+
+5 Related work
+The decidability of problems about inﬁnite-state systems has
+been largely addressed in the literature. We refer to [8] for
+an overview of the research area.
+It turns out that critical features of 𝜇 Stipula, such as
+garbage-collecting elapsed events or preempting events with
+respect to functions and progression of time may be modelled
+by variants of Petri nets with inhibitor and reset arcs. While
+standard Petri nets, which are inﬁnite-state systems, have
+decidable problems of reachability, coverability, boundedness, etc. (see, e.g., [17]), the above variants of Petri nets are
+Turing complete, therefore all non-trivial properties become
+undecidable [16].
+It is not obvious whether Petri nets with inhibitor and reset
+arcs may be modelled by 𝜇 Stipula contracts. It seems that
+these features have diﬀerent expressive powers than time
+progression and events. Hence, other formalisms, such as
+pi-calculus and actor languages, might have a stricter correspondence with 𝜇 Stipula. As regards the decidability of
+problems in pi-calculus, we recall the decidability of reachability and termination in the depth-bounded fragment of the
+pi-calculus [26] and the decidability of the reachability problem for various fragments of the asynchronous pi-calculus
+that feature name generation, name mobility, and unbounded
+control [3]. Regarding actor languages, in [13], we demonstrated the decidability of termination for stateless actors
+(actors without ﬁelds) and for actors with states when the
+number of actors is bounded and the state is read-only. It is
+worth to observe that all these results have been achieved
+by using techniques that are similar to those used in this
+paper: either demonstrating that the model of the calculus
+is a well-structured transition system [18] (for which, under
+certain computability conditions, the reachability and termination problems are decidable, see Sect. 4) or simulating a
+Turing complete model, such as the Minsky machines, into
+the calculus under analysis (hence the undecidability results
+of problems such as termination).
+The 𝜇 Stipula calculus has some similarities with formal
+models of timed systems such as timed automata [2]. The
+control state reachability problem, namely, given a timed automaton 𝐴 and a control state 𝑞, does there exist a run of
+𝐴 that visits 𝑞, is known to be decidable [2]. A similar result holds for Timed Networks (TN) [6, 7], a formal model
+consisting of a family of timed automata with a distinct controller deﬁned as a ﬁnite-state automaton without clocks.
+Each process in a TN can communicate with all other processes via rendezvous messages. Control state reachability is
+also decidable for Timed Networks with transfer actions [9].
+A transfer action forces all processes in a given state to move
+to a successor state as transfer arcs in Petri nets, which allows
+to move all tokens contained in a certain place to another [19].
+Springer
+
+G. Delzanno et al.
+
+𝜇 Stipula can also be seen as a language for modelling asynchronous programs in which callbacks are scheduled using
+timers. Veriﬁcation problems for formal models of (untimed)
+asynchronous programs have been considered in [22, 29]. In
+this context, Boolean program execution is modeled using
+a pushdown automaton, while asynchronous calls are modeled by adding a multiset of pending callbacks to the global
+state of the program. Callbacks are only executed when the
+program stack is empty. Veriﬁcation of safety properties is
+decidable for this model via a non-trivial reduction to coverability of Petri nets [20].
+
+6 Conclusions
+We have systematically studied the computational power of
+𝜇 Stipula, a basic calculus deﬁning legal contracts. The calculus is stateful and features clauses that may be either functions
+to be invoked by the external environment or events that can
+be executed at certain time slots. We have demonstrated that
+in several legally relevant fragments of 𝜇 Stipula a problem
+such as reachability of state is undecidable. The decidable
+fragment, 𝜇 StipulaDI , is the one whose event and functions
+start in disjoint states and where events are instantaneous
+(the time expressions are 0).
+We conclude by indicating some relevant line for future
+research. First of all, the decidability result for 𝜇 StipulaDI
+leaves open the question about the complexity of the state
+reachability problem in that fragment. Our current conjecture
+is that the problem is ᴇxᴘꜱᴘᴀᴄᴇ-complete and we plan to
+prove this conjecture by reducing the coverability problem for
+Petri nets into the state reachability problem for 𝜇 StipulaDI .
+Another interesting line of research regards the investigation of sound, but incomplete, algorithms for checking state
+reachability in 𝜇 Stipula. A preliminary algorithm was investigated in [24]. The presented algorithm spots clauses
+that are unreachable in 𝜇 Stipula contracts and is not tailored to any particular fragment of the language. The results
+in this paper show that this algorithm may be improved to
+achieve completeness when the input contract complies with
+the 𝜇 StipulaDI constraints.
+
+Appendix A: Legal relevance of 𝝁 Stipula and its
+fragments
+To illustrate the relevance in a legal context of the fragments
+of 𝜇 Stipula identiﬁed in the paper, we refer to simple legal
+contracts and employ a subset of operations from the full
+Stipula language. We begin with a legal contract for bike
+rentals; it consists of three articles:
+1. This Agreement shall commence when the Borrower
+takes possession of the Bike and remains in full force
+
+Clause-reachability is undecidable in legal contracts
+
+267
+
+Listing 1 The bike-rental contract
+
+and eﬀect until the Bike is returned to Lender. The Borrower shall return the Bike k hours after the rental and
+will pay Euro cost in advance where half of the amount
+is of surcharge for late return.
+2. Payment. Borrower shall pay the amount speciﬁed in Article 1 when this agreement commences.
+3. End. If the Bike is returned within the agreed time speciﬁed in Article 1, then half of the cost will be returned to
+Borrower; the other half is given to the Lender. Otherwise
+the full cost is given to the Lender.
+These articles are transposed into 𝜇 Stipula using a few extensions to the calculus – operations that are almost standard
+and will be brieﬂy discussed below.
+The contract Bike_Rental has two assets: wallet and
+bike that will contain money and the access code of a bike,
+respectively. The contract starts when the Lender oﬀers an
+access code b of a bike (line 4) that is stored in the asset
+bike – the operation b ⊸ bike at line 5 (this is Article
+1 in the legal contract). Then the Borrower can pay – the
+function at line 8 – which amounts to store in the wallet the
+payment x that has been made (this is Article 2). At the same
+time the bike code is sent to the Borrower (the operation
+bike ⊸ Borrower at line 11), so the Borrower can use the
+bike, and event is scheduled at time now + k (lines 1316): if the bike is not returned at that time, the Borrower
+has to pay the whole amount in the wallet as speciﬁed
+in Article 3. The function at lines 18-23 deﬁnes the timely
+return of the bike by the Borrower (Article 3; notice that
+the operation 0.5 × wallet ⊸ wallet, Lender halves
+the content of the wallet; therefore the following operation
+wallet ⊸ Borrower sends to the Borrower the remaining
+half).
+
+Listing 2 The alternative bike-rental contract
+
+We observe that a 𝜇 Stipula contract can be obtained from
+Listing 1 by removing all ⊸ operations, the functions’ parameters, and the asset declarations. In particular, the resulting contract belongs to the 𝜇 StipulaTA fragment, since k (the
+renting time) is assumed to be always positive.
+As regards the relevance of the other fragments of
+𝜇 Stipula, consider the following alternative bike rental contract, in which the Borrower may keep the bike indeﬁnitely,
+but becomes eligible for a discount on the price if the bike is
+returned.
+1. This Agreement shall commence when the Borrower
+takes possession of the Bike and remains in full force
+and eﬀect until the Bike is returned to Lender. The Borrower shall return the Bike at his discretion and will pay
+Euro cost in advance.
+2. Payment. Borrower shall pay the amount cost as speciﬁed in Article 1 when this agreement commences.
+3. End. If the Bike is returned then 90% of cost will be
+given to Lender and 10% of cost will be returned to
+Borrower.
+4. Problems and resolutions. If the Lender detects a problem,
+he may trigger a resolution process that is managed by
+the Authority. The Authority will immediately enforce
+resolution to either the Lender or the Borrower.
+(To keep things simple, we have omitted the details of Article
+4.) The alternative contract is similar to that of Listing 1 up-to
+line 7.
+The key lines of Listing 2 are 23-32 where the Authority
+enforces an immediate resolution in favour of the Lender
+Springer
+
+268
+
+G. Delzanno et al.
+
+or of the Borrower. In these cases, the events are respectively now >> @Problem { } => @PbLender and now
+>> @Problem { } => @PbBorrower. Since the time expressions are always now, the contract belongs to the fragment 𝜇 StipulaI . Actually, it also belongs to 𝜇 StipulaD because the initial state Problem of the two events is diﬀerent
+from Inactive, Payment, Using and Manage, which are
+the initial state of the functions. As such, the contract of
+Listing 2 ﬁts with the constraints of 𝜇 StipulaDI .
+
+Appendix B: Proofs
+B.1 Proofs of Sect. 3
+
+Theorem 2
+State reachability is undecidable for the fragment 𝜇 StipulaI .
+Proof
+Let 𝑀 be a Minsky machine with states {Q0 , . . . , Q𝑛 } where
+Q0 is the initial state. Let I 𝑀 be the encoding in 𝜇 StipulaI
+as deﬁned in Table 2 and let S, S′ , . . . range over states of
+I 𝑀 . The initial state of I 𝑀 is I 𝑀 (Start, -, -) and, after a
+sequence of transitions [T ɪᴄ ᴋ ] , the contract I 𝑀 performs
+the transitions
+fstart
+
+I 𝑀 (Start, -, -) −→ I 𝑀 (Start, Ev => Q0 , -)
+−→ I 𝑀 (Q0 , -, Ev)
+where Ev = 0 >> aQ0 => bQ0 . Next, let
+
+I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 )
+fdecQi
+
+−→ I 𝑀 (Q𝑖 , E1 |E2 |E3 => dec1 , ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 )
+
+−→ I 𝑀 (dec1 , -, ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 |E1 |E2 |E3 )
+where E1 = 0 >> ackdec1 => aQi , E2 = 0 >> bQi => Q 𝑗 , and
+E3 =0 >> aQj => bQj . Since 𝑣1 > 0, there is at least one event
+0 >> @dec1 => ackdec1 in ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 . Then
+I 𝑀 (dec1 , -, ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 |E1 |E2 |E3 )
+−→ I 𝑀 (dec1 , - => ackdec1 , ⟦𝑣1−1, 𝑣2 ⟧IQ𝑖 |E1 |E2 |E3 )
+−→ I 𝑀 (ackdec1 , -, ⟦𝑣1−1, 𝑣2 ⟧IQ𝑖 |E1 |E2 |E3 )
+−→ I 𝑀 (ackdec1 , - => aQi , ⟦𝑣1−1, 𝑣2 ⟧IQ𝑖 |E2 |E3 )
+−→ I 𝑀 (aQi , -, ⟦𝑣1−1, 𝑣2 ⟧IQ𝑖 |E2 |E3 )
+−→ I 𝑀 (aQi , - => bQi , ⟦𝑣1−1, 𝑣2 ⟧IQ 𝑗 |E2 )
+−→ I 𝑀 (bQi , -, ⟦𝑣1−1, 𝑣2 ⟧IQ 𝑗 |E2 )
+−→ I 𝑀 (bQi , - => Q 𝑗 , ⟦𝑣1−1, 𝑣2 ⟧IQ 𝑗 )
+−→ I 𝑀 (Q 𝑗 , -, ⟦𝑣1−1, 𝑣2 ⟧IQ 𝑗 )
+𝑅1 = 0: therefore 𝑀 performs the transition (Q𝑖 , 0, 𝑣2 ) −→M
+(Q 𝑗 , 0, 𝑣2 ). Correspondingly, in I 𝑀 , an invocation of the
+function fzeroQ𝑖 occurs. Then the contract performs the
+transitions
+I 𝑀 (Q𝑖 , -, ⟦0, 𝑣2 ⟧IQ𝑖 )
+fzeroQi
+
+−→ I 𝑀 (Q𝑖 , E1′ |E2 |E3 => dec1 , ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 )
+
+−→ I 𝑀 (dec1 , -, ⟦0, 𝑣2 ⟧IQ𝑖 |E1′ |E2 |E3 )
+
+⟦𝑣1 , 𝑣2 ⟧IQ
+= 0 >> dec1 => ackdec1 | 0 >> dec2 => ackdec2 | 0 >> aQ
+⏞⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏟⏟⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏞ ⏞⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏟⏟⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏞
+𝑣1 times
+
+𝑣2 times
+
+=> bQ .
+We demonstrate that
+(1) (Q𝑖 , 𝑣1 , 𝑣2 ) −→M (Q 𝑗 , 𝑣1′ , 𝑣2′ ) implies
+I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 ) −→∗ I 𝑀 (Q 𝑗 , -, ⟦𝑣1′ , 𝑣2′ ⟧IQ 𝑗 )
+(2) I 𝑀 does not transit to unreachable Minsky’s states.
+That is, if I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 ) −→∗ I 𝑀 (S, Σ, Ψ) −→
+I 𝑀 (Q 𝑗 , Σ′ , Ψ′ ) with S ∉ {Q0 , . . . , Q𝑛 } then Σ′ = - and
+Ψ′ = ⟦𝑣1′ , 𝑣2′ ⟧IQ 𝑗 and (Q𝑖 , 𝑣1 , 𝑣2 ) −→∗M (Q 𝑗 , 𝑣1′ , 𝑣2′ ).
+The proof of (1) is a case analysis on the type of Minsky instructions. We omit the simulation of the Inc instruction, which is simple, and discuss in detail the simulation
+of DecJump. There are two cases (we assume the register is
+𝑅1 ):
+𝑅1 > 0: therefore 𝑀 performs the transition (Q𝑖 , 𝑣1 , 𝑣2 ) −→M
+(Q 𝑗 , 𝑣1 − 1, 𝑣2 ). Correspondingly, in I 𝑀 , an invocation of
+Springer
+
+the function fdecQ𝑖 occurs. Then the contract performs the
+transitions
+
+where E1′ = 0 >> zero1 => aQi (E2 and E3 are as above).
+Since 𝑣1 = 0, there is no event 0 >> @dec1 => ackdec1 in
+⟦𝑣1 , 𝑣2 ⟧IQ𝑖 . Then it is possible to invoke fdec1:
+I 𝑀 (dec1 , -, ⟦0, 𝑣2 ⟧IQ𝑖 |E1′ |E2 |E3 )
+fdec1
+
+−→ I 𝑀 (dec1 , - => zero1 , ⟦0, 𝑣2 ⟧IQ𝑖 |E1′ |E2 |E3 )
+−→ I 𝑀 (zero1 , -, ⟦0, 𝑣2 ⟧IQ |E1′ |E2 |E3 )
+−→ I 𝑀 (zero1 , - => aQi , ⟦0, 𝑣2 ⟧IQ𝑖 |E2 |E3 )
+−→ I 𝑀 (aQi , -, ⟦0, 𝑣2 ⟧IQ𝑖 |E2 |E3 )
+−→∗ // similarly to the above case
+−→ I 𝑀 (Q 𝑗 , -, ⟦0, 𝑣2 ⟧IQ 𝑗 )
+
+As regards (2), we assume that I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ ) −→∗
+I 𝑀 (S, Σ, Ψ) −→ I 𝑀 (Q 𝑗 , Σ′ , Ψ′ )
+is
+such
+that
+I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ ) −→∗ I 𝑀 (S, Σ, Ψ) does not contain pairs
+of transitions I 𝑀 (S′′ , Σ′′ , Ψ′′ ) −→ I 𝑀 (Q′′ , Σ′′′ , Ψ′′′ ) with
+S′′ ∉ {Q0 , . . . , Q𝑛 } and Q′′ ∈ {Q0 , . . . , Q𝑛 }. The general case
+follows by recurrence.
+The proof is a case analysis on the ﬁrst transition of
+I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 ):
+
+Clause-reachability is undecidable in legal contracts
+
+269
+
+• if I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ ) −→ I 𝑀 (Q𝑖 , -, -) is an instance
+of [ Tɪ ᴄ ᴋ] . This case is vacuous: the continuations of
+I 𝑀 (Q𝑖 , -, -) may be either instances of [T ɪᴄ ᴋ ] or the invocation of exactly one function f ∈ {fincQi , fdecQi ,
+fzeroQi } possibly followed by an invocation of either fdec1 or fdec2 and by the execution of the event
+0 >> zero1 => aQi or 0 >> zero2 => aQi . Therefore no transition I 𝑀 (S, Σ, Ψ) −→ I 𝑀 (Q 𝑗 , Σ′ , Ψ′ ) will be ever possible.
+fincQi
+
+• if I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 ) −→ I 𝑀 (Q𝑖 , Ev => aQi , ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 )
+then, according to Table 2, 𝑀 contains the instruction Q𝑖 :
+Inc(𝑅1 , Q 𝑗 ) or Q𝑖 : Inc(𝑅2 , Q 𝑗 ). We consider the ﬁrst case,
+i.e., 𝑅1 is incremented (the argument for 𝑅2 is similar).
+It is easy to verify that I 𝑀 (Q𝑖 , Ev => aQi , ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 ) −→5
+I 𝑀 (Q 𝑗 , -, ⟦𝑣1 + 1, 𝑣2 ⟧IQ 𝑗 ) with a deterministic computation
+that does not traverse conﬁgurations I 𝑀 (𝑆 ′′ , Σ′′ , Ψ′′ ) with
+𝑆 ′′ ∈ {Q0 , . . . , Q𝑛 }.
+fdecQi
+
+• if I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 ) −→ I 𝑀 (Q𝑖 , Ev => aQi , ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 )
+then, according to Table 2, 𝑀 contains Q𝑖 : DecJump(𝑅1 ,
+Q′ , Q′′ ) or Q𝑖 : DecJump(𝑅2 , Q′ , Q′′ ). We consider the ﬁrst
+case, i.e., 𝑅1 is decreased/tested (the argument for 𝑅2 is
+similar). There are two subcases:
+(𝑣1 > 0) In this case it is easy to verify that I 𝑀 (Q𝑖 , Ev =>
+aQi , ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 ) −→8 I 𝑀 (Q′′ , -, ⟦𝑣1 − 1, 𝑣2 ⟧IQ′′ ) with a
+computation that does not traverse conﬁgurations I 𝑀 (𝑆 ′′ ,
+Σ′′ , Ψ′′ ) with 𝑆 ′′ ∈ {Q0 , . . . , Q𝑛 }. In this case, the computation is not deterministic because the third transition
+is the invocation of fdec1 . Actually, it is also possible to perform a transition [T ɪᴄ ᴋ ] . Analogous to the
+ﬁrst case above, after the transition [T ɪᴄ ᴋ ] , no transition
+I 𝑀 (S, Σ, Ψ) −→ I 𝑀 (Q 𝑗 , Σ′ , Ψ′ ) will be ever possible.
+(𝑣1 = 0) This case is vacuous because we have I 𝑀 (Q𝑖 , Ev
+=> dec1 , ⟦0, 𝑣2 ⟧IQ𝑖 ) −→2 I 𝑀 (dec1 , -, ⟦0, 𝑣2 ⟧IQ𝑖 | Ev) and,
+for every I 𝑀 (dec1 , -, ⟦0, 𝑣2 ⟧IQ𝑖 | Ev) −→∗ I 𝑀 (S, Σ, Ψ),
+it is easy to verify that S ∉ {Q0 , . . . , Q𝑛 }.
+fzeroQi
+
+• if I 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 ) −→ I 𝑀 (Q𝑖 , Ev => dec1 , ⟦𝑣1 ,
+𝑣2 ⟧IQ𝑖 ) then, according to Table 2, 𝑀 contains Q𝑖 :
+DecJump(𝑅1 , Q′ , Q′′ ) or Q𝑖 : DecJump(𝑅2 , Q′ , Q′′ ). We
+consider the ﬁrst case, i.e., 𝑅1 is considered (the argument for 𝑅2 is similar). There are two subcases:
+(𝑣1 = 0) We have that I 𝑀 (Q𝑖 , Ev => dec1 , ⟦𝑣1 , 𝑣2 ⟧IQ𝑖 ) −→9
+I 𝑀 (Q′ , -, ⟦0, 𝑣2 ⟧IQ′ ). As in the case of fdecQ𝑖 , the computation is not deterministic due to the presence of alternative [ Tɪ ᴄᴋ] transitions, but after a [T ɪᴄ ᴋ ] no transition
+I 𝑀 (S, Σ, Ψ) −→ I 𝑀 (Q 𝑗 , Σ′ , Ψ′ ) will be ever possible.
+(𝑣1 > 0) Vacuous, analogous to the case of fdecQ𝑖 with
+𝑣1 = 0.
+This concludes the proof.
+
+□
+
+Theorem 3
+State reachability is undecidable for the fragment 𝜇 StipulaD .
+
+Proof
+Let 𝑀 be the Minsky machine with states {Q1 , . . . , Q𝑛 } and
+TA 𝑀 be the encoding in 𝜇 StipulaTA as deﬁned in Table 3. Let
+⟦𝑣1 , 𝑣2 ⟧TA
+Q
+= 1 >> dec1 => ackdec1 | 1 >> dec2 => ackdec2 | 1 >> Q
+⏞⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏟⏟⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏞ ⏞⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏟⏟⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏞
+𝑣1 times
+
+𝑣2 times
+
+=> end
+′ be either or (𝑖 is either 1 or 2)
+and let ΨTA , ΨTA
+-
+
+0 >> dec1 => end | 0 >> dec2 => end | 0 >> nextQb𝑖 => end
+| 0 >> ackdec1 => @end | 0 >> ackdec2 => end
+(the cases where Ψ and Ψ′ are not - correspond to those
+where the machine transition is a DecJump). We need to
+prove
+(1) (Q𝑖 , 𝑣1 , 𝑣2 ) −→M (Q 𝑗 , 𝑣1′ , 𝑣2′ ) implies TA 𝑀 (Q𝑖 , -, ⟦𝑣1 ,
+∗
+′ ′ TA
+′
+𝑣2 ⟧TA
+Q𝑖 | Ψ) −→ TA 𝑀 (Q 𝑗 , - , ⟦𝑣1 , 𝑣2 ⟧Q 𝑗 | Ψ )
+(2) TA 𝑀 does not transit to unreachable Minsky’s states.
+That is, if TA 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧Q𝑖 | ΨTA ) −→∗ TA 𝑀 (S, Σ,
+Ψ) −→ TA 𝑀 (Q 𝑗 , Σ′ , Ψ′ ) with S ∉ {Q0 , . . . , Q𝑛 } then Σ′ =
+∗
+′
+′ ′ TA
+′
+- and Ψ = ⟦𝑣1 , 𝑣2 ⟧Q 𝑗 | ΨTA and also (Q𝑖 , 𝑣1 , 𝑣2 ) −→M
+(Q 𝑗 , 𝑣1′ , 𝑣2′ ).
+The proofs of (1) and (2) consist of a detailed case analysis on the transitions of TA 𝑀 . The proof of (1) is similar
+to the corresponding one of Theorem 2, therefore omitted.
+As regards (2), the diﬀerence with that of Theorem 2 is the
+∗
+fact that TA 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧TA
+Q𝑖 | ΨTA ) −→ TA 𝑀 (S, Σ, Ψ) −→
+′
+′
+TA 𝑀 (Q 𝑗 , Σ , Ψ ) contains exactly 3 transitions [Tɪᴄᴋ ] (in the
+basic case where no state {Q0 , . . . , Q𝑛 } is traversed). Otherwise one has to demonstrate that the case becomes vacuous.
+The details are omitted. In the same way we may conclude
+the proof.
+□
+Theorem 4
+State reachability is undecidable for the fragment 𝜇 StipulaD .
+Proof
+Let 𝑀 be the Minsky machine and D 𝑀 be the encoding in
+𝜇 StipulaD as deﬁned in Tables 4 and 5. The initial state of
+D 𝑀 is D 𝑀 (Start, -, -) and, after a sequence of transitions
+[Tɪᴄᴋ] , the contract D 𝑀 performs the transitions
+fstart
+
+D 𝑀 (Start, -, -) −→ D 𝑀 (Start, Ev => Q0 , -)
+−→ D 𝑀 (Q0 , -, Ev)
+where Q0 is the initial state of 𝑀 and Ev = 0 >> notickA =>
+cont. Next, let
+⟦𝑣1 , 𝑣2 ⟧DX = 1 >> dec1 => ackdec1 | 3 >> dec2 => ackdec2
+⏞⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏟⏟⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏞ ⏞⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏟⏟⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏞
+𝑣1 times
+
+| 0 >> notickX => cont
+
+𝑣2 times
+
+Springer
+
+270
+
+G. Delzanno et al.
+
+where X may be either A or B. We need to prove
+
+least one event 0 >> @dec1 => ackdec1 in ⟅︁𝑣1 , 𝑣2 ⟆︁ D ↓. Then
+
+(1) (Q𝑖 , 𝑣1 , 𝑣2 ) −→M (Q 𝑗 , 𝑣1′ , 𝑣2′ ) implies D 𝑀 (Q𝑖 , -, ⟦𝑣1 ,
+𝑣2 ⟧DX ) −→∗ D 𝑀 (Q 𝑗 , -, ⟦𝑣1′ , 𝑣2′ ⟧DY ) where X and Y are either A or B;
+(2) D 𝑀 does not transit to unreachable Minsky’s states.
+That is, if D 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧DX ) −→∗ D 𝑀 (S, Σ, Ψ) −→
+D 𝑀 (Q 𝑗 , Σ′ , Ψ′ ), with S ∉ {Q0 , . . . , Q𝑛 }, then Σ′ = - and
+Ψ′ = ⟦𝑣1′ , 𝑣2′ ⟧DY and (Q𝑖 , 𝑣1 , 𝑣2 ) −→∗M (Q 𝑗 , 𝑣1′ , 𝑣2′ ).
+
+D 𝑀 (dec1 , -, (⟅︁𝑣1 , 𝑣2 ⟆︁ D |E1 |E2 ) ↓)
+−→ D 𝑀 (dec1 , - => ackdec1 , (⟅︁𝑣1−1, 𝑣2 ⟆︁ D |E1 |E2 ) ↓)
+−→ D 𝑀 (ackdec1 , -, (⟅︁𝑣1−1, 𝑣2 ⟆︁ D |E1 |E2 ) ↓)
+−→ D 𝑀 (ackdec1 , - => Q 𝑗 _start1, (⟅︁𝑣1−1, 𝑣2 ⟆︁ D |E2 ) ↓)
+−→ D 𝑀 (Q 𝑗 _start1, -, (⟅︁𝑣1−1, 𝑣2 ⟆︁ D |E2 ) ↓)
+
+The proof of (1) is a case analysis on the type of Minsky instructions. We omit the simulation of the Inc instruction, which is simple, and discuss in detail the simulation of
+DecJump. While the proof is similar to that of Theorem 2, in
+this case it is much longer because of the complexity of the
+protocol. In the proof we use the following notation:
+
+At this point, we have to move ahead of 5 time units the
+events in ⟅︁𝑣1−1, 𝑣2 ⟆︁ D ↓. We use the management functions
+of Table 5, in particular fQ 𝑗 _start1, then the protocol
+continues with fAcopy1 alternating with fBcopy1 for 𝑣1 −1
+times in total, and fAcopy2 alternating with fBcopy2 for
+∏︁
+𝑣2 times in total. Let ℎ∈1..7 𝐸 ℎ′ = 𝐸 1′ | · · · |𝐸 7′ and let 𝐸 ′𝐴 ,
+𝐸 𝐵′ and 𝑉𝑟+𝑘 , where 𝑟 is either 1 or 2, be deﬁned as follows:
+𝐸 1′ =
+𝐸 2′ =
+𝐸 3′ =
+𝐸 4′ =
+𝐸 5′ =
+𝐸 6′ =
+𝐸 7′ =
+
+⟅︁𝑣1 , 𝑣2 ⟆︁ D = 1 >> dec1 => ackdec1 | 3 >> dec2 => ackdec2
+⏞⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏟⏟⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏞ ⏞⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏟⏟⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⏞
+𝑣1 times
+
+𝑣2 times
+
+that is, ⟅︁𝑣1 , 𝑣2 ⟆︁ D is ⟦𝑣1 , 𝑣2 ⟧DX without the event 0 >> notickX =>
+cont. To highlight [T ɪᴄ ᴋ ] transitions we colour them in red.
+We assume the involved register is 𝑅1 and that the multiset
+of events contains 0 >> notickA => cont (the case when the
+multiset contains 0 >> notickB => cont is similar). There are
+two cases:
+𝑅1 > 0: therefore 𝑀 performs the transition (Q𝑖 , 𝑣1 , 𝑣2 ) −→M
+(Q 𝑗 , 𝑣1 − 1, 𝑣2 ). Correspondingly, in D 𝑀 , an invocation of
+the function fAdecQ𝑖 occurs. Then the contract performs
+the transitions
+D 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧DA )
+fAdecQ𝑖
+
+−→
+
+D 𝑀 (Q𝑖 , E1 |E2 |E3 => notickA, ⟦𝑣1 , 𝑣2 ⟧DA )
+
+−→ D 𝑀 (Q𝑖 , - => notickA, ⟦𝑣1 , 𝑣2 ⟧DA |E1 |E2 |E3 )
+−→ D 𝑀 (notickA, -, ⟦𝑣1 , 𝑣2 ⟧DA |E1 |E2 |E3 )
+where E1 = 1 >> ackdec1 => Q 𝑗 _start1, E2 = 1 >>
+s1notick => cont, and E3 = 0 >> cont => dec1 . Then we
+have (in the following we omit the labels of the events):
+
+@cont => @dec1
+now >> @ackdec1 => @copy1
+now + 1 >> @dec1 => @dec2
+now + 2 >> @ackdec2 => @copy2
+now + 2 >> @c2notickA => @cont
+now + 4 >> @dec2 => @Q 𝑗
+now + 4 >> @notickA => @cont
+
+𝐸 ′𝐴 = now >> @c1notickA => @cont
+𝐸 𝐵′ = now >> @c1notickB => @cont
+𝑉𝑟+𝑘 = 𝑘 >> @dec𝑟 => @ackdec𝑟
+We also use the following notation: 𝑋 may be either 𝐴 or
+𝐵. If 𝑋 = 𝐴 then 𝑋 ′ is 𝐵; if 𝑋 = 𝐵 then 𝑋 ′ = 𝐴. Then:
+D 𝑀 (Q 𝑗 _start1, -, (⟅︁𝑣1−1, 𝑣2 ⟆︁ D |E2 ) ↓)
+fQ 𝑗 start1
+
+−→
+
+D 𝑀 (Q 𝑗 _start1,
+
+∏︁
+
+′
+′
+ℎ∈1..7 𝐸 ℎ |𝐸 𝐴 => s1notick,
+
+(⟅︁𝑣1−1, 𝑣2 ⟆︁ D |E2 ) ↓)
+−→ D 𝑀 (Q 𝑗 _start1, - => s1notick,
+∏︁
+′
+′
+D
+ℎ∈1..7 𝐸 ℎ |𝐸 𝐴 |(⟅︁𝑣1−1, 𝑣2 ⟆︁ |E2 ) ↓)
+∏︁
+−→ D 𝑀 (s1notick, -, ℎ∈1..7 𝐸 ℎ′ |𝐸 ′𝐴 |(⟅︁𝑣1−1, 𝑣2 ⟆︁ D |E2 ) ↓)
+∏︁
+−→ D 𝑀 (s1notick, - => cont, ℎ∈1..7 𝐸 ℎ′ |𝐸 ′𝐴 |⟅︁𝑣1−1, 𝑣2 ⟆︁ D ↓)
+∏︁
+−→ D 𝑀 (cont, -, ℎ∈1..7 𝐸 ℎ′ |𝐸 ′𝐴 |⟅︁𝑣1−1, 𝑣2 ⟆︁ D ↓)
+(︂
+=
+
+// initially 𝑋 = 𝐴 and ℓ = 0
+D 𝑀 (cont, -,
+
+∏︁
+
+′
+′
+D
++5 ℓ times )
+ℎ∈1..7 𝐸 ℎ |𝐸 𝑋 |⟅︁𝑣1−1, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+
+−→ D 𝑀 (cont, - => dec1 ,
+∏︁
+−→ D 𝑀 (dec1 , -,
+
+where the last transition is an instance of [T ɪᴄ ᴋ ] ; notice
+that no other transition is possible. Since 𝑣1 > 0, there is at
+Springer
+
+∏︁
+
++5 ℓ times )
+′
+′
+D
+ℎ∈2..7 𝐸 ℎ |𝐸 𝑋 |⟅︁𝑣1−1, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+
+′
+′
+D
++5 ℓ times )
+ℎ∈2..7 𝐸 ℎ |𝐸 𝐴 |⟅︁𝑣1−1, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+
+−→ D 𝑀 (dec1 , - => ackdec1 ,
+∏︁
+′
+′
+D
++5 ℓ times )
+ℎ∈2..7 𝐸 ℎ |𝐸 𝑋 |⟅︁𝑣1−2, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+−→ D 𝑀 (ackdec1 , -,
+
+Clause-reachability is undecidable in legal contracts
+
+∏︁
+
++5 ℓ times )
+′
+′
+D
+ℎ∈2..7 𝐸 ℎ |𝐸 𝑋 |⟅︁𝑣1−2, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+
+−→ D 𝑀 (ackdec1 , - => copy1 ,
+∏︁
++5 ℓ times )
+′
+′
+D
+ℎ∈3..7 𝐸 ℎ |𝐸 𝑋 |⟅︁𝑣1−2, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+∏︁
+′ |⟅︁𝑣 −2, 𝑣 ⟆︁ D ↓ |(𝑉 +5 ) ℓ times )
+−→ D 𝑀 (copy1 , -, ℎ∈3..7 𝐸 ℎ′ |𝐸 𝑋
+1
+2
+1
+∏︁
+′ |𝑉 +5 => c1notickX,
+−→ D 𝑀 (copy1 , ℎ∈1..2 𝐸 ℎ′ |𝐸 𝑋
+′
+1
+∏︁
++5 ℓ times )
+′
+′
+D
+ℎ∈3..7 𝐸 ℎ |𝐸 𝑋 |⟅︁𝑣1−2, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+
+fXcopy1
+
+−→ D 𝑀 (copy1 , - => c1notickX,
+∏︁
++5 ℓ+1 times )
+′
+′
+′
+D
+ℎ∈1..7 𝐸 ℎ |𝐸 𝑋 |𝐸 𝑋 ′ |⟅︁𝑣1−2, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+−→ D 𝑀 (c1notickX, -,
+∏︁
++5 ℓ+1 times )
+′
+′
+′
+D
+ℎ∈1..7 𝐸 ℎ |𝐸 𝑋 |𝐸 𝑋 ′ |⟅︁𝑣1−2, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+−→ D 𝑀 (c1notickX, - => cont,
+∏︁
++5 ℓ+1 times )
+′
+′
+D
+ℎ∈1..7 𝐸 ℎ |𝐸 𝑋 ′ |⟅︁𝑣1−2, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+−→ D 𝑀 (cont, -,
+∏︁
+)︂
+
+′
+′
+D
++5 ℓ+1 times )
+ℎ∈1..7 𝐸 ℎ |𝐸 𝑋 ′ |⟅︁𝑣1−2, 𝑣2 ⟆︁ ↓ |(𝑉1 )
+
+// repeated 𝑣1 − 1 times; 𝑋 takes the value of 𝑋 ′
+
+At this point, the events dec1 => ackdec1 have been moved
+
+271
+
+function fzeroQ𝑖 occurs. Let
+𝐸 1 = 0 >> cont => dec1
+𝐸 2 = 2 >> dec1 => dec2
+𝐸 3 = 3 >> ackdec2 => copy2
+𝐸 4 = 3 >> c2nothickA => cont
+𝐸 5 = 5 >> dec2 => Q 𝑗
+𝐸 6 = 5 >> nothickB => cont .
+
+Then the contract performs the transitions:
+D 𝑀 (Q𝑖 , -, ⟦0, 𝑣2 ⟧DA )
+∏︁
+fAzeroQ𝑖
+−→ D 𝑀 (Q𝑖 , ℎ∈1..6 𝐸 ℎ => notickA, ⟦0, 𝑣2 ⟧DA )
+∏︁
+−→ D 𝑀 (Q𝑖 , - => notickA, ⟦0, 𝑣2 ⟧DA | ℎ∈1..6 𝐸 ℎ )
+∏︁
+−→ D 𝑀 (notickA, -, ⟦0, 𝑣2 ⟧DA | ℎ∈1..6 𝐸 ℎ )
+∏︁
+−→ D 𝑀 (notickA, -, ⟦0, 𝑣2 ⟧DA | ℎ∈1..6 𝐸 ℎ )
+∏︁
+−→ D 𝑀 (notickA, - => cont, ⟅︁0, 𝑣2 ⟆︁AD | ℎ∈1..6 𝐸 ℎ )
+∏︁
+−→ D 𝑀 (cont, -, ⟅︁0, 𝑣2 ⟆︁AD | ℎ∈1..6 𝐸 ℎ )
+∏︁
+−→ D 𝑀 (cont, - => dec1 , ⟅︁0, 𝑣2 ⟆︁AD | ℎ∈2..6 𝐸 ℎ )
+∏︁
+−→ D 𝑀 (dec1 , -, ⟅︁0, 𝑣2 ⟆︁AD | ℎ∈2..6 𝐸 ℎ )
+In this conﬁguration, two tick transitions occur and we have
+
+5 ticks ahead. We need to do the same for the events
+dec2 => ackdec2 . This will require to advance of two ticks:
+
+At this point two transitions may occur: either a tick transition or the management function fAcopy2 of Table 5
+can be invoked. In the ﬁrst case the contract transits to
+∏︁
+D 𝑀 (copy2 , -, ℎ∈5..6 𝐸 ℎ ↓↓↓↓) and it is easy to verify that,
+from this conﬁguration, it is not possible to transit to a
+conﬁguration D 𝑀 (Q, Σ, Ψ) anymore. In the second case, by
+calling fAcopy2 and fBcopy2 one after the other for 𝑣2
+times (in total), it is possible to move ahead of 5 time units
+∏︁
+the events dec2 => ackdec2 . Let ℎ∈1..3 𝐸 ℎ′ where
+where the [ Tɪ ᴄ ᴋ] transitions are the unique possible in the
+corresponding conﬁgurations.
+𝑅1 = 0: therefore 𝑀 performs the transition (Q𝑖 , 0, 𝑣2 ) −→M
+(Q 𝑗 , 0, 𝑣2 ). Correspondingly, in D 𝑀 , an invocation of the
+
+𝐸 1′ = 0 >> cont => dec2
+𝐸 2′ = 0 >> ackdec2 => copy2
+𝐸 3′ = 0 >> c2notickB => cont
+Springer
+
+272
+
+G. Delzanno et al.
+
+and let 𝑉2+𝑘 = 𝑘 >> dec2 => @ackdec2 (as before). Then
+
+There are two subcases: (i) X = Y and (ii) X ≠ Y. In case
+(i), it is easy to verify that D 𝑀 (Q𝑖 , Ev => notickX, ⟦𝑣1 , 𝑣2 ⟧DX )
+−→6 D 𝑀 (Q 𝑗 , -, ⟦𝑣1 + 1, 𝑣2 ⟧DY ) with a deterministic computation that does not traverse conﬁgurations D 𝑀 (𝑆 ′′ , Σ′′ ,
+Ψ′′ ) with 𝑆 ′′ ∈ {Q0 , . . . , Q𝑛 }. In case (ii), D 𝑀 (Q𝑖 ,
+Ev => notickY, ⟦𝑣1 , 𝑣2 ⟧DX ) −→2 D 𝑀 (notickY, -, ⟦𝑣1 ,
+𝑣2 ⟧DX |Ev). In ⟦𝑣1 , 𝑣2 ⟧DX |Ev there is no event that starts at
+notickY (and there is no function that can be invoked),
+therefore the unique possible transitions are [Tɪᴄᴋ ] and
+no state in {Q0 , . . . , Q𝑛 } will be ever reached again – the
+subcase is vacuous.
+fYdecQ𝑖
+• if D 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧DX ) −→ D 𝑀 (Q𝑖 , Ev => notickY, ⟦𝑣1 ,
+𝑣2 ⟧DX ) then, according to Table 4, 𝑀 contains either
+Q𝑖 : DecJump (𝑅1 , Q′ , Q′′ ) or Q𝑖 : DecJump(𝑅2 , Q′ , Q′′ ). We
+consider the ﬁrst case, i.e., 𝑅1 is decreased/tested (the argument for 𝑅2 is similar). There are three subcases:
+Subcase X = Y and 𝒗1 > 0:
+
+Then, letting E1 = 1 >>
+ackdec1 => Q 𝑗 _start1 and E2 = 1 >> s1notick => cont,
+we have
+
+where, as before, the last two [T ɪᴄ ᴋ ] transitions are the
+unique possible in the corresponding conﬁguration.
+As regards (2), we assume that D 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧DX ) −→∗
+D 𝑀 (S, Σ, Ψ) −→ D 𝑀 (Q 𝑗 , Σ′ , Ψ′ ) is such that D 𝑀 (Q𝑖 , -, ⟦𝑣1 ,
+𝑣2 ⟧DX ) −→∗ D 𝑀 (S, Σ, Ψ) does not contain pairs of transitions D 𝑀 (S′′ , Σ′′ , Ψ′′ ) −→ D 𝑀 (Q′′ , Σ′′′ , Ψ′′′ ) such that
+S′′ ∉ {Q0 , . . . , Q𝑛 } and Q′′ ∈ {Q0 , . . ., Q𝑛 }. The general case
+follows by recurrence.
+The proof is a case analysis on the ﬁrst transition of
+D 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧DX ):
+• if D 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧DX ) −→ D 𝑀 (Q𝑖 , -, ⟅︁𝑣1 , 𝑣2 ⟆︁ D ) is an instance of [ Tɪ ᴄᴋ] . This case is vacuous: the continuations of D 𝑀 (Q𝑖 , -, ⟅︁𝑣1 , 𝑣2 ⟆︁ D ) may be either instances of
+[Tɪ ᴄᴋ] or the invocation of exactly one function f ∈
+{fXincQ𝑖 , fXdecQ𝑖 , fXzeroQ𝑖 }, where X is either A or B.
+In this last case, the continuations may only be [Tɪᴄᴋ]
+transitions because they transit to states notickX and produce events notickY with X ≠ Y. Therefore no transition
+D 𝑀 (S, Σ, Ψ) −→ D 𝑀 (Q 𝑗 , Σ′ , Ψ′ ) will be ever possible.
+fincYQi
+
+• if D 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧DX ) −→ D 𝑀 (Q𝑖 , Ev => notickY, ⟦𝑣1 ,
+𝑣2 ⟧DX ) then, according to Table 4, 𝑀 contains the instruction Q𝑖 : Inc(𝑅1 , Q 𝑗 ) or Q𝑖 : Inc(𝑅2 , Q 𝑗 ). We consider the
+ﬁrst case, i.e., 𝑅1 is incremented (the argument for 𝑅2 is
+similar).
+Springer
+
+where the [Tɪᴄᴋ] transition in the second line is the unique
+that is possible. In the state Q 𝑗 _start1 there are two further subcases: (i) a [Tɪᴄᴋ] transition occurs or (ii) the function fQ 𝑗 _start1 is invoked. The subcase (i) is vacuous
+because we obtain the conﬁguration D 𝑀 (Q 𝑗 _start1, - ,
+⟅︁0, 𝑣2 ⟆︁ D ↓↓) where one may either invoke fQ 𝑗 _start1
+or perform [Tɪᴄᴋ] transitions. In any case, missing an
+event that starts at s1notick like 𝐸 1 , only [Tɪᴄᴋ ] transitions are possible and a state in {Q0 , . . . , Q𝑛 } will be never
+reached. In case (ii), one starts the protocol of Table 5.
+This protocol transfers the events 1 >> dec1 => ackdec1
+and 3 >> dec2 => ackdec2 to 5 ticks ahead by invoking
+the functions fXcopy1 and fXcopy2, respectively. In correspondence of these invocations, a [Tɪᴄᴋ] may occurs
+and the case becomes vacuous (as before); otherwise the
+protocol continues. No state in {Q0 , . . . , Q𝑛 } is ever traversed – no such state is present in the functions fXcopy1
+and fXcopy2. When the transfer is completed (and only
+three [Tɪᴄᴋ] transitions have been performed), the event
+0 >> dec2 => Q 𝑗 can be executed. The correctness of the ﬁnal
+state follows by the discussion in the property (1).
+Subcase X = Y and 𝒗1 = 0:
+
+This case is vacuous be-
+
+cause we have
+D 𝑀 (Q𝑖 , Ev => notickX, ⟦0, 𝑣2 ⟧DX )
+−→6 D 𝑀 (dec1 , -, ⟅︁0, 𝑣2 ⟆︁ D |𝐸 1 |𝐸 2 )
+
+Clause-reachability is undecidable in legal contracts
+
+273
+
+where E1 = 1 >> ackdec1 => Q 𝑗 _start1 and E2 = 1 >>
+s1notick => cont. However, missing any event starting
+at dec1 , the contract may only perform [T ɪᴄ ᴋ ] transitions.
+
+Lemma 1
+For a 𝜇 StipulaDI
++ contract C, (𝒞C , −→tp , ⪯) is a wellstructured transition system.
+
+Subcase X ≠ Y:
+
+Proof
+To verify that (𝒞, −→tp , ⪯) is well-structured we need to
+demonstrate the properties (1) and (2) of Deﬁnition 4:
+
+This case is also vacuous because
+
+D 𝑀 (Q𝑖 , Ev => notickX, ⟦0, 𝑣2 ⟧DX )
+−→2 D 𝑀 (notickY, -, ⟦0, 𝑣2 ⟧DX |Ev)
+no event that starts at notickY is available. Therefore only
+[Tɪ ᴄᴋ] transitions can occur and no state in {Q0 , . . . , Q𝑛 }
+can be ever reached.
+fYzeroQ𝑖
+• if D 𝑀 (Q𝑖 , -, ⟦𝑣1 , 𝑣2 ⟧DX ) −→ D 𝑀 (Q𝑖 , Ev => notickY, ⟦𝑣1 ,
+𝑣2 ⟧DX ) then, according to Table 4, 𝑀 contains Q𝑖 :
+DecJump(𝑅1 , Q′ , Q′′ ) or Q𝑖 : DecJump(𝑅2 , Q′ , Q′′ ). We
+omit the details of the proof because it is similar to the
+above case; here the unique non-vacuous subcase is when
+X = Y and 𝑣𝑖 = 0.
+This concludes the proof.
+
+□
+
+B.2 Proofs of Sect. 4
+
+Proposition 1
+Let C ( Q , Σ , Ψ) be a conﬁguration of a 𝜇 StipulaDI contract
+C (or a 𝜇 StipulaDI
++ contract). Then
+(i) whenever Q ∉ InitEv( C) or Σ ≠ - :
+
+C ( Q , Σ , Ψ) −→ ℂ if and only if C ( Q , Σ , Ψ) −→tp ℂ ;
+(ii) whenever Q ∈ InitEv( C) and Ψ = 0 >> n Q => Q′ | Ψ′ :
+
+C ( Q , - , Ψ) −→ ℂ if and only if C ( Q , - , Ψ) −→tp ℂ ;
+(iii) whenever Q ∈ InitEv( C) and Ψ, Q ↛:
+
+C ( Q , - , Ψ) is stuck if and only if C ( Q , - , Ψ) ↛tp .
+Proof
+The proofs of statements (i) and (ii) are case analyses on
+the possible transition rules that can be applied. They are
+straightforward and omitted. As regards (iii), we notice that
+no rule [ F ᴜɴᴄ ᴛɪ ᴏ ɴ] can be applied because Q ∈ InitEv(C),
+hence Q cannot be an initial state of function in 𝜇 StipulaDI
+and 𝜇 StipulaDI
++ . [ Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ ] cannot be applied because Σ = - and [ Eᴠ ᴇɴ ᴛ-Mᴀᴛ ᴄ ʜ ] cannot be applied because Ψ, Q ↛. Therefore, the unique rule that can be applied
+is [Tɪ ᴄ ᴋ] and we have
+C(Q , - , Ψ) −→ C(Q , - , -) −→∗ C(Q , - , -)
+where C(Q , - , -) −→∗ C(Q , - , -) are instances of [Tɪᴄᴋ] ,
+therefore C(Q , - , Ψ) is stuck. Correspondingly, since [Tɪᴄᴋ]
+is replaced by [ T ɪ ᴄ ᴋ- P ʟᴜ ꜱ ] in 𝜇 StipulaDI
++ , no transition
+−→tp is possible. Hence C(Q , Σ , Ψ) ↛tp .
+□
+
+(1) ⪯ is a well-quasi ordering. Ψ are multisets of events
+and the relation ⪯ is multiset inclusion. Since the set of all
+possible events is always ﬁnite, by Dickson’s Lemma [15],
+⪯ is a well-quasi ordering.
+(2) ⪯ is upward compatible with −→tp . We demonstrate
+that, if C(Q, Σ, Ψ) −→tp C(Q′ , Σ′ , Ψ′ ) and C(Q, Σ, Ψ) ⪯
+C(Q, Σ, Ψ′′ ) then there is Ψ′′′ s.t. C(Q, Σ, Ψ′′ ) −→tp C(Q′ , Σ′ ,
+Ψ′′′ ) with C(Q, Σ, Ψ′ ) ⪯ C(Q, Σ, Ψ′′′ ). The proof consists
+of a case analysis on the rule used in the transition
+C(Q, Σ, Ψ) −→tp C(Q′ , Σ′ , Ψ′ ). When the rule is an instance
+of [Fᴜɴᴄᴛɪᴏɴ] or [ Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ ] the upward compatibility is immediate. If the rule is an instance of [ T ɪ ᴄ ᴋ- P ʟᴜ ꜱ ]
+then Q ∉ InitEv(C). Hence the same rule may be applied to
+C(Q, Σ, Ψ′′ ); in this case Ψ′ = - = Ψ′′′ (because the events
+in Ψ and Ψ′′ have time expressions 0). When the rule is
+an instance of [Eᴠᴇɴᴛ-M ᴀᴛ ᴄʜ] then let 0 >> n Q => Q′′ be the
+event in Ψ that has been scheduled. Since Ψ ⪯ Ψ′′ , the same
+event can be scheduled in C(Q, Σ, Ψ′′ ). By deﬁnition, we
+□
+have Ψ′ ⪯ Ψ′′′ .
+Lemma 2
+Let (𝒞, −→tp , ⪯) be the well-structured transition system
+of a 𝜇 StipulaDI
++ contract. Then, −→tp and ⪯ are decidable
+and there exists an algorithm for computing a ﬁnite basis of
+↑Pred(↑ ℂ) for any ℂ ∈ 𝒞.
+Proof
+Regarding 1, the algorithm for ⪯ is trivial, as well as its decidability. The algorithm for −→tp is deﬁned by the operational
+semantics, henceforth its decidability.
+Regarding 2, we know that since ⪯ is a well-quasiordering the set ↑ ℂ has a ﬁnite basis. Let ℬ be such basis, we prove that ↑Pred(ℬ) has a ﬁnite basis that is also
+computable. Let ℂ′ ∈ ℬ; there are three cases:
+ℂ′ = C(Q′ , Σ, Ψ) and Σ ≠ - : In this case, the transition
+ℂ′′ −→tp ℂ′ con be obtained in two possibile ways: by applying [ꜰᴜɴᴄᴛɪᴏɴ] or [Eᴠᴇɴᴛ-M ᴀᴛ ᴄʜ] . In the ﬁrst case,
+Pred(ℬ) contains all the tuples C(Q′ , -, Ψ) for which there
+is a function @Q′ f { 𝑊 } => @Q′′ ∈ C that can produce Σ; in
+the second case, Pred(ℬ) contains all the tuples C(Q′ , -, Ψ′ )
+where Ψ′ extends Ψ with an event 0 >> @Q′ => @Q′′ ∈ C that
+can produce Σ. In both cases, Pred(ℬ) is ﬁnite and computable.
+Springer
+
+274
+
+ℂ′ = C(Q′ , -, Ψ) and Ψ ≠ - : The unique rule that gives a
+transition ℂ′′ −→tp ℂ′ is [ Sᴛᴀᴛ ᴇ - C ʜ ᴀ ɴɢ ᴇ ] . In this case we
+(︁
+)︁ 𝑖 ∈1..ℎ
+have ℂ′′ = C(Q, 𝑊 => Q′ , Ψ′ ) where 𝑊 = 0 >> n𝑖 Q𝑖 => Q𝑖′
+and Ψ = Ψ′ |0 >> n1 Q1 => Q1′ | · · · |0 >> nℎ Qℎ => Q′ℎ . There are
+two possible cases for obtaining the terms 𝑊 => Q′ : (i) the
+functions @Q f { 𝑊 } => @Q′ ∈ C, for every possible subterm
+𝑊 of Ψ; and (ii) the events 0 >> @Q => @Q′ ∈ C (in this subcase, 𝑊 = - ). In both cases, Pred(ℬ) is ﬁnite and computable.
+ℂ′ = C(Q′ , -, -): Then the transition ℂ′′ −→tp ℂ′ is an instance of [ T ɪ ᴄ ᴋ- P ʟᴜ ꜱ ] . ℂ′′ could be any tuple of type
+C(Q′ , -, Ψ′ ). {C(Q′ , -, -)} is a ﬁnite basis for all such tu□
+ples.
+Funding information Open access funding provided by Università
+
+degli Studi di Genova within the CRUI-CARE Agreement.
+Open Access This article is licensed under a Creative Commons At-
+
+tribution 4.0 International License, which permits use, sharing, adaptation, distribution and reproduction in any medium or format, as long
+as you give appropriate credit to the original author(s) and the source,
+provide a link to the Creative Commons licence, and indicate if changes
+were made. The images or other third party material in this article are
+included in the article’s Creative Commons licence, unless indicated
+otherwise in a credit line to the material. If material is not included in
+the article’s Creative Commons licence and your intended use is not
+permitted by statutory regulation or exceeds the permitted use, you will
+need to obtain permission directly from the copyright holder. To view a
+copy of this licence, visit http://creativecommons.org/licenses/by/4.0/.
+
+References
+1. Aho, A.V., Lam, M.S., Sethi, R., Ullman, J.D.: Compilers: Principles, Techniques, and Tools, 2nd edn. Addison Wesley, Boston
+(2006)
+2. Alur, R., Dill, D.L.: A theory of timed automata. Theor. Comput.
+Sci. 126(2), 183–235 (1994)
+3. Amadio, R.M., Meyssonnier, C.: On decidability of the control
+reachability problem in the asynchronous pi-calculus. Nord. J.
+Comput. 9(2), 70–101 (2002)
+4. Appel, A.W., Ginsburg, M.: Modern Compiler Implementation in
+C. Cambridge University Press, Cambridge (1997)
+5. Abdulla, P.A., Jonsson, B.: Verifying programs with unreliable
+channels. In: Proceedings of the Eighth Annual Symposium on
+Logic in Computer Science (LICS’93), Montreal, Canada, June
+19–23, 1993, pp. 160–170. IEEE Comput. Soc., Los Alamitos
+(1993)
+6. Abdulla, P.A., Jonsson, B.: Model checking of systems with many
+identical timed processes. Theor. Comput. Sci. 290(1), 241–264
+(2003)
+7. Abdulla, P.A., Nylén, A.: Timed Petri nets and bqos. In:
+ICATPN’01. LNCS, vol. 2075, pp. 53–70. Springer, Berlin (2001)
+8. Abdulla, P.A., Cerans, K., Jonsson, B., Tsay, Y.-K.: General decidability theorems for inﬁnite-state systems. In: Proc. 11th Annual
+IEEE Symposium on Logic in Computer Science, pp. 313–321.
+IEEE Comput. Soc., Los Alamitos (1996)
+9. Abdulla, P.A., Delzanno, G., Rezine, O., Sangnier, A., Traverso,
+R.: Parameterized veriﬁcation of time-sensitive models of ad hoc
+network protocols. Theor. Comput. Sci. 612, 1–22 (2016)
+10. Cécé, G., Finkel, A., Purushothaman Iyer, S.: Unreliable channels
+are easier to verify than perfect channels. Inf. Comput. 124(1),
+20–31 (1996)
+
+Springer
+
+G. Delzanno et al.
+
+11. Crafa, S., Laneve, C.: Programming legal contracts - a beginners
+guide to Stipula. In: The Logic of Software. A Tasting Menu of
+Formal Methods - Essays Dedicated to Reiner Hähnle on the Occasion of His 60th Birthday. Lecture Notes in Computer Science,
+vol. 13360, pp. 129–146. Springer, Cham (2022)
+12. Crafa, S., Laneve, C., Sartor, G., Veschetti, A.: Pacta sunt servanda:
+legal contracts in Stipula. Sci. Comput. Program. 225, 102911
+(2023)
+13. de Boer, F.S., Mahdi Jaghoori, M., Laneve, C., Zavattaro, G.: Decidability problems for actor systems. Log. Methods Comput. Sci.
+10(4) (2014)
+14. Delzanno, G., Laneve, C., Sangnier, A., Zavattaro, G.: Decidability
+problems for micro-stipula. In: Di Giusto, C. and Ravara, A. (eds.),
+Coordination Models and Languages - 27th IFIP WG 6.1 International Conference, COORDINATION 2025, Held as Part of the
+20th International Federated Conference on Distributed Computing Techniques, DisCoTec 2025, Proceedings, Lille, France, June
+17–19, 2025. Lecture Notes in Computer Science, vol. 15731,
+pp. 133–152. Springer, Berlin (2025)
+15. Dickson, L.E.: Finiteness of the odd perfect and primitive abundant
+numbers with $n$ distinct prime factors. Bull. Am. Math. Soc.
+19(6), 285 (1913)
+16. Dufourd, C., Finkel, A., Schnoebelen, P.: Reset nets between decidability and undecidability. In: Larsen, K.G., Skyum, S., Winskel,
+G. (eds.) Automata, Languages and Programming, 25th International Colloquium, ICALP’98, Aalborg, Denmark, July 13–17,
+1998. Lecture Notes in Computer Science, vol. 1443, pp. 103–115.
+Springer, Berlin (1998)
+17. Esparza, J., Nielsen, M.: Decidability issues for Petri nets - a survey.
+J. Inf. Process. Cybern. 30(3), 143–160 (1994)
+18. Finkel, A., Schnoebelen, Ph.: Well-structured transition systems
+everywhere! Theor. Comput. Sci. 256, 63–92 (2001)
+19. Finkel, A., Raskin, J.-F., Samuelides, M., Van Begin, L.: Monotonic extensions of Petri nets: forward and backward search revisited. Electron. Notes Theor. Comput. Sci. 68(6), 85–106 (2002)
+20. Ganty, P., Majumdar, R.: Algorithmic veriﬁcation of asynchronous
+programs. ACM Trans. Program. Lang. Syst. 34(1), 6:1–6:48
+(2012)
+21. Hansson, H., Jonsson, B.: A calculus for communicating systems
+with time and probabitilies. In: Proceedings of the Real-Time Systems Symposium - 1990, pp. 278–287. IEEE Comput. Soc., New
+York (1990)
+22. Jhala, R., Majumdar, R.: Interprocedural analysis of asynchronous
+programs. In: Hofmann, M., Felleisen, M. (eds.) Proceedings of the
+34th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages, POPL 2007, Nice, France, January 17–19,
+2007, pp. 339–350. ACM, New York (2007)
+23. Karp, R.M., Miller, R.E.: Parallel program schemata. J. Comput.
+Syst. Sci. 3(2), 147–195 (1969)
+24. Laneve, C.: Reachability analysis in micro-Stipula. In: Proc. 26th
+International Symposium on Principles and Practice of Declarative Programming, PPDP 2024, pp. 17:1–17:12. ACM, New York
+(2024)
+25. Mayr, R.: Undecidability of weak bisimulation equivalence for 1counter processes. In: Baeten, J.C.M., Karel Lenstra, J., Parrow, J.,
+Woeginger, G.J. (eds.) Automata, Languages and Programming,
+30th International Colloquium, ICALP 2003. Proceedings, Eindhoven, The Netherlands, June 30–July 4, 2003. Lecture Notes in
+Computer Science, vol. 2719, pp. 570–583. Springer, Berlin (2003)
+26. Meyer, R.: On boundedness in depth in the pi-calculus. In: IFIP
+TCS. IFIP, vol. 273, pp. 477–489. Springer, Berlin (2008)
+27. Minsky, M.: Computation: Finite and Inﬁnite Machines. Prentice
+Hall, New York (1967)
+28. Moller, F., Tofts, C.M.N.: A temporal calculus of communicating systems. In: Proceedings of CONCUR’90. Lecture Notes in
+Computer Science, vol. 458, pp. 401–415. Springer, Berlin (1990)
+
+Clause-reachability is undecidable in legal contracts
+
+29. Sen, K., Viswanathan, M.: Model checking multithreaded programs with asynchronous atomic methods. In: Ball, T., Jones, R.B.
+(eds.) Computer Aided Veriﬁcation, 18th International Conference, CAV 2006, Proceedings Seattle, WA, USA, August 17–20,
+2006. Lecture Notes in Computer Science, vol. 4144, pp. 300–314.
+Springer, Berlin (2006)
+
+275
+
+30. Stipula Reachability Analyzer, S.E.: (2024). Available on github.
+https://github.com/stipula-language
+Publisher’s note Springer Nature remains neutral with regard to ju-
+
+risdictional claims in published maps and institutional aﬃliations.
+
+Springer
+
+

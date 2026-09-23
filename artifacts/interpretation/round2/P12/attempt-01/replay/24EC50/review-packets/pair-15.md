@@ -1,0 +1,150 @@
+# Fact correspondence review
+
+These are generated readings awaiting review. No semantic mapping is approved.
+This packet exposes model proposals and cannot serve as blind reference annotation.
+
+Source packet: `f7a64d3de90d02e99196d98ccef21e753d809b06de92036166db0eb3639b7449`
+
+## Left reading
+
+Selected control: compulsory e-IP submission route from 30 November 2024. Each covered application or submission made from that date must use e-IP. Existing channels remain accepted during the extended parallel run through 29 November 2024. Enhancement plans do not expressly condition that transition, and annual-fee settlement through e-IP remains optional. The result tests routing only when scope holds; out-of-scope items receive no compliance verdict and unknown facts remain unknown.
+
+Distinction: Retain the parent's mandatory-route reading with explicit evidentiary limits. A covered submission using an existing non-e-IP channel on 29 November is outside this mandatory control and within the extended acceptance period; the same item submitted on 30 November fails the route check. A fee payment alone does not establish coverage. Hypotheses that enhancements postpone the deadline, 'where practicable' excuses submitters, the full-adoption heading makes fee payment compulsory, or case initiation before transition creates grandfathering lack textual support. The uncited units add context and attribution, not a justified rival rule. The five INCOMPARABLE_FACT_BINDINGS diagnostics supply no substantive counterexample and therefore justify no change to fact meanings. The strongest remaining uncertainty is the classification and timing of legacy-case follow-ups.
+
+| Fact | Type | Declared meaning | Unit | Judgment required | Source units |
+|---|---|---|---|---|---|
+| covered_submission | bool | The identified item is an application or submission to IPD concerning an investment product administered by IPD, interpreted with the product categories in footnote 1. Optional fee payment alone does not establish this classification. | Boolean | True | ['u1', 'u3', 'u9', 'u17'] |
+| submission_date | date | The Gregorian date on which the identified application or submission is treated as submitted under the applicable timing convention. Dispatch-versus-receipt treatment is not specified in the packet. | Gregorian calendar date | True | ['u1', 'u4', 'u7', 'u9'] |
+| submitted_via_e_ip | bool | The identified application or submission was submitted to IPD via e-IP. | Boolean | False | ['u1', 'u9'] |
+
+Scope: `(and covered_submission (>= submission_date (date 2024-11-30)))`
+
+Result expression: `submitted_via_e_ip`
+
+Assumptions:
+
+- The control is evaluated for one identified application or submission, not for whole-institution compliance.
+- Extending the parallel run extends its existing-channel acceptance through 29 November 2024.
+- The supplied submission date is established under the applicable timing convention; this packet does not define that convention.
+- Product and communication classification is supplied with professional judgment where needed.
+- Missing operational guidance is not treated as evidence that an exception exists or that none could exist outside this packet.
+
+Unresolved questions:
+
+- Does a particular follow-up on a pre-transition case qualify as an application or submission, rather than ordinary correspondence?
+- Does operational guidance determine submission_date by dispatch, receipt or system acceptance?
+- What common fact bindings would make the supplied node comparisons substantively comparable?
+
+## Right reading
+
+For each covered application or submission made to IPD on or after 30 November 2024, the submitting actor must use e-IP. Existing channels remain accepted during the extended parallel run through 29 November 2024. The identified reporting requests fall within the integration described by the circular, without this text independently establishing when reports are due. Annual-fee settlement through e-IP remains optional. Within the formal scope, a true result means that this submission satisfies the selected route control; outside that scope, the formalization makes no compliance determination.
+
+Distinction: This reading applies the transition to each covered submission event, including later submissions relating to an earlier case where they otherwise qualify. It preserves optional fee settlement and treats enhancement completion as rationale rather than a commencement condition. The strongest uncertainty is whether unavailable migration provisions qualify the treatment of existing cases; the retained text supplies insufficient support for a separate grandfathering reading.
+
+| Fact | Type | Declared meaning | Unit | Judgment required | Source units |
+|---|---|---|---|---|---|
+| covered_submission | bool | The assessed event is an application or submission to IPD concerning an investment product administered by IPD. Classification takes account of footnote 1 and does not classify use of the optional annual-fee facility alone as a covered submission. | Boolean | True | ['u1', 'u3', 'u9', 'u17'] |
+| submission_date | date | Gregorian calendar date on which the assessed application or submission is made to IPD. | Gregorian calendar date | False | ['u1', 'u9'] |
+| submitted_via_eip | bool | The assessed application or submission is submitted to IPD via e-IP. | Boolean | False | ['u1', 'u9'] |
+
+Scope: `(and covered_submission (>= submission_date (date 2024-11-30)))`
+
+Result expression: `submitted_via_eip`
+
+Assumptions:
+
+- The assessment concerns one identified submission event, not whole-institution compliance or whether an underlying filing is due.
+- Extending the parallel run carries forward its existing-channel acceptance through 29 November 2024.
+- The event's submission date determines application of the compulsory route; no unstated grandfathering exception is inserted.
+- Product and submission classification remain supplied facts requiring judgment where the retained text is insufficient.
+
+Unresolved questions:
+
+- For an existing case, which later communications count as applications or submissions subject to the new route?
+- Does missing migration guidance provide any express exception to the event-date reading?
+
+## Questions for the reviewer
+
+- Do the same events, actors, dates, quantities and exceptions supply both sets of facts?
+- Does the same Boolean or scalar result mean the same thing in both statements?
+- Which correspondence assumptions are contradicted, unresolved or supported by the retained source?
+- Does the source require additional facts or referenced authorities absent from either reading?
+
+Record an explicit one-to-one mapping and the assumptions for each changed declaration. A different number or decomposition of facts may require a new interpretation rather than a mapping.
+
+## Retained source
+
+**u1 — Retained text line 1**
+
+This circular informs the industry that the Securities and Futures Commission (SFC) will extend the parallel run period of its new online application/submission system for investment products, e-IP, by one month to 29 November 2024. After the extended period, applications and submissions of investment products administered by the Investment Products Division (IPD)1 must be submitted to IPD via e-IP from 30 November 2024.
+
+**u2 — Retained text line 2**
+
+Background
+
+**u3 — Retained text line 3**
+
+Following the “Circular on launch of e-IP application/submission system on WINGS” dated 8 July 2024, the SFC launched e-IP on its WINGS2 portal on 29 July 2024 to streamline and enhance the efficiency of processing new product applications and post-authorisation/registration submissions to IPD.
+
+**u4 — Retained text line 4**
+
+A three-month period of parallel run from the launch of e-IP up to 29 October 2024 was provided at the initial stage. During this period, the SFC continues to accept applications and submissions via existing channels.
+
+**u5 — Retained text line 5**
+
+Parallel run period extension and upcoming enhancements
+
+**u6 — Retained text line 6**
+
+Since its implementation, the SFC has closely monitored the functioning of e-IP and actively engaged with industry participants to obtain their feedback on user experience.
+
+**u7 — Retained text line 7**
+
+While e-IP has garnered widespread industry support and is running smoothly, new features and more advanced settings will be introduced to further enhance user experience based on users’ comments. To facilitate these enhancements, the SFC will extend the parallel run period of e-IP by one month to 29 November 2024.
+
+**u8 — Retained text line 8**
+
+Full adoption of e-IP
+
+**u9 — Retained text line 9**
+
+Starting 30 November 2024, ie, after the parallel run period, applications and submissions of investment products administered by IPD must be submitted via e-IP. The current submission requests from IPD via the IP E-submission system will be integrated into e-IP, including reporting of net asset values, large redemptions and suspensions of dealing. In addition, e-IP users can also settle recurring annual fees associated with relevant investment products through the new system.
+
+**u10 — Retained text line 10**
+
+Feedback and enquiries
+
+**u11 — Retained text line 11**
+
+The SFC will continue to review and enhance the operation of e-IP where practicable. If you have any questions, please contact the relevant case officers.
+
+**u12 — Retained text line 12**
+
+Investment Products Division
+
+**u13 — Retained text line 13**
+
+Securities and Futures Commission
+
+**u14 — Retained text line 14**
+
+End
+
+**u17 — Retained text line 17**
+
+1 Investment-linked assurance schemes, mandatory provident fund products, open-ended fund companies, paper gold schemes, pooled retirement funds, real estate investment trusts, unit trusts and mutual funds and unlisted structured investment products.
+
+**u18 — Retained text line 18**
+
+2 Web-based INteGrated Service.
+
+Missing or supplied dependencies:
+
+```json
+[
+  {
+    "dependency_id": "external-authorities.24ec50",
+    "source_hash": null
+  }
+]
+```

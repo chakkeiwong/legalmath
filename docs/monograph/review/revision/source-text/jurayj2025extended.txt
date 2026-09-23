@@ -1,0 +1,1117 @@
+Language Models and Logic Programs for Trustworthy Tax Reasoning
+William Jurayj1 , Nils Holzenberger2 , Benjamin Van Durme1
+1
+
+arXiv:2508.21051v3 [cs.CL] 5 Feb 2026
+
+2
+
+Johns Hopkins University
+Télécom Paris, Institut Polytechnique de Paris
+wjurayj1@jhu.edu
+
+Abstract
+According to the United States Internal Revenue Service,
+“the average American spends $270 and 13 hours filing their
+taxes”. Even beyond the U.S., tax filing requires complex reasoning, combining application of overlapping rules with numerical calculations. Because errors can incur costly penalties, any automated system must deliver high accuracy and
+auditability, making modern large language models (LLMs)
+poorly suited for this task. We propose an approach that integrates LLMs with a symbolic solver to calculate tax obligations. We evaluate variants of this system on the challenging StAtutory Reasoning Assessment (SARA) dataset, and
+include a novel method for estimating the cost of deploying such a system based on real-world penalties for tax errors. We further show how combining up-front translation of
+plain-text rules into formal logic programs, combined with
+intelligently retrieved exemplars for formal case representations, can dramatically improve performance on this task
+and reduce costs to well below real-world averages. Our results demonstrate the effectiveness of applying semantic parsing methods to statutory reasoning, and show promising economic feasibility of neuro-symbolic architectures for increasing access to reliable tax assistance. Code is available at
+https://github.com/wjurayj/legal logic programs
+
+Accuracy in tax filing is essential. Over-reported income
+or missed deduction opportunities lead to unnecessary overpayment, while under-reporting may result in penalties,
+interest, and potential legal consequences. In the United
+States, the costs of inaccuracies affect lower income communities more significantly, in part because these groups offer the Internal Revenue Service (IRS) high audit success
+rates (Dean 2022; Black et al. 2022; Elzayn et al. 2025).
+However, these audits deliver a modest return on investment
+compared to audits of wealthier taxpayers, so there is an opportunity to better align community and institutional interests through improved tax advice to lower income taxpayers
+(Boning et al. 2024).
+
+Introduction
+“GPT is not a certified tax professional, nor am I, so
+you should always check with your tax advisor.”
+— Greg Brockman, CTO of OpenAI
+Of life’s two certainties, taxes should be preferred; yet
+they may well be the more complicated one. Each year,
+virtually every adult in the world must calculate and pay
+a fee to some government, in order to reside and earn a
+living within the state’s guardianship. Even for individuals with relatively simple financial situations, the annual
+filing process demands meticulous reading and following
+of dozens of form instructions and the copying of values
+across schedules, worksheets, and eligibility tests. Completing these tasks without professional assistance can take
+hours. Alternatively, taxpayers may hire a professional preparer, incurring substantial fees depending on the complexity of their return (Internal Revenue Service 2025).
+Copyright © 2026, Association for the Advancement of Artificial
+Intelligence (www.aaai.org). All rights reserved.
+
+Figure 1: A taxpayer confronted with a tax question might
+choose between an inexpensive AI preparer and a costlier
+human professional. The decision considers trade-offs between cost, convenience, and confidence in the result.
+However, the concrete costs for errors present a substantial challenge for modern large language models (LLMs).
+An AI assistant deployed in this domain must meet higher
+standards than basic accuracy: it should (1) recognize when
+it lacks sufficient certainty to offer guidance and (2) generate a transparent and faithful trace of logical steps so that
+taxpayers and auditors can easily verify the derivation of
+each answer. In this paper we show that symbolic reasoning tools, integrated with LLMs, offer a promising approach
+to meeting these standards. Our method provides the language model with access to a symbolic solver, enabling it to
+translate statutory text and taxpayer information into formal
+logic programs, which are processed by a trusted execution
+engine. We evaluate the method on the StAtutory Reason-
+
+Figure 2: Methods for solving. Top Left: Plain-text for statutes and a case is fed into a language model, along with the
+instruction to calculate a person’s tax obligation. Top Right: Statutes and a case are fed into the model as before, but it is
+instructed to convert these into a logic program which calculates a person’s tax obligation. If the SWI-Prolog engine fails
+to execute the program, the case is considered unanswered. Bottom: A language model parses a case’s facts into Prolog,
+conditioned on gold parses of the most relevant cases and of the rules contained in the statutes. The symbolic solver imports the
+gold parses of the statutes before attempting to execute the generated parse of the case. Note that unlike the approaches above
+it, this requires gold symbolic representations of both the statutes and a representative selection of correctly-decided cases.
+ing Assessment (SARA) dataset, a benchmark of synthetic
+tax scenarios paired with liability calculations carried out
+through ground-truth representations of rules and facts in
+formal logic (Holzenberger et al. 2020).
+Our experiments are the first to demonstrate strong performance by applying semantic parsing methods to statutory
+reasoning. This includes two key findings. First, whereas
+frontier reasoning models outperform non-reasoning models at both directly solving and at parsing case and statute
+text into the symbolic solver, non-reasoning models consistently outperform their reasoning counterparts when given
+gold symbolic representations of statutes and of their application to similar cases. Second, we show that by adding additional refusal criteria through a symbolic solver and selfchecking, the expected costs of deploying such a system in
+the real world could be brought down to less than 20% of the
+average cost for an American to file their taxes. Our results
+indicate the promise of neuro-symbolic architectures for expanding access to trustworthy and reliable tax expertise.
+
+Background
+Logic Programming for Legal Reasoning
+Several programming languages have been designed to represent and facilitate logical reasoning. Prolog is a declarative programming language for representing and reasoning
+over knowledge, with roots in first order logic. A programmer defines rules using Horn clauses (Horn 1951) and facts
+by declaring which rules apply to entities, thus populating
+a knowledge base. Subsequently, this knowledge base can
+
+be queried by defining a ‘goal’, which launches computation in the form of a backward-chaining search attempting
+to prove that the goal holds a certain value by iteratively unifying sub-goals (Wielemaker et al. 2010; Weir et al. 2024).
+Prolog has been used since the early days of legal AI, where
+it has formed the backbone of legal expert systems because
+its declarative syntax keeps knowledge base entries for rules
+human-readable while powerfully representing the reasoning around which legal questions revolve (Sherman 1989).
+Efforts in countries like the United Kingdom (Sergot et al.
+1986), Canada (Sherman 1987), and the United States (Kant
+et al. 2025) have leveraged this capacity to encode legal rules
+in executable formal logic. Related languages have also been
+used in the legal domain, such as Answer-set Programming
+(Gelfond and Lifschitz 1988; Morris 2020), Datalog (Ceri
+et al. 1989; Huang et al. 2021), and Catala (Merigoux et al.
+2021a; Merigoux 2023). More broadly, hierarchical templates are a popular tool for evaluation of legal reasoning
+(Hou et al. 2024). We focus on the SARA dataset (Holzenberger et al. 2020), which encodes statutes and cases into
+Prolog logic programs to show how a symbolic expert system can perfectly solve a task which large language models
+struggle to complete.
+
+Statutory Tax Reasoning and the SARA Dataset
+We focus on the task of statutory reasoning for tax law.
+Some elements of this task bear similarity to popular mathematical reasoning tasks such as GSM-8k (Cobbe et al.
+2021) or MATH-500 (Hendrycks et al. 2021), such as chaining together mathematical operations to solve a real-world
+
+4 demonstration (Blair-Stanek et al. 2024). This approach
+treats the tax calculation as a mathematical question answering task with the additional demand that the model must
+apply entries from a large corpus of rules contained in the
+statutory text, in addition to the generic arithmetic rules
+that govern all calculation. For each case in this setting, a
+model’s context is filled with all sections of the statutes concatenated together, the description of the case’s facts, and the
+question about a person in that case’s tax liability, all in plain
+text. It is instructed to calculate the person in question’s tax
+obligation based on the rules outlined in the statutes.
+
+Figure 3: Number of correct and incorrect solutions produced by each solution method, for large chat- and
+reasoning-optimized models (served by DeepSeek and OpenAI).
+problem described in words. However, unlike these math
+datasets which require application of a small set of universal
+arithmetic rules which models learn during training, statutory reasoning considers a set of contingent rules contained
+within documents provided to a model in-context at inference time, in addition to these basic arithmetic principles.
+We evaluate our methods on the SARA dataset, which
+tests the ability of language models to do statutory reasoning
+about the United States Tax Code (Holzenberger et al. 2020).
+This dataset is included in the popular aggregate benchmark
+LegalBench (Guha et al. 2023), and was used in the GPT4 product launch to highlight the model’s superior reasoning capacity (Blair-Stanek et al. 2024). The SARA dataset
+consists of 9 sections from the US federal tax code which
+have been moderately edited to make them self-contained
+and unambiguous. These manipulations allow the dataset
+to serve as a self-contained and solvable task for language
+models that lack live internet access and human-like abilities to process ambiguity (Jurayj et al. 2022; Stengel-Eskin
+et al. 2024). These statute sections are accompanied by 376
+hand-crafted cases to test understanding of these statutes,
+each containing a question about a person’s tax obligation.
+Each statute and case has been manually translated into Prolog, which allows them to be trivially solved using the language’s powerful execution engine to resolve queries about
+cases. This Prolog is defined using neo-Davidsonian event
+semantics (Davidson 1966), categorizing each event as one
+of 61 possible predicates onto which various arguments are
+attached. 276 of these cases require binary responses about
+whether a section applies, and the remaining 100 require calculating a tax obligation; we focus on the 100 cases because
+of their increased difficulty and because a trivial baseline of
+always guessing a single answer delivers poor performance
+at predicting the numerical output.
+
+Methodology
+Direct Calculation
+We evaluate our methods against the baseline method of direct solving, mirroring the approach used in OpenAI’s GPT-
+
+Chat Model
+Qwen2.5-Coder
+Llama 3.3
+DeepSeek-V3
+GPT-4.1
+
+Reasoning Model
+R1-Distill Qwen2.5
+R1-Distill Llama 3.3
+DeepSeek-R1
+OpenAI o3
+
+Size
+32 billion
+70 billion
+671 billion
+$8/m tokens
+
+Table 1: Chat and Reasoning model pairs. Each openweight model pair is fine-tuned from the same base model.
+Although the exact dimensions and provenance of OpenAI’s
+models are unknown, the two models have identical token
+pricing structures, suggesting that they incur similar costs
+for OpenAI to serve.
+
+Zero-Shot Parsing for a Symbolic Solver
+To extend the direct solution approach, we augment the language model with a symbolic solver. Here, a model is given
+the plain text of the statutes as in the direct calculation case.
+It is instructed to generate a Prolog program which encodes
+the relevant rules and facts necessary to compute the person
+in question’s tax obligation, reframing the task from reasoning to autoformalization (Zhang et al. 2025a). The symbolic
+solver ingests a set of rules and facts in Prolog, and is invoked to execute a query, offloading to the solver the compositional reasoning that language models struggle to conduct
+faithfully (Khandelwal and Pavlick 2025). The execution of
+this Prolog program offers a straightforward mechanism for
+refusal: if the program fails to execute into the proper format
+or hangs beyond a pre-allocated time limit (10 seconds), the
+system is considered to have refused to answer.
+
+Few-Shot Parsing using Gold Statutes
+We additionally consider what advantage could be given by
+offering language model parsers access to gold symbolic
+representations of the statutes, alongside demonstrations of
+cases applying the rules from these statutes, building on
+previous work showing how demonstrations can aid in semantic parsing (Shin and Van Durme 2022; Spiegel et al.
+2024). Notably, the gold parsed cases all reference the same
+manually-translated Prolog representation of the statutes. As
+such, these manual translations formalize certain types of
+facts in one particular way where several may be viable,
+given alternative representations of the rules which are plausible but not implemented in practice. Thus, when using already parsed cases as few-shot examples, the execution engine must have access to this particular formalization of the
+
+Model Family
+Baseline
+
+Qwen-2.5
+
+Llama-3.3
+
+DeepSeek
+
+OpenAI GPT-4.1
+
+OpenAI GPT-5
+
+Model
+N/A
+N/A
+Qwen-32b
+Qwen-32b
+R1-32b
+R1-32b
+Llama-70b
+Llama-70b
+R1-70b
+R1-70b
+DeepSeek-V3
+DeepSeek-V3
+DeepSeek-V3
+DeepSeek-V3
+DeepSeek-V3
+DeepSeek-R1
+DeepSeek-R1
+DeepSeek-R1
+DeepSeek-R1
+DeepSeek-R1
+GPT-4.1
+GPT-4.1
+GPT-4.1
+GPT-4.1
+GPT-4.1
+o3
+o3
+o3
+o3
+o3
+GPT-5
+GPT-5
+GPT-5
+GPT-5
+GPT-5
+
+Method
+Always Abstain
+Always Predict $0
+Direct
+Parsed
+Direct
+Parsed
+Direct
+Parsed
+Direct
+Parsed
+Direct
+Parsed
+Direct + Direct
+Direct + Parsed
+Parsed + Parsed
+Direct
+Parsed
+Direct + Direct
+Direct + Parsed
+Parsed + Parsed
+Direct
+Parsed
+Direct + Direct
+Direct + Parsed
+Parsed + Parsed
+Direct
+Parsed
+Direct + Direct
+Direct + Parsed
+Parsed + Parsed
+Direct
+Parsed
+Direct + Direct
+Direct + Parsed
+Parsed + Parsed
+
+Correct
+0
+5
+13
+2
+38
+1
+9
+1
+43
+2
+22
+11
+16
+7
+5
+74
+38
+66
+34
+17
+48
+39
+42
+27
+26
+56
+75
+41
+52
+65
+76
+53
+73
+46
+31
+
+Incorrect
+0
+95
+87
+17
+62
+2
+91
+43
+57
+1
+78
+43
+15
+4
+8
+26
+10
+12
+3
+4
+52
+31
+13
+6
+5
+44
+15
+17
+10
+9
+24
+13
+9
+6
+5
+
+Abstentions
+100
+0
+0
+81
+0
+97
+0
+56
+0
+97
+0
+46
+69
+89
+87
+0
+52
+22
+63
+79
+0
+30
+45
+67
+69
+0
+10
+42
+38
+26
+0
+34
+18
+48
+64
+
+Break-Even Price
+$270 ± 0
+$16227.11 ± 7805.94
+$3,051.64 ± 1,828.31
+$490.34 ± 230.75
+$505.25 ± 287.67
+$278.70 ± 24.33
+$1,065.90 ± 675.07
+$252,027.73 ± 414,049.97
+$1,257.03 ± 1,620.47
+$266.10 ± 6.81
+$739.45 ± 474.59
+$2,099.13 ± 1,253.57
+$265.46 ± 63.53
+$285.53 ± 55.57
+$310.47 ± 67.95
+$304.29 ± 225.57
+$249.64 ± 84.77
+$94.20 ± 59.76
+$170.10 ± 21.75
+$241.80 ± 29.45
+$532.84 ± 492.99
+$228.89 ± 151.69
+$196.92 ± 88.43
+$185.10 ± 21.33
+$186.30 ± 20.84
+$6,431.84 ± 2,637.94
+$47.43 ± 22.16
+$3,472.29 ± 1,859.32
+$115.90 ± 24.63
+$77.51 ± 22.41
+$299.11 ± 288.41
+$122.72 ± 29.21
+$218.64 ± 270.19
+$138.30 ± 25.53
+$180.23 ± 23.42
+
+Table 2: Results of different methods without gold statutes. Models in the same family have the same base model (or seem
+most likely to, in the case of closed-weights models). Note that “break-even price” measures only the costs of failures and
+abstentions, and does not include inference costs. For each model, the approach that delivered the lowest break-even price is
+shown in bold. The top two rows show the break-even price of trivial systems, which always defer to an expert or which always
+tell a person not to pay any taxes. Errors represent a symmetricized 90% confidence interval. The lowest break-even price
+method for each model family is in bold.
+rules as well. This reduces the per-case reasoning task to
+tax-relevant event extraction (Holzenberger and Van Durme
+2023; Gantt et al. 2024; Walden et al. 2025)
+To identify the most salient exemplar cases, we apply information retrieval systems which can follow instructions
+(Weller et al. 2025a), directing a retrieval system to rank
+cases based on how similar the logical structure of the case’s
+text is to the case at hand. For each case, we instruct a
+lightweight reasoning model (OpenAI o4-mini) to rank the
+other 99 cases, following recent work showing the effectiveness of test-time scaling for reranking documents (Weller
+et al. 2025b; Yang et al. 2025). As few-shot examples, we
+provide the 5 most relevant cases and their gold Prolog
+
+translations in-context for the language model to condition
+its parse on. These cases can be analogized to precedents,
+because our tax calculation agent uses them to understand
+how terms from the statutes are applied in practice. We note
+that this use of the term ‘precedent’ is informal and does
+not refer to the common-law practice of binding precedent.
+Rather, these retrieved precedent cases are more analogous
+to ‘persuasive’ precedent, which might help a court understand how terms have been applied in the past but is not itself new law which future courts must apply (Kozel 2014;
+Savelka 2020; Šavelka and Ashley 2022).
+
+Experimental Setup
+We run experiments across four model families of different
+sizes, three of which are open-weight models. The bases
+for these models are: Qwen2.5 32B (Qwen et al. 2025),
+Llama 3.3 70B (Grattafiori et al. 2024), DeepSeek-V3 671B
+(DeepSeek-AI et al. 2025b), and OpenAI’s GPT-4.1 (OpenAI 2025a,b), each of which has an instruction-tuned version designed for common chat applications, and a reasoning version optimized to expend additional inference-time
+compute to solve harder problems. The full list of models
+is included in table 1. We run auxiliary experiments using
+GPT-5, but we do not conduct the same chat vs. reasoning
+comparison because this product appears to be an integrated
+system containing several models, and therefore is not as
+analogous to these other comparisons (Zhang et al. 2025b).
+The reasoning model for three of these pairings stem from
+the DeepSeek R1 project (DeepSeek-AI et al. 2025a), where
+strong base models were fine-tuned to generate long chainsof-thought that help them solve harder quantitative reasoning problems. Although there is no formal documentation
+stating that OpenAI’s GPT-4.1 and o3 models are derived
+from the same base model, the proximity of the two model’s
+launch dates and their identical per-token pricing schemes
+suggest that these two models have a similar relationship to
+the other model pairs we explore.
+We consider ‘correct‘ attempts to be those where the output calculated by our system is exactly the same as the actual tax obligation, when rounded to the nearest dollar. All
+Prolog code is executed using the SWI-Prolog (Wielemaker
+et al. 2010) implementation of Prolog, and externally halted
+after 10 seconds of reasoning. We run experiments on the v2
+release of the SARA dataset, because its programmatic representations most closely match the natural language surface
+forms (Holzenberger and Van Durme 2021).
+
+Self-Consistency Tests
+We further ask how effectively these methods can serve to
+improve each other’s selectivity, by using comparisons between different solution methods to expend additional compute to help determine whether an answer should be trusted
+(Wang et al. 2023; Stengel-Eskin and Van Durme 2023). In
+these settings, an answer is only accepted if it is reached via
+two independent reasoning processes: two chains-of-thought
+and answers (either directly calculated obligations or Prolog
+programs) are sampled from the same model. When selfchecking using the same method (for instance, “Parsed +
+Parsed”), these answers are conditioned on the same prompt
+and context. In the parsing-based approaches, this can be
+considered a more stringent version of the existing refusal
+system which rejects questions for which the parsed solution does not execute, by additionally deferring to a tax professional where a combination of attempts do not reach a
+consensus answer. We test the effectiveness of each combination of reasoning processes for each model to show where
+additional selectivity can further improve performance.
+
+Incorporating Costs of Incorrect Judgments
+To file a faulty tax return can incur substantial financial
+costs. These can take the form of government-imposed
+
+Figure 4: Success and failure rates of method mixtures:
+The top right corner counts the average number of successes
+yielded by each method combination, and the bottom left
+corner counts the average number of failures for models over
+100 billion parameters optimized for reasoning (DeepSeek
+R1 and OpenAI o3) and chat (DeepSeek V3 and GPT-4.1)
+penalties for understatement, or simply the cost of paying
+more in tax than one actually owes. Previous evaluations of
+SARA typically report exact match scores on the tax cases.
+Recent work has examined how large the errors are between
+the obligations calculated by a language model, observing
+that smaller errors are more frequent than larger ones (BlairStanek et al. 2024). We extend this approach by calculating
+the costs that would be incurred by using these systems to
+file the taxes for the 100 tax cases in the SARA dataset.
+We posit that the deployment of an automated tax advisor system should require some accountability for the organization deploying it. To provide a realistic estimate of the
+costs of employing the methods we outline above draw from
+the US Internal Revenue Code (IRC) §6662, which imposes
+a penalty of 20% of the amount underpaid for “substantial
+understatement of income tax”. The cases in SARA are all
+personal or household tax cases, so a tax filing is considered a “substantial understatement” if they understate the
+true obligation by more than the maximum of 10% of the
+actual amount owed or $5, 000. We finally impose a penalty
+of $270 for refusing to answer, to model the cost of the personal or professional time required to complete one’s taxes
+(Internal Revenue Service 2025).
+This gives us the following formula: Let N be the number
+of cases the system ingests, and ∆yi = yi − ŷi be the difference between the actual obligation yi and predicted obligation ŷi , such that positive values of ∆yi indicate understatement and negative values indicate overstatement.
+
+cost =
+
+
+−(∆yi ),
+
+
+
+
+
+N
+1 X 0.2 (∆yi ),
+N i=1 
+
+$270,
+
+
+
+
+$0,
+
+∆yi < 0,
+
+∆yi > max $5, 000, 0.1 · yi ,
+if refused,
+otherwise.
+
+The first line corresponds to the cost of overstatement (i.e.
+the amount overstated), the second and fourth lines correspond to the respective fees incurred for substantial and nonsubstantial understatements, while the third line simulates
+
+the average cost for an American to file their taxes according to the IRS (Internal Revenue Service 2025).
+This cost also corresponds to the break-even price of the
+tax assistant, i.e. the minimum price at which they might offer this service without becoming insolvent. This simulates
+a real-world scenario in which an organization assumes liability for the costs of the errors their system makes for their
+users, and offers tax filing with deferral to a tax expert at a
+fixed price point. Here, the break-even price would inform
+the minimum price at which they might offer this service
+without becoming insolvent, such that a more accurate system delivers a lower break-even price. LLM inference costs
+remain under $1 per-question, and are omitted because of
+their marginal impact.
+We note that the penalty discussed can also be imposed for
+“negligence or disregard of rules or regulations” while filing
+taxes. One interpretation might be that using an AI system
+to complete one’s taxes is inherently negligent, but for the
+purposes of this work we assume this is not the case.
+
+Results
+We display the effectiveness of each method which doesn’t
+use the gold statutes in table 2. To extend these, we show
+the effectiveness of methods which access gold statutes and
+exemplars in table 3, although we note that these are not
+directly comparable to the results in table 2 because they
+require more up-front human effort.
+We observe a substantial divergence between the effectiveness of reasoning- and chat-optimized models on different variants of this task. We visualize this in fig. 3, aggregating performance of the more powerful DeepSeek and
+OpenAI models optimized for Chat and Reasoning. Figure 4
+shows how this disparity is further amplified when an answer must be reached via two independent reasoning paths
+in order to be accepted; whereas reasoning models can effectively mix methods to check their work, chat models deliver
+exceptional performance when self-checking few-shot solutions, but weaker performance otherwise.
+
+Discussion
+Our results indicate the promise of augmenting large language models with a symbolic solver. In both settings with
+and without access to gold symbolic representations of the
+statutes, the most effective method combined the strongest
+model (i.e. the OpenAI offering) with the Prolog symbolic
+solver. In addition to this performance advantage, the use of
+the symbolic solver is desirable for this specific task because
+it means that taxpayers or auditors may inspect and debug
+the system’s reasoning process after the fact, with a guarantee that the decision the system reached was achieved by
+the path which the logic program articulates. Although one
+might attempt to audit the chains of thought used to solve
+the problem in the direct solution cases, the causal relationship between these chains and the answer they help produce
+is less robust than symbolic program execution, and can be
+deeply misleading to human readers (Paul et al. 2024; Barez
+et al. 2025; Li et al. 2025; Skaf et al. 2025).
+
+Figure 5: Standalone parsing success rate improves with
+model size. While smaller reasoning models fail to solve
+nearly every problem in this setting, larger reasoning models
+show improvement with model size.
+
+Interestingly, our experiments aggregated in fig. 3 reveal
+a notable divergence between models optimized for reasoning and for chat applications. Although reasoning models
+perform better at direct solving and zero-shot parsing into
+symbolic representations of rules and facts, the chat models exhibit surprising effectiveness at few-shot parsing of
+case facts. It is possible that reasoning models’ post-training
+focuses their efforts on emulating explicit reasoning steps,
+such as those Prolog would itself execute, rather than accurately mapping input texts into symbolic form. Whereas
+long chains of thought are useful for the complicated arithmetic required for directly calculating a tax obligation or for
+discerning which portions of the statutes should be included
+in a zero-shot parse, they degrade performance on the relatively simpler task of imitating exemplary conversions from
+natural language into formal logic. This aligns with concurrent work highlighting cases in which long chains of thought
+can distract models from tasks where shorter chains would
+deliver stronger performance (Gema et al. 2025).
+In practice, this additionally means that with gold exemplars of case and statute translations, an individual’s tax
+case could be processed much more quickly than it could
+be without these manual annotations, because chat models
+take dramatically less time than reasoning models to produce answers. This could help build more interactive tax assistance tools which allow users to quickly iterate to amend
+and clarify their relevant tax information. This approach notably reduces the expected real-world cost per successful tax
+filing, highlighting the critical role that intelligent exemplar
+selection can play in guiding model outputs toward faithful and structured reasoning. The most effective configuration at minimizing the system’s break-even price is achieved
+when providing models with intelligently retrieved precedential examples, and deferring to a tax expert unless this
+system yields the same answer from two independently sampled solutions. The break-even price of $15.78 for this system would save the average American taxpayer over 90%
+of the amount spent on tax filing (Internal Revenue Ser-
+
+Model Family
+Previous Best
+Qwen-2.5
+Llama-3.3
+
+DeepSeek
+
+OpenAI GPT-4.1
+
+OpenAI GPT-5
+
+Model
+o3
+Qwen-32b
+R1-32b
+Llama-70b
+R1-70b
+DeepSeek-V3
+DeepSeek-V3
+DeepSeek-V3
+DeepSeek-V3
+DeepSeek-R1
+DeepSeek-R1
+DeepSeek-R1
+DeepSeek-R1
+GPT-4.1
+GPT-4.1
+GPT-4.1
+GPT-4.1
+o3
+o3
+o3
+o3
+GPT-5
+GPT-5
+GPT-5
+GPT-5
+
+Method
+Parsed
+Few-Shot
+Few-Shot
+Few-Shot
+Few-Shot
+Few-Shot
+Direct + Few-Shot
+Parsed + Few-Shot
+Few-Shot + Few-Shot
+Few-Shot
+Direct + Few-Shot
+Parsed + Few-Shot
+Few-Shot + Few-Shot
+Few-Shot
+Direct + Few-Shot
+Parsed + Few-Shot
+Few-Shot + Few-Shot
+Few-Shot
+Direct + Few-Shot
+Parsed + Few-Shot
+Few-Shot + Few-Shot
+Few-Shot
+Direct + Few-Shot
+Parsed + Few-Shot
+Few-Shot + Few-Shot
+
+Successes
+75
+42
+47
+70
+29
+78
+18
+9
+73
+40
+32
+19
+20
+87
+47
+38
+81
+81
+51
+68
+74
+86
+71
+50
+84
+
+Failures
+15
+38
+33
+27
+57
+18
+2
+1
+9
+16
+2
+2
+3
+8
+0
+1
+5
+13
+5
+7
+8
+9
+5
+2
+6
+
+Abstentions
+10
+20
+20
+3
+14
+4
+80
+90
+18
+44
+66
+79
+77
+5
+53
+61
+14
+6
+44
+25
+18
+5
+24
+48
+10
+
+Break-Even Price
+$47.43 ± 22.16
+$4,676.49 ± 4,623.77
+$7,783.29 ± 6,244.96
+$1,917.32 ± 1,247.50
+$6,328.48 ± 2,545.70
+$468.66 ± 273.47
+$223.43 ± 19.69
+$250.43 ± 15.31
+$271.45 ± 230.09
+$378.73 ± 155.14
+$178.20 ± 21.34
+$234.65 ± 28.76
+$215.33 ± 20.63
+$247.99 ± 341.76
+$143.10 ± 22.49
+$164.70 ± 21.98
+$40.08 ± 15.87
+$60.26 ± 58.93
+$126.41 ± 24.54
+$75.11 ± 22.46
+$58.13 ± 20.91
+$15.78 ± 10.34
+$64.98 ± 19.23
+$129.60 ± 22.51
+$29.28 ± 13.84
+
+Table 3: Results of different methods with access to gold statutes and intelligently retrieved parsing exemplars. Columns
+have the same meaning as table 2. Note that because these results require the additional work of manually translating all statutes
+and a set of representative cases, they are not directly comparable to those in table 2. The top row shows the best previous result.
+vice 2025). This strong performance could be a strong first
+step towards real-world pilot studies, or on developing opensource model alternatives to GPT-5 that can adaptively allocate computational resources based on problem difficulty
+(Jurayj et al. 2025; Wang et al. 2025, 2026).
+Of course, to expect that statutory codes would be manually translated into a logic programming language like Prolog is a constraining assumption to deliver this strong performance. However, we note that a handful of existing organizations have embarked on this task, such as projects to
+encode the French tax code (Merigoux et al. 2021b) or Canadian policy proposals (Morris 2020) into logic programs. In
+the United States, private companies build similar logic programs into the backend of consumer tax arrangement software (Yu et al. 2020). As this practice increases in popularity, it will expand opportunities to implement methods which
+use gold-standard programmatic representations of rules.
+Furthermore, we believe the relative strength of o3 at
+zero-shot parsing (which includes parsing a subset of the
+statutory rules) suggests promise in semi-automated offline
+encoding of these rules; as models improve further at this
+type of complex semantic parsing, entire legal systems could
+be distilled into programmatic logic. We note in fig. 5 a dramatic jump in performance with scale at parsing cases and
+statutes without gold translations. Although smaller reasoning models (those derived from Qwen2.5 32B and Llama
+
+3.3 70B) perform solidly at direct solving, and the smaller
+chat models perform solidly at few-shot parsing, neither category of smaller model solves more than a handful of cases
+in the zero-shot parsing setting. In contrast, all larger models solve at least 10% of these cases correctly, while for
+OpenAI o3 this is the most successful setting. We hope
+that further increases in model scale will further improve
+performance in this setting, since it combines the low human cost of direct solving with the easy auditing of systems
+that rely on the symbolic solver. Additionally, this capability
+could also align with improved performance on formalizing
+statutes alone, allowing tighter feedback for policy makers
+on the effects of proposed amendments on government revenue (Blair-Stanek et al. 2026).
+
+Conclusion
+We frame statutory reasoning as a semantic parsing task,
+instructing language models to convert statutory and case
+text into executable code. We show how the integration of
+symbolic solvers with frontier language models can enhance
+the capability of AI tax assistance systems, and highlight
+their potential to improve access to accurate and affordable tax guidance. Although tradeoffs remain between upfront costs of translating rules into formal logic versus ongoing inference-time computational and error costs, leveraging
+symbolic reasoning reduces overall expenses while improv-
+
+ing auditability in both cases. Future research will explore
+how further scale or specialized smaller models optimized
+for faithful translation can improve aspects of this task, and
+develop methods for efficient translation of statutory rules
+into formal logic to enable effective few-shot learning and
+help inform policy design.
+
+Ethical Statement
+Although we believe our results are promising, this paper
+should not be understood as a recommendation for individuals filing their taxes. Instead, we hope that policymakers
+and software developers will extend these insights to reduce
+the individual effort required for tax filing, building systems
+which can allow a single human-in-the-loop to complete filings more efficiently. Such steps would require careful consideration of liability issues, impacts on vulnerable populations, and non-financial costs associated with tax reviews
+such as stress or time. Furthermore, the reliance on closedsource models may place private companies at a choke point,
+so further advances in the open-source domain are essential.
+
+Acknowledgments
+This work was funded in part by the U.S. National Science
+Foundation under grant No. 2204926, and by the Defense
+Advanced Research Project Agency (DARPA) CODORD
+program. Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) and do not necessarily reflect the views of the National Science Foundation or DARPA.
+
+References
+Fazl Barez, Tung-Yu Wu, Iván Arcuschin, Michael Lan,
+Vincent Wang, Noah Siegel, Nicolas Collignon, Clement
+Neo, Isabelle Lee, Alasdair Paren, Adel Bibi, Robert Trager,
+Damiano Fornasiere, John Yan, Yanai Elazar, and Yoshua
+Bengio. 2025. Chain-of-Thought Is Not Explainability.
+ArXiv.
+Emily Black, Hadi Elzayn, Alexandra Chouldechova, Jacob
+Goldin, and Daniel Ho. 2022. Algorithmic Fairness and Vertical Equity: Income Fairness with IRS Tax Audit Models.
+In 2022 ACM Conference on Fairness Accountability and
+Transparency, pages 1479–1503, Seoul Republic of Korea.
+ACM.
+Andrew Blair-Stanek, Nils Holzenberger, and Benjamin Van
+Durme. 2026. Can llms identify tax abuse? Preprint,
+arXiv:2508.20097.
+Andrew Blair-Stanek, Nils Holzenberger, and Benjamin
+Van Durme. 2024. OpenAI Cribbed Our Tax Example, But Can GPT-4 Really Do Tax? arXiv preprint.
+ArXiv:2309.09992 [cs].
+William C Boning, Nathaniel Hendren, Ben Sprung-Keyser,
+and Ellen Stuart. 2024. A welfare analysis of tax audits
+across the income distribution*. The Quarterly Journal of
+Economics, 140(1):63–112.
+S. Ceri, G. Gottlob, and L. Tanca. 1989. What you always
+wanted to know about datalog (and never dared to ask).
+
+IEEE Transactions on Knowledge and Data Engineering,
+1(1):146–166.
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark
+Chen, Heewoo Jun, Lukasz Kaiser, Matthias Plappert, Jerry
+Tworek, Jacob Hilton, Reiichiro Nakano, Christopher Hesse,
+and John Schulman. 2021. Training Verifiers to Solve Math
+Word Problems. arXiv preprint. ArXiv:2110.14168 [cs].
+Donald Davidson. 1966. The Logical Form of Action Sentences. In Donald Davidson, editor, Essays on Actions and
+Events, page 0. Oxford University Press.
+Steven A. Dean. 2022. Filing while black: The casual racism
+of the tax law. Utah Law Review, 2022(4):801–812.
+DeepSeek-AI, Daya Guo, Dejian Yang, Haowei Zhang,
+Junxiao Song, Ruoyu Zhang, Runxin Xu, Qihao Zhu, Shirong Ma, Peiyi Wang, Xiao Bi, Xiaokang Zhang, Xingkai
+Yu, Yu Wu, Z. F. Wu, Zhibin Gou, Zhihong Shao, Zhuoshu
+Li, Ziyi Gao, and 181 others. 2025a. DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement
+Learning. arXiv preprint. ArXiv:2501.12948 [cs].
+DeepSeek-AI, Aixin Liu, Bei Feng, Bing Xue, Bingxuan
+Wang, Bochao Wu, Chengda Lu, Chenggang Zhao, Chengqi
+Deng, Chenyu Zhang, Chong Ruan, Damai Dai, Daya Guo,
+Dejian Yang, Deli Chen, Dongjie Ji, Erhang Li, Fangyun
+Lin, Fucong Dai, and 181 others. 2025b. DeepSeek-V3
+Technical Report. arXiv preprint. ArXiv:2412.19437 [cs].
+Hadi Elzayn, Evelyn Smith, Thomas Hertz, Cameron
+Guage, Arun Ramesh, Robin Fisher, Daniel E Ho, and Jacob Goldin. 2025. Measuring and Mitigating Racial Disparities in Tax Audits*. The Quarterly Journal of Economics,
+140(1):113–163.
+William Gantt, Alexander Martin, Pavlo Kuchmiichuk, and
+Aaron Steven White. 2024. Event-keyed summarization. In
+Findings of the Association for Computational Linguistics:
+EMNLP 2024, pages 7333–7345, Miami, Florida, USA. Association for Computational Linguistics.
+Michael Gelfond and Vladimir Lifschitz. 1988. The stable
+model semantics for logic programming. In Proceedings of
+International Logic Programming Conference and Symposium, pages 1070–1080. MIT Press.
+Aryo Pradipta Gema, Alexander Hägele, Runjin Chen,
+Andy Arditi, Jacob Goldman-Wetzler, Kit Fraser-Taliente,
+Henry Sleight, Linda Petrini, Julian Michael, Beatrice Alex,
+Pasquale Minervini, Yanda Chen, Joe Benton, and Ethan
+Perez. 2025. Inverse scaling in test-time compute. Preprint,
+arXiv:2507.14417.
+Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey, Abhishek Kadian, Ahmad Al-Dahle, Aiesha
+Letman, Akhil Mathur, Alan Schelten, Alex Vaughan, Amy
+Yang, Angela Fan, Anirudh Goyal, Anthony Hartshorn,
+Aobo Yang, Archi Mitra, Archie Sravankumar, Artem Korenev, Arthur Hinsvark, and 542 others. 2024. The Llama 3
+Herd of Models. arXiv preprint. ArXiv:2407.21783 [cs].
+Neel Guha, Julian Nyarko, Daniel E. Ho, Christopher
+Re, Adam Chilton, Aditya Narayana, Alex Chohlas-Wood,
+Austin Peters, Brandon Waldon, Daniel Rockmore, Diego
+Zambrano, Dmitry Talisman, Enam Hoque, Faiz Surani,
+
+Frank Fagan, Galit Sarfaty, Gregory M. Dickinson, Haggai Porat, Jason Hegland, and 21 others. 2023. Legalbench:
+A collaboratively built benchmark for measuring legal reasoning in large language models. In Thirty-seventh Conference on Neural Information Processing Systems Datasets
+and Benchmarks Track.
+Dan Hendrycks, Collin Burns, Saurav Kadavath, Akul
+Arora, Steven Basart, Eric Tang, Dawn Song, and Jacob
+Steinhardt. 2021. Measuring mathematical problem solving
+with the MATH dataset. In Thirty-fifth Conference on Neural
+Information Processing Systems Datasets and Benchmarks
+Track (Round 2).
+Nils Holzenberger, Andrew Blair-Stanek, and Benjamin
+Van Durme. 2020. A Dataset for Statutory Reasoning in
+Tax Law Entailment and Question Answering. San Diego.
+Nils Holzenberger and Benjamin Van Durme. 2021. Factoring statutory reasoning as language understanding challenges. In Proceedings of the 59th Annual Meeting of the
+Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers), pages 2742–2758, Online. Association for Computational Linguistics.
+Nils Holzenberger and Benjamin Van Durme. 2023. Connecting symbolic statutory reasoning with legal information
+extraction. In Proceedings of the Natural Legal Language
+Processing Workshop 2023, pages 113–131, Singapore. Association for Computational Linguistics.
+Alfred Horn. 1951. On Sentences Which are True of Direct Unions of Algebras. The Journal of Symbolic Logic,
+16(1):14–21. Publisher: Association for Symbolic Logic.
+Abe Hou, William Jurayj, Nils Holzenberger, Andrew BlairStanek, and Benjamin Van Durme. 2024. Gaps or Hallucinations? Scrutinizing Machine-Generated Legal Analysis
+for Fine-grained Text Evaluations. In Proceedings of the
+Natural Legal Language Processing Workshop 2024, pages
+280–302, Miami, FL, USA. Association for Computational
+Linguistics.
+Jiani Huang, Ziyang Li, Ilias Fountalis, and Mayur Naik.
+2021. Numerical reasoning over legal contracts via relational database. In Workshop on Databases and AI.
+Internal Revenue Service. 2025. U.S. Department of the
+Treasury, IRS Announce Direct File as Permanent Free Tax
+Filing Option, All 50 States and D.C. Invited to Join in Filing Season 2025.
+William Jurayj, Jeffrey Cheng, and Benjamin Van Durme.
+2025. Is that your final answer? test-time scaling improves
+selective question answering. In Proceedings of the 63rd
+Annual Meeting of the Association for Computational Linguistics (Volume 2: Short Papers), pages 636–644, Vienna,
+Austria. Association for Computational Linguistics.
+William Jurayj, William Rudman, and Carsten Eickhoff.
+2022. Garden path traversal in GPT-2. In Proceedings of the
+Fifth BlackboxNLP Workshop on Analyzing and Interpreting Neural Networks for NLP, pages 305–313, Abu Dhabi,
+United Arab Emirates (Hybrid). Association for Computational Linguistics.
+
+Manuj Kant, Sareh Nabi, Manav Kant, Roland Scharrer,
+Megan Ma, and Marzieh Nabi. 2025. Towards Robust Legal Reasoning: Harnessing Logical LLMs in Law. arXiv
+preprint. ArXiv:2502.17638 [cs] version: 1.
+Apoorv Khandelwal and Ellie Pavlick. 2025.
+How
+do language models compose functions?
+Preprint,
+arXiv:2510.01685.
+Randy Kozel. 2014. The Scope of Precedent. Michigan Law
+Review, 113(2):179–230.
+Dacheng Li, Shiyi Cao, Tyler Griggs, Shu Liu, Xiangxi
+Mo, Eric Tang, Sumanth Hegde, Kourosh Hakhamaneshi,
+Shishir G. Patil, Matei Zaharia, Joseph E. Gonzalez, and
+Ion Stoica. 2025. LLMs Can Easily Learn to Reason
+from Demonstrations Structure, not content, is what matters!
+arXiv preprint. ArXiv:2502.07374 [cs].
+Denis Merigoux. 2023. Experience report: implementing a
+real-world, medium-sized program derived from a legislative specification. Programming Languages and the Law.
+Denis Merigoux, Nicolas Chataing, and Jonathan Protzenko.
+2021a. Catala: a programming language for the law. Proc.
+ACM Program. Lang., 5(ICFP):77:1–77:29.
+Denis Merigoux, Raphaël Monat, and Jonathan Protzenko.
+2021b. A modern compiler for the French tax code. In
+Proceedings of the 30th ACM SIGPLAN International Conference on Compiler Construction, CC 2021, pages 71–82,
+New York, NY, USA. Association for Computing Machinery.
+Jason Morris. 2020.
+Blawx: Rules as Code
+Demonstration.
+MIT Computational Law Report.
+Https://law.mit.edu/pub/blawxrulesascodedemonstration.
+OpenAI. 2025a. Introducing GPT-4.1 in the API.
+OpenAI. 2025b. Introducing OpenAI o3 and o4-mini.
+Debjit Paul, Robert West, Antoine Bosselut, and Boi Faltings. 2024. Making reasoning matter: Measuring and
+improving faithfulness of chain-of-thought reasoning. In
+Findings of the Association for Computational Linguistics:
+EMNLP 2024, pages 15012–15032, Miami, Florida, USA.
+Association for Computational Linguistics.
+Qwen, An Yang, Baosong Yang, Beichen Zhang, Binyuan
+Hui, Bo Zheng, Bowen Yu, Chengyuan Li, Dayiheng Liu,
+Fei Huang, Haoran Wei, Huan Lin, Jian Yang, Jianhong Tu,
+Jianwei Zhang, Jianxin Yang, Jiaxi Yang, Jingren Zhou, Junyang Lin, and 24 others. 2025. Qwen2.5 Technical Report.
+arXiv preprint. ArXiv:2412.15115 [cs].
+Jaromir Savelka. 2020. Discovering sentences for argumentation about the meaning of statutory terms. Ph.D. thesis,
+University of Pittsburgh.
+Jaromı́r Šavelka and Kevin D Ashley. 2022. Legal information retrieval for understanding statutory terms. Artificial
+Intelligence and Law, 30(2):245–289.
+M. J. Sergot, F. Sadri, R. A. Kowalski, F. Kriwaczek,
+P. Hammond, and H. T. Cory. 1986. The British Nationality Act as a logic program. Communications of the ACM,
+29(5):370–386. Publisher: Association for Computing Machinery (ACM).
+
+D. M. Sherman. 1987. A Prolog model of the income tax
+act of Canada. In Proceedings of the 1st international conference on Artificial intelligence and law, ICAIL ’87, pages
+127–136, New York, NY, USA. Association for Computing
+Machinery.
+D. M. Sherman. 1989. Expert systems and ICAI in tax law:
+killing two birds with one AI stone. In Proceedings of the
+2nd international conference on Artificial intelligence and
+law, ICAIL ’89, pages 74–80, New York, NY, USA. Association for Computing Machinery.
+Richard Shin and Benjamin Van Durme. 2022. Few-shot
+semantic parsing with language models trained on code. In
+Proceedings of the 2022 Conference of the North American
+Chapter of the Association for Computational Linguistics:
+Human Language Technologies, pages 5417–5425, Seattle,
+United States. Association for Computational Linguistics.
+Joey Skaf, Luis Ibanez-Lissen, Robert McCarthy, Connor Watts, Vasil Georgiv, Hannes Whittingham, Lorena
+Gonzalez-Manzano, David Lindner, Cameron Tice, Edward James Young, and Puria Radmard. 2025. Large
+language models can learn and generalize steganographic
+chain-of-thought under process supervision. arXiv preprint.
+ArXiv:2506.01926 [cs].
+Benjamin Adin Spiegel, Ziyi Yang, William Jurayj, Ben
+Bachmann, Stefanie Tellex, and George Konidaris. 2024.
+Informing reinforcement learning agents by grounding language to markov decision processes. In Workshop on Training Agents with Foundation Models at RLC 2024.
+Elias Stengel-Eskin, Kyle Rawlins, and Benjamin Van
+Durme. 2024. Zero and few-shot semantic parsing with ambiguous inputs. In The Twelfth International Conference on
+Learning Representations.
+Elias Stengel-Eskin and Benjamin Van Durme. 2023. Did
+You Mean...? Confidence-based Trade-offs in Semantic
+Parsing. In Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing, pages 2621–
+2629, Singapore. Association for Computational Linguistics.
+William Walden, Pavlo Kuchmiichuk, Alexander Martin,
+Chihsheng Jin, Angela Cao, Claire Sun, Curisia Allen, and
+Aaron Steven White. 2025. Cross-document event-keyed
+summarization. In Proceedings of the 1st Joint Workshop on Large Language Models and Structure Modeling
+(XLLM 2025), pages 218–241, Vienna, Austria. Association
+for Computational Linguistics.
+Xi Wang, James McInerney, Lequn Wang, and Nathan
+Kallus. 2025. Entropy after ⟨/Think⟩ for reasoning model
+early exiting. Preprint, arXiv:2509.26522.
+Xi Wang, Anushri Suresh, Alvin Zhang, Rishi More,
+William Jurayj, Benjamin Van Durme, Mehrdad Farajtabar,
+Daniel Khashabi, and Eric Nalisnick. 2026. Conformal
+thinking: Risk control for reasoning on a compute budget.
+Preprint, arXiv:2602.03814.
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V Le,
+Ed H. Chi, Sharan Narang, Aakanksha Chowdhery, and
+Denny Zhou. 2023. Self-consistency improves chain of
+
+thought reasoning in language models. In The Eleventh International Conference on Learning Representations.
+Nathaniel Weir, Peter Clark, and Benjamin Van Durme.
+2024. Nellie: A neuro-symbolic inference engine for
+grounded, compositional, and explainable reasoning. In Proceedings of the Thirty-Third International Joint Conference
+on Artificial Intelligence, IJCAI-24, pages 3602–3612. International Joint Conferences on Artificial Intelligence Organization. Main Track.
+Orion Weller, Benjamin Van Durme, Dawn Lawrie, Ashwin Paranjape, Yuhao Zhang, and Jack Hessel. 2025a.
+Promptriever: Instruction-trained retrievers can be prompted
+like language models. In The Thirteenth International Conference on Learning Representations.
+Orion Weller, Kathryn Ricci, Eugene Yang, Andrew Yates,
+Dawn Lawrie, and Benjamin Van Durme. 2025b. Rank1:
+Test-Time Compute for Reranking in Information Retrieval.
+In Second Conference on Language Modeling.
+Jan Wielemaker, Tom Schrijvers, Markus Triska, and
+Torbjörn Lager. 2010.
+SWI-Prolog.
+arXiv preprint.
+ArXiv:1011.5332 [cs].
+Eugene Yang, Andrew Yates, Kathryn Ricci, Orion Weller,
+Vivek Chari, Benjamin Van Durme, and Dawn Lawrie.
+2025. Rank-K: Test-Time Reasoning for Listwise Reranking. arXiv preprint. ArXiv:2505.14432 [cs] version: 1.
+Jay Yu, Kevin McCluskey, and Saikat Mukherjee. 2020. Tax
+Knowledge Graph for a Smarter and More Personalized TurboTax. arXiv preprint. ArXiv:2009.06103 [cs].
+Lan Zhang, Marco Valentino, and Andre Freitas. 2025a.
+Autoformalization in the wild: Assessing LLMs on realworld mathematical definitions. In Proceedings of the 2025
+Conference on Empirical Methods in Natural Language
+Processing, pages 1720–1738. Association for Computational Linguistics.
+Yiqun Zhang, Hao Li, Jianhao Chen, Hangfan Zhang, Peng
+Ye, Lei Bai, and Shuyue Hu. 2025b. Beyond GPT-5: Making LLMs Cheaper and Better via Performance-Efficiency
+Optimized Routing. arXiv preprint. ArXiv:2508.12631 [cs].
+
+
