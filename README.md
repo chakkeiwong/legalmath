@@ -13,6 +13,9 @@ and generated Java controls.
   core tasks, acceptance evidence and remaining human/bank work.
 - [Second-circular test and correctness method](docs/implementation/second-circular-verification.md):
   23EC46 paragraph 10, source-based cases and the limits of current verification.
+- [Five additional circulars](docs/implementation/interpretation-round1/multi-circular-result.md):
+  75 scoped Python/Java scenarios, ten detected compiled mutations, bounded repairs
+  and blocked releases; 113 integration/interpretation regression tests passed.
 - [Unified monograph (PDF)](docs/monograph/monograph.pdf) and
   [LaTeX source](docs/monograph/monograph.tex): ten chapters, 232 pages and 76
   references, integrating both circulars, formal languages, the ensemble design,

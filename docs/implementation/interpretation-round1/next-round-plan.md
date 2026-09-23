@@ -6,6 +6,14 @@ The next question is whether independently proposed readings and targeted repair
 improve detection of consequential interpretation errors on unseen source material.
 The present scripted-member tests cannot answer it.
 
+The [five-additional-circular integration](multi-circular-result.md) now adds
+23EC49, 24EC16, 24EC50, 24EC57 and 26EC23 as development examples, with 75 fixed
+scenarios and ten detected compiled mutations. These and the 25EC48 negative
+control have been inspected and tuned by the implementing agent. They must not
+enter E11/E12 as unseen test material; reserve new circulars for the blind split.
+Their unreviewed fact mappings, supplied Canadian prior-settlement count and
+threshold/calendar conventions are concrete inputs for the annotation tool.
+
 ## Preserve the boundaries established this round
 
 The next implementation must preserve source inventory independence, immutable
