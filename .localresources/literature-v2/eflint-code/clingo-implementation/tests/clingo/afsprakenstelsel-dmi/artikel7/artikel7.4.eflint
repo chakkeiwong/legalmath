@@ -1,0 +1,66 @@
+// ARTIKEL 7.4.eflint
+//   by Lut99
+//
+// Created:
+//   19 Jun 2024, 21:32:25
+// Last edited:
+//   08 Aug 2024, 14:51:54
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.4 van het Afsprakenstelsel.
+//
+//   Dit artikel wordt geïnterpreteert dat alle aanbiedingen- en afnames van
+//   Commons altijd producten, diensten en/of data moet betreffen. Daarnaast
+//   moeten het aanbod worden gedaan via de Producten en Diensten Catalogus, en
+//   moet de afname via de Algemen Voorzieningen plaatsnemen.
+//   
+//   Zie `artikel7.4.md` voor meer informatie.
+//
+
+#require "../begrippen/aanbod.eflint".
+#require "../begrippen/beheerder.eflint".
+
+
+///// REGELS /////
+/// Specificeert dat een Commons aangeboden moet worden via de Producten en Diensten Catalogus.
+/// 
+/// Afsprakenstelsel:
+/// > Levering en afname van Commons dient altijd [...] in de Producten en Diensten Catalogus
+/// > opgenomen [...] producten, diensten en data(gebruik) te betreffen.
+Duty commons-moeten-zijn-opgenomen-in-pdc
+    Holder deelnemer
+    Claimant beheerder
+    Related to aanbod
+    // De plicht geldt wanneer er aanbiedingen worden gedaan als Commons (i.e., "levering")
+    Derived from (Foreach aanbod, beheerder :
+        commons-moeten-zijn-opgenomen-in-pdc(aanbod.aanbieder, beheerder, aanbod)
+        When (
+            aanbod-als-commons(aanbod)
+        )
+    )
+    // De plicht is geschonden wanneer de aanbieding is aangeboden als Commons maar niet in de PDC
+    Violated when Not(aanbod-in(aanbod, catalogus("Producten en Diensten Catalogus"))).
+
+
+
+/// Specificeert dat een Commons afgehandeld moet worden via de Algemene Voorzieningen.
+/// 
+/// Afsprakenstelsel:
+/// > Afhandeling van de levering en afname [voor levering als Commons aangemerkte producten,
+/// > diensten en data(gebruik)] dient altijd plaats te vinden via de Algemene Voorzieningen.
+Duty commons-moeten-worden-afgenomen-via-av
+    Holder aanbieder
+    Claimant beheerder
+    Related to aanbod
+    // De plicht geldt wanneer er aanbiedingen worden gedaan als Commons (i.e., "levering")
+    Derived from (Foreach aanbod, beheerder :
+        commons-moeten-worden-afgenomen-via-av(aanbod.aanbieder, beheerder, aanbod)
+        When (
+            aanbod-als-commons(aanbod)
+        )
+    )
+    // De plicht is geschonden wanneer de aanbieding niet via de Algemene Voorzieningen wordt
+    // afgehandeld
+    Violated when Not(aanbod-via(aanbod, plaats("Algemene Voorzieningen"))).

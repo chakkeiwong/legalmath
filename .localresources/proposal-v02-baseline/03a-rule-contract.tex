@@ -1,0 +1,81 @@
+\subsubsection{Types and the expressions an agent may generate}
+
+The scalar types are Boolean, integer, HKD money and Gregorian date. Integer
+and money values use canonical decimal strings; monetary units are cents.
+There are no floating-point values, implicit casts or known nulls. A date must
+be valid, including its leap-year constraints. Foreign-currency normalization
+records the rate, valuation instant and rounding policy before producing an HKD
+input. A missing exchange rate therefore leaves an unknown amount.
+
+The expression grammar contains typed literals, fact and rule references,
+\texttt{all}, \texttt{any}, \texttt{not}, equality/inclusive/strict comparison,
+addition, subtraction, rational scaling, conditional choice and explicit defaults.
+Addition and subtraction require matching integer or money types. Scaling uses
+a nonnegative integer numerator and a positive denominator; a known result must
+divide exactly. A half-cent allocation returns \texttt{E\_INEXACT\_SCALE} until
+an external reviewed rounding policy resolves it. Date arithmetic is kept in
+the separate scheduler so ordinary library behavior cannot choose a legal
+anniversary convention unnoticed.
+
+Every node has a unique identifier. References must resolve, types must agree
+and the complete dependency graph must be acyclic. A rule reference may refer
+only to an unconditional definition; a scoped result cannot quietly become a
+Boolean false in another expression. Authors can expose the scope explicitly
+as a named Boolean definition. Unknown operators and additional JSON properties
+are rejected. This keeps a model from extending the language merely by emitting
+a plausible field name.
+
+\subsubsection{Evidence is an input to computation, with its own history}
+
+A normalized fact is known, unknown or conflicting. Known facts have an exact
+value, evidence identifiers, a validity interval and a recorded timestamp.
+Unknown facts explain whether evidence is missing, stale or awaiting assessment.
+Conflicts preserve the disagreeing records. Two admissible records with the
+same value can combine their evidence; different values require resolution.
+Arrival order is not a ranking of legal authority.
+
+Every request supplies \texttt{valid\_at}, the instant being assessed, and
+\texttt{known\_at}, the latest evidence the assessment may use. Intervals are
+half-open: an amount valid until midnight is unavailable at that midnight.
+A correction names the record it supersedes and becomes visible only when its
+recorded time is eligible. Thus a corrected assessment can use new information
+while the original decision remains reproducible.
+
+Before Boolean evaluation, the engine checks conflicts in the static transitive
+dependency closure, including branches that might later be skipped. A conflicting
+portfolio amount therefore returns \texttt{CONFLICT} even if the net-asset route
+could establish the financial condition. An unrelated conflict does not block
+that rule. This conservative policy is a proposed engineering choice; it is
+deliberately different from ordinary unknown-value propagation.
+
+\subsubsection{Defaults, branch selection and failure behavior}
+
+A default contains a base value and named exceptions. Each exception has a
+Boolean guard, a value, an interpretation identifier and source spans. Evaluate
+all guards first. Two true guards produce a conflict, even if the proposed values
+agree. Otherwise any unknown guard yields an unknown result, because it might
+become a competing exception. With exactly one true guard and all others false,
+evaluate that exception's value. With all false, evaluate the base. Priority is
+expressed only through explicitly reviewed nesting, never row order.
+
+Boolean combinations evaluate all operands in source order. A runtime error or
+exception conflict cannot disappear because a different operand is sufficient.
+A conditional evaluates its condition and then only the selected branch; an
+unknown condition yields unknown, even when both branch values happen to be
+equal. Skipped branches are still type checked. These choices eliminate
+implementation-dependent short-circuit behavior while retaining precise traces.
+
+The rule's scope is evaluated separately. A false scope yields
+\texttt{OUT\_OF\_SCOPE}; an unknown scope yields \texttt{UNKNOWN}. In scope,
+Boolean bodies return \texttt{TRUE} or \texttt{FALSE}, other known bodies return
+\texttt{VALUE}, and missing evidence returns \texttt{UNKNOWN}. Conflicts and
+errors are distinct tagged results. An invalid version time is an error, not a
+negative assessment. No exception handler may fall back to false.
+
+The response carries all encountered missing inputs and the conservative subset
+blocking the answer. If a known net-asset route establishes the alternative,
+the unknown portfolio remains visible but is not a blocker. For an unknown
+result, the union of encountered unknown dependencies is reported; the prototype
+does not claim it is a mathematically minimal explanation. Traces record evaluated
+nodes in postorder, evidence, source spans and explicitly skipped branch roots.
+Explanations and diagrams are rendered from that trace.

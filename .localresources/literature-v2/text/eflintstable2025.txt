@@ -1,0 +1,986 @@
+UvA-DARE (Digital Academic Repository)
+
+
+
+
+A Stable Model Semantics for eFLINT Norm Specifications and Model Checking
+Scenarios
+
+Esterhuyse, Christopher A.; Müller, Tim; van Binsbergen, L.T.
+DOI
+10.1145/3742876.3742882
+Publication date
+2025
+Document Version
+Final published version
+Published in
+GPCE '25
+License
+CC BY
+Link to publication
+
+
+Citation for published version (APA):
+Esterhuyse, C. A., Müller, T., & van Binsbergen, L. T. (2025). A Stable Model Semantics for
+eFLINT Norm Specifications and Model Checking Scenarios. In A. Shaikhha, S. Erdweg, & N.
+Amin (Eds.), GPCE '25: Proceedings of the 24th ACM SIGPLAN International Conference on
+Generative Programming: Concepts and Experiences : July 3-4, 2025, Bergen, Norway (pp.
+80-93). Association for Computing Machinery. https://doi.org/10.1145/3742876.3742882
+
+
+
+
+General rights
+It is not permitted to download or to forward/distribute the text or part of it without the consent of the author(s)
+and/or copyright holder(s), other than for strictly personal, individual use, unless the work is under an open
+content license (like Creative Commons).
+
+
+Disclaimer/Complaints regulations
+If you believe that digital publication of certain material infringes any of your rights or (privacy) interests, please
+let the Library know, stating your reasons. In case of a legitimate complaint, the Library will make the material
+inaccessible and/or remove it from the website. Please Ask the Library: https://uba.uva.nl/en/contact, or a letter
+to: Library of the University of Amsterdam, Secretariat, P.O. Box 19185, 1000 GD Amsterdam, The Netherlands.
+You will be contacted as soon as possible.
+UvA-DARE is a service provided by the library of the University of Amsterdam (https://dare.uva.nl)
+
+
+Download date:21 Sep 2026
+             A Stable Model Semantics for eFLINT Norm
+            Specifications and Model Checking Scenarios
+      Christopher A. Esterhuyse                                  Tim Müller                               L. Thomas van Binsbergen
+           c.a.esterhuyse@uva.nl                              t.muller@uva.nl                                 ltvanbinsbergen@acm.org
+          University of Amsterdam                         University of Amsterdam                              University of Amsterdam
+          Amsterdam, Netherlands                          Amsterdam, Netherlands                               Amsterdam, Netherlands
+Abstract                                                                       ACM, New York, NY, USA, 14 pages. https://doi.org/10.1145/374287
+Since its introduction at GPCE2020, the eFLINT norm speci-                     6.3742882
+fication language has been used in academic and industrial
+applications to specify and automate compliance for various                    1    Introduction
+norms, such as privacy regulations and data processing agree-                  The eFLINT language, first introduced at GPCE2020, is a
+ments. The eFLINT interpreter has been used to automate                        domain-specific specification language designed to enable
+the analysis of real-time or historical cases by computing                     (static and dynamic) reasoning with interpretations of norma-
+logical consequences and reporting normative violations.                       tive documents such as laws, regulations, and contracts [34].
+   To support future language and tooling developments, we                     eFLINT has been used in research of normative multi-agent
+contribute a formal definition of the language as a trans-                     systems [24, 37], distributed data processing systems [9, 16,
+lation to first-order logic programming with stable model                      32, 33], and to develop partially automated data governance
+semantics. The described semantics aligns with the previous                    solutions [2, 35]. In these cases, the language has been used to
+semi-formal descriptions of the language, but resolves issues                  specify, for example, data processing and consortium agree-
+relating to logical inference with negative antecedent and                     ments, data access or usage conditions, and parts of the
+aggregation operators. Specifically, we formalise the connec-                  European General Data Protection Regulation (GDPR) [10].
+tion between eFLINT’s derivation rules and Horn clauses                            From the start, eFLINT was designed to bridge the gap
+under the stable model semantics. Secondly, by repurposing                     between normative concepts typically expressed by legal
+the Clingo answer-set solver as a highly-optimised eFLINT                      experts, and event-driven software systems requiring legal
+interpreter, we extend the toolset for eFLINT with model-                      regulation. Its high level of abstraction lets eFLINT serve as a
+checking abstract properties in addition to case analysis.                     lingua franca for norms from various domains. For example,
+   We evaluate the new semantics and interpreter via an                        once encoded in eFLINT, smart contracts, EU data protec-
+empirical comparison of the existing implementation to our                     tion regulations, and organisational policies have meaningful
+prototype implementation. We observe that the expected                         compositions [33]. The eFLINT interpreter, available online1 ,
+subset of our tests have the equivalent behaviours.                            checks compliance of a given eFLINT scenario against a given
+                                                                               eFLINT specification. Scenarios instantiate specifications by
+CCS Concepts: • Applied computing → Law; Enterprise                            laying out the events that happen(ed). Precisely, the tool com-
+modeling; • Software and its engineering → Domain                              putes logical consequences and enumerates the normative
+specific languages; Semantics; • Theory of computation                         violations: unmet obligations and prohibited actions.
+→ Constraint and logic programming; Automated reasoning.                           Section 2 explains the eFLINT language in more detail. Un-
+Keywords: norm, specification languages, dynamic seman-                        til then, we exemplify the typical usage of the language; the
+tics, logic programming, model checking, answer set solving                    eFLINT interpreter monitors the compliance of a software
+                                                                               system by checking system traces (modelled as scenarios) for
+ACM Reference Format:
+                                                                               compliance against regulatory norms (modelled as a specifi-
+Christopher A. Esterhuyse, Tim Müller, and L. Thomas van Bins-
+bergen. 2025. A Stable Model Semantics for eFLINT Norm Specifi-                cation). Example 1 introduces our running example of such
+cations and Model Checking Scenarios. In Proceedings of the 24th               a usage; in this case, the specification captures the norm that
+ACM SIGPLAN International Conference on Generative Programming:                data users must inform data controllers of (the purpose of
+Concepts and Experiences (GPCE ’25), July 3–4, 2025, Bergen, Norway.           their) data accesses within a given time frame.
+                                                                               Example 1 (Running Example eFLINT Usage). A system
+                                                                               is regulated by the following specification, which expresses:
+This work is licensed under a Creative Commons Attribution 4.0 Interna-        accessors of datasets must notify the dataset’s controllers (or
+tional License.
+                                                                               the administrator by default) within ten time steps of the access.
+GPCE ’25, Bergen, Norway
+© 2025 Copyright held by the owner/author(s).                                  1 The Haskell implementation sees active development. But we focus on the
+
+ACM ISBN 979-8-4007-1995-0/25/07                                               version authored on the 13th of February 2025: https://gitlab.com/eflint/hask
+https://doi.org/10.1145/3742876.3742882                                        ell-implementation/-/blob/cfe73e9a0ed594e384027ea29529da62dab1fe0f
+
+
+
+
+                                                                          80
+GPCE ’25, July 3–4, 2025, Bergen, Norway                                                                C. A. Esterhuyse, T. Müller, and L. T. van Binsbergen
+
+
+// These lines define three basic data types                                         The eFLINT language is motivated, described, and demon-
+Fact instant Identified by Int                                                    strated in research articles [33, 34]. The syntax and funda-
+Fact user     Identified by String
+  // ' controller ' is defined as a 'user ' alias soon                            mentals of the semantics are defined using conventional
+  // For each controls that holds , its controller holds .                        mathematical notation and precise natural language. For
+  Derived from ( Foreach controls: controls . controller )                        example, [34] makes clear that each specification denotes
+Fact dataset Identified by String
+  Derived from ( Foreach controls: controls . dataset )                           an action-labelled transition system, and that each scenario
+                                                                                  denotes a sequence of actions that traces a path through the
+// Introduces aliases for users and instants                                      transition system. Figure 1 visualises a scenario.
+Placeholder controller For user
+Placeholder deadline   For instant
+                                                                                              𝑡1                      𝑡2                     𝑡3
+// ( Mutable ) relations over users , instants , and datasets                       𝑠1                     𝑠2                    𝑠3                     𝑠4
+Fact elapsed Identified by instant
+Fact controls Identified by controller * dataset
+  // For each dataset that holds , the admin controls it
+                                                                                    𝑖1     𝑎 1 ∪ 𝑖 1′      𝑖2      𝑎 2 ∪ 𝑖 2′    𝑖3       𝑎 3 ∪ 𝑖 3′    𝑖4
+  // if there exists no non - admin user that controls it .
+  Derived from ( Foreach dataset:                                                 Figure 1. A trace through states 𝑠 1−4 over transitions 𝑡 1−3 , in-
+     controls ( user ( " Admin " ) , dataset )
+     Where Not ( Exists user:
+                                                                                  duced by a scenario triggering actions [𝑎 1, 𝑎 2, 𝑎 3 ] in sequence.
+       user != user ( " Admin " ) && controls ( user , dataset )))                Each state and transition models the (current) normative re-
+                                                                                  lationships as (elements of) some structured data base 𝑖.
+Act access Actor user Related to dataset , instant
+  Derived from ( Foreach user , controls , instant:
+    access ( user , controls . dataset , instant ))                                  However, at time of writing, some language features are
+  // When triggered , the access has these effects
+  Creates ( Foreach controls:                                                     not rigorously defined. For example, the eFLINT descrip-
+    must_notify ( user , controls . controller ,                                  tion in [34] suffices for users to agree that the syntactic
+      access ( user , dataset , instant ) , instant + 10)                         term Derived from (Foreach dataset: ...) in Example 1 denotes an
+    Where controls . dataset == dataset )
+                                                                                  eFLINT derivation clause which gives the administrator con-
+// Facts , but their elements are conditionally violated                          trol of datasets which have no other controllers. But some
+Duty must_notify Holder user Claimant controller                                  details remain unclear. Does the administrator retain control
+  Related to access , deadline
+  // Predicates when these duties are violated                                    over the X-Rays once Amy has successfully claimed control?
+  Violated when Holds ( elapsed ( deadline ))                                     In the original interpreter, querying ?controls("Admin","X-Rays")
+                                                                                  after Example 1 yields query successful; the administrator ap-
+Act notify Actor user Recipient controller
+  Related to must_notify Terminates must_notify                                   pears to retain control. But this behaviour conflicts with
+  Derived from ( Foreach must_notify: notify (                                    the plausible interpretation of what is documented in [34]:
+    must_notify . user , must_notify . controller , must_notify ))                derivation clauses should apply (only) when their conditions
+The following eFLINT scenario models a hypothetical system                        are satisfied. The identified issue is that negation (Not), univer-
+configuration just after user Bob accesses the X-Ray dataset.                     sal quantification (Forall), and aggregation (e.g., Max) exhibit
++dataset ("X - Rays " ).                                                          unspecified (thus unexpected) behaviour. For example, the
++controls ( user (" Amy " ) , dataset ( "X - Rays " )).                           outcome of the query is flipped if user is named agent instead.
++instant (9).
++user (" Bob " ).
+                                                                                     In this article, we (re)define the eFLINT semantics. Our
+access ( user (" Bob ") , dataset ( "X - Rays " ) , 9).                           goal is to formalise eFLINT’s existing semantic concepts in
+                                                                                  detail, such that eFLINT scenarios and specifications have
+Given the above input, the eFLINT interpreter emits the follow-                   unique and unambiguous meanings. We select an intuitive
+ing output, showing the consequences of each scenario step in                     and mature foundation: first-order logic programming un-
+turn: derived created (derived) instances, and that Bob’s access                  der the stable model semantics [13]. This is also pragmatic
+action is ultimately permitted (enabled).                                         choice, as it lets us leverage existing logic programming
++dataset ("X - Rays " ).
+| +user (" Admin ")                                                               tools. Precisely, we define the semantics of eFLINT with a
+| +controls ( user (" Admin " ) , dataset ( "X - Rays " ))                        translation to the Clingo language, i.e., the input language
++controls ( user (" Amy " ) , dataset ( "X - Rays " )).                           of the Clingo answer-set solver tool. Thus, eFLINT inherits
+| user (" Amy ")
++user (" Bob " ).                                                                 the clarity of the Clingo semantics, and we repurpose the
++instant (9).                                                                     Clingo solver as our new eFLINT interpreter.
+| +access ( user (" Admin " ) , dataset ( "X - Rays " ) , instant (9))               We recreate the existing eFLINT descriptions and inter-
+| +access ( user (" Amy " ) , dataset ( "X - Rays " ) , instant (9))
+| +access ( user (" Bob " ) , dataset ( "X - Rays " ) , instant (9))              preter as much as possible. Specifically, we realise the de-
+access ( user (" Bob ") , dataset ( "X - Rays " ) , instant (9)) ENABLED          scription in [34] by aligning key eFLINT constructs with the
+| +notify ( user (" Bob " ) , user ( " Admin " ) , ... , instant (19)))           inference rules (Horn clauses) of logic programming. Thus,
+| +must_notify ( user ( " Bob " ) , user ( " Admin " ) , ... )
+| +notify ( user (" Bob " ) , user ( " Amy " ) , ... , instant (19)))             users are afforded powerful, (de)compositional reasoning
+| +must_notify ( user ( " Bob " ) , user ( " Amy " ) , ... , instant (19))        about scenarios and systems via specifications. As part of
+
+
+
+                                                                             81
+A Stable Model Semantics for eFLINT Norm Specifications and Model Checking Scenarios                   GPCE ’25, July 3–4, 2025, Bergen, Norway
+
+
+this (re)design, we make two changes relative to the exist-                2    Translation Source Language: eFLINT
+ing eFLINT interpreter. Firstly, the ambiguity of the original                Normative Specification Languages in General. Each
+description regarding the semantics of derivation clauses                  (formal) specification language affords the systematic devel-
+with negation, iteration and aggregation is resolved. We do                opment of complex artifacts called specifications. The rigour
+so by connecting these constructions to the literature on                  of a formal language definitions is useful because it ensures
+(the challenges of) reasoning with negated conditions in                   that each specification has a precise, unambiguous meaning.
+logic programming. In the running example, the result is                   Automated analyses can then reveal or confirm (un)desirable
+that control over a dataset is exclusive to controllers or to              properties of specifications and the concepts they model. For
+the administrator (if there are no controllers). Secondly, we              example, a formal specification of a communication protocol
+leverage our translation to Clingo to support a new, more                  can be used to regulate a distributed system; events that
+general use case for eFLINT: via Clingo, our tool searches for             deviate from the specification can be ruled out beforehand,
+scenarios with user-defined properties. For example, ‘find all             monitored, or audited via the inspection of system logs.
+counterexamples to the proposition: scenarios taking only                     Normative specification languages are designed to model
+permitted actions violate no duties’. This use case has many               norms that regulate social systems, e.g., laws and contracts.
+practical applications, e.g., in model-checking and recom-                 These languages formalise notions of permission, prohibition,
+mendation, and is already popular with languages related to                and obligation, and their tools perform systematic reasoning
+eFLINT, such as Symboleo [25] and FIEVEL [36].                             and case analysis. Languages based on Hohfeld’s legal frame-
+   We formulate our translation from eFLINT to Clingo as the               work [4, 8], such as Symboleo [26, 30] and eFLINT [33, 34]
+multi-stage translation pipeline shown in Figure 2. This helps             are action-oriented, formalising mutable relations between
+to structure our presentation. But moreover, it introduces                 institutional entities: their powers and duties to act. The focus
+novel intermediate representations which are useful in their               on actions affords the specification and control over software
+own right. For example, Core eFLINT is entirely embedded                   systems’ interactions with the social world. Such systems
+in Clingo, but it captures much of th eFLINT semantics, and                are also beholden to norms; e.g., systems processing personal
+unifies eFLINT specifications with scenarios.                              data may be subjected to the GDPR.
+   Concretely, this article makes the following contributions:
+                                                                              The eFLINT Language. Here, we give a brief account of
+    • A translational semantics for eFLINT specifications                  the eFLINT language constructs and how they afford the
+      and scenarios with first-order logic programming and                 modelling of (normative) domains of discourse. Throughout,
+      stable model semantics as the semantic domain.                       we exemplify concepts with the running example Example 1.
+    • An implementation of our semantics that leverages                       Each specification lays the ontological foundations of the
+      the Clingo solver for reasoning.                                     model as a collection of record-type definitions. E.g., controls
+    • A Clingo-embedded, domain-specific, core language                    is a record with controller and dataset fields. Each type is also
+      for reasoning with dynamic facts, acts and violations.               defined alongside a collection of clauses, which instantiate
+    • An evaluation of contributions by confirming the ex-                 these types, identifying particular (relationships between)
+      pected input/output (in)equalities of the interpreters.              entities. For example, controls(agent("Amy"),dataset("X-Rays")) is
+   Our artefact [19] at https://doi.org/10.5281/zenodo.15188               an instance of controls. The specification models the system
+959 includes our implementation and experimental data.                     by building up a collection of current instances. However,
+   This article proceeds as follows. Sections 2 and 3 give                 instances never occur alone; they are always contextualised
+accounts for eFLINT and Clingo, the source and target lan-                 by an attribute, such as holds or actViol. Users of the lan-
+guages of our translation, and their respective background                 guage (statically) agree on how these attributes are inter-
+literature. Sections 4 to 7 build up the translation stages                preted as modalities. For example, instances with actViol
+‘bottom-up’, i.e., we build layers of abstraction atop Clingo.             witness particular cases of violating actions, because they
+The stage in Section 7 handles the two forms of reasoning:                 were not permitted when they were triggered. Later, we
+scenario-compliance and scenario-search. Section 8 evalu-                  see how the eFLINT semantics formalises such meanings
+ates our contributions, and Section 9 identifies related and               by inferring some attributes from others. For example, by
+future work, before Section 10 concludes.                                  definition, instances with created also have enabled. Users
+                                                                           model systems by defining clauses like (Derived from ...) and
+                                                                           (Terminates ...) to capture different normative abstractions. For
+                                                                           example, associating Derived from (Foreach user...)) to the access
+spec. × scenario =⇒ 𝑒𝐹 𝐿𝐼 𝑁𝑇 core −→ state trace −→ Clingo                 type, the user associates derived to access(-type) instances.
+                                                                           Clauses are evaluated in the context of a concrete current
+Figure 2. Translation from an eFLINT specification-scenario                state. The states only become concrete when the specifica-
+pair to Clingo via the intermediate eFLINT core and state                  tion is evaluated alongside a scenario. The scenario lays out
+trace abstractions (=⇒ = translation, −→ = dependency).                    the instance-attribute pair which gets each successive state
+
+
+
+                                                                      82
+GPCE ’25, July 3–4, 2025, Bergen, Norway                                                       C. A. Esterhuyse, T. Müller, and L. T. van Binsbergen
+
+
+started. Typically, the attribute is trigger, such that the in-             of 𝑎 to a proof of ¬𝑎. E.g., wet(Day) :- rainy(Day), not sunny(Day)
+stance identifies an action that happens in transition to the               expresses that ‘rainy but not sunny days are wet’. Languages
+next state. E.g., because access is marked Act, its instances can           supporting weak negation must address the absence of a
+be triggered. Some attributes have effects that persist over                canonical (i.e., unique) semantic interpretation for certain
+subsequent states. E.g., when triggered, access instances create            syntactically valid rules like p :- not p. Many solutions have
+new control instances, which persist until they are terminated.             been explored in the literature. Some languages opt to simply
+   Thus, eFLINT models complex and stateful cyber-social                    disallow these programs. Answer-set solvers like Clingo gen-
+systems, unambiguously specifies which states are (not) de-                 erally embrace the lack of a unique interpretation and simply
+sirable, and lays out the details of concrete scenarios.                    enumerate all the separate stable models as alternative an-
+                                                                            swers. Intuitively, this enumerates the possible combinations
+3    Translation Target Language: Clingo                                    of assignments to logical variables (‘models’) that satisfy each
+   Logic- and Answer-Set-Programming. The logic pro-                        program rule. For example, p :- not p has zero stable models
+gramming paradigm operationalises formal logics: logical                    as none satisfies this contradictory rule.
+theories correspond to declarative programs, and the search                    Clingo’s answer-set semantics supports the expression of
+for proofs of formulae corresponds to program execution                     (integrity) constraints over the values of logical variables.
+and expression evaluation. Different logic programming lan-                 These take the form of rules with no explicit consequent,
+guages and tools strike different compromises between lan-                  which condition the truth of ⊥: logical inconsistency. For
+guage expressivity, runtime characteristics, guarantees, and                example, :- not wet(monday) asserts that ‘it is inconsistent to
+so on. For example, [6] overviews the work and tools around                 assume that Monday is not wet’ or, more intuitively, ‘Monday
+the Datalog language, which sees active study and applica-                  must be wet’. We use such constraints in Sections 4 and 5 to
+tion; consider the PhD thesis of André Pecak in 2024 [23].                  protect the abstractions in our intermediate representations.
+   Answer-set-programming (or -solving) is a form of logic                  In each stage, we argue that the constraints of prior stages
+programming with an emphasis on modelling complex prob-                     are satisfied, documenting semantic properties.
+lems via rich language features. The name comes from the                       Clingo admits (syntactically) nested terms. For example,
+basis on the answer-set semantics, which is also called the                 rule controls(agent("Amy"), dataset(D)) :- dataset(D) is admissible.
+stable model semantics [13]. This semantics is characterised                In the literature, this feature is also called function sym-
+by attributing a set of stable models to each program; each is              bols; reflecting the distinction between the function symbol
+interpreted as a solution to the search problem. [12] studies               constants of nested terms (e.g., agent above) in contrast to
+the formulation of search problems in these languages.                      predicate symbols (e.g., controls above); only the latter con-
+   Clingo is an answer-set solving language and toolset [11].               struct terms that are valuated by the model. Some formalisms
+It is well-known in the answer-set solving community for                    emphasise their separation by drawing these symbols from
+its maturity and its high performance in solving; e.g., [5]                 different alphabets, but like eFLINT and Clingo, we do not
+reports on the results of an answer-set competition where                   (e.g., dataset above acts as a function and predicate symbol).
+various Clingo components outcompeted similar tools.                        Regardless, the ability to nest terms affords significant mod-
+                                                                            ularity in definitions. Consider how controls(user,dataset) in
+   Features of The Target Fragment of Clingo. Recall Fig-                   Example 1 is independent of the syntactic structure of users.
+ure 2: we ultimately define the semantics of eFLINT by trans-                  We exploit Clingo’s convenient tuple terms, which ef-
+lating arbitrary eFLINT specifications and scenarios to Clingo              fectively have the empty function symbol. E.g., (agent,"Amy")
+programs: rule sets in the Clingo language. Thus, eFLINT                    approximates agent("Amy"), but only in the former can agent
+acquires the stable model semantics that underlies Clingo.                  bind variables. Note that Clingo forbids tuple consequents
+Here, we explain the features of Clingo that we target with                 or antecedents, so rule f(x) :- x is valid but (f,x) :- x is not.
+our translation. Section 9 discusses the potential to target                   Unfortunately, by supporting nested terms, inference is
+other languages (e.g., Soufflé) with many of these features.                not guaranteed to terminate. This problem has no straight-
+   We pervasively use Clingo’s general logic program-                       forward solution [28], and we make no attempt to solve it.
+ming features, e.g., these are shared with Datalog. Each rule               Instead, we inherit the behaviour of the current eFLINT in-
+asserts that the truth of a consequent term (or ‘conclusion’) is            terpreter and Clingo alike: the evaluation of some programs
+implied by the conjunction of listed antecedent terms (or ‘con-             simply does not terminate. For example, the Clingo inter-
+ditions’). Each rule denotes a set of concrete rules for all sub-           preter diverges on input f(f(X)) :- f(X). f(0). Intuitively, these
+stitutions of the variables. E.g., wet(Day) :- rainy(Day), cold(Day)        programs denote infinitely large models. In Section 6, we
+expresses that ‘rainy and cold days are wet’. The :- can be                 address the only threat to the termination of our programs:
+omitted from rules with no conditions.                                      user-defined eFLINT-derivation and -synchronisation rules.
+   Clingo admits negated antecedents, matching not 𝑎, ex-                      Like eFLINT, Clingo provides integer theory. Integer
+pressing weak negation or negation by default of 𝑎: the inabil-             operators (e.g., < , + , - ) and integer and string constants (e.g.,
+ity to infer the truth of 𝑎, i.e., promoting the unprovability              100, "Douglas") are constant symbols given special treatment;
+
+
+
+
+                                                                       83
+A Stable Model Semantics for eFLINT Norm Specifications and Model Checking Scenarios                             GPCE ’25, July 3–4, 2025, Bergen, Norway
+
+
+the operators are concretely denoted in infix position, and                 Notation 1 (Semantic Rules in Clingo). As per the tradi-
+their applications are normalised under evaluation, as one                  tion of formal languages, when they encode our semantics, we
+is likely to expect. For example, in Clingo and eFLINT, 3 + 1               notate Clingo rules in the style of the Gentzen-style sequent
+normalises to 4 and 0 < 1 holds true.                                       calculus or natural deduction. For brevity, we fuse rules with
+   Section 6 relies on (and discusses and demonstrates) fea-                identical antecedents by conjoining their consequents. E.g., we
+tures that make individual Clingo rules more expressive.                                                                              𝑓 ∧𝑔 (𝑃,𝑄 )
+                                                                            notate a :- f ; g(P,Q) and b(Q) :- f ; g(P,Q) together as 𝑎∧𝑏 (𝑄 ) .
+Firstly, we use conditioned conditions (or ‘nested rules’)
+such as (b : c, d nested in) a :- b : c, d ; e. Thus we model
+                                                                                ⊤        in(𝐹, 𝑆) state(𝑆) ∧ 1 < 𝑆 state(𝑆) ∧ 0 ≮ 𝑆
+disjunctive conditions; e.g., x : not y models 𝑥 ∨ 𝑦 (𝑥 ← ¬𝑦).
+Note that (:) and (,) are the nested counterparts of (:-) and                state(1) state(𝑆)         state(𝑆 − 1)            ⊥
+(;), respectively. Secondly, nested rules can be aggregated                   in(add (𝐹 ), 𝑆) ∧ ¬in(rem(𝐹 ), 𝑆) ∧ state(𝑆 + 1)
+                                                                                                                               (inertia)
+by a preceding #sum, #count, #max, or #min, yielding integers. For                    in(𝐹, 𝑆 + 1) ∧ in(add (𝐹 ), 𝑆 + 1)
+example, f(1) :- 0 = #count{x : f(N)} is contradictory.
+   Section 7 relies on a feature of Clingo that is atypical out-            Figure 3. Semantics of state traces encoded as Clingo rules,
+side of answer-set solving: rules with disjunct consequents.                defining the contiguity of state-identifiers in {1, 2, 3, ..., 𝑛},
+For example, the Clingo rule {a}. supports but does not imply               and encoding the inertia axiom of the event calculus: each
+that a is true. There are two stable models: either nothing is              add (𝐹 ) implies the truth of fluent 𝐹 until after rem(𝐹 ).
+true, or only a is true. Section 7 demonstrates how we use
+                                                                            Definition 1 (state-internal). Rule 𝑟 is state-internal iff, for
+these rules to encode search spaces of eFLINT scenarios.
+                                                                            each antecedent identical to in(𝐹, 𝑆) for some 𝐹 and 𝑆, each
+                                                                            consequent of 𝑟 is identical to in(𝐹 ′, 𝑆) for some 𝐹 ′ .
+4    State Traces
+   Essentials of the Event Calculus. eFLINT models dy-                      Example 2 (state-internal rules). Intuitively, state-internal
+namic (normative) systems as event-labelled transition sys-                 rules do not let truths of the form in(𝐹, 𝑆) ‘leak’ out of 𝑆.
+tems as was visualised in Figure 1. The original article [34]                   • Rule in(f,S) :- state(S) is state-internal because no an-
+explicitly bases this approach on the event calculus, a logical                    tecedent matches in(𝐹 ,𝑆 ) for any 𝐹 and 𝑆.
+theory for modelling dynamic systems. It formalises notions                     • Rule in(x,S) :- in(y,S) ; f(y) is state-internal because
+of state, fluent, and their relation as (holds) in ⊆ fluent × state.               in(x,S) is identical to in(𝑌 ,s) where 𝑌 = x.
+The fundamental notion of inertia is formalised as an axiom,                    • Rule in'(x,S) :- in(y,S) is not state-internal because con-
+formalising ‘the truth-value of fluents persist from each state                    stant in' is not identical to constant in.
+to the next until it is acted upon’, where actions and states                   • Rule in(x,1) :- in(y,S) is not state-internal because con-
+are (inter-)related by a (partial) ordering on times. Particular                   stant 1 is not identical to variable S.
+systems are modelled by naming actions and specifying their                 Example 3 (example Clingo rules defining a state trace).
+effects: how they change truth in the future as a function of               When the following rules are input to the Clingo interpreter
+truth at present. Particular scenarios are modelled by causing              along with the state-trace semantic rules (Figure 3), the out-
+particular actions to happen at particular times.                           put is as visualised below: the states, transitions, and fluents
+   State Traces. We capture this fundamental layer of the                   comprising a particular state trace. We colour each term red
+eFLINT semantics in our most abstract intermediate repre-                   or black iff it is the conclusion of an example or state-trace
+sentation: state traces. Each state trace characterises a single            semantic rule, respectively. The figure uses ctl(𝑋 ) as an abbre-
+eFLINT scenario. We adopt a simplistic model, in which                      viation for the Clingo term controls(𝑋 ,"X-Rays").
+many features of the event and situation calculi coincide: the              in ( add ( controls ( user ( " Amy " ) , dataset ( " X-Rays " ))) , 1).
+                                                                            in ( rem ( controls ( user ( " Amy " ) , dataset ( " X-Rays " ))) , 2).
+system is unfolded as a sequence of states, indexed by a finite             state (3) . state (4).
+prefix of the natural numbers {1, 2, 3, ..., 𝑛}. We use Clingo’s            in ( dataset ( D) , S) :- in ( controls (A , D) , S) .
+integer theory for traversing and comparing states: (𝑆 + 1) is              in ( other_control ( D) ,S ) :-
+                                                                               in ( controls (A , D) , S) , not user ( " Admin " ) = A.
+the successor of state 𝑆, and (<) orders states. We likewise                in ( controls ( user ( " Admin " ) ,D) , S) :-
+index the sequence of transitions, i.e., each 𝑖 in 1 ≤ 𝑖 < 𝑛                   in ( dataset ( D ) , S) , not in ( other_control ( D ) ,S ).
+identifies the 𝑖th transition from state 𝑖 to state 𝑖 + 1. We                                                  rem(ctl( "Amy") )
+denote the truth fluent 𝐹 in state 𝑆 as in(𝐹, 𝑆); note how we
+                                                                                       add(ctl( "Amy") )       add(ctl( "Amy") )
+colour these (ubiquitous) in terms to aid readability.
+   Figure 3 lays out the semantics of state traces as a Clingo                     1          1            2          2            3      3           4
+rule set. The first four rules characterise the states: state
+predicates some non-empty and contiguous prefix of the                      ctl( "Admin")           ctl( "Amy")           ctl( "Admin")       ctl( "Admin")
+natural numbers. Rule (inertia) models the main axiom
+                                                                                            other_control("X-Rays")
+of the event calculus: 𝐹 is true in each state where it was
+
+
+
+                                                                       84
+GPCE ’25, July 3–4, 2025, Bergen, Norway                                                            C. A. Esterhuyse, T. Müller, and L. T. van Binsbergen
+
+
+added (with add (𝐹 )) more recently than it was removed                          or consequents of Core eFLINT semantic rules in Figure 4; i.e.,
+(with rem(𝐹 )). Note that this holds even in cases where the                     they are input and output of the library, resp.
+same 𝐹 is added and removed simultaneously, in which case                         A𝑡 create, terminate, obfuscate, actTrigger, actViol, trigger
+the removal suppresses addition (which results in simpler se-
+                                                                                  A𝑠 created, terminated, holds, enabled, dutyViol,
+mantic rules than the alternative). Truths in(add (𝑋 ), 𝑆) and
+                                                                                     derived, suppressed, violated, enum
+in(rem(𝑋 ), 𝑆) have no direct influence on in(𝑋, 𝑆), but rather
+affect the truth of 𝑋 in state 𝑆 + 1 and onwards. It is helpful to                  Precisely, Figure 4 defines the semantics of Core eFLINT.
+think of in(add (𝑋 ), 𝑆) and in(rem(𝑋 ), 𝑆) as attributes of the                 These rules relate the attributes of each instance. Note that
+transition indexed by 𝑆, which goes from state 𝑆 to state 𝑆 + 1.                 these rules are all state-internal (Definition 1); (only) the
+   The library defined in Figure 3 affords the definition of                     above rules in Figure 4 use add and rem to relate the present
+state traces using add and rem in rules to control the pres-                     and future attributes of each instance. Intuitively, the ephe-
+ence/absence of fluents in states. The following definition                      meral truth of transition-attributes (in A𝑡 ) (like create) affect
+describes a syntactic property over rules that ensures truths                    the persistent truth of state-attributes (in A𝑠 ) (like created)
+about the presence/absence of fluents in one state cannot be                     and enabled. It is helpful to think of in((𝐴, 𝐼 ), 𝑁 ) as labelling
+used to conclude the presence/absence of fluents in another                      the 𝑁 th transition when 𝐴 is a transition attribute, i.e., la-
+state; only Rule (inertia) is allowed to do this.                                belling the transition from the 𝑁 th state to the 𝑁 + 1st state.
+   Example 3 defines a state trace using only state-internal                        Rules in Figure 4 are clustered into {above, below, right},
+rules atop the state-trace semantics. The example demon-                         formalising three conceptually distinct semantic facets of
+strates the behaviour of state traces in general, by modelling                   the original eFLINT. We discuss each in turn.
+a facet of the running example in particular (Example 1):                           (When added to Figure 3) the above rules in Figure 4 re-
+Amy sometimes controls the X-Rays dataset, and the ad-                           late fluents with transition attributes create, terminate, and
+ministrator controls datasets that have no other controller.                     obfuscate to the post-state. For example, in((create, 𝑋 ), 𝑆)
+Owing to the stable model semantics, the natural language                        implies adding in((created, 𝑋 ), 𝑆 + 1). The obfuscation of in-
+description is captured precisely by these rules and the con-                    stances is not represented explicitly; it is implied by the
+ditions of the administrator’s control are clear: per state, the                 absence of created and terminated. Thus, Core eFLINT cap-
+administrator controls "X-Rays" if and only if Amy does not.                     tures a form of three-value logic. The conditions on these
+                                                                                 rules recreate eFLINT’s existing, static prioritisation of differ-
+5    Core eFLINT                                                                 ent effects: termination is prioritised over obfuscation, and
+The library defined in this section can simultaneously be seen                   creation over obfuscation and termination.
+as a Clingo-embedded domain-specific language (EDSL) and                            The below rules in Figure 4 attribute holds and enabled
+as a core-language underneath eFLINT as one of possibly                          to instances, based on whether the instances is created, ter-
+many surface-languages. In Sections 6 and 7 the library is                       minated, obfuscated, derived, or suppressed. The two rules
+used as a target language in a translation from eFLINT. As                       attributing ℎ𝑜𝑙𝑑𝑠 to instances show the distinct roles of cre-
+a separately useful EDSL, the library can be used to model                       ation and termination; in summary, instance 𝑋 holds if it is
+dynamically evolving scenarios and reason with the general                       either derived (and not terminated or suppressed) or created,
+notions of action- and duty-compliance as defined in [34].                       thus abstracting away the details on how the truth of 𝑋 was
+   Core eFLINT refines the prior state trace abstraction; as                     established. The enabled instances hold while not suppressed.
+before, fluents are related to states by the in relation. But                    Suppression lets eFLINT users express conditions that must
+now each fluent 𝐹 is an attribute-instance pair (𝐴, 𝐼 ), i.e., each              always be true for an instance to be enabled, regardless of its
+in((𝐴, 𝐼 ), 𝑆) attributes 𝐴 to instance 𝐼 in state 𝑆. Instances are              other attributes. In practice, this lets (the creators of) eFLINT
+opaque in the semantics, i.e., they are always bound to Clingo                   specifications (which use suppress) constrain the enabled
+variables, but instances are further structured by the users                     actions, despite their lack of control over (the creators of)
+(e.g., by specifications in Section 6). Core eFLINT fixes the                    eFLINT scenarios (which use create).
+attributes A in Definition 2, and prescribes their semantics                        Finally, the right rules in Figure 4 define eFLINT’s dual
+in alignment with the corresponding semantics of eFLINT,                         notions of normative violation. Duty violations arise in states
+as it is described [33, 34] and with missing details drawn                       when instances are enabled while their violations conditions
+from the Haskell code of the original interpreter.2                              are met. Action violations arise in transitions when action
+                                                                                 instances are triggered despite being disabled. Note how
+Definition 2. (Instance) attributes 𝑎, 𝑎 1, 𝑎 ′, ... : A ≜ A𝑡 ∪                  the enabled attribute occurs in both rules; intuitively, it lets
+A𝑠 , associated with states (A𝑠 ) and transitions (A𝑡 ). Attributes              agents use the (finite) enabled instances in each state to
+are underlined and boldfaced when they occur in antecedents                      guide their search for extensions to the scenario that avoid
+2We adapt the definitions of CAll, HoldsTrue, is_holds, is_enabled and so        violations. For example, if a duty for Amy is enabled, Amy
+on, from https://gitlab.com/eflint/haskell-implementation/-/blob/cfe73e9a        should seek to terminate the duty before it is violated. If
+0ed594e384027ea29529da62dab1fe0f/src/Language/EFLINT/Eval.hs                     an action for Amy is enabled, Amy can perform the action
+
+
+
+                                                                            85
+A Stable Model Semantics for eFLINT Norm Specifications and Model Checking Scenarios                          GPCE ’25, July 3–4, 2025, Bergen, Norway
+
+
+                                                                                      in(obfuscate(𝑋 ), 𝑆)
+                                                  in(terminate(𝑋 ), 𝑆)             ∧¬in(terminate(𝑋 ), 𝑆)                   in(violated (𝑋 ), 𝑆)
+             in(create(𝑋 ), 𝑆)                     ∧¬in(create(𝑋 ), 𝑆)                ∧¬in(create(𝑋 ), 𝑆)                  ∧in(enabled (𝑋 ), 𝑆)
+            in(add (created (𝑋 )), 𝑆)             in(rem(created (𝑋 )), 𝑆)           in(rem(created (𝑋 )), 𝑆)              in(dutyViol(X ), 𝑆)
+       ∧in(rem(terminated (𝑋 )), 𝑆)          ∧in(add (terminated (𝑋 )), 𝑆)      ∧in(rem(terminated (𝑋 )), 𝑆)
+                                                        in(derived (𝑋 ), 𝑆)
+                                                 ∧¬in(suppressed (𝑋 ), 𝑆)                       in(holds(𝑋 ), 𝑆)         in(actTrigger (𝑋 ), 𝑆)
+                    in(created (𝑋 ), 𝑆)          ∧¬in(terminated (𝑋 ), 𝑆)                ∧¬in(suppressed (𝑋 ), 𝑆)        ∧¬in(enabled (𝑋 ), 𝑆)
+                     in(holds(𝑋 ), 𝑆)                in(holds(𝑋 ), 𝑆)                      in(enabled (𝑋 ), 𝑆)            in(actViol(X ), 𝑆)
+
+Figure 4. Clingo rules defining the core eFLINT semantics, clustered to reflect three facets of the language. Above: the effects
+of transition attributes in a transition from 𝑆 to 𝑆 + 1 via add and rem. Below: which instances hold and are enabled as a
+function of other state-attributes. Right: the state- and transition-level attributes which witness normative violations.
+
+(without violation) to achieve certain effects, e.g., terminating             Definition 3. Abstract syntax of eFLINT specifications S (and
+a desired duty. In eFLINT today, the search for these desirable               types T , clauses C, ...). Attributes A, A𝑡 are from Definition 2.
+actions is externalised, e.g., performed by human users of
+the eFLINT interpreter. But in Section 7, we internalise this                    𝑡, 𝑡 ′, ... : T ≜ {Z, S, ...(more identifiers)}           (type ID)
+                                                                                     ′
+kind of scenario-search problem via Clingo rules.                               𝑣, 𝑣 , ... : V ≜ T × S                                  (variable)
+   Example 4 demonstrates a hand-crafted Clingo rule set,                       𝑔, 𝑔′, ... : G ≜ sum | count | min | max              (aggregator)
+defined atop the Core eFLINT semantics, modelling the con-
+crete eFLINT clause Derived from (Foreach dataset: ... ) in Exam-                𝑒, 𝑒 ′, ... : E := struct (𝑡, 𝑥 : list (E))
+ple 1. This demonstrates how Core eFLINT may be used in                                         | proj(𝑒, 𝑣) | agg(𝑔, 𝑙) | var (𝑣)
+its own right. In Section 6 to follow, we define a systematic                                   | int (𝑥 : Z) | str (𝑥 : S)            (inst. expr.)
+translation of eFLINT specifications to Clingo rules in this                         ′
+                                                                                𝑝, 𝑝 , ... : P ⊆ E (just struct, int, str, var)        (inst. patt.)
+manner, ultimately achieving a similar result.
+                                                                                     ′
+                                                                                 𝑖, 𝑖 , ... : I ⊆ P (just struct, int, str)             (instance)
+Example 4 (Default Administrator Control as Clingo Rules).                           ′
+                                                                                 𝑙, 𝑙 , ... : L := for (𝑝, 𝑎, 𝑙) | let (𝑝, 𝑒, 𝑙)
+in (( derived , non_admin_control ( dataset (D ))) , S) :-
+            in (( holds , controls (U , dataset ( D ))) , S) ,                                  | where(𝑙, 𝑏) | 𝑒                        (inst. list)
+                               not U = user ( " Admin " ) .                          ′
+in (( derived , controls ( user ( " Admin " ) , dataset (D ))) ,S) :-           𝑏, 𝑏 , ... : B := true | 𝑏 1 ∧ 𝑏 2 | 𝑏 1 ∨ 𝑏 2 | ¬𝑏
+         in (( holds ,                          dataset (D )) ,S) ,                             | 𝑒 1 < 𝑒 2 | 𝑒 1 = 𝑒 2 | check(𝑎, 𝑒) (bool expr.)
+    not in (( holds , non_admin_control ( dataset (D )))) , S) .
+                                                                                     ′
+                                                                                 𝑐, 𝑐 , ... : C := derive(𝑙) | affect (𝑥 : A𝑡 , 𝑙)
+                                                                                                | filter (𝑎, 𝑏) | actType
+6     Specification Translation to Core eFLINT                                                  | infinite | finite(𝑥 : list (I))           (clause)
+                                                                                     ′
+This section defines the eFLINT specification language: its                      𝑠, 𝑠 , ... : S ≜ map(T , list (V) × set (C))                (spec.)
+abstract syntax is a formal language S, and its dynamic                       Definition 4. The instance (list) expression typing function.
+semantics is given by a translation from S to Clingo.
+                                                                                         type(agg(𝑔, 𝑙)) |             type(int (𝑥)) ≜ Z
+6.1     Abstract Syntax                                                                                                type(str (𝑥)) ≜ S
+Notation 2 (Common Types and Type-Combinators).                                     type(⟨𝑡, 𝑥⟩ : V) |           type(struct (𝑡, 𝑥)) ≜ 𝑡
+                                                                                   type(where(𝑙, 𝑏)) |            type(for (𝑝, 𝑎, 𝑙)) ≜ type(𝑙)
+      • Z ≜ {..., −2, −1, 0, 1, 2, ...} is the integer type.
+      • S is the type of string literals like "Well,␣howdy␣do?".                                                   type(proj(𝑒, 𝑣)) ≜ type(𝑣)
+      • 𝐴 → 𝐵 is the type of functions from 𝐴 to 𝐵.                           Definition 5. Syntactic extensions to B in Definition 3.
+      • 𝐴 × 𝐵 ≜ {⟨𝑎, 𝑏⟩ | ∀𝑎 :𝐴, 𝑏 : 𝐵} is the product of 𝐴 and 𝐵.
+                                                                               exists(𝑝, 𝑏) ≜ int (0) < agg(count,for (enum,𝑝,where(𝑝,𝑏)))
+      • We use set, map, and list as the usual types of arbitrarily
+        large but finite collections. For example, [𝑥, 𝑦] is a 2-list.         forall(𝑝, 𝑏) ≜ ¬exists(𝑝, ¬𝑏)
+        We coerce map(𝐴, 𝐵) to 𝐴 → 𝐵 ∪ {★}, where ★ ∉ 𝐵                       Definition 6 (Field Pattern of type 𝑡 in specification 𝑠).
+        marks each missing mapping, and to or from list (𝐴 × 𝐵),
+        and we style these pairs ⟨𝑎, 𝑏⟩ suggestively as 𝑎 ↦→ 𝑏.                 fieldPatt (𝑡, 𝑠) ≜ struct (𝑡, fields) where ⟨fields, 𝑥⟩ ≜ 𝑠 (𝑡)
+        We coerce set (𝐴) to and from list (𝐴).
+
+
+
+                                                                         86
+GPCE ’25, July 3–4, 2025, Bergen, Norway                                                            C. A. Esterhuyse, T. Müller, and L. T. van Binsbergen
+
+
+   Definition 3 defines an abstract syntax for eFLINT specifi-                    The static semantics of eFLINT recognises specifications
+cations as its own formal language. It adheres closely to that                 which only use types and variables as one might expect:
+which was first defined in [34] and then generalised in [33].                  1. variables are bound to instances with matching types,
+   Each eFLINT specification 𝑠 : S consists of mappings from                   2. per struct (𝑡, 𝑥), 𝑥 binds (exactly) the fields defined for 𝑡,
+user-defined (record) types 𝑡 : T to type definitions of the                   3. projections refer only to existing fields of the given in-
+form ⟨𝑉 , 𝐶⟩: respectively, the fields and clauses of 𝑡. This def-             stance (not a literal), and 4. accessed variables occur exactly
+inition enables the construction of 𝑡-type instances, whose                    once in patterns of an enclosing let- or for-expression.
+structure is fixed by 𝑉 = [𝑣 1, 𝑣 2, ..., 𝑣𝑛 ]; 𝑡 acts as a constructor
+for 𝑡-type instances from smaller instances.                                   6.3   Restricted Normal Form
+   Ultimately, Section 6.4 defines the dynamic semantics of                    In addition to a specification (and scenario) being well-typed,
+each specification in terms of its clauses. Intuitively, each                  our translation requires that a specification is in a particular
+clause of each type 𝑡 is evaluated in the context of a cur-                    normal form of a restricted 𝑆 ′ ⊂ 𝑆. The normal form is
+rent state 𝑆 to give 𝑡-type instances new attributes in 𝑆. The                 characterised by the following properties.
+clauses themselves fix the attributes, but the instances arise                    (𝑃1 ) Boolean expressions are in conjunctive normal
+from the evaluation of instance expressions in E. As a simple                  form. In other words, there is no {¬, ∨, ∧} inside any ¬𝑒,
+example, derive(struct (instant, [int (9)])) gives instant(9) the              and no {∨, ∧} inside any 𝑒 1 ∨ 𝑒 2 . This works around a syn-
+attribute derived. The for construct generalises these expres-                 tactic limitation of Clingo: antecedents can express 𝑒 1 ∨ 𝑒 2
+sions to lists of instances, by quantifying over instances with                as 𝑒 1 : not 𝑒 2 , but such terms cannot be nested.
+a given attribute, and binding these to variables in a new                        (𝑃2 ) In each for (𝑒, 𝑎, 𝑙) and check(𝑎, 𝑒), 𝑒 is a struct (...).
+local scope. The where construct filters these lists. For ex-                  Ultimately, this ensures that eFLINT’s instance types are pre-
+ample, for (enabled, 𝑝, where(𝑝, check(dutyViol, 𝑝))) enumer-                  served in Clingo: each term matching in((A,𝑒 ),S) necessarily
+ates the current duty violation instances with the type of in-                 quantifies instances of type(𝑒). Where type(𝑒) is primitive,
+stance pattern 𝑝. Variables are the simplest patterns, binding                 the expression is trivial, as primitive instances have no at-
+quantified instances in their entirety. Other patterns quan-                   tributes. In the more difficult case, where 𝑒 is some var (𝑣),
+tify instances and bind their sub-instances to many vari-                      we can statically de-structure the variable by replacing it with
+ables. For example, if for (struct (controls, [var (⟨agent, "X"⟩,              fieldPatt (type(𝑣), 𝑠) as defined in Definition 3 (and renaming
+⟨dataset, "Y"⟩)]), enabled, 𝑙) quantifies enabled controls-type                the new variables to avoid name collisions, if necessary).
+instances, but binds its controller and dataset to variables                      (𝑃3 ) There are no projection expressions (with proj).
+named X and Y, respectively. Like for, let binds instances to                  Because Clingo has no analogue for projection, we rewrite
+variables via patterns, but without any quantification.                        any given proj(𝑒, 𝑣). If it is well-typed, type(𝑒) is not primi-
+                                                                               tive, so 𝑒 is either a variable or a structure. In the first case, we
+6.2   Instance Types and Static Semantics                                      first replace it with fieldPatt (type(𝑣), 𝑠), renaming variables
+Only when type 𝑡 has defined fields 𝐹 : list (𝑉 ) can any                      as needed. In both cases we get proj(struct (𝑡, [𝑒 1, 𝑒 2, 𝑒 3, ...]), 𝑣),
+instance 𝑖 : I of type 𝑡 be constructed. The fields 𝐹 determine                which we rewrite to 𝑒𝑘 , where 𝑣 is the 𝑘 th field of 𝑡.
+the structure of 𝑡-type instances. Instances are constructed                      (𝑃4 ) In each agg(𝑔, 𝑙), term 𝑙 contains no {agg, ∨}. Fortu-
+with struct and de-constructed (projected to a given field)                    nately, Clingo and eFLINT have corresponding syntax and se-
+with proj, and only when the instances are (de)constructed                     mantics for aggregators. But unfortunately, only eFLINT per-
+with the specified fields; e.g., struct (𝑡, []) is well-typed iff 𝑡            mits aggregators to be arbitrarily nested. A nested agg(𝑔, 𝑙)
+has fields []. We require each types’ fields to be distinctly                  can be removed via reification: it is replaced by the term
+identified (i.e., fields are map-like) such that each projection               struct (𝑡, ⟨var (𝑣)⟩), where 𝑣 is a fresh variable of the fresh
+is unambiguous. Definition 4 defines the (static) typing func-                 type 𝑡 defined with fields [Z]; intuitively, 𝑡 collects the ele-
+tion, such that evaluating each instance expression 𝑒 : E                      ments to be aggregated. In Example 4, non_admin_control reifies
+yields an instance 𝑖 : I with type(𝑒) = type(𝑖). Example 5                     the nested eFLINT expression (Exists user: ...) in Example 1.
+demonstrates by defining all fields in the running example.                       (𝑃5 ) Each agg is in the 𝑥 or 𝑏 of a let (𝑝, 𝑒, 𝑙) or where(𝑙, 𝑏).
+   The primitive types integers (Z) and strings (S), whose                     This works around Clingo’s limitations on aggregations
+instances cannot be (de)constructed, are implicitly defined.                   in consequents. For example, f(X) :- X = #count{g(Y)} is valid
+Instead, int and str introduce their instances as literals in the              Clingo, but f(#count{g(Y)}) is not. It suffices to replace agg(𝑔, 𝑙)
+program text. New integers can also emerge dynamically,                        with let (var (𝑣), agg(𝑔, 𝑙), var (𝑣)) for a fresh 𝑣, which achieves
+from inbuilt operators {+, −, ×, ÷, %}. These operators are                    a similar result; the aggregation becomes an antecedent.
+treated as ordinary constants in the abstract syntax, but
+their special status is reflected by their infix notation in the               6.4   Dynamic Semantics of eFLINT Specifications
+concrete syntax, and by their reduction under evaluation. For                  The dynamic semantics of a specification 𝑠 is defined as a
+example, users expresss struct (+, int (2), int (3)) concretely                translation to state-internal Clingo rules from the clauses 𝐶 ⊆
+as 2 + 3, which is then reduced to int (5) under evaluation.                   C associated with each type definition 𝑡 ↦→ ⟨𝑉 , 𝐶⟩ in 𝑠. The
+
+
+
+                                                                          87
+A Stable Model Semantics for eFLINT Norm Specifications and Model Checking Scenarios                                      GPCE ’25, July 3–4, 2025, Bergen, Norway
+
+
+Example 5 (specifying fields (not clauses) of Example 1).                                    translation for a clause 𝑐 ∈ 𝐶 associated with 𝑡 in 𝑠 is defined
+For legibility, we use 𝑥 to abbreviate each variable ⟨𝑥, "x"⟩.                               by the function J𝑠, 𝑡, 𝑐K given in Definition 7. A complete
+                                                                                             translation applies this function to all clauses in a specifica-
+   [          instant ↦→ ⟨[Z], []⟩,              user ↦→ ⟨[S], []⟩,                          tion (in any order). The result is well-formed if the specifi-
+              dataset ↦→ ⟨[S], []⟩,            elapsed ↦→ ⟨[instant], []⟩,                   cation is of the restricted normal form, i.e., satisfies proper-
+            controls ↦→ ⟨[⟨user, "controller"⟩, dataset], []⟩,                               ties 𝑃1, . . . , 𝑃 5 , described previously. The translation benefits
+               access ↦→ ⟨[user, dataset, instant], []⟩,                                     from the declarative nature of Clingo: re-ordering rules or
+                                                                                             adding white space does not change their meaning.
+       must-notify ↦→ ⟨[user, ⟨user, "controller"⟩,                                             J·K from Definition 7 translates the six kinds of clauses, ul-
+                                access, ⟨instant, "deadline"⟩], []⟩,                         timately giving new attributes to (new) instances. The cases
+               notify ↦→ ⟨[user, ⟨user, "controller"⟩,                                       of the JK function definition show how the specialised se-
+                                                                                             mantics of these clauses are reconciled. For example, the
+                                                     must-notify], []⟩,             ]
+                                                                                             translation makes explicit the instances which are implicitly
+Definition 7. J𝑠, 𝑡, 𝑐K is the translation to Clingo of the clause                           quantified by affect clauses; each effect arises from some
+𝑐 in the definition of type 𝑡 in (restricted) specification 𝑠.                               triggered instance. Ultimately, the translation proceeds by
+                                                                                             inductively unfolding syntactic sub-structures; e.g., [] L sep-
+              J𝑠, 𝑡, derive(𝑙)K ≜ [𝑙, derived] L .
+                                                                                             arates rule-consequents from -antecedents, and [] G maps
+          J𝑠, 𝑡, affect (𝑙, 𝑎)K ≜ [for (𝑝, trigger, 𝑙), 𝑎] L .                               eFLINT’s aggregator syntax to the corresponding Clingo.
+          J𝑠, 𝑡, filter (𝑏, 𝑎)K ≜ [for (𝑝, enum, where(𝑝, 𝑏)), 𝑎] L .                           Much of the complexity of the translation represents a
+                                                                                             reconciliation of the semantics of eFLINT and Clingo. For
+               J𝑠, 𝑡, actTypeK ≜ [for (𝑝, trigger, 𝑝), actTrigger] .                         example, in eFLINT the current state is implicit because it
+                J𝑠, 𝑡, infiniteK ≜ [for (𝑝, holds, 𝑝), enum] .                               remains arbitrary, but we make it explicit in our encoding
+ J𝑠, 𝑡, finite( [𝑖 1, 𝑖 2, ...])K ≜ [𝑖 1, enum] L . [𝑖 2, enum] L . ...                      as the Clingo variable S. Some complexities arise from id-
+                                                                                             iosyncrasies of eFLINT and Clingo. For example, Clingo’s
+        where 𝑝 ≜ fieldPatt (𝑡, 𝑠)                                                           concrete syntax differs inside and outside of aggregator ex-
+  –––––––––––––––––––––– – – –                                                               pressions such as #sum { ... }, e.g., rules separate antecedents
+ [for (𝑝, 𝑎 ′, 𝑙), 𝑎] L ≜ [where(𝑙, check(𝑎 ′, 𝑝)), 𝑎] L                                     from consequents with :- outside, but with : inside.
+ [where(𝑙, 𝑏), 𝑎] L ≜ [𝑙, 𝑎] L ; [𝑏] B                                                          Example 6 demonstrates our translation of a simple clause
+                                                                                             from the running example Example 1, which was chosen
+  [let (𝑝, 𝑒, 𝑙), 𝑎] L ≜ [𝑙, 𝑎] L ; [𝑝] E = [𝑒] E                                            because it was already in the restricted normal form (see
+                 [𝑒, 𝑎] L ≜ in(( [𝑎] A , [𝑒] E ),S) :- state(S)                              Section 6.3). As with the Clingo rules in Example 4, these
+                                                                                             rules are state-internal, applying to each state S individually,
+                [true] B ≜ #true                                                             relying on underlying Core eFLINT and state trace semantics
+       [check(𝑎, 𝑒)] B ≜ in(( [𝑎] A , [𝑒] E ),S)                                             to relate fluents within and between (resp.) successive states.
+           [𝑏 1 ∧ 𝑏 2 ] B ≜ [𝑏 1 ] B ; [𝑏 2 ] B                                              Example 6. (translating Violated when Holds(elapsed(deadline))).
+                                                              B
+                                           𝑏 if ∃𝑏, ¬¬𝑏 = ¬𝑏 2
+           [𝑏 1 ∨ 𝑏 2 ] B ≜ [𝑏 1 ] B :                                                           J𝑠, must_notify, filter (𝑏, violated)K
+                                          ¬𝑏 2 otherwise
+                                                                                                 where 𝑏 ≜ holds(struct (elapsed, [⟨instant, "deadline"⟩]))
+                 [¬𝑏] B ≜ not [𝑏] B
+                                                                                             = [for (𝑝, enum, where(𝑝, 𝑏)), violated] L
+                                                                                             ⇒
+           [𝑒 1 < 𝑒 2 ] B ≜ [𝑒 1 ] E < [𝑒 2 ] E
+                                                                                                 where 𝑝 ≜ fieldPatt (must_notify, 𝑠)
+           [𝑒 1 = 𝑒 2 ] B ≜ [𝑒 1 ] E = [𝑒 2 ] E
+                                                                                             = [where(where(𝑝, 𝑏), check(enum, 𝑝)), violated] L
+                                                                                             ⇒
+              [struct (𝑡,[𝑒 1, 𝑒 2, 𝑒 3, ..., 𝑒𝑛 ])] E
+                             ≜ 𝑡 ( [𝑒 1 ] E , [𝑒 2 ] E , [𝑒 3 ] E , ... [𝑒𝑛 ] E )            = [where(𝑝, 𝑏)), violated] L ; [check(enum, 𝑝)] B
+                                                                                             ⇒
+
+         [agg(𝑔, 𝑙)] E ≜ [𝑔] G { 𝑟 ( [𝑙, enum] L ) }                                         = [𝑝, violated] L ; in(holds( [𝑏] B ),S) ; in(enum( [𝑝] E ),S)
+                                                                                             ⇒
+                where 𝑟 replaces each ; with , and :- with :                                     [𝑝, violated] L ;
+                         E
+                                                                                             ⇒
+                                                                                             =
+               [r (𝑥)] ≜ 𝑥 for 𝑟 ∈ {var, int, str}                                                  in(holds(elapsed(D)),S) ; in(enum(must_notify(U,C,A,D)),S).
+
+          G                                                                                                      E
+                                                                                                 in(violated( [𝑝] ),S) :- state(S) ;
+        [] : G → S ≜ {count ↦→ #count, sum ↦→ #sum, ...}                                     ⇒
+                                                                                             =
+                                                                                                    in(holds(elapsed(D)),S) ; in(enum(must_notify(U,C,A,D)),S).
+       [] A : A → S ≜ {trigger ↦→ trigger, create ↦→ create, ...}
+                                                                                                 in(violated(must_notify(U,C,A,D)),S) :- state(S) ;
+                                                                                             ⇒
+                                                                                             =
+                                                                                                    in(holds(elapsed(D)),S) ; in(enum(must_notify(U,C,A,D)),S).
+
+
+
+
+                                                                                        88
+GPCE ’25, July 3–4, 2025, Bergen, Norway                                                                C. A. Esterhuyse, T. Müller, and L. T. van Binsbergen
+
+
+   Our Generalisations. Our version of eFLINT specifica-                          scenario actions, e.g., via Clingo’s disjuctive-head rules, and
+tions generalises the original language in three ways. Firstly,                   2. the satisfaction criterion, e.g., via Clingo’s constraint rules.
+our let binders are new. Secondly, we generalise binders                             The search problems expressible via these rules enjoy the
+in for (and let) from variables to patterns. Thirdly, our for                     same freedoms and limitations as expressing search problems
+quantifies over instances with any attribute and not just the                     with Clingo in general. For example, the search space and
+enumerables (with enum). In principle, these generalisations                      search criterion do not need to be state-internal.
+enable new usages, but we only use them within the transla-                          Example 8 shows the Clingo encoding of a search-problem
+tion for the clause-transformations described in Section 6.3,                     that is of particular interest to eFLINT users and the norma-
+so our experiments use none of these generalisations. But                         tive domain in general. Precisely, Example 8 model-checks
+Section 9 discusses our interest in exploring eFLINT variants.                    the specification against the proposition ‘taking only enabled
+                                                                                  actions violates no duties’, captured by the final rule in the
+7      Scenario Translation to Core eFLINT.                                       negative, such that stable models encode counterexamples.
+Finally, this section translates eFLINT scenarios to Clingo.                      Each solution details the offending counterexample scenario.
+We distinguish the two scenario representations, reflecting                       Example 8 (Find Act-Compliant, Non-Compliant Scenarios).
+the two use cases of our new interpreter. In either case, we                      1 = { choose (I ,S ) : triggerable (I , S) } :- state (S).
+                                                                                  in (( trigger , I) , S) :- choose (I ,S ).
+assume we are given an eFLINT specification, which has
+                                                                                  :- 0 = { in (( dutyViol , I) , S) } .
+already been translated into Clingo via J·K from Definition 7.
+                                                                                   – – – – – – – – the case-specific part – – – – – – – –
+                                                                                  { state ( S) } :- S = 1..1000.
+7.1      Use Case: Check if a Scenario is Compliant                               triggerable (X , S) :- in (( enabled , X) , S ) ; state (S + 1 ) ;
+                                                                                           X = ( access (U ,D ,I ) ; notify (U ,C ,M) ) .
+The first use case is scenario-compliance (demonstrated in                        in (( create , controls ( user ( " Amy " ) , dataset ( " X-Rays " ))) , 1) .
+Example 1) in which the interpreter checks the compliance                         in (( create , controls ( user ( " Bob " ) , dataset ( " Biopsy " ))) , 1) .
+of a given scenario. Precisely, each scenario is in list (A𝑡 × I ).               in (( create , controls ( user ( " Dan " ) , dataset ( " Weight " ))) , 1) .
+Intuitively, each scenario labels each 13th transition with an
+                                                                                     The case-specifics define the search space: its depth is
+effect: assigning a transition-attribute to a given instance.
+                                                                                  limited to 1000 states, and its breadth is defined by the trig-
+Example 7 shows the running example scenario before and
+                                                                                  gerable (access- or notify action type) instances, which result
+after translation. Note that the translation is straightforward,
+                                                                                  from the initially created control-instances. This input yields
+and the resulting rules are state-internal.
+                                                                                  no stable model; the property holds! But the scenario is not in-
+Example 7 (scenario translated from eFLINT to Clingo).                            teresting because no (triggerable) actions advance the elapsed
+      Abstract eFLINT                      Clingo term                            time. Adding rule in((create,elapsed(S)),S) :- state(S) conflates
+      ⟨create, dataset ( "X-Rays" ) ⟩      in(create(dataset("X-Rays")),1)        the passage of states with the passage of time; consequently,
+      ⟨create, controls (user ( "Amy" ),   in(create(controls(user("Amy"),
+                dataset ( "X-Rays" ) ) ⟩            dataset("X-Rays"))),2)
+                                                                                  counter-examples arise, e.g., where Dan accesses the X-Rays,
+      ⟨create, user ( "Bob" ) ⟩            in(create(user("Bob")),3)              but violates the duty to inform Amy at instant 11.
+      ⟨create, instant (9) ⟩               in(create(instant(9)),4)
+      ⟨trigger, access (user ( "Bob" ),    in(trigger(access(user("Bob"),         8    Correctness Evaluation
+            dataset ( "X-Rays" ), 9) ⟩           dataset("X-Rays"),9)),5)
+                                                                                  We characterise the correctness of our new eFLINT semantics
+   In the dynamic semantics of a scenario, a concrete ‘cur-                       as matching input/output behaviours of the two implemen-
+rent state’ is modified to its successor state in between the                     tations, where expected. Our artefact includes our source
+elements of a scenario. Recall that the dynamic semantics                         code, experimental data, experimental scripts, and a utility
+of a specification (Section 6) refers to an abstract current                      tool for comparing output behaviours.
+state S and assigns attributes to instances in S. The rules gen-
+                                                                                     Evaluation Scope. We focus on the existing use case of
+erated from an eFLINT specification, alongside the rules of
+                                                                                  checking given scenarios (see Section 7.1), because our search
+Core eFLINT (Section 5) and state traces (Section 4), thus
+                                                                                  for scenarios is incomparable to in the existing interpreter.
+produces attribute-assignments for all concrete states gen-
+                                                                                  For the sake of space, we do not discuss the performance eval-
+erated by the scenario according to the clauses of the speci-
+                                                                                  uation included in our artefact. Section 9 discusses planned
+fication. It is precisely these attribute-assignments that are
+                                                                                  future evaluations, e.g., by comparing our scenario-search
+interesting output to the eFLINT user. For example, the out-
+                                                                                  to other languages’ model-checkers.
+put (e.g., of Example 1) contains created or terminated facts,
+triggered actions/events (possibly as the result of a triggered                      Test Suite. Our tests are a suite of specification-scenario
+action/event), and violations of actions and duties.                              pairs chosen to tease out the possible interactions between
+                                                                                  instances, states, and attributes. Our tests were chosen based
+7.2      Use Case: Search for Satisfactory Scenarios                              on our understanding of eFLINT, but also, inspired by the
+In this novel usage, the user encodes a scenario-search prob-                     exhaustive unit tests in the existing eFLINT interpreter’s
+lem: Clingo rules which define 1. the search space of possible                    repository. For example, one test simultaneously creates and
+
+
+
+                                                                             89
+A Stable Model Semantics for eFLINT Norm Specifications and Model Checking Scenarios                               GPCE ’25, July 3–4, 2025, Bergen, Norway
+
+
+terminates an instance, while another spreads these over                            Example 10 (No Stable Model). Given the following input,
+successive states. The suite also includes the running ex-                          our interpreter gives no stable model, which is distinct from
+ample, and the Algemene Afsprakenstelsel 3 , a formalisation                        one empty stable model. The existing interpreter lets p("") hold.
+on the data sharing agreement of the Dutch Metropolitan                             Fact p Identified by String
+                                                                                      Derived from p ( " " ) Where Not ( Holds ( p ( " " )))
+Innovations Ecosystem consortium, which is (to our knowl-
+edge) the most complex and realistic eFLINT specification                           Example 11 (Several Stable Models). Given the following
+at time of writing. All tests, on 108 pairs of scenarios and                        input, our interpreter gives two stable models: in one, f(0) holds
+(43) specifications, are reproducible via our artefact [19]. To                     but f(1) does not, and vice versa in the other. The existing
+follow, we explain the results via a few illustrative test cases.                   interpreter agrees with just the second stable model.
+                                                                                    Fact f Identified by Int
+   Evaluation Results. The old and new implementations                                Derived from f (0) Where Not ( Holds ( f (1)))
+disagree only in cases of reasoning by default, where con-                            Derived from f (1) Where Not ( Holds ( f (0)))
+
+clusions are conditioned on the implicit or explicit absence                           Ultimately, we observe that the two interpreters produce
+of fluents, namely, the evaluation of where(𝑙, check(...)) and                      equivalent results, except where they differ as expected,
+agg(...), change when fluents are removed. The Not(Exists...)                       where only the new interpreter reasons by default. We con-
+expression in Example 1 is such a case. From the user per-                          clude that we have correctly redefined and reimplemented
+spective, the existing interpreter can ‘overlook’ conditions of                     eFLINT, but we continue to expand our test suite.
+this form. This emerges from the reasoning algorithm it im-
+plements; in summary, it interleavedly evaluates expressions                        9    Related & Future Work
+and adds to the collection of fluents, but it does not keep
+                                                                                       Further Testing and Benchmarking. Work continues
+track of which absent fluents were checked; later additions
+                                                                                    to expand our test suite. We intend to cover the entirely of
+can overturn prior checks, so the order of clause-evaluation
+                                                                                    the original eFLINT examples, and to benchmark the new
+(which is sensitive to type and variable naming) matters.
+                                                                                    interpreter’s performance to that of the old interpreter. Much
+Example 9 demonstrates with small specifications.
+                                                                                    of this performance evaluation has already been done and
+Example 9 (Where the Two eFLINT Semantics Disagree).                                can be found in the artefact [19], but we have left it out
+For the following two specifications, both versions of the eFLINT                   of scope. So far, we find that the new interpreter dramati-
+interpreter agree that only y("") holds. Indeed, these specifica-                   cally outperforms the original in most cases (reaching 25×
+tions have the same stable model, constructed by applying the                       speedup in one long and complex scenario), but their per-
+second derivation clause, after which the first clause is not                       formance is comparable in trivial cases, or in cases when
+applicable. Here, we omit Identified by String for each type.                       Clingo’s optimisations fail, e.g., in guessing prime numbers.
+Fact x Derived from x ( " " ) Where Not ( Holds ( y ( " " )))
+Fact y Derived from y ( " " )                                                          Different Ways to Define eFLINT. The impetus for our
+ –––––––––––––––––––––– – – –                                                       work was the observation that, in abstracto, eFLINT spec-
+Fact z Derived from z ( " " ) Where Not ( Exists y: True )                          ifications resemble logic programs. Thus, we give eFLINT
+Fact y Derived from y ( " " )
+                                                                                    a semantics via a translation to logic programs. But we ac-
+   Our new interpreter reaches the same result given the follow-
+                                                                                    knowledge that other approaches are available also. For ex-
+ing, third version of the specification. But the order in which
+                                                                                    ample, [1] formalises another language which is also nor-
+the existing interpreter evaluates the clauses is unexpectedly
+                                                                                    mative and used for case analysis and model-checking. But
+disturbed, changing its result. It lets x("") hold, ‘forgets’ the
+                                                                                    their formalism is based on first-order linear temporal logic.
+prior condition on y(""), and finally lets y("") also hold.
+Fact x Derived from x ( " " ) Where Not ( Exists y: True )                          Consequently, their work is more self-contained; e.g., readers
+Fact y Derived from y ( " " )                                                       of [1] are not burdened with the idiosyncrasies of Clingo.
+                                                                                    But our approach has the benefit of leveraging the exist-
+   For the same reason, the interpreters’ behaviours diverge
+                                                                                    ing Clingo interpreter. If the trade-off changes in the future,
+then the input has no unique stable model. Examples 10
+                                                                                    newer semantics can always be defined and related to this
+and 11 demonstrate. In either case, users of our new inter-
+                                                                                    one, e.g., as was done extensively for the Reo language [14].
+preter are better informed. In Example 10, its output makes
+the unsatisfiability of the specification explicit, rather than                          eFLINT Simplifications & Variants. Our translation
+silently violating the logical formula encoded in the deriva-                       faithfully captures semantic facets of eFLINT in attributes.
+tion clause. In Example 11, its output recognises logical ‘non-                     However, some facets could be captured in user-defined in-
+determinism’, enumerating the consistent interpretations of                         stances and types instead. For example, if termination is
+the specification, rather than arbitrarily picking one.                             removed, users can model the termination of 𝑖 by creating
+3 The document is available at https://dmi-ecosysteem.nl/wp-content/uplo            𝑖 ′ if 𝑖 ′ suppresses 𝑖. And if each finite( [i1, i2 , ..., in ]) clause is
+ads/bb_documents/2023/10/2023.06.01-DMI-Afsprakenstelsel-v1.pdf, our                approximated by 𝑛 by derive clauses, emit can be removed,
+formalisation process is documented at https://definities.dmi-ecosysteem.nl,        because its instances coincide with those that hold. Thus, sim-
+and both are alongside our eFLINT formalisation in our artefact [19].               pler specifications become easier to model and reason about.
+
+
+
+                                                                               90
+GPCE ’25, July 3–4, 2025, Bergen, Norway                                                    C. A. Esterhuyse, T. Müller, and L. T. van Binsbergen
+
+
+We also intend to experiment with Core eFLINT. Which se-                     Evaluating Scenario Search. We have left the evalua-
+mantic changes are desirable? Can we create a common core                 tion of our interpreter’s scenario-searching out of scope. In
+for eFLINT and related languages such as DPCL [31]?                       future, we want to more precisely characterise what expres-
+                                                                          sive power this brings to users, and how it compares to tools
+   Circumstantial Substitutes for Clingo. In this work,                   for other languages such as Symboleo [25] and Fievel [36].
+we prioritised the cohesion in our semantics accross the
+two use-cases of eFLINT. But in the simpler use case of
+scenario-checking, we make little use of Clingo’s more pow-               10    Conclusion
+erful features. In the future, we are interested in specialising
+                                                                          In this work, we re-defined the eFLINT normative specifica-
+the translation pipeline to target languages more suited to
+                                                                          tion language via a translation to Clingo answer-set solving.
+this specialised task. For example, we consider instead target-
+                                                                          We defined a new eFLINT semantics and interpreter.
+ing the Datalog-based Soufflé language [15]. Unlike Clingo,
+                                                                             Our semantics is desirable for its rigour. Notably, we have
+Soufflé has eFLINT-like record types and type checking. Can
+                                                                          formalised a notion expressed in the original article [34]:
+we translate between these notions of type? Does this result
+                                                                          eFLINT clauses express logical inference rules. In the process,
+in more efficient reasoning and more explainable output?
+                                                                          we have identified and corrected a flaw in the existing eFLINT
+   Logical Theories of Dynamic Systems. Like the origi-                   interpreter concerning inference about conditions by default,
+nal eFLINT article [34], in Section 4, our semantics draws                which is well-studied in the logic programming community.
+from work on the event-, situation-, and fluent-calculi. Other            Our interpreter reasons by default correctly.
+works (e.g., [27]) thoroughly overview and compare these                     In fact, our interpreter consists almost entirely of the
+formalisms. Here, it suffices to acknowledge that our notions             Clingo solver; by translating eFLINT to Clingo, we let Clingo
+of state and action were originally inspired by the event                 perform our normative case analysis. This approach min-
+calculus [29], but in our simple case of linear traces, many              imises the gap between the semantics and the interpreter.
+features of the other calculi emerge also. Like situations, our           Moreover, it afforded the generalisation of eFLINT’s typical
+scenarios list actions in the order they happen [17, 18].                 scenario case analysis to scenario search. Via Clingo, our
+                                                                          tool can recommend scenarios and model-check scenarios
+   Many-Valued Logics. Prior works have generalised the                   against properties in general, and specification-compliance
+usual Boolean value domain of logical variables [3, 21, 22].              in particular. These use cases were supported in languages
+For example, [21] distinguishes essential from accidental                 related to eFLINT, but not yet in eFLINT itself.
+truth, and distinguishes their semantics under combination                   In the future, we want to continue improving and eval-
+with ∧, ¬, and so on, to capture ‘natural language reason-                uating our new interpreter, for example, by drawing from
+ing’. Regardless, the system can be reasoned about; e.g., [20]            ruleset preprocessing from the answer-set solving commu-
+axiomatises a first-order fragment of the system, and proves              nity. We are also interested in investigating the intermediate
+its completeness. Similarly, we distinguish attributes of the             languages we have identified between eFLINT and Clingo.
+same instances to encode many truth values, and our se-                   Our Core eFLINT language is promising: its embedding in
+mantic rules define how they interact. Also similarly, we                 Clingo makes it inter-operable with any Clingo rules, and it
+prescribe distinct (modal) interpretations of different values;           includes much of the eFLINT semantics, but it more abstract
+e.g., actViol truths are undesirable, because they represent              and simple. In the future, we want to investigate these kinds
+actions taken without permission. We also model a three-                  of minimal normative languages as new translation targets
+valued logic in Core eFLINT in (interactions between) create,             for various purposes, and for their suitability – in their own
+terminate, and obfuscate, to encode priority.                             right – to the use cases of eFLINT: normative specification,
+                                                                          automated case analysis, and normative model-checking.
+   Constraint- vs. Logic Programming. An experimental
+eFLINT model-checking backend was developed in 2022 [7],
+inspired by the approach of Symboleo: targeting the nuXmv                 Acknowledgements
+SMT solver to model-check scenarios. This work inspired
+                                                                          This research was partly funded by the AMdEX-fieldlab
+our own, but we opted to target Clingo instead of nuXmv,
+                                                                          project (Kansen Voor West EFRO grant KVW00309) and
+because its stable model semantics aligns more closely with
+                                                                          the AMdEX-DMI project (Dutch Metropolitan Innovations
+what was originally described for eFLINT. It concerns the
+                                                                          ecosystem for smart and sustainable cities, made possible by
+distinction between logic- and constraint-programming: only
+                                                                          the Nationaal Groeifonds).
+the former requires that truths be supported by concrete
+inference steps, i.e., each truth in the model is the root of a
+proof tree. In practice, truth is more explainable; e.g., nuXmv              Data Availability Statement. Our artefact [19] includes
+but not Clingo lets x be true in the trivial specification; Clingo        the source code of our implementation, and the data and
+cannot support this truth, as it is the consequence of no rule.           scripts necessary to (re)produce our evaluation in Section 8.
+
+
+
+                                                                     91
+A Stable Model Semantics for eFLINT Norm Specifications and Model Checking Scenarios                                   GPCE ’25, July 3–4, 2025, Bergen, Norway
+
+
+References                                                                                 - 28th International Conference, CAV 2016, Toronto, ON, Canada, July
+ [1] Huib Aldewereld, Javier Vázquez-Salceda, Frank Dignum, and John-                      17-23, 2016, Proceedings, Part II (Lecture Notes in Computer Science,
+     Jules Ch. Meyer. 2005. Verifying Norm Compliancy of Protocols. In                     Vol. 9780), Swarat Chaudhuri and Azadeh Farzan (Eds.). Springer, 422–
+     Coordination, Organizations, Institutions, and Norms in Multi-Agent                   430. doi:10.1007/978-3-319-41540-6_23
+     Systems, AAMAS 2005 International Workshops on Agents, Norms                     [16] Lu-Chi Liu, Giovanni Sileno, and Tom M. van Engers. 2020. Digital
+     and Institutions for Regulated Multi-Agent Systems, ANIREM 2005,                      Enforceable Contracts (DEC): Making Smart Contracts Smarter. In
+     and Organizations in Multi-Agent Systems, OOOP 2005, Utrecht, The                     Legal Knowledge and Information Systems - JURIX 2020: The Thirty-
+     Netherlands, July 25-26, 2005, Revised Selected Papers (Lecture Notes                 third Annual Conference, Brno, Czech Republic, December 9-11, 2020
+     in Computer Science, Vol. 3913), Olivier Boissier, Julian A. Padget, Vir-             (Frontiers in Artificial Intelligence and Applications, Vol. 334), Serena
+     ginia Dignum, Gabriela Lindemann, Eric T. Matson, Sascha Ossowski,                    Villata, Jakub Harasta, and Petr Kremen (Eds.). IOS Press, 235–238.
+     Jaime Simão Sichman, and Javier Vázquez-Salceda (Eds.). Springer,                     doi:10.3233/FAIA200872
+     231–245. doi:10.1007/11775331_16                                                 [17] John McCarthy. 1963. Situations, actions, and causal laws.
+ [2] Jamila Alsayed Kassem, Corinne Allaart, Saba Amiri, Milen Kebede,                [18] John McCarthy. 2002. Actions and other events in situation calculus.
+     Tim Müller, Rosanne Turner, Adam Belloum, L. Thomas van Bins-                         In Kr. 615–628.
+     bergen, Peter Grunwald, Aart van Halteren, Paola Grosso, Cees de                 [19] Tim Müller, Christopher A. Esterhuyse, and L. Thomas van Binsbergen.
+     Laat, and Sander Klous. 2024. Building a Digital Health Twin for                      2025. Source Code and Experimental Data for a Translatfrom eFLINT
+     Personalized Intervention: The EPI Project. In Commit2Data (Open                      Normative Specifications to Clingo Answer-Set Programs. doi:10.528
+     Access Series in Informatics (OASIcs), Vol. 124), Boudewijn R. Haverkort,             1/zenodo.15188960 This URL and DOI refer to the most recent version
+     Aldert de Jongste, Pieter van Kuilenburg, and Ruben D. Vromans (Eds.).                of our artefact, from where the URL and DOI of each (fixed) version is
+     Schloss Dagstuhl – Leibniz-Zentrum für Informatik, Dagstuhl, Ger-                     accessible. Version1 has DOI 10.5281/zenodo.15188959, and version2
+     many, 2:1–2:18. doi:10.4230/OASIcs.Commit2Data.2                                      has DOI 10.5281/zenodo.15470286. The latter is the most recent at time
+ [3] João Barbosa, Mário Florido, and Vítor Santos Costa. 2019. A Three-                   of writing and accompanies this article.
+     Valued Semantics for Typed Logic Programming. In Proceedings 35th                [20] Grigory K. Olkhovikov. 2016. A Complete, Correct, and Independent
+     International Conference on Logic Programming (Technical Communi-                     Axiomatization of the First-Order Fragment of a Three-Valued Para-
+     cations), ICLP 2019 Technical Communications, Las Cruces, NM, USA,                    consistent Logic. FLAP 3, 3 (2016), 335–340. http://www.collegepubli
+     September 20-25, 2019 (EPTCS, Vol. 306), Bart Bogaerts, Esra Erdem,                   cations.co.uk/downloads/ifcolog00007.pdf
+     Paul Fodor, Andrea Formisano, Giovambattista Ianni, Daniela Inclezan,            [21] Grigory K. Olkhovikov. 2016. On a New Three-Valued Paraconsistent
+     Germán Vidal, Alicia Villanueva, Marina De Vos, and Fangkai Yang                      Logic. FLAP 3, 3 (2016), 317–334. http://www.collegepublications.co
+     (Eds.). 36–51. doi:10.4204/EPTCS.306.10                                               .uk/downloads/ifcolog00007.pdf
+ [4] Pierfrancesco Biasetti. 2015.         Hohfeldian normative systems.              [22] Mauricio Osorio and Claudia Zepeda. 2019. Three New Genuine Five-
+     Philosophia 43 (2015), 951–959.                                                       valued Logics Intended to Model Non-trivial Concepts. In Selected
+ [5] Francesco Calimeri, Martin Gebser, Marco Maratea, and Francesco                       Papers of the Eleventh and Twelfth Latin American Workshop on Log-
+     Ricca. 2016. Design and results of the Fifth Answer Set Programming                   ic/Languages, Algorithms and New Methods of Reasoning, LANMR 2018,
+     Competition. Artif. Intell. 231 (2016), 151–181. doi:10.1016/J.ARTINT.2               Puebla, Mexico, November 15, 2018 & LANMR 2019, Puebla, Mexico,
+     015.09.008                                                                            November 15, 2019 (Electronic Notes in Theoretical Computer Science,
+ [6] Stefano Ceri, Georg Gottlob, and Letizia Tanca. 1989. What you Always                 Vol. 354), Pilar Pozos Parra and José Raymundo Marcial-Romero (Eds.).
+     Wanted to Know About Datalog (And Never Dared to Ask). IEEE Trans.                    Elsevier, 157–170. doi:10.1016/J.ENTCS.2020.10.012
+     Knowl. Data Eng. 1, 1 (1989), 146–166. doi:10.1109/69.43410                      [23] André Pacak. 2024. Datalog as a (non-logic) Programming Language.
+ [7] Florine de Geus. 2022. Model Checking Normative Systems. University                   Ph. D. Dissertation. University of Mainz, Germany. https://openscie
+     of Amsterdam (2022).                                                                  nce.ub.uni-mainz.de/handle/20.500.12030/10930
+ [8] Luís Duarte d’Almeida. 2016. Fundamental legal concepts: the Hohfel-             [24] Mostafa Mohajeri Parizi, L. Thomas van Binsbergen, Giovanni Sileno,
+     dian framework. Philosophy Compass 11, 10 (2016), 554–569.                            and Tom van Engers. 2022. A Modular Architecture for Integrat-
+ [9] Christopher A Esterhuyse and L Thomas van Binsbergen. 2024. Coop-                     ing Normative Advisors in MAS. In Multi-Agent Systems, Dorothea
+     erative Specification via Composition Control. In Proceedings of the                  Baumeister and Jörg Rothe (Eds.). Springer International Publishing,
+     17th ACM SIGPLAN International Conference on Software Language                        Cham, 312–329.
+     Engineering. 2–15.                                                               [25] Alireza Parvizimosaed, Marco Roveri, Aidin Rasti, Daniel Amyot, Luigi
+[10] European Commission. 2016. Regulation (EU) 2016/679 of the Eu-                        Logrippo, and John Mylopoulos. 2022. Model-checking legal contracts
+     ropean Parliament and of the Council of 27 April 2016 on the pro-                     with SymboleoPC. In Proceedings of the 25th International Conference on
+     tection of natural persons with regard to the processing of personal                  Model Driven Engineering Languages and Systems (Montreal, Quebec,
+     data and on the free movement of such data, and repealing Direc-                      Canada) (MODELS ’22). Association for Computing Machinery, New
+     tive 95/46/EC (General Data Protection Regulation) (Text with EEA                     York, NY, USA, 278–288. doi:10.1145/3550355.3552449
+     relevance). https://eur-lex.europa.eu/eli/reg/2016/679/oj                        [26] Alireza Parvizimosaed, Sepehr Sharifi, Daniel Amyot, Luigi Logrippo,
+[11] Martin Gebser, Roland Kaminski, Benjamin Kaufmann, and Torsten                        Marco Roveri, Aidin Rasti, Ali Roudak, and John Mylopoulos. 2022.
+     Schaub. 2019. Multi-shot ASP solving with clingo. Theory Pract. Log.                  Specification and analysis of legal contracts with Symboleo. Software
+     Program. 19, 1 (2019), 27–82. doi:10.1017/S1471068418000054                           and Systems Modeling 21, 6 (2022), 2395–2427.
+[12] Martin Gebser, Roland Kaminski, Benjamin Kaufmann, and Torsten                   [27] Stephan Schiffel and Michael Thielscher. 2006. Reconciling Situa-
+     Schaub. 2022. Answer set solving in practice. Springer Nature.                        tion Calculus and Fluent Calculus. In Proceedings, The Twenty-First
+[13] Michael Gelfond and Vladimir Lifschitz. 1988. The stable model se-                    National Conference on Artificial Intelligence and the Eighteenth In-
+     mantics for logic programming.. In ICLP/SLP, Vol. 88. Cambridge, MA,                  novative Applications of Artificial Intelligence Conference, July 16-
+     1070–1080.                                                                            20, 2006, Boston, Massachusetts, USA. AAAI Press, 287–292. http:
+[14] Sung-Shik TQ Jongmans and Farhad Arbab. 2012. Overview of Thirty                      //www.aaai.org/Library/AAAI/2006/aaai06-046.php
+     Semantic Formalisms for Reo. Scientific Annals of Computer Science               [28] Danny De Schreye and Stefaan Decorte. 1994. Termination of Logic
+     22, 1 (2012).                                                                         Programs: The Never-Ending Story. J. Log. Program. 19/20 (1994),
+[15] Herbert Jordan, Bernhard Scholz, and Pavle Subotic. 2016. Soufflé:                    199–260. doi:10.1016/0743-1066(94)90027-2
+     On Synthesis of Program Analyzers. In Computer Aided Verification
+
+
+
+                                                                                 92
+GPCE ’25, July 3–4, 2025, Bergen, Norway                                                                 C. A. Esterhuyse, T. Müller, and L. T. van Binsbergen
+
+
+[29] Murray Shanahan. 2001. The event calculus explained. In Artificial                  doi:10.1016/J.PROCS.2021.12.221
+     intelligence today: Recent trends and developments. Springer, 409–430.         [34] L. Thomas van Binsbergen, Lu-Chi Liu, Robert van Doesburg, and
+[30] Sepehr Sharifi, Alireza Parvizimosaed, Daniel Amyot, Luigi Logrippo,                Tom M. van Engers. 2020. eFLINT: a domain-specific language for
+     and John Mylopoulos. 2020. Symboleo: Towards a specification lan-                   executable norm specifications. In GPCE ’20: Proceedings of the 19th
+     guage for legal contracts. In 2020 IEEE 28th international requirements             ACM SIGPLAN International Conference on Generative Programming:
+     engineering conference (RE). IEEE, 364–369.                                         Concepts and Experiences, Virtual Event, USA, November 16-17, 2020,
+[31] Giovanni Sileno, Thomas van Binsbergen, Matteo Pascucci, and Tom                    Martin Erwig and Jeff Gray (Eds.). ACM, 124–136. doi:10.1145/342589
+     van Engers. 2022. DPCL: a language template for normative specifica-                8.3426958
+     tions. arXiv preprint arXiv:2201.04477 (2022). doi:10.48550/arXiv.2201.        [35] L. Thomas van Binsbergen, Merrick Oost-Rosengren, Hayo Schreijer,
+     04477 Available at https://arxiv.org/abs/2201.04477..                               Freek Dijkstra, and Taco van Dijk. 2024. AMdEX Reference Architecture
+[32] Jorrit Stutterheim, Aleandro Mifsud, and Ana Oprescu. 2024. DY-                     – version 1.0.0. doi:10.5281/zenodo.10565915
+     NAMOS: Dynamic Microservice Composition for Data-Exchange Sys-                 [36] Francesco Viganò and Marco Colombetti. 2008. Model Checking
+     tems, Lessons Learned. In 2024 IEEE 21st International Conference on                Norms and Sanctions in Institutions. In Coordination, Organizations,
+     Software Architecture Companion (ICSA-C). 8–15. doi:10.1109/ICSA-                   Institutions, and Norms in Agent Systems III, Jaime Simão Sichman,
+     C63560.2024.00008                                                                   Julian Padget, Sascha Ossowski, and Pablo Noriega (Eds.). Springer
+[33] L. Thomas van Binsbergen, Milen G. Kebede, Joshua Baugh, Tom M.                     Berlin Heidelberg, Berlin, Heidelberg, 316–329.
+     van Engers, and Dannis G. van Vuurden. 2021. Dynamic generation                [37] Tomasz Zurek, Mostafa Mohajeriparizi, Jonathan Kwik, and Tom M.
+     of access control policies from social policies. In The 12th Interna-               van Engers. 2022. Can a Military Autonomous Device Follow Interna-
+     tional Conference on Emerging Ubiquitous Systems and Pervasive Net-                 tional Humanitarian Law?. In Legal Knowledge and Information Systems
+     works (EUSPN 2021) / The 11th International Conference on Current                   - JURIX 2022: The Thirty-fifth Annual Conference, Saarbrücken, Germany,
+     and Future Trends of Information and Communication Technologies                     14-16 December 2022 (Frontiers in Artificial Intelligence and Applica-
+     in Healthcare (ICTH-2021), Leuven, Belgium, November 1-4, 2021 (Pro-                tions, Vol. 362), Enrico Francesconi, Georg Borges, and Christoph Sorge
+     cedia Computer Science, Vol. 198), Nuno Varandas, Ansar-Ul-Haque                    (Eds.). IOS Press, 273–278. doi:10.3233/FAIA220479
+     Yasar, Haroon Malik, and Stéphane Galland (Eds.). Elsevier, 140–147.
+
+
+
+
+                                                                               93
+

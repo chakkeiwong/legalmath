@@ -1,0 +1,73 @@
+// GEVOELIGE DIENSTEN BESCHERMEN.eflint
+//   by Lut99
+//
+// Created:
+//   04 Jul 2024, 11:30:43
+// Last edited:
+//   21 Aug 2024, 09:31:23
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Scenario dat een paar voorbeelden toont voor
+//   `gevoelige-diensten-beschermen` uit artikel 7.11.
+//
+
+#require "../../artikel7/artikel7.11.eflint".
+
+
+///// SCENARIO /////
+// Er is een huidig jaar
++huidig-jaar(2023).
+
+// Er is een beheerder
++beheerder(Ecoraad).
+
+// Er zijn twee partijen
++deelnemer(Amy).
++deelnemer(Bob).
+
+// Amy biedt wat aan als Commons wat niet gevoelig is.
++dienst-waarde(Appel, 1000).
++aanbod(0, Amy, Appel, 2023).
++aanbod-als-commons(aanbod(0, Amy, Appel, 2023)).
++overeenkomst(aanbod(0, Amy, Appel, 2023), Bob).
+//#violated not gevoelige-diensten-beschermen(deelnemer(Amy), beheerder(Ecoraad), overeenkomst(aanbod(id(0), deelnemer(Amy), dienst(Appel), jaar(2023)), deelnemer(Bob))).
+
+// Bob biedt iets aan als gevoeligs, maar past een juiste mitigatie toe
++dienst-waarde(Banaan, 500).
++dienst-gevoelig(Banaan, "Fruit Safety Act 1979").
++aanbod(1, Bob, Banaan, 2023).
++aanbod-als-commons(aanbod(1, Bob, Banaan, 2023)).
+{
+    +overeenkomst(aanbod(1, Bob, Banaan, 2023), Amy).
+    +overeenkomst-gevoeligheid-gemitigeerd(overeenkomst(aanbod(1, Bob, Banaan, 2023), Amy), "Fruit Safety Act 1979").
+}
+//#violated not gevoelige-diensten-beschermen(deelnemer(Bob), beheerder(Ecoraad), overeenkomst(aanbod(id(1), deelnemer(Bob), dienst(Banaan), jaar(2023)), deelnemer(Amy))).
+
+// Maar Bob is nog niet klaar. Hij biedt ook citroenen aan, die om meerdere redenen gevoelig zijn. Gelukkig mitigeert hij die allemaal.
++dienst-waarde(Citroen, 1500).
++dienst-gevoelig(Citroen, "Fruit Safety Act 1979").
++dienst-gevoelig(Citroen, "Bob is allergisch voor citroenen").
++dienst-gevoelig(Citroen, "Privacy-gevoelige informatie").
++aanbod(2, Bob, Citroen, 2023).
++aanbod-als-commons(aanbod(2, Bob, Citroen, 2023)).
+{
+    +overeenkomst(aanbod(2, Bob, Citroen, 2023), Amy).
+    +overeenkomst-gevoeligheid-gemitigeerd(overeenkomst(aanbod(2, Bob, Citroen, 2023), Amy), "Fruit Safety Act 1979").
+    +overeenkomst-gevoeligheid-gemitigeerd(overeenkomst(aanbod(2, Bob, Citroen, 2023), Amy), "Bob is allergisch voor citroenen").
+    +overeenkomst-gevoeligheid-gemitigeerd(overeenkomst(aanbod(2, Bob, Citroen, 2023), Amy), "Privacy-gevoelige informatie").
+}
+//#violated not gevoelige-diensten-beschermen(deelnemer(Bob), beheerder(Ecoraad), overeenkomst(aanbod(id(2), deelnemer(Bob), dienst(Citroen), jaar(2023)), deelnemer(Amy))).
+
+// Maar o nee! Voor dadels past Bob één van de mitigaties niet toe. Zo dichtbij Bob!
++dienst-waarde(Dadel, 10).
++dienst-gevoelig(Dadel, "Fruit Safety Act 1979").
++dienst-gevoelig(Dadel, "Bob is ook allergisch voor dadels").
++aanbod(3, Bob, Dadel, 2023).
++aanbod-als-commons(aanbod(3, Bob, Dadel, 2023)).
+{
+    +overeenkomst(aanbod(3, Bob, Dadel, 2023), Amy).
+    +overeenkomst-gevoeligheid-gemitigeerd(overeenkomst(aanbod(3, Bob, Dadel, 2023), Amy), "Fruit Safety Act 1979").
+}
+//#violated gevoelige-diensten-beschermen(deelnemer(Bob), beheerder(Ecoraad), overeenkomst(aanbod(id(3), deelnemer(Bob), dienst(Dadel), jaar(2023)), deelnemer(Amy))).

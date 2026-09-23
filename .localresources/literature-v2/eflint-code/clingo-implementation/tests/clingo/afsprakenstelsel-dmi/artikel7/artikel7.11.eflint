@@ -1,0 +1,77 @@
+// ARTIKEL 7.11.eflint
+//   by Lut99
+//
+// Created:
+//   03 Jul 2024, 10:39:51
+// Last edited:
+//   20 Aug 2024, 16:25:48
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.11 van het Afsprakenstelsel.
+//   
+//   Dit artikel wordt geïnterpreteerd als dat een dienst is gemarkeerd als
+//   gevoelig (voor privacy of andere redenen) er bewijs moet zijn dat de
+//   aanbiedende Deelnemer de juiste maatregelen heeft getroffen om dit te
+//   mitigeren.
+//   
+//   Zie `artikel7.11.md` voor meer informatie.
+//
+
+#require "../begrippen/beheerder.eflint".
+#require "../begrippen/gevoeligheid.eflint".
+#require "../begrippen/overeenkomst.eflint".
+
+
+///// INPUT /////
+/// Benoemt dat een aanbieder van een `overeenkomst` genoeg maatregelen heeft getroffen om een
+/// bepaalde gevoeligheid van een bepaalde dienst te mitigeren.
+Fact overeenkomst-gevoeligheid-gemitigeerd Identified by overeenkomst * gevoeligheid.
+Extend Fact gevoeligheid
+    Derived from (Foreach overeenkomst-gevoeligheid-gemitigeerd : overeenkomst-gevoeligheid-gemitigeerd.gevoeligheid).
+
+
+
+
+
+///// ASSERTIONS /////
+/// Het is gek om te specificeren dat een gevoeligheid is gemitigeerd die nooit aanwezig was.
+Invariant geen-mitigatie-zonder-gevoeligheid
+    When (Forall overeenkomst-gevoeligheid-gemitigeerd :
+        dienst-gevoelig(
+            overeenkomst-gevoeligheid-gemitigeerd.overeenkomst.aanbod.dienst,
+            overeenkomst-gevoeligheid-gemitigeerd.gevoeligheid
+        )
+    ).
+
+
+
+
+
+///// REGELS /////
+/// Specificeert dat Deelnemers alleen gevoelige diensten mogen aanbieden als ze de juiste
+/// mitigaties hebben getroffen.
+/// 
+/// # Afsprakenstelsel
+/// > Indien levering of afname als Commons kan leiden tot inbreuk op privacy of
+/// > gebruiksovereenkomsten, moeten door aanbiedende Deelnemer voldoende maatregelen zijn genomen
+/// > (bijvoorbeeld data-aggregatie) zodat gebruik wel mogelijk is én voldoende zekerheid m.b.t.
+/// > AVG-compliance wordt geboden aan afnemende Deelnemer.
+Duty gevoelige-diensten-beschermen
+    Holder aanbieder
+    Claimant beheerder
+    Related to overeenkomst
+    // De plicht geldt voor alle aanbiedingen die als Commons worden gedaan en gaan over gevoelige data
+    Derived from (Foreach overeenkomst, beheerder :
+        gevoelige-diensten-beschermen(overeenkomst.aanbod.aanbieder, beheerder, overeenkomst)
+        When (
+            aanbod-als-commons(overeenkomst.aanbod)
+            && (Exists gevoeligheid : dienst-gevoelig(overeenkomst.aanbod.dienst, gevoeligheid))
+        )
+    )
+    // De plicht is geschonden zodra niet alle gevoelige gevoeligheden zijn gemitigeerd.
+    Violated when Not(Forall gevoeligheid :
+        overeenkomst-gevoeligheid-gemitigeerd(overeenkomst, gevoeligheid)
+        When dienst-gevoelig(overeenkomst.aanbod.dienst, gevoeligheid)
+    ).

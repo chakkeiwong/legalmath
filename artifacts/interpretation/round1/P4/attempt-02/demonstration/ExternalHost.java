@@ -1,0 +1,1 @@
+public class ExternalHost { public static void main(String[] args) throws Exception { System.out.print(hk.legalmath.Policy_cd63add462c022b6c6cf.evaluate(java.nio.file.Files.readString(java.nio.file.Path.of(args[0])),args[1],args[2],args[3],"replay")); }}

@@ -1,0 +1,340 @@
+\section{A complete worked change: circular 23EC35 to a Java decision}
+\label{sec:dry-run}
+
+The running source is the joint SFC--HKMA circular of 28 July 2023,
+\emph{Streamlined approach for compliance with suitability obligations when
+dealing with sophisticated professional investors}. Its main text introduces
+the approach; Annex 1 sets out the guidance; Annex 2 answers implementation
+questions. This example follows those documents through collection,
+interpretation, evidence mapping, evaluation, Java generation and an operational
+change. The facts about the client are invented for the demonstration. The
+regulatory provisions are identified individually so that those two sources of
+information remain distinguishable \citep{sfcspi,sfcspiannex1,sfcspiannex2}.
+
+\subsection{The business question and the facts the bank would need}
+
+At 10:00 Hong Kong time on 21 September 2026, an adviser proposes a solicited
+transaction in an ordinary corporate-bond category for Ms Lee, a synthetic
+individual client. The question is whether the bank may apply the selected
+streamlining treatment to this transaction, subject to its other controls.
+The example uses paragraph 8.3(a), which monitors gross exposure at execution.
+It does not use the designated-account alternative in paragraph 8.3(b).
+
+Assume the bank has already assessed Ms Lee as an individual professional
+investor under the applicable imported definitions. Her qualifying portfolio is
+HK\$40 million: HK\$35 million on her own account plus a documented 25 percent
+share of a HK\$20 million joint portfolio with a non-associate. Her total assets
+are HK\$120 million, liabilities HK\$15 million and primary residence HK\$30
+million, giving HK\$75 million of net assets excluding the residence. The
+portfolio route meets paragraph 3.1 exactly; the net-asset route does not.
+The ownership agreement, valuations and assessment would be separate evidence
+records in the bank. The example's normalized inputs already incorporate them.
+
+Ms Lee has no relevant degree, professional qualification or qualifying year of
+work experience in this example. She instead has five transactions in the
+chosen category, dated 8 January and 12 June 2024, 14 February and 7 November
+2025, and 20 August 2026. These dates lie comfortably inside the relevant
+three-year window; the example does not settle a disputed endpoint convention.
+The bank has separately recorded its reasonable satisfaction about her
+sophistication and assessed her objectives as non-conservative. Five transactions
+are evidence for a specified route, not an automatic substitute for that
+assessment \citep[Annex 1, paras.~4.1, 5.1, 7.3]{sfcspiannex1}.
+
+The client has selected this category, received the category information and
+required explanations, and given the prior written acknowledgment for the
+arrangement. The agreed streamlining threshold is HK\$10 million. Existing
+gross exposure is HK\$8 million; the proposed transaction adds HK\$2 million,
+including leverage, bringing the monitored exposure to HK\$10 million. The
+control compares that gross amount with the threshold, not the cash margin
+posted for the purchase. The threshold rationale and assessment are retained;
+the example treats the annual review and reminders as current
+\citep[Annex 1, paras.~6--8, 12--14; Annex 2, FAQ~7]{sfcspiannex1,sfcspiannex2}.
+
+Finally, current offering documents have been delivered. There is no unanswered
+request for product explanation or material query. The transaction has been
+assessed for the outsize or material-transaction warning requirement; this
+synthetic case does not require that warning. These are retained controls.
+They do not disappear because the wealth condition passed
+\citep[Annex 1, paras.~8.4, 10.3]{sfcspiannex1}.
+
+The facts are intentionally close to two boundaries. A one-cent reduction in
+qualifying portfolio, with the other facts fixed, defeats the financial
+condition. A one-cent increase in projected gross exposure defeats the selected
+execution-monitoring condition. A test suite containing only a very wealthy
+client buying a very small position would miss both defects.
+
+\subsection{Collect the whole instruction before extracting rules}
+
+The intake record contains reference number 23EC35, the public document URL,
+issuer, publication date, language, retrieval time and content digest. It
+links the main text to both annexes and records their digests separately.
+The annex PDFs are retained as immutable bytes. Extracted text is a derivative,
+with page breaks, its own digest and exact character offsets. A source anchor
+therefore identifies a particular passage in a particular preserved edition,
+even if the public web page later changes.
+
+For example, the financial condition is anchored to Annex 1 paragraph 3.1.
+The supplied source record includes the PDF digest beginning
+\texttt{f83719981d74}, the derivative digest, the page and the span digest.
+The validator checks those against the actual retained files. Changing one
+character in the extraction invalidates an old offset-based anchor until the
+passage is matched and reviewed again. A language model cannot repair an anchor
+by supplying a plausible-looking quotation.
+
+Collection also produces a dependency list. Annex 1 imports definitions from the
+Professional Investor Rules and the Code of Conduct; the opening footnote
+identifies suitability requirements in Code paragraphs 5.2 and 5.5(a). Annex 2
+and Annex 1's footnotes refer to further product guidance. The demonstration
+accepts reviewed input assessments for these imported matters. A production
+release must name the adopted source editions, affected legal entity and
+business activity. The synthetic bundle's September 2026 validity interval is
+a test setting, not a finding about the circular's legal commencement or the
+continued applicability of every imported provision.
+
+An agent should next produce a provision inventory, before proposing a formula.
+The following inventory covers the numbered guidance and FAQ families. A row
+can lead to a decision rule, an evidence calculation, a human assessment or a
+continuing task. ``Outside this profile'' means a separate implementation is
+needed; it never means the passage was irrelevant and discarded.
+
+\begingroup\small
+\begin{longtable}{P{0.14\textwidth}P{0.37\textwidth}P{0.39\textwidth}}
+\caption{Disposition of the complete circular for the worked profile. Subparagraphs
+within each stated range remain part of that row.}\label{tab:circular-inventory}\\
+\toprule Source & Substantive instruction & Treatment in the worked change \\\midrule
+\endfirsthead
+\toprule Source & Substantive instruction & Treatment in the worked change \\\midrule
+\endhead
+Main text; Annex 1 opening and footnote 1 & Introduce streamlining, retain conduct and risk controls, and import definitions and suitability requirements. & Record authority, perimeter and dependencies. The Java result covers selected conditions only; the bank retains its wider control chain.\\
+1--2 & Individual criteria at the relevant date; separate investment-holding corporation route. & Individual PI assessment is an input. A corporate client returns outside profile; ownership and qualifying-owner aggregation require a separate rule family.\\
+3.1(a)--(b) & Inclusive alternative wealth thresholds and currency equivalents. & Execute exact HK-cent comparisons joined by OR. Foreign currency requires an adopted conversion mapping before evaluation.\\
+3.2(a)--(d), 3.3, 3.4(a)(i)--(iii), (b) & Portfolio and asset/liability attribution; residence exclusion; written or equal joint shares under the stated circumstances. & Reviewed normalization produces portfolio and net assets. A missing agreement is unresolved evidence, not established absence. Preserve each ownership calculation.\\
+4.1(a)--(d), 5.1 & Reasonable sophistication assessment, alternative supporting routes and non-conservative objectives. & Execute the alternative routes and require the dated assessment and objectives. Do not substitute the representative's attributes.\\
+6, 7.1--7.3 & Restrict transactions to selected categories and threshold; define categories, provide information, and apply category qualification. & Require selected category, resolved category explanations and information. Count same-category transactions or establish another qualification route.\\
+8.1--8.2 & Client specifies a threshold appropriate to circumstances; bank retains the setting and rationale. & Accept an agreed, reviewed absolute HKD threshold and rationale. A percentage-of-AUM arrangement needs a versioned conversion to the same input.\\
+8.3(a) & Monitor gross exposure on execution. & Compare projected exposure including the candidate transaction with the agreed limit; host must reserve exposure atomically before using the decision.\\
+8.3(b) & Alternative monitoring for designated accounts and new funds. & Explicitly outside profile. Implement its own account, transferred-position and top-up events before enabling it.\\
+8.4--8.5 & Detect outsize or material transactions and warn; review threshold compliance annually and alert if exceeded. & Require transaction assessment and conditional warning. Schedule review/alert tasks; a reviewed composite reports annual controls current.\\
+9; 10.1--10.4 & Define solicited-transaction relief, with explanation exceptions and offering documents retained. & Execute the solicited profile. The result identifies applicable relief; it does not disable every suitability or disclosure control.\\
+11.1--11.5; footnotes 2--4 & Different relief for unsolicited complex-product transactions, including document alternatives and warning arrangements. & Outside profile. Preserve the distinct document/evidence branches, bond information alternatives and annual-warning requirement for a later implementation.\\
+12.1--12.3 & Reasonable satisfaction, written assessment and correspondence recording category and threshold choices. & Dated assessments and document references feed named facts; records remain independently inspectable.\\
+13.1(a)--(d), 13.2 & Prior written agreement and explanation of consequences, categories, threshold and withdrawal/amendment rights. & A checklist-backed acknowledgment input plus a replayed consent state. Every item in the checklist must be evidenced; a signature alone is insufficient.\\
+14.1--14.2 & Annual continued-qualification/agreement review and written reminders covering consequences, categories, threshold, breaches and rights. & Ongoing tasks and reviewed status. Suspending streamlining when review is overdue is a proposed additional bank restriction.\\
+Annex 2, FAQ 1 & Appropriate reliance on disclosures after reasonable KYC efforts; clarify inconsistency. & Define admissible evidence and escalation; do not invent a blanket requirement for independent third-party confirmation.\\
+FAQ 2 & Client and power-of-attorney distinctions. & Attribute qualifications to the client. Apply the FAQ to transaction-history evidence without copying the attorney's sophistication.\\
+FAQs 3--4, including notes & Category design, difficult product distinctions and category information. & Bank-owned category taxonomy, versioned mappings and information checklist; uncertain mapping requests review.\\
+FAQ 5 & Threshold should reflect the client's circumstances; bank-held AUM may be a limited part of wealth. & Recorded client circumstances and threshold rationale. No universal percentage is invented.\\
+FAQ 6 & Explain both monitoring approaches, including designated-account transfers, appreciation and new funds. & Use execution monitoring here. Keep alternative-account rules visible; do not infer forced unwinding merely from exceeding its threshold.\\
+FAQ 7 & Gross exposure includes leverage. & Feed leverage-inclusive projected exposure to the execution comparison.\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+This inventory is the first useful review deliverable. It exposes omissions
+before a test generator starts exploring the rules that happened to be encoded.
+The main text, annexes and incorporated definitions are the review boundary;
+the numeric threshold is only one part of it.
+
+\subsection{Record the interpretation and who supplies each fact}
+
+The agent's draft should separate source statements from proposed bank choices.
+For paragraph 3.1 it records an inclusive alternative and links both comparisons
+to the paragraph. For paragraph 13 it records an arrangement-specific written
+acknowledgment and the withdrawal right. For paragraph 14 it records the annual
+duties. It then proposes, separately, that the bank suspend use of the streamlined
+route when its annual-review status is not current. A compliance reviewer can
+accept, amend or reject that last proposal without losing the source duty.
+
+Two unresolved issues are deliberately visible. First, the bank must settle
+ownership, currency and valuation mappings for wealth and exposure. Second,
+the calendar conventions for transaction windows and annual deadlines must be
+adopted. A complete source-based interpretation may still rely on human
+assessment: ``reasonably satisfied'' and ``material transaction'' do not acquire
+objective numerical definitions simply because the system needs an input.
+
+In the production workflow, the preparer submits a specific bundle digest and
+supporting examples. An authorized reviewer other than the preparer accepts that
+exact version, with the perimeter and unresolved issues visible. Editing a rule
+changes the digest and makes the previous acceptance insufficient for release.
+The delivered example carries \texttt{DEMONSTRATION\_ONLY} throughout: its
+synthetic assessments and proposed bank choices have no invented reviewer
+approval. Draft evaluation is useful before approval; production eligibility
+requires the release controls described later.
+
+\begingroup\small
+\begin{longtable}{P{0.30\textwidth}P{0.60\textwidth}}
+\caption{Input contracts for the demonstrated Java profile. A known value always
+has evidence, a validity interval and a recording time.}\label{tab:demo-inputs}\\
+\toprule Input or group & Meaning and intended owner \\\midrule
+\endfirsthead
+\toprule Input or group & Meaning and intended owner \\\midrule
+\endhead
+Profile flags & \texttt{profile\_individual}, \texttt{profile\_solicited}, \texttt{profile\_execution\_monitoring}: the host's classified client, activity and monitoring mode. False selects an unsupported profile; unknown requests review.\\
+\texttt{individual\_pi} & Compliance assessment under the adopted Professional Investor Rules and Code definitions, for this legal client and date. It is distinct from merely being an individual.\\
+\texttt{portfolio}; \texttt{net\_assets\_ex\_home} & Valuation/operations supplies exact HK cents after reviewed ownership, liabilities, residence and currency treatment. Preserve the calculation inputs and source evidence.\\
+Qualification fields & \texttt{relevant\_degree}, \texttt{professional\_qualification}, \texttt{relevant\_year\_of\_work}; alternatively \texttt{category\_transactions\_3y}. Client-level evidence is mapped to the selected category and relevant period.\\
+Assessment fields & \texttt{reasonable\_sophistication\_assessment}, \texttt{non\_conservative\_objectives}, \texttt{written\_assessment\_retained}. Compliance/relationship management supplies the assessment and records; missing review is unknown.\\
+Category fields & \texttt{category\_selected}, \texttt{category\_information\_delivered}, \texttt{category\_explanation\_resolved}. Client choice and delivery evidence must match the transaction's versioned category.\\
+Acknowledgment and consent & \texttt{prior\_written\_acknowledgment\_complete} covers every required item in 13.1--13.2; \texttt{active\_consent} comes from the client/category consent history. Document completeness and present consent are different facts.\\
+Threshold and exposure & \texttt{streamlining\_threshold}, \texttt{projected\_gross\_exposure} are HK cents; \texttt{threshold\_rationale\_retained} is an assessment/record check. Order management supplies a consistent exposure snapshot including leverage.\\
+\texttt{annual\_review\_current} & Reviewed composite covering continued qualification/agreement, threshold review, required reminders and breach alerts. The demo consumes this status; it does not calculate annual deadlines or send reminders.\\
+Product information & \texttt{current\_offering\_documents\_delivered}, \texttt{explanation\_requested\_or\_material\_query}, \texttt{explanation\_delivered}. Delivery/interaction records determine whether the remaining request has been answered.\\
+Transaction warnings & \texttt{transaction\_materiality\_assessed}, \texttt{outsize\_or\_material\_transaction}, \texttt{material\_warning\_delivered}. The assessment is required; a warning is required if the assessment says so.\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+Composite inputs are integration boundaries, not permission to hide missing
+work. For example, the acknowledgment evidence record must link the prior
+written agreement, qualification explanation, chosen categories and threshold,
+consequences and withdrawal/amendment explanations. A rejected or incomplete
+checklist makes the composite false or unknown under the bank's adopted evidence
+policy. The reviewer can open the constituent items. The generated decision
+library does not authenticate documents or decide whether an explanation was
+adequate.
+
+\subsection{Construct and evaluate the executable specification}
+
+The worked bundle has ten named Boolean rules. The financial rule performs the
+two monetary comparisons. The category-qualification rule joins the four
+supporting routes. The assessment rule combines individual PI status, finance,
+category qualification, reasonable satisfaction, objectives and written records.
+A separate review-policy rule records the proposed bank restriction under its
+own bank-policy interpretation. The arrangement rule checks category choice and information, acknowledgment,
+active consent, threshold rationale and the proposed annual-review restriction.
+The threshold rule compares limit with projected gross exposure. The explanation
+and warning rules express conditional retained actions. The retained-information
+rule combines these with delivery of current offering documents. The root rule
+requires assessment, arrangement, threshold and retained information within the
+selected profile.
+
+Every reference points to a named, unconditional subrule; the root alone selects
+the profile. The graph is acyclic, so evaluation terminates after a finite number
+of expressions. Money and counts are exact integers. Unknown evidence is
+propagated by the specified three-valued operations; contradictory supplied
+records return a conflict before evaluation. The compiler type-checks the tree
+and rejects unsupported operators instead of silently choosing a different
+meaning.
+
+For Ms Lee, the trace reads as follows. The portfolio comparison is true at
+HK\$40 million; the net-asset comparison is false at HK\$75 million; finance
+is therefore true. Five category transactions establish the qualification route.
+The other reviewed assessment and arrangement conditions are true. HK\$10
+million is at most the agreed HK\$10 million, so threshold monitoring succeeds.
+The explanation request is false, the transaction is assessed as not requiring
+the material-transaction warning, and offering documents are delivered. The root
+returns \texttt{STREAMLINING\_CONDITIONS\_MET}. The result includes the rule
+trace, source-anchor identifiers, rule-bundle and fact-snapshot digests, both
+evaluation timestamps and a digest of the result itself.
+
+This successful conclusion remains narrow. It identifies the selected
+streamlining conditions under the supplied assessments and proposed review
+restriction. The host must still apply other relevant product, credit, market,
+financial-crime, conduct and order-execution controls. Its own release process
+decides which approved control version is usable. A demonstration result is
+never automatically promoted by setting a Boolean input named ``approved''.
+
+\begingroup\small
+\begin{longtable}{P{0.38\textwidth}P{0.19\textwidth}P{0.33\textwidth}}
+\caption{Distinguishing cases derived from the running interpretation. Other
+inputs remain as in the successful synthetic case unless stated.}\label{tab:dry-cases}\\
+\toprule Changed fact & Result & Why it changes the operational response \\\midrule
+\endfirsthead
+\toprule Changed fact & Result & Why it changes the operational response \\\midrule
+\endhead
+Portfolio HK\$39,999,999.99; net assets HK\$75m & Standard process & Both financial alternatives are refuted.\\
+Portfolio HK\$35m; net assets HK\$90m & Conditions met & The alternative net-asset route suffices.\\
+Portfolio missing; net assets HK\$90m & Conditions met & Missing portfolio is reported, but does not block the established alternative.\\
+Portfolio missing; net assets HK\$70m & Review required & Portfolio evidence can change the answer. It is a blocking input.\\
+Conservative objectives & Standard process & Wealth does not overcome paragraph 5.1.\\
+Four category transactions; no other qualifying route & Standard process & The countable route is not established.\\
+Chosen category does not match & Standard process & General SPI attributes do not extend the selected categories.\\
+Gross exposure HK\$10,000,000.01 & Standard process & The execution-monitoring condition is exceeded.\\
+Written acknowledgment incomplete, or consent withdrawn & Standard process & Prior documentation and current consent are both required.\\
+Client requests explanation; no answer recorded & Standard process & Paragraph 10.3 retains the requested explanation.\\
+Material transaction; no warning delivered & Standard process & The applicable paragraph 8.4 warning remains outstanding.\\
+Two inconsistent portfolio records & Review required & An evidence conflict is not resolved by choosing the more convenient amount.\\
+Designated-account monitoring selected & Outside profile & Its different paragraph 8.3(b)/FAQ 6 logic has not been executed by this library.\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+The associated actions are equally concrete. A missing portfolio requests the
+valuation and ownership evidence. An unanswered explanation routes a task to the
+adviser and retains the interaction record. An exceeded execution threshold
+routes the order to the standard process or a separately reviewed change in
+arrangement. An evidence conflict routes to its data owner. These are proposals
+for the host workflow, not a generated instruction to place or cancel a trade.
+
+\subsection{Generate, build and call the Java release candidate}
+
+The demonstrator stores the typed tree in \path{spec/spi-control.bundle.json}
+under \path{examples/java-dry-run/}. A deterministic
+compiler walks each node and emits a call to its corresponding Java operation.
+An integer literal becomes a \texttt{BigInteger}; a fact reference becomes a
+typed fact lookup; \texttt{any} becomes the explicitly three-valued alternative;
+a rule reference becomes a memoized Java method. Source identifiers and the
+bundle digest are compiled into the class. There is no language-model call,
+network retrieval or rule-file parsing during a transaction decision.
+
+The generated class and a small support library are compiled into
+\texttt{spi-controls-demo.jar}. A separate host example is
+then compiled against that JAR. This tests the actual deployment boundary:
+the caller sees the public library API and receives a structured decision.
+Section~\ref{sec:java} specifies the API and how a bank adapter must prepare
+its inputs. The same build compares complete Java decision results with the
+independent Python reference, rather than merely checking that compilation
+succeeded.
+
+Three deliberate generated-code mutations make the test useful. Changing the
+portfolio comparison to strict rejects the inclusive boundary. Replacing the
+wealth alternative with a conjunction rejects the alternative route. Bypassing
+the consent condition permits the withdrawal case. The build compiles and runs
+each mutated rule class against the same client harness and requires at least
+one independently specified status to fail for each mutation. Matching hashes
+alone are not considered detection of a semantic defect.
+
+\subsection{Withdraw consent, replay the decision, then change the rule}
+
+At 10:05 Hong Kong time, suppose Ms Lee withdraws. The event is recorded at
+10:06. A replay has two timestamps: the time being assessed and the cutoff for
+what the system knew. The 10:00 decision remains reproducible with its original
+facts and knowledge cutoff. A decision at 10:10 using a complete history known
+at 10:10 sees the withdrawal and returns the standard-process result.
+The Java host demonstration performs this sequence by replaying the consent
+events, replacing the consent fact with the evidenced inactive value, and
+evaluating the same generated control again.
+
+If the event feed is incomplete, absence of a withdrawal record cannot establish
+consent. The replay interface therefore requires a completeness assertion for
+the relevant history window and the time that assertion became known. A record cannot certify completeness
+through a future instant; the replay rejects that premise as unresolved. In the
+late-arrival case, a history complete only through 10:04 does not support a
+10:10 conclusion, even if the last visible event is a grant. Identical event
+identifiers and payloads are idempotent duplicates; differing payloads under
+the same identifier conflict. Events at the same occurrence time require an
+authoritative sequence. The demo covers these behaviors explicitly; a production
+adapter must establish the completeness and sequencing assertions, not invent
+them.
+
+Now consider a later amendment. As an engineering test only, suppose an approved
+rule version changes a threshold or retained information condition. This is not
+a claim that the SFC has issued that change. The collector creates a new source
+revision; the workbench marks affected definitions, rules, examples and Java
+classes. The reviewer sees the semantic difference and the clients whose
+synthetic outcomes change. The compiler creates a new bundle digest, generated
+source and JAR. Release approval applies to those exact versions. The old
+bundle, JAR and evidence remain available for replay; the bank changes the
+active release atomically at the agreed effective instant.
+
+Rollback is a software-release action, not reversal of the legal calendar.
+An operationally defective JAR may be replaced with another implementation of
+the same approved legal version. Restoring an older legal rule after its
+applicability has ended would require a separate, valid legal basis. Historical
+replay selects the version that applied to the historical question, rather
+than whichever JAR happens to be active today.
+
+The dry run thus reaches an actual executable Java boundary while exposing
+the work that remains: bank adjudication of interpretation, imported definitions,
+data and calendar mappings, the reviewer application, and production integration.
+The product plan below turns those remaining activities into testable modules.

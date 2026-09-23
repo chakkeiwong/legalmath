@@ -1,0 +1,63 @@
+// ARTIKEL 7.5.eflint
+//   by Lut99
+//
+// Created:
+//   21 Jun 2024, 09:39:46
+// Last edited:
+//   20 Aug 2024, 10:44:39
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.5 van het Afsprakenstelsel.
+//
+//   Dit artikel wordt geïnterpreteert dat alle er geen kosten mogen worden
+//   gevraagd voor een aanbod, zowel als commercieel als doorgerekende kosten.
+//   
+//   Zie `artikel7.5.md` voor meer informatie.
+//
+
+#require "../begrippen/beheerder.eflint".
+#require "../begrippen/overeenkomst.eflint".
+
+
+///// REGELS /////
+/// Specificeert dat een aanbieder geen kosten mag vragen voor Commons.
+/// 
+/// Afsprakenstelsel:
+/// > Levering van producten, diensten en data(gebruik) als Commons moet altijd vrij van kosten
+/// > zijn jegens de leverende Deelnemer.
+Duty commons-vrij-van-kosten
+    Holder aanbieder
+    Claimant beheerder
+    Related to overeenkomst
+    // Deze plicht bestaat voor alle aanbieders die Commons aanbieden
+    Derived from (Foreach overeenkomst, beheerder :
+        commons-vrij-van-kosten(overeenkomst.aanbod.aanbieder, beheerder, overeenkomst)
+        When aanbod-als-commons(overeenkomst.aanbod)
+    )
+    // Deze plicht wordt geschonden als er kosten worden doorgerekend
+    Violated when (Exists overeenkomst-kosten :
+        overeenkomst-kosten.overeenkomst == overeenkomst
+        && overeenkomst-kosten.waarde > 0
+    ).
+
+/// Specificeert dat een aanbieder geen _gebruiks_ kosten mag vragen voor Commons.
+/// 
+/// Afsprakenstelsel:
+/// > Levering van producten, diensten en data(gebruik) als Commons moet altijd vrij van kosten
+/// > zijn jegens de leverende Deelnemer.
+Duty commons-vrij-van-gebruiks-kosten
+    Holder aanbieder
+    Claimant beheerder
+    Related to overeenkomst
+    // Deze plicht bestaat voor alle aanbieders die Commons aanbieden
+    Derived from (Foreach overeenkomst, beheerder :
+        commons-vrij-van-kosten(overeenkomst.aanbod.aanbieder, beheerder, overeenkomst)
+        When aanbod-als-commons(overeenkomst.aanbod)
+    )
+    // Deze plicht wordt geschonden als er gebruiks kosten worden doorgerekend
+    Violated when (Exists overeenkomst-gebruiks-kosten :
+        overeenkomst-gebruiks-kosten.overeenkomst == overeenkomst
+        && overeenkomst-gebruiks-kosten.waarde > 0
+    ).

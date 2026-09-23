@@ -1,0 +1,58 @@
+// AFNEMEN.eflint
+//   by Lut99
+//
+// Created:
+//   28 Jun 2024, 11:10:48
+// Last edited:
+//   22 Aug 2024, 13:50:58
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Scenario dat een paar voorbeelden toont voor
+//   `afnemen` uit artikel 7.9.
+//
+
+#require "../../artikel7/artikel7.9.eflint".
+
+
+///// SCENARIO /////
+// Er is een huidig jaar
++huidig-jaar(2023).
+
+// Er is een beheerder
++beheerder(Ecoraad).
+
+// Er zijn twee partijen
++deelnemer(Amy).
++deelnemer(Bob).
+
+// Amy biedt dingen aan als Commons
++dienst-waarde(Appel, 10).
++aanbod(0, Amy, Appel, 2023).
++aanbod-via(aanbod(0, Amy, Appel, 2023), "Algemene Voorzieningen").
++aanbod-als-commons(aanbod(0, Amy, Appel, 2023)).
++dienst-waarde(Banaan, 5).
++aanbod(1, Amy, Banaan, 2023).
++aanbod-via(aanbod(1, Amy, Banaan, 2023), "Algemene Voorzieningen").
++aanbod-als-commons(aanbod(1, Amy, Banaan, 2023)).
+
++overeenkomst(aanbod(0, Amy, Appel, 2023), Bob).
++overeenkomst-av-kosten(overeenkomst(aanbod(1, Amy, Banaan, 2023), Bob), 550).
++overeenkomst(aanbod(1, Amy, Banaan, 2023), Bob).
++overeenkomst-av-kosten(overeenkomst(aanbod(0, Amy, Appel, 2023), Bob), 500).
+
+
+
+// Bob neemt wat af, en dan kijken we hoeveel schulden hij heeft
+//#assert not waarde-av-gebruikt(deelnemer(Amy), *, jaar(2023)).
+//#assert not waarde-av-gebruikt(deelnemer(Bob), *, jaar(2023)).
+afnemen(Bob, Amy, overeenkomst(aanbod(0, Amy, Appel, 2023), Bob)).
+//#assert waarde-av-gebruikt(deelnemer(Bob), waarde(500), jaar(2023)).
+afnemen(Bob, Amy, overeenkomst(aanbod(0, Amy, Appel, 2023), Bob)).
+//#assert waarde-av-gebruikt(deelnemer(Bob), waarde(1000), jaar(2023)).
+afnemen(Bob, Amy, overeenkomst(aanbod(1, Amy, Banaan, 2023), Bob)).
+//#assert waarde-av-gebruikt(deelnemer(Bob), waarde(1550), jaar(2023)).
+afnemen(Bob, Amy, overeenkomst(aanbod(0, Amy, Appel, 2023), Bob)).
+//#assert not waarde-av-gebruikt(deelnemer(Amy), *, jaar(2023)).
+//#assert waarde-av-gebruikt(deelnemer(Bob), waarde(2050), jaar(2023)).

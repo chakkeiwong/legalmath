@@ -1,0 +1,1370 @@
+                                             The Geometry of Generalized Binary Search
+                                                                                               Robert D. Nowak
+
+
+                                                                                                     Abstract
+
+                                                   This paper investigates the problem of determining a binary-valued function through a sequence of strategically
+                                               selected queries. The focus is an algorithm called Generalized Binary Search (GBS). GBS is a well-known greedy
+                                               algorithm for determining a binary-valued function through a sequence of strategically selected queries. At each step,
+                                               a query is selected that most evenly splits the hypotheses under consideration into two disjoint subsets, a natural
+arXiv:0910.4397v5 [stat.ML] 25 Jun 2013
+
+
+
+
+                                               generalization of the idea underlying classic binary search. This paper develops novel incoherence and geometric
+                                               conditions under which GBS achieves the information-theoretically optimal query complexity; i.e., given a collection
+                                               of N hypotheses, GBS terminates with the correct function after no more than a constant times log N queries.
+                                               Furthermore, a noise-tolerant version of GBS is developed that also achieves the optimal query complexity. These
+                                               results are applied to learning halfspaces, a problem arising routinely in image processing and machine learning.
+
+
+
+                                                                                               I. I NTRODUCTION
+
+                                            This paper studies learning problems of the following form. Consider a finite, but potentially very large, collection
+                                          of binary-valued functions H defined on a domain X . In this paper, H will be called the hypothesis space and X
+                                          will be called the query space. Each h ∈ H is a mapping from X to {−1, 1}. Throughout the paper we will let N
+                                          denote the cardinality of H. Assume that the functions in H are unique and that one function, h∗ ∈ H, produces
+                                          the correct binary labeling. It is assumed that h∗ is fixed but unknown, and the goal is to determine h∗ through as
+                                          few queries from X as possible. For each query x ∈ X , the value h∗ (x), possibly corrupted with independently
+                                          distributed binary noise, is observed. The goal is to strategically select queries in a sequential fashion in order to
+                                          identify h∗ as quickly as possible.
+                                            If the responses to queries are noiseless, then the problem is related to the construction of a binary decision tree.
+                                          A sequence of queries defines a path from the root of the tree (corresponding to H) to a leaf (corresponding to a
+                                          single element of H). There are several ways in which one might define the notion of an optimal tree; e.g., the tree
+                                          with the minimum average or worst case depth. In general the determination of the optimal tree (in either sense
+                                          above) is a combinatorial problem and was shown by Hyafil and Rivest to be NP-complete [19]. Therefore, this
+                                          paper investigates the performance of a greedy procedure called generalized binary search (GBS), depicted below
+                                          in Fig. 1. At each step GBS selects a query that results in the most even split of the hypotheses under consideration
+                                          into two subsets responding +1 and −1, respectively, to the query. The correct response to the query eliminates
+                                          one of these two subsets from further consideration. We denote the number of hypotheses remaining at step n by
+                                          |Hn |. The main results of the paper characterize the worst-case number of queries required by GBS in order to
+                                          identify the correct hypothesis h∗ . More formally, we define the notion of query complexity as follows.
+                                                                                                                      1
+
+
+
+ Generalized Binary Search (GBS)
+ initialize: n = 0, H0 = H.
+ while |Hn | > 1
+                                     P
+ 1) Select xn = arg minx∈X |            h∈Hn h(x)|.
+
+ 2) Query with xn to obtain response yn = h∗ (xn ).
+ 3) Set Hn+1 = {h ∈ Hn : h(xn ) = yn }, n = n + 1.
+
+Fig. 1.   Generalized Binary Search, also known as the Splitting Algorithm.
+
+
+
+
+   Definition 1: The minimum number of queries required by GBS (or another algorithm) to identify any hypothesis
+in H is called the query complexity of the algorithm. The query complexity is said to be near-optimal if it is within
+a constant factor of log N , since at least log N queries are required to specify one of N hypotheses.
+
+
+   Conditions are established under which GBS (and a noise-tolerant variant) have a near-optimal query complexity.
+The main contributions of this paper are two-fold. First, incoherence and geometric relations between the pair
+(X , H) are studied to bound the number of queries required by GBS. This leads to an easily verifiable sufficient
+condition that guarantees that GBS terminates with the correct hypothesis after no more than a constant times
+log N queries. Second, noise-tolerant versions of GBS are proposed. The following noise model is considered.
+The binary response y ∈ {−1, 1} to a query x ∈ X is an independent realization of the random variable Y
+satisfying P(Y = h∗ (x)) > P(Y = −h∗ (x)), where P denotes the underlying probability measure. In other words,
+the response to x is only probably correct. If a query x is repeated more than once, then each response is an
+independent realization of Y . A new algorithm based on a weighted (soft-decision) GBS procedure is shown to
+confidently identify h∗ after a constant times log N queries even in the presence of noise (under the sufficient
+condition mentioned above). An agnostic algorithm that performs well even if h∗ is not in the hypothesis space H
+is also proposed.
+
+
+A. Notation
+
+   The following notation will be used throughout the paper. The hypothesis space H is a finite collection of binary-
+valued functions defined on a domain X , which is called the query space. Each h ∈ H is a mapping from X to
+{−1, 1}. For any subset H0 ⊂ H, |H0 | denotes the number of hypotheses in H0 . The number of hypotheses in H
+is denoted by N := |H|.
+
+
+                              II. A G EOMETRICAL V IEW OF G ENERALIZED B INARY S EARCH
+
+   The efficiency of classic binary search is due to the fact at each step there exists a query that splits the pool of
+viable hypotheses in half. The existence of such queries is a result of the special ordered structure of the problem.
+Because of ordering, optimal query locations are easily identified by bisection. In the general setting in which the
+                                                                                                                                                2
+
+
+
+query and hypothesis space are arbitrary it is impossible to order the hypotheses in a similar fashion and “bisecting”
+queries may not exist. For example, consider hypotheses associated with halfspaces of X = Rd . Each hypothesis
+takes the value +1 on its halfspace and −1 on the complement. A bisecting query may not exist in this case. To
+address such situations we next introduce a more general framework that does not require an ordered structure.
+
+
+A. Partition of X
+
+  While it may not be possible to naturally order the hypotheses within X , there does exist a similar local geometry
+that can be exploited in the search process. Observe that the query space X can be partitioned into equivalence
+subsets such that every h ∈ H is constant for all queries in each such subset. Let A(X , H) denote the smallest
+such partition1 . Note that X = A∈A A. For every A ∈ A and h ∈ H, the value of h(x) is constant (either +1
+                               S
+
+or −1) for all x ∈ A; denote this value by h(A). Observe that the query selection step in GBS is equivalent to an
+optimization over the partition cells in A. That is, it suffices to select a partition cell for the query according to
+                    P
+An = arg minA∈A | h∈Hn h(A)|.
+  The main results of this paper concern the query complexity of GBS, but before moving on let us comment on
+the computational complexity of the algorithm. The query selection step is the main computational burden in GBS.
+Constructing A may itself be computationally intensive. However, given A the computational complexity of GBS
+is N |A|, up to a constant factor, where |A| denotes the number of partition cells in A. The size and construction
+of A is manageable in many practical situations. For example, if X is finite, then |A| ≤ |X |, where |X | is the
+cardinality of X . Later, in Section V-B, we show that if H is defined by N halfspaces of X := Rd , then |A| grows
+like N d .
+
+
+B. Distance in X
+
+  The partition A provides a geometrical link between X and H. The hypotheses induce a distance function on A,
+and hence X . For every pair A, A0 ∈ A the Hamming distance between the response vectors {h1 (A), . . . , hN (A)}
+and {h1 (A0 ), . . . , hN (A0 )} provides a natural distance metric in X .
+  Definition 2: Two sets A, A0 ∈ A are said to be k-neighbors if k or fewer hypotheses (along with their
+complements, if they belong to H) output different values on A and A0 .
+For example, suppose that H is symmetric, so that h ∈ H implies −h ∈ H. Then two sets A and A0 are k-
+neighbors if the Hamming distance between their respective response vectors is less than or equal to 2k. If H is
+non-symmetric (h ∈ H implies that −h is not in H), then A and A0 are k-neighbors if the Hamming distance
+between their respective response vectors is less than or equal to k.
+
+  1 Each h splits X   into two disjoint sets. Let Ch := {x ∈ X : h(x) = +1} and let C̄n denote its complement. A is the collection of all
+                                      T                   eh ∈ {Ch , C̄h }, and it is the smallest partition that refines the sets {Ch }h∈H . A is
+non-empty intersections of the form     h∈H    C
+                                               eh , where C
+known as the join of the sets {Ch }h∈H .
+                                                                                                                       3
+
+
+
+    Definition 3: The pair (X , H) is said to be k-neighborly if the k-neighborhood graph of A is connected (i.e.,
+for every pair of sets in A there exists a sequence of k-neighbor sets that begins at one of the pair and ends with
+the other).
+    If (X , H) is k-neighborly, then the distance between A and A0 is bounded by k times the minimum path length
+between A and A0 . Moreover, the neighborly condition implies that there is an incremental way to move from one
+query to the another, moving a distance of at most k at each step. This local geometry guarantees that near-bisecting
+queries almost always exist, as shown in the following lemma.
+    Lemma 1: Assume that (X , H) is k-neighborly and define the coherence parameter
+                                                                     X
+                                    c∗ (X , H)   :=     min max             h(A) P (A) ,                             (1)
+                                                         P    h∈H
+                                                                     A∈A
+
+where the minimization is over all probability mass functions on A. For every H0 ⊂ H and any constant c satisfying
+c∗ ≤ c < 1 there exists an A ∈ A that approximately bisects H0
+                                                 X
+                                                        h(A) ≤ c |H0 | ,
+                                                 h∈H0
+              0
+or the set H is a small
+                                                                   k
+                                                        |H0 | <      ,
+                                                                   c
+where |H0 | denotes the cardinality of H0 .
+    Proof: According to the definition of c∗ it follows that there exists a probability distribution P such that
+                                              X X
+                                                        h(A)P (A) ≤ c |H0 | .
+                                           h∈H0 A∈A
+
+This implies that there exists an A ∈ A such that
+                                                 X
+                                                        h(A) ≤ c |H0 | ,
+                                                 h∈H0
+                                0
+or there exists a pair A and A such that
+                               X                                   X
+                                   h(A) > c |H0 |            and          h(A0 ) < −c |H0 | .
+                                 h∈H0                              h∈H0
+
+In the former case, it follows that a query from A will reduce the size of H0 by a factor of at least (1 + c)/2 (i.e.,
+every query x ∈ A approximately bisects the subset H0 ). In latter case, an approximately bisecting query does not
+exist, but the k-neighborly condition implies that |H0 | must be small. To see this note that the k-neighborly condition
+guarantees that there exists a sequence of k-neighbor sets beginning at A and ending at A0 . By assumption in this
+                           0
+       P                                                  P
+case,    h∈H0 h(·) > c|H | on every set and the sign of      h∈H0 h(·) must change at some point in the sequence.
+
+It follows that there exist k-neighbor sets A and A0 such that                          0                   0
+                                                                  P                             P
+                                                                     h∈H0 h(A) > c|H | and         h∈H0 h(A ) <
+
+−c|H0 |. Two inequalities follow from this observation. First,                               0         0
+                                                                P               P
+                                                                   h∈H0 h(A) −    h∈H0 h(A ) > 2c|H |. Second,
+
+| h∈H0 h(A) − h∈H0 h(A0 )| ≤ 2k. Note that if h and its complement h0 belong to H0 , then their contributions
+ P                P
+
+to the quantity | h∈H0 h(A) − h∈H0 h(A0 )| cancel each other. Combining these inequalities yields |H0 | < k/c.
+                 P                P
+
+
+                                                                                                                                             4
+
+
+
+
+   Example 1: To illustrate Lemma 1, consider the special situation in which we are given two points x1 , x2 ∈ X
+known to satisfy h∗ (x1 ) = +1 and h∗ (x2 ) = −1. This allows us to restrict our attention to only those hypotheses
+that agree with h∗ at these points. Let H denote this collection of hypotheses. A depiction of this situation is shown
+in Fig. 2, where the solid curves represent the classification boundaries of the hypotheses, and each cell in the
+partition shown corresponds to a subset of X (i.e., an element of A). As long as each subset is non-empty, then
+the 1-neighborhood graph is connected in this example. The minimization in (1) is achieved by the distribution
+P = 12 δx1 + 12 δx2 (equal point-masses on x1 and x2 ) and c∗ (X , H) = 0. Lemma 1 implies that there exists a
+query (equivalently a partition cell A) where half of the hypotheses take the value +1 and the other half −1. The
+shaded cell in Fig. 2 has this bisection property. The figure also shows a dashed path between x1 and x2 that
+passes through the bisecting cell.
+
+
+
+
+Fig. 2. An illustration of the idea of GBS. Each solid curve denotes the decision boundary of a hypothesis. There are six boundaries/hypotheses
+in this example. The correct hypothesis in this case is known to satisfy h∗ (x1 ) = +1 and h∗ (x2 ) = −1. Without loss of generality we may
+assume that all hypotheses agree with h∗ at these two points. The dashed path between the points x1 and x2 reveals a bisecting query location.
+As the path crosses a decision boundary the corresponding hypothesis changes its output from +1 to −1 (or vice-versa, depending on the
+direction followed). At a certain point, indicated by the shaded cell, half of the hypotheses output +1 and half output −1. Selecting a query
+from this cell will bisect the collection of hypotheses.
+
+
+
+
+C. Coherence and Query Complexity
+
+   The coherence parameter c∗ quantifies the informativeness of queries. The coherence parameter is optimized over
+the choice of P , rather than sampled at random according to a specific distribution on X , because the queries may
+be selected as needed from X . The minimizer in (1) exists because the minimization can be computed over the
+space of finite-dimensional probability mass functions over the elements of A. For c∗ to be close to 0, there must
+exist a distribution P on A so that the moment of every h ∈ H is close to zero (i.e., for each h ∈ H the probabilities
+of the responses +1 and −1 are both close to 1/2). This implies that there is a way to randomly sample queries
+so that the expected response of every hypothesis is close to zero. In this sense, the queries are incoherent with
+                                                                                                                     5
+
+
+
+the hypotheses. In Lemma 1, c∗ bounds the proportion of the split of any subset H0 generated by the best query
+(i.e., the degree to which the best query bisects any subset H0 ). The coherence parameter c∗ leads to a bound on
+the number of queries required by GBS.
+  Theorem 1: If (X , H) is k-neighborly, then GBS terminates with the correct hypothesis after at most
+                                                   ∗
+dlog N/ log(λ−1 )e queries, where λ = max{ 1+c  k+1
+                                            2 , k+2 }.
+
+  Proof: Consider the nth step of the GBS algorithm. Lemma 1 shows that for any c ∈ [c∗ , 1) either there exists
+an approximately bisecting query and |Hn | ≤ 1+c
+                                              2 |Hn−1 | or |Hn−1 | < k/c. The uniqueness of the hypotheses
+
+with respect to X implies that there exists a query that eliminates at least one hypothesis. Therefore, |Hn | ≤
+|Hn−1 | − 1 = |Hn−1 |(1 − |Hn−1 |−1 ) < |Hn−1 |(1 − c/k). It follows that each GBS query reduces the number of
+viable hypotheses by a factor of at least
+                                                                                1 + c∗ k + 1
+                                                                                            
+                                                1+c
+                          λ := min∗ max             , 1 − c/k       = max             ,            .
+                                 c≥c             2                                2     k+2
+Therefore, |Hn | ≤ N λn and GBS is guaranteed to terminate when n satisfies N λn ≤ 1. Taking the logarithm of
+this inequality produces the query complexity bound.                                                                
+  Theorem 1 demonstrates that if (X , H) is neighborly, then the query complexity of GBS is near-optimal; i.e.,
+within a constant factor of log2 N . The constant depends on coherence parameter c∗ and k, and clearly it is desirable
+that both are as small as possible. Note that GBS does not require knowledge of c∗ or k. We also remark that the
+constant in the bound is not necessarily the best that one can obtain. The proof involves selecting c to balance
+splitting factor 1+c
+                  2 and the “tail” behavior 1 − c/k, and this may not give the best bound. The coherence parameter
+
+c∗ can be computed or bounded for many pairs (X , H) that are commonly encountered in applications, as covered
+later in Section V.
+
+
+                                   III. N OISY G ENERALIZED B INARY S EARCH
+
+  In noisy problems, the search must cope with erroneous responses. Specifically, assume that for any query x ∈ X
+the binary response y ∈ {−1, 1} is an independent realization of the random variable Y satisfying P(Y = h∗ (x)) >
+P(Y = −h∗ (x)) (i.e., the response is only probably correct). If a query x is repeated more than once, then each
+response is an independent realization of Y . Define the noise-level for the query x as αx := P(Y = −h∗ (x)).
+Throughout the paper we will let α := supx∈X αx and assume that α < 1/2. Before presenting the main approach
+to noisy GBS, we first consider a simple strategy based on repetitive querying that will serve as a benchmark for
+comparison.
+
+
+A. Repetitive Querying
+
+  We begin by describing a simple noise-tolerant version of GBS. The noise-tolerant algorithm is based on the
+simple idea of repeating each query of the GBS several times, in order to overcome the uncertainty introduced
+by the noise. Similar approaches are proposed in the work Kääriäinen [36]. Karp and Kleinberg [30] analyze
+of this strategy for noise-tolerant classic binary search. This is essentially like using a simple repetition code to
+                                                                                                                     6
+
+
+
+communicate over a noisy channel. This procedure is termed noise-tolerant GBS (NGBS) and is summarized in
+Fig. 3.
+
+ Noise-Tolerant GBS (NGBS)
+ input: H, repetition rate R ≥ 1 (integer).
+ initialize: n = 0, H0 = H.
+ while |Hn | > 1
+                                      P
+ 1) Select An = arg minA∈A |              h∈Hn h(A)|.
+
+ 2) Query R times from An to obtain R noisy versions
+ of yn = h∗ (An ). Let ybn denote the majority vote of
+ the noisy responses.
+ 3) Set Hn+1 = {h ∈ Hn : h(An ) = ybn }, n = n + 1.
+
+Fig. 3.   Noise-tolerant GBS based on repeated queries.
+
+
+
+   Theorem 2: Let n0 denote the number of queries made by GBS to determine h∗ in the noiseless setting. Then in
+                                                                 1    2
+the noisy setting, with probability at least max{0 , 1 − n0 e−R| 2 −α| } the noise-tolerant GBS algorithm in Fig. 3
+terminates in exactly R n0 queries and outputs h∗ .
+      Proof: Consider a specific query x ∈ X repeated R times, let pb denote the frequency of +1 in the R trials,
+                                                            p − p| ≤ 21 − α. By Chernoff’s bound we have
+              p]. The majority vote decision is correct if |b
+and let p = E[b
+                                     1    2
+   p − p| ≥ 12 − α) ≤ 2e−2R| 2 −α| . The results follows by the union bound.
+P(|b
+   Based on the bound above, R must satisfy R ≥ log(n o /δ)
+                                                |1/2−α|2 to guarantee that the labels determined for all n0 queries
+
+are correct with probability 1 − δ. The query complexity of NGBS can thus be bounded by n0|1/2−α|
+                                                                                            log(n0 /δ)
+                                                                                                   2 . Recall
+
+
+that N = |H|, the cardinality of H. If n0 = log N , then bound on the query complexity of NGBS is proportional
+to log N log logδ N , a logarithmic factor worse than the query complexity in the noiseless setting. Moreover, if an
+upper bound on n0 is not known in advance, then one must assume the worst-case value, n0 = N , in order to set R.
+That is, in order to guarantee that the correct hypothesis is determined with probability at least 1 − δ, the required
+                                             log(N/δ)
+number of repetitions of each query is R = d |1/2−α|2 e. In this situation, the bound on the query complexity of
+
+
+NGBS is proportional to log N log Nδ , compared to log N in the noiseless setting. It is conjectured that the extra
+logarithmic factor cannot be removed from the query complexity (i.e., it is unavoidable using repetitive queries).
+As we show next, these problems can be eliminated by a more sophisticated approach to noisy GBS.
+
+
+B. Soft-Decision Procedure
+
+   A more effective approach to noisy GBS is based on the following soft-decision procedure. A similar procedure
+has been shown to be near-optimal for the noisy (classic) binary search problem by Burnashev and Zigangirov
+[3] and later independently by Karp and Kleinberg [30]. The crucial distinction here is that GBS calls for a
+more general approach to query selection and a fundamentally different convergence analysis. Let p0 be a known
+                                                                                                                          7
+
+
+                                                                       P
+probability measure over H. That is, p0 : H → [0, 1] and                 h∈H p0 (h) = 1. The measure p0 can be viewed as an
+
+initial weighting over the hypothesis class. For example, taking p0 to be the uniform distribution over H expresses
+the fact that all hypothesis are equally reasonable prior to making queries. We will assume that p0 is uniform for
+the remainder of the paper, but the extension to other initial distributions is trivial. Note, however, that we still
+assume that h∗ ∈ H is fixed but unknown. After each query and response (xn , yn ), n = 0, 1, . . . , the distribution
+is updated according to
+
+                                      pn+1 (h) ∝ pn (h) β (1−zn (h))/2 (1 − β)(1+zn (h))/2 ,                            (2)
+
+where zn (h) = h(xn )yn , h ∈ H, β is any constant satisfying 0 < β < 1/2, and pn+1 (h) is normalized to
+       P
+satisfy h∈H pn+1 (h) = 1 . The update can be viewed as an application of Bayes rule and its effect is simple;
+the probability masses of hypotheses that agree with the label yn are boosted relative to those that disagree. The
+parameter β controls the size of the boost. The hypothesis with the largest weight is selected at each step:
+
+                                                            hn := arg max pn (h).
+                                                            b
+                                                                      h∈H
+
+If the maximizer is not unique, one of the maximizers is selected at random. Note that, unlike the hard-decisions
+made by the GBS algorithm in Fig. 1, this procedure does not eliminate hypotheses that disagree with the observed
+labels, rather the weight assigned to each hypothesis is an indication of how successful its predictions have been.
+Thus, the procedure is termed Soft-Decision GBS (SGBS) and is summarized in Fig. 4.
+                                            hn 6= h∗ ) to zero as quickly as possible by strategically selecting
+   The goal of SGBS is to drive the error P(b
+the queries. The query selection at each step of SGBS must be informative with respect to the distribution pn .
+                                          P
+In particular, if the weighted prediction  h∈H pn (h)h(x) is close to zero for a certain x (or A), then a label
+
+at that point is informative due to the large disagreement among the hypotheses. If multiple A ∈ A minimize
+ P
+| h∈H pn (h)h(A)|, then one of the minimizers is selected uniformly at random.
+
+ Soft-Decision Generalized Binary Search (SGBS)
+ initialize: p0 uniform over H.
+ for n = 0, 1, 2, . . .
+                              P
+ 1) An = arg minA∈A |            h∈H pn (h)h(A)|.
+
+ 2) Obtain noisy response yn .
+ 3) Bayes update pn → pn+1 ; Eqn. (2).
+ hypothesis selected at each step:
+ hn := arg maxh∈H pn (h)
+ b
+
+
+
+Fig. 4.   Soft-Decision algorithm for noise-tolerant GBS.
+
+
+   To analyze SGBS, define Cn := (1 − pn (h∗ ))/pn (h∗ ), n ≥ 0. The variable Cn was also used by Burnashev and
+Zigangirov [3] to analyze classic binary search. It reflects the amount of mass that pn places on incorrect hypotheses.
+                                                                                                                      8
+
+
+
+Let P denotes the underlying probability measure governing noises and possible randomization in query selection,
+and let E denote expectation with respect to P. Note that by Markov’s inequality
+
+                           hn 6= h∗ ) ≤ P(pn (h∗ ) < 1/2) = P(Cn > 1) ≤ E[Cn ] .
+                         P(b                                                                                        (3)
+
+At this point, the method of analyzing SGBS departs from that of Burnashev and Zigangirov [3] which focused only
+on the classic binary search problem. The lack of an ordered structure calls for a different attack on the problem,
+which is summarized in the following results and detailed in the Appendix.
+  Lemma 2: Consider any sequence of queries {xn }n≥0 and the corresponding responses {yn }n≥0 . If β ≥ α,
+then {Cn }n≥0 is a nonnegative supermartingale with respect to {pn }n≥0 ; i.e., E[Cn+1 |pn ] ≤ Cn for all n ≥ 0.
+  The lemma is proved in the Appendix. The condition β ≥ α ensures that the update (2) is not overly aggressive.
+It follows that E[Cn ] ≤ C0 and by the Martingale Convergence Theorem we have that limn→∞ Cn exists and is
+finite (for more information on Martingale theory one can refer to the textbook by Brémaud [37]). Furthermore,
+we have the following theorem.
+  Theorem 3: Consider any sequence of queries {xn }n≥0 and the corresponding responses {yn }n≥0 . If β > α,
+              hn 6= h∗ ) ≤ C0 .
+then limn→∞ P(b
+    Proof: First observe that for every positive integer n
+
+                E[Cn ]   = E[(Cn /Cn−1 ) Cn−1 ] = E [E[(Cn /Cn−1 ) Cn−1 |pn−1 ]]
+
+                         = E [Cn−1 E[(Cn /Cn−1 )|pn−1 ]] ≤ E[Cn−1 ] max E[(Cn /Cn−1 )|pn−1 ]
+                                                                    pn−1
+                                                            n
+                         ≤ C0    max max E[(Ci+1 /Ci )|pi ]     .
+                                  i=0,...,n−1   pi
+
+In the proof of Lemma 2, it is shown that if β > α, then E[(Ci+1 /Ci )|pi ] ≤ 1 for every pi and therefore
+                                                                                                                n
+maxpi E[(Ci+1 /Ci )|pi ] ≤ 1. It follows that the sequence an := (maxi=0,...,n−1 maxpi E[(Ci+1 /Ci )|pi ])           is
+monotonically decreasing. The result follows from (3).
+  Note that if we can determine an upper bound for the sequence maxpi E[(Ci+1 /Ci )|pi ] ≤ 1 − λ < 1, i =
+                                              hn 6= h∗ ) ≤ N (1 − λ)n ≤ N e−λn . Unfortunately, the SGBS algorithm
+0, . . . , n − 1, then it follows that that P(b
+in Fig. 4 does not readily admit such a bound. To obtain a bound, the query selection criterion is randomized.
+A similar randomization technique has been successfully used by Burnashev and Zigangirov [3] and Karp and
+Kleinberg [30] to analyze the noisy (classic) binary search problem, but again the lack of an ordering in the general
+setting requires a different analysis of GBS.
+  The modified SGBS algorithm is outlined in Fig. 5. It is easily verified that Lemma 2 and Theorem 3 also hold
+for the modified SGBS algorithm. This follows since the modified query selection step is identical to that of the
+original SGBS algorithm, unless there exist two neighboring sets with strongly bipolar weighted responses. In the
+latter case, a query is randomly selected from one of these two sets with equal probability.
+ For every A ∈ A and any probability measure p on H the weighted prediction on A is defined to be W (p, A) :=
+P
+ h∈H p(h)h(A), where h(A) is the constant value of h for every x ∈ A. The following lemma, which is the
+
+soft-decision analog of Lemma 1, plays a crucial role in the analysis of the modified SGBS algorithm.
+                                                                                                                       9
+
+
+
+ Modified SGBS
+ initialize: p0 uniform over H.
+ for n = 0, 1, 2, . . .
+
+                                                        If there exist 1-neighbor sets A and A0 with
+                                P
+ 1) Let b       =    minA∈A |        h∈H pn (h)h(A)|.
+                                                          0
+                                                         < −b , then select xn from A or A0 with
+    P                                    P
+          h∈H pn (h)h(A)    > b and          h∈H pn (h)h(A )
+                                                                                P
+      probability 1/2 each. Otherwise select xn from the set Amin = arg minA∈A | h∈H pn (h)h(A)|. In
+      the case that the sets above are non-unique, choose at random any one satisfying the requirements.
+
+ 2) Obtain noisy response yn .
+ 3) Bayes update pn → pn+1 ; Eqn. (2).
+ hypothesis selected at each step:
+ hn := arg maxh∈H pn (h)
+ b
+
+Fig. 5.   Modified SGBS Algorithm.
+
+
+
+
+   Lemma 3: If (X , H) is k-neighborly, then for every probability measure p on H there either exists a set A ∈ A
+such that |W (p, A)| ≤ c∗ or a pair of k-neighbor sets A, A0 ∈ A such that W (p, A) > c∗ and W (p, A0 ) < −c∗ .
+      Proof: Suppose that minA∈A |W (p, A)| > c∗ . Then there must exist A, A0 ∈ A such that W (p, A) > c∗
+and W (p, A0 ) < −c∗ , otherwise c∗ cannot be the incoherence parameter of H, defined in (1). To see this
+suppose, for instance, that W (p, A) > c∗ for all A ∈ A. Then for every distribution P on X we have
+                                  ∗                                  ∗
+P      P                                                                    P     P
+  A∈A    h∈H p(h)h(A)P (A) > c . This contradicts the definition of c since   A∈A   h∈H p(h)h(A)P (A) ≤
+P           P                             P
+  h∈H p(h)|    A∈A h(A) P (A)| ≤ maxh∈H |   A∈A h(A) P (A)|. The neighborly condition guarantees that there
+
+exists a sequence of k-neighbor sets beginning at A and ending at A0 . Since |W (p, A)| > c∗ on every set and the
+sign of W (p, ·) must change at some point in the sequence, it follows that there exist k-neighbor sets satisfying
+the claim.
+   The lemma guarantees that there exists either a set in A on which the weighted hypotheses significantly disagree
+(provided c∗ is significantly below 1) or two neighboring sets in A on which the weighted predictions are strongly
+bipolar. In either case, if a query is drawn randomly from these sets, then the weighted predictions are highly variable
+or uncertain, with respect to p. This makes the resulting label informative in either case. If (X , H) is 1-neighborly,
+                                                   hn 6= h∗ ) → 0 exponentially fast. The 1-neighborly condition
+then the modified SGBS algorithm guarantees that P(b
+is required so that the expected boost to pn (h∗ ) is significant at each step. If this condition does not hold, then
+the boost could be arbitrarily small due to the effects of other hypotheses. Fortunately, as shown in Section V, the
+1-neighborly condition holds in a wide range of common situations.
+   Theorem 4: Let P denote the underlying probability measure (governing noises and algorithm randomization). If
+β > α and (X , H) is 1-neighborly, then the modified SGBS algorithm in Fig. 5 generates a sequence of hypotheses
+                                                                                                                                                   10
+
+
+
+satisfying
+                              hn 6= h∗ ) ≤ N (1 − λ)n ≤ N e−λn , n = 0, 1, . . .
+                            P(b
+                                   n    ∗
+                                              o                    
+                                                    β(1−α)   α(1−β)
+with exponential constant λ = min 1−c 2   , 1
+                                            4   1 −  1−β   −    β     , where c∗ is defined in (1).
+  The theorem is proved in the Appendix. The exponential convergence rate2 is governed by the coherence parameter
+0 ≤ c∗ < 1. As shown in Section V , the value of c∗ is typically a small constant much less than 1 that is independent
+of the size of H. In such situations, the query complexity of modified SGBS is near-optimal. The query complexity
+of the modified SGBS algorithm can be derived as follows. Let δ > 0 be a pre-specified confidence parameter. The
+                                            hn 6= h∗ ) ≤ δ is n ≥ λ−1 log Nδ , which is near-optimal. Intuitively,
+number of queries required to ensure that P(b
+about log N bits are required to encode each hypothesis. More formally, the noisy classic binary search problem
+satisfies the assumptions of Theorem 4 (as shown in Section V-A), and hence it is a special case of the general
+problem. Using information-theoretic methods, it has been shown by Burnashev and Zigangirov [3] (also see the
+work of Karp and Kleinberg [30]) that the query complexity for noisy classic binary search is also within a constant
+factor of log Nδ . In contrast, the query complexity bound for NGBS, based on repeating queries, is at least logarithmic
+factor worse. We conclude this section with an example applying Theorem 4 to the halfspace learning problem.
+  Example 2: Consider learning multidimensional halfspaces. Let X = Rd and consider hypotheses of the form
+
+                                                      hi (x) := sign(hai , xi + bi ) .                                                            (4)
+
+where ai ∈ Rd and bi ∈ R parameterize the hypothesis hi and hai , xi is the inner product in Rd . The following
+corollary characterizes the query complexity for this problem.
+  Corollary 1: Let H be a finite collection of hypotheses of form (4) and assume that the responses to each query
+are noisy, with noise bound α < 1/2. Then the hypotheses selected by modified SGBS with β > α satisfy
+
+                                                              hn 6= h∗ ) ≤ N e−λn ,
+                                                            P(b
+                               
+with λ = 41 1 − β(1−α)
+                 1−β   − α(1−β)
+                            β                 hn can be computed in time polynomial in |H|.
+                                  . Moreover, b
+  The error bound follows immediately from Theorem 4 since c∗ = 0 and (Rd , H) is 1-neighborly, as shown in
+Section V-B. The polynomial-time computational complexity follows from the work of Buck [42], as discussed in
+Section V-B. Suppose that H is an -dense set with respect to a uniform probability measure on a ball in Rd (i.e.,
+for any hyperplane of the form (4) H contains a hypothesis whose probability of error is within  of it). The size
+of such an H satisfies log N ≤ C d log −1 , for a constant C > 0, which is the proportional to the minimum
+query complexity possible in this setting, as shown by Balcan et al [17]. Those authors also present an algorithm
+with roughly the same query complexity for this problem. However, their algorithm is specifically designed for
+the linear threshold problem. Remarkably, near-optimal query complexity is achieved in polynomial-time by the
+general-purpose modified SGBS algorithm.
+
+                                                     
+  2 Note that the factor            β(1−α)   α(1−β)
+                               1−    1−β
+                                           −    β
+                                                          in the exponential rate parameter λ is a positive constant strictly less than 1. For a noise
+level α this factor is maximized by a value β ∈ (α, 1/2) which tends to (1/2 + α)/2 as α tends to 1/2.
+                                                                                                                      11
+
+
+
+                                                IV. AGNOSTIC GBS
+
+  So far we have assumed that the correct hypothesis h∗ is in H. In this section we drop this assumption and
+consider agnostic algorithms guaranteed to find the best hypothesis in H even if the correct hypothesis h∗ is not in
+H and/or the assumptions of Theorem 1 or 4 do not hold. The best hypothesis in H can be defined as the one that
+minimizes the error with respect to a probability measure on X , denoted by PX , which can be arbitrary. This notion
+of “best” commonly arises in machine problems where it is customary to measure the error or risk with respect
+to a distribution on X . A common approach to hypothesis selection is empirical risk minimization (ERM), which
+uses queries randomly drawn according to PX and then selects the hypothesis in H that minimizes the number of
+errors made on these queries. Given a budget of n queries, consider the following agnostic procedure. Divide the
+query budget into three equal portions. Use GBS (or NGBS or modified SGBS) with one portion, ERM (queries
+randomly distributed according PX ) with another, and then allocate the third portion to queries from the subset
+of X where the hypothesis selected by GBS (or NGBS or modified SGBS) and the hypothesis selected by ERM
+disagree, with these queries randomly distributed according to the restriction of PX to this subset. Finally, select the
+hypothesis that makes the fewest mistakes on the third portion as the final choice. The sample complexity of this
+agnostic procedure is within a constant factor of that of the better of the two competing algorithms. For example,
+if the conditions of Theorems 1 or 4 hold, then the sample complexity of the agnostic algorithm is proportional
+to log N . In general, the sample complexity of the agnostic procedure is within a constant factor of that of ERM
+alone. We formalize this as follows.
+  Lemma 4: Let PX denote a probability measure on X and for every h ∈ H let R(h) denote its probability of
+error with respect to PX . Consider two hypotheses h1 , h2 ∈ H and let ∆ ⊂ X denote the subset of queries for which
+h1 and h2 disagree; i.e., h1 (x) 6= h2 (x) for all x ∈ ∆. Suppose that m queries are drawn independently from P∆ ,
+the restriction of PX to the set ∆, let R
+                                        b∆ (h1 ) and R
+                                                     b∆ (h2 ) denote average number of errors made by h1 and h2
+
+on these queries, let R∆ (h1 ) = E[R
+                                   b∆ (h1 )] and R∆ (h2 ) = E[R
+                                                              b∆ (h2 )], and select b
+                                                                                    h = arg min{R
+                                                                                                b∆ (h1 ), R
+                                                                                                          b∆ (h2 )}.
+                                                                                     2
+       h) > min{R(h1 ), R(h2 )} with probability less than e−m|R∆ (h1 )−R∆ (h2 )| /2 .
+Then R(b
+     Proof: Define δ := R∆ (h1 ) − R∆ (h2 ) and let δb = R
+                                                         b∆ (h1 ) − R
+                                                                    b∆ (h2 ). By Hoeffding’s inequality we have
+                                                         2
+                                                                                      b 6= sign(δ)) ≤ 2e−m|δ|2 /2 . For
+δb ∈ [δ − , δ + ] with probability at least 1 − 2e−m|| /2 . It follows that P(sign(δ)
+                                                  2                                                2
+example, if δ > 0 then since P(δb < δ − ) ≤ 2e−m /2 we may take δ =  to obtain P(δb < 0) ≤ 2e−mδ /2 . The
+result follows since h1 and h2 agree on the complement of ∆.
+Note that there is a distinct advantage to drawing queries from P∆ rather than PX , since the error exponent is
+proportional to |R∆ (h1 ) − R∆ (h2 )|2 which is greater than or equal to |R(h1 ) − R(h2 )|2 . Now to illustrate the
+idea, consider an agnostic procedure based on modified SGBS and ERM. The following theorem is proved in the
+Appendix.
+  Theorem 5: Let PX denote a measure on X and suppose we have a query budget of n. Let h1 denote the
+hypothesis selected by modified SGBS using n/3 of the queries and let h2 denote the hypothesis selected by ERM
+from n/3 queries drawn independently from PX . Draw the remaining n/3 queries independently from P∆ , the
+                                                                                                                  12
+
+
+
+restriction of PX to the set ∆ on which h1 and h2 disagree, and let R
+                                                                    b∆ (h1 ) and R
+                                                                                 b∆ (h2 ) denote the average
+
+number of errors made by h1 and h2 on these queries. Select b
+                                                            h = arg min{R
+                                                                        b∆ (h1 ), R
+                                                                                  b∆ (h2 )}. Then, in general,
+                                                                            p
+                                   h)]
+                               E[R(b        ≤ min{E[R(h1 )], E[R(h2 )]} +       3/n ,
+
+where R(h), h ∈ H, denotes the probability of error of h with respect to PX . Furthermore, if the assumptions of
+Theorem 4 hold and h∗ ∈ H, then
+                                                                       2
+                                      h 6= h∗ ) ≤ N e−λn/3 + 2e−n|1−2α| /6 ,
+                                    P(b
+
+where α is the noise bound.
+  Note that if the assumptions of Theorem 4 hold, then the agnostic procedure performs almost as well as modified
+                                                                           h 6= h∗ ) ≤ δ is proportional to log Nδ ;
+SGBS alone. In particular, the number of queries required to ensure that P(b
+optimal up to constant factors. Also observe that the probability bound implies the following bound in expectation:
+                                                                       2
+                                   h)] ≤ R(h∗ ) + N e−λn/3 + 2e−n|1−2α| /6
+                               E[R(b
+
+                                           ≤ R(h∗ ) + N e−Cn ,
+
+where C > 0 is a constant depending on λ and α. The exponential convergence of the expected risk is much faster
+than the usual parametric rate for ERM.
+  If the conditions of Theorem 4 are not met, then modified SGBS (alone) may perform poorly since it might
+select inappropriate queries and could even terminate with an incorrect hypothesis. However, the expected error of
+                                   p
+                       h is within 3/n of the expected error of ERM, with no assumptions on the underlying
+the agnostic selection b
+distributions. Note that the expected error of ERM is proportional to n−1/2 in the worst-case situation. Therefore,
+the agnostic procedure is near-optimal in general. The agnostic procedure offers this safeguard on performance.
+The same approach could be used to derive agnostic procedures from any active learning scheme (i.e., learning
+from adaptively selected queries), including GBS or NGBS. We also note that the important element in the agnostic
+                                                                 h based on those queries is convenient for proving
+procedure is the selection of queries; the proposed selection of b
+the bounds, but not necessarily optimal.
+
+
+                                               V. A PPLICATIONS OF GBS
+
+  In this section we examine a variety of common situations in which the neighborliness condition can be verified.
+We will confine the discussion to GBS in the noise-free situation, and analogous results hold in the presence of
+noise. For a given pair (X , H), the effectiveness of GBS hinges on determining (or bounding) c∗ and establishing
+that (X , H) are neighborly. Recall the definition of the bound c∗ from (1) and that N = |H|, the cardinality of H.
+A trivial bound for c∗ is
+                                               X
+                                         max         h(A) P (A) ≤ 1 − N −1 ,
+                                         h∈H
+                                               A∈A
+                                    −1                                                    1
+which is achieved by allocating N        mass to each hypothesis and evenly distributing 2N mass to set(s) A where
+               1
+h(A) = +1 and 2N on set(s) A where h(A) = −1. Non-trivial coherence bounds are those for which there exists
+                                                                                                                        13
+
+
+
+a P and 0 ≤ c < 1 that does not depend on N such that
+                                                   X
+                                             max         h(A) P (A) ≤ c .
+                                             h∈H
+                                                   A∈A
+
+The coherence parameter c∗ is analytically determined or bounded in several illustrative applications below. We
+also note that it may be known a priori that c∗ is bounded far way from 1. Suppose that for a certain P on X
+(or A) the absolute value of the first-moment of the correct hypothesis (w.r.t. P ) is known to be upper bounded
+by a constant c < 1. Then all hypotheses that violate the bound can be eliminated from consideration. Thus the
+constant c is an upper bound on c∗ . Situations like this can arise, for example, in binary classification problems with
+side/prior knowledge that the marginal probabilities of the two classes are somewhat balanced. Then the moment
+of the correct hypothesis, with respect to the marginal probability distribution on X , is bounded far away from 1
+and −1.
+  The neighborly condition can be numerically verified in a straightforward fashion. Enumerate the equivalence
+sets in A as A1 , . . . , AM . To check whether the k-neighborhood graph is connected, form an M × M matrix Rk
+whose i, j entry is 1 if Ai and Aj are k-neighbors and 0 otherwise. Normalize the rows of Rk so that each sums
+to 1 and denote the resulting stochastic matrix by Qk . The k-neighborhood graph is connected if and only if there
+exists an integer `, 0 < ` ≤ M , such that Q`k contains no zero entries. This follows from the standard condition for
+state accessibility in Markov chains (for background on Markov chains one can refer to the textbook by Brémaud
+[37]). The smallest k for which the k-neighborhood graph is connected can be determined using a binary search
+over the set 1, . . . , M , checking the condition above for each value of k in the search. This idea was suggested
+to me by Clayton Scott. Thus, the neighborly condition can be verified in polynomial-time in M . Alternatively, in
+many cases the neighborly condition can be verified analytically, as demonstrated in following applications.
+
+
+A. One Dimensional Problems
+
+  First we show that GBS reduces to classic binary search. Let H = {h1 , . . . , hN } be the collection of binary-valued
+                                                                         
+                                                                     i
+functions on X = [0, 1] of the following form, hi (x) := sign x − N +1         for i = 1, . . . , N (and sign(0) := +1).
+Assume that h∗ ∈ H.
+  First consider the neighborly condition. Recall that A is the smallest partition of X into equivalence sets induced
+by H. In this case, each A is an interval of the form Ai = [ Ni−1     i
+                                                               +1 , N +1 ), i = 1, . . . , N . Observe that only a single
+
+hypothesis, hi , has different responses to queries from Ai and Ai+1 and so they are 1-neighbors, for i = 1, . . . , N −1.
+Moreover, the 1-neighborhood graph is connected in this case, and so (X , H) is 1-neighborly.
+  Next consider coherence parameter c∗ . Take P to be two point masses at x = 0 and x = 1 of probability 1/2
+                               = 0 for every h ∈ H, since h(0) = −1 and h(1) = +1. Thus, c∗ = 0. Since
+           P
+each. Then    A∈A h(A) P (A)
+
+c∗ = 0 and k = 1, we have α = 2/3 and the query complexity of GBS is proportional to log N according to
+Theorem 1. The reduction factor of 2/3, instead of 1/2, arises because we allow the situation in which the number
+of hypotheses may be odd (e.g., given three hypotheses), the best query may eliminate just one). If N is even, then
+the query complexity is log2 (N ), which is information-theoretically optimal.
+                                                                                                                    14
+
+
+
+  Now let X = [0, 1] and consider a finite collection of hypotheses H = {hi (x)}N
+                                                                                i=1 , where hi takes the value
+
++1 when x ∈ [ai , bi ), for a pair 0 ≤ ai < bi ≤ 1, and −1 otherwise. Assume that h∗ ∈ H. The partition A again
+consists of intervals, and the neighborly condition is satisfied with k = 1. To bound c∗ , note that the minimizing
+P must place some mass within and outside each interval [ai , bi ). If the intervals all have length at least ` > 0,
+then taking P to be the uniform measure on [0, 1] yields that c∗ ≤ 1 − 2`, regardless of the number of interval
+hypotheses under consideration. Therefore, in this setting Theorem 1 guarantees that GBS determines the correct
+hypothesis using at most a constant times log N steps.
+  However, consider the special case in which the intervals are disjoint. Then it is not hard to see that the best
+allocation of mass is to place 1/N mass in each subinterval, resulting in c∗ = 1 − 2N −1 . And so, Theorem 1 only
+guarantees that GBS is will terminate in at most N steps (the number of steps required by exhaustive linear search).
+In fact, it is easy to see that no procedure can do better than linear search in this case and the query complexity of
+any method is proportional to N . However, note that if queries of a different form were allowed, then much better
+performance is possible. For example, if queries in the form of dyadic subinterval tests were allowed (e.g., tests
+that indicate whether or not the correct hypothesis is +1-valued anywhere within a dyadic subinterval of choice),
+then the correct hypothesis can be identified through dlog2 N e queries (essentially a binary encoding of the correct
+hypothesis). This underscores the importance of the geometrical relationship between X and H embodied in the
+neighborly condition and the incoherence parameter c∗ . Optimizing the query space to the structure of H is related
+to the notion of arbitrary queries examined in the work of Kulkarni et al [25], and somewhat to the theory of
+compressed sensing developed by Candes et al [39] and Donoho [40].
+
+
+B. Multidimensional Problems
+
+  Let H = {hi }N
+               i=1 be a collection of multidimensional threshold functions of the following form. The threshold
+
+of each hi determined by (possibly nonlinear) decision surface in d-dimensional Euclidean space and the queries
+are points in X := Rd . It suffices to consider linear decision surfaces of the form
+
+                                          hi (x) := sign(hai , xi + bi ),                                          (5)
+
+where ai ∈ Rd , kai k2 = 1, the offset bi ∈ R satisfies |bi | ≤ b for some constant b < ∞, and hai , xi denotes the
+inner product in Rd . Each hypothesis is associated with a halfspace of Rd . Note that hypotheses of this form can
+be used to represent nonlinear decision surfaces, by first applying a mapping to an input space and then forming
+linear decision surfaces in the induced query space. The problem of learning multidimensional threshold functions
+arises commonly in computer vision (see the review of Swain and Stricker [12] and applications by Geman and
+Jedynak [13] and Arkin et al [14]), image processing studied by Korostelev and Kim [10], [11], and active learning
+research; for example the investigations by Freund et al [15], Dasgupta [16], Balcan et al [17], and Castro and
+Nowak [31].
+  First we show that the pair (Rd , H) is 1-neighborly. Each A ∈ A is a polytope in Rd . These polytopes are
+generated by intersections of the halfspaces corresponding to the hypotheses. Any two polytopes that share a
+                                                                                                                    15
+
+
+
+common face are 1-neighbors (the hypothesis whose decision boundary defines the face, and its complement if
+it exists, are the only ones that predict different values on these two sets). Since the polytopes tessellate Rd , the
+1-neighborhood graph of A is connected.
+  We next show that the the coherence parameter c∗ = 0. Since the offsets of the hypotheses are all less than
+b in magnitude, it follows that the distance from the origin to the nearest point of the decision surface of every
+hypothesis is at most b. Let Pr denote the uniform probability distribution on a ball of radius r centered at the
+origin in Rd . Then for every h of the form (5) there exists a constant C > 0 (depending on b) such that
+                                                       Z
+                                X                                               C
+                                     h(A) Pr (A) =          h(x) dPr (x) ≤        ,
+                                                         Rd                    rd
+                                A∈A
+
+and limr→∞ Rd h(x) dPr (x) = 0. Therefore c∗ = 0, and it follows from Theorem 1 guarantees that GBS
+               R
+
+                                                                 log 2
+determines the correct multidimensional threshold in at most d log(3/2) log2 N e steps. To the best of our knowledge
+this is a new result in the theory of learning multidimensional threshold functions, although similar query complexity
+bounds have been established for the subclass of linear threshold functions with b = 0 (threshold boundaries passing
+through the origin); see for example the work of Balcan et al [17]. These results are based on somewhat different
+learning algorithms, assumptions and analysis techniques.
+  Observe that if H is an -dense (with respect Lesbegue measure over a compact set in Rd ) subset of the continuous
+class of threshold functions of the form (5), then the size of the H satisfies log |H| = log N ∝ d log −1 . Therefore
+the query complexity of GBS is proportional to the metric entropy of the continuous class, and it follows from
+the results of Kulkarni et al [25] that no learning algorithm exists with a lower query complexity (up to constant
+factors). Furthermore, note that the computational complexity of GBS for hypotheses of the form (5) is proportional
+to the cardinality of A, which is equal to the number of polytopes generated by intersections of half-spaces. It is a
+                                              Pd
+well known fact (see Buck [42]) that |A| = j=0 Nj ∝ N d . Therefore, GBS is a polynomial-time algorithm for
+                                                      
+
+this problem. In general, the cardinality of A could be as large as 2N .
+  Next let H again be the hypotheses of the form (5), but let X := [−1, 1]d , instead of all of Rd . This constraint
+on the query space affects the bound on the coherence c∗ . To bound c∗ , let P be point masses of probability 2−d
+at each of the 2d vertices of the cube [−1, 1]d (the natural generalization of the P chosen in the case of classic
+                                                                           h(x) dP (x) ≤ 1 − 2−d+1 for every
+                                              P                        R
+binary search in Section V-A above). Then        A∈A h(A) P (A) =        X
+
+h ∈ H, since for each h there is at least one vertex on where it predicts +1 and one where it predicts −1. Thus,
+c∗ ≤ 1 − 2−d+1 . We conclude that the GBS determines the correct hypothesis in proportional to 2d log N steps.
+The dependence on 2d is unavoidable, since it may be that each threshold function takes that value +1 only at one
+of the 2d vertices and so each vertex must be queried. A noteworthy special case is arises when b = 0 (i.e., the
+threshold boundaries pass through the origin). In this case, with P as specified above, c∗ = 0, since each hypothesis
+responds with +1 at half of the vertices and −1 on the other half. Therefore, the query complexity of GBS is at
+         log 2
+most d log(3/2) log2 N e, independent of the dimension. As discussed above, similar results for this special case have
+been previously reported based on different algorithms and analyses; see the results in the work of Balcan et al [17]
+and the references therein. Note that even if the threshold boundaries do not pass through the origin, and therefore
+                                                                                                                           16
+
+
+
+the number of queries needed is proportional to log N so long as |b| < 1. The dependence on dimension d can
+also be eliminated if it is known that for a certain distribution P on X the absolute value of the moment of the
+correct hypothesis w.r.t. P is known to be upper bounded by a constant c < 1, as discussed at the beginning of this
+section.
+  Finally, we also mention hypotheses associated with axis-aligned rectangles in [0, 1]d , the multidimensional
+version of the interval hypotheses considered above. An axis-aligned rectangle is defined by its boundary coordinates
+in each dimension, {aj , bj }dj=1 , 0 ≤ aj < bj ≤ 1. The hypothesis associated with such a rectangle takes the value
++1 on the set {x ∈ [0, 1]d : aj ≤ xj ≤ bj , j = 1, . . . , d} and −1 otherwise. The complementary hypothesis
+may also be included. Consider a finite collection H of hypotheses of this form. If the rectangles associated with
+each h ∈ H have volume at least ν, then by taking P to be the uniform measure on [0, 1]d it follows that the
+coherence parameter c∗ ≤ 1 − 2ν for this problem. The cells of partition A of [0, 1] associated with a collection of
+such hypotheses are rectangles themselves. If the boundaries of the rectangles associated with the hypotheses are
+distinct, then the 1-neighborhood graph of A is connected. Theorem 1 implies that the number of queries needed
+by GBS to determine the correct rectangle is proportional to log N/ log((1 − ν)−1 ).
+
+
+C. Discrete Query Spaces
+
+  In many situations both the hypothesis and query spaces may be discrete. A machine learning application, for
+example, may have access to a large (but finite) pool of unlabeled examples, any of which may be queried for a label.
+Because obtaining labels can be costly, “active” learning algorithms select only those examples that are predicted
+to be highly informative for labeling. Theorem 1 applies equally well to continuous or discrete query spaces. For
+example, consider the linear separator case, but instead of the query space Rd suppose that X is a finite subset of
+points in Rd . The hypotheses again induce a partition of X into subsets A(X , H), but the number of subsets in the
+partition may be less than the number in A(Rd , H). Consequently, the neighborhood graph of A(X , H) depends
+on the specific points that are included in X and may or may not be connected. As discussed at the beginning of
+this section, the neighborly condition can be verified in polynomial-time (polynomial in |A| ≤ |X |).
+  Consider two illustrative examples. Let H be a collection of linear separators as in (5) above and first reconsider
+the partition A(Rd , H). Recall that each set in A(Rd , H) is a polytope. Suppose that a discrete set X contains at
+least one point inside each of the polytopes in A(Rd , H). Then it follows from the results above that (X , H) is 1-
+neighborly. Second, consider a simple case in d = 2 dimensions. Suppose X consists of just three non-colinear points
+                                                                           −         −         −
+{x1 , x2 , x3 } and suppose that H is comprised of six classifiers, {h+         +         +                     +
+                                                                      1 , h1 , h2 , h2 , h3 , h3 }, satisfying hi (xi ) = +1,
+                                          −
+h+                                              +
+ i (xj ) = −1, j 6= i , i = 1, 2, 3, and hi = −hi , i = 1, 2, 3. In this case, A(X , H) = {{x1 }, {x2 }, {x3 }} and the
+
+responses to any pair of queries differ for four of the six hypotheses. Thus, the 4-neighborhood graph of A(X , H)
+is connected, but the 1-neighborhood is not.
+  Also note that a finite query space naturally limits the number of hypotheses that need be considered. Consider
+an uncountable collection of hypotheses. The number of unique labeling assignments generated by these hypotheses
+can be bounded in terms of the VC dimension of the class; see the book by Vapnik for more information on VC
+                                                                                                                       17
+
+
+
+theory [43]. As a result, it suffices to consider a finite subset of the hypotheses consisting of just one representative
+of each unique labeling assignment. Furthermore, the computational complexity of GBS is proportional to N |X |
+in this case.
+
+
+                                                VI. R ELATED W ORK
+
+  Generalized binary search can be viewed as a generalization of classic binary search, Shannon-Fano coding as
+noted by Goodman and Smyth [1], and channel coding with noiseless feedback as studied by Horstein [2]. Problems
+of this nature arise in many applications, including channel coding (e.g., the work of Horstein [2] and Zigangirov
+[4]), experimental design (e.g., as studied by Rényi [5], [6]), disease diagnosis (e.g., see the work of Loveland [7]),
+fault-tolerant computing (e.g., the work of Feige et al [8]), the scheduling problem considered by Kosaraju et al
+[9], computer vision problems investigated by Geman and Jedynak [13] and Arkin et al [14]), image processing
+problems studied by Korostelev and Kim [10], [11], and active learning research; for example the investigations by
+Freund et al [15], Dasgupta [16], Balcan et al [17], and Castro and Nowak [31].
+  Past work has provided a partial characterization of this problem. If the responses to queries are noiseless, then
+selecting the sequence of queries from X is equivalent to determining a binary decision tree, where a sequence of
+queries defines a path from the root of the tree (corresponding to H) to a leaf (corresponding to a single element of
+H). In general the determination of the optimal (worst- or average-case) tree is NP-complete as shown by Hyafil and
+Rivest [19]. However, there exists a greedy procedure that yields query sequences that are within a factor of log N
+of the optimal search tree depth; this result has been discovered independently by several researchers including
+Loveland [7], Garey and Graham [7], Arkin et al [20], and Dasgupta [16]. The greedy procedure is referred to here
+as Generalized Binary Search (GBS) or the splitting algorithm, and it reduces to classic binary search, as discussed
+in Section V-A.
+  The number of queries an algorithm requires to determine h∗ is called the query complexity of the algorithm.
+Since the hypotheses are assumed to be distinct, it is clear that the query complexity of GBS is at most N (because
+it is always possible to find query that eliminates at least one hypothesis at each step). In fact, there are simple
+examples (see Section V-A) demonstrating that this is the best one can hope to do in general. However, it is also
+true that in many cases the performance of GBS can be much better, requiring as few as log2 (N ) queries. In
+classic binary search, for example, half of the hypotheses are eliminated at each step (e.g., refer to the textbook by
+Cormen et al [21]). Rényi first considered a form of binary search with noise [5] and explored its connections with
+information theory [6]. In particular, the problem of sequential transmission over a binary symmetric channel with
+noiseless feedback, as formulated by Horstein [2] and studied by Burnashev and Zigangirov [3] and more recently
+by Pelc et al [22], is equivalent to a noisy binary search problem.
+  There is a large literature on learning from queries; see the review articles by Angluin [23], [24]. This paper
+focuses exclusively on membership queries (i.e., an x ∈ X is the query and the response is h∗ (x)), although
+other types of queries (equivalence, subset, superset, disjointness, and exhaustiveness) are possible as discussed by
+Angluin [23]. Arbitrary queries have also been investigated, in which the query is a subset of H and the output
+                                                                                                                      18
+
+
+
+is +1 if h∗ belongs to the subset and −1 otherwise. A finite collection of hypotheses H can be successively
+halved using arbitrary queries, and so it is possible to determine h∗ with log2 N arbitrary queries, the information-
+theoretically optimal query complexity discussed by Kulkarni et al [25]. Membership queries are the most natural
+in function learning problems, and because this paper deals only with this type we will simply refer to them as
+queries throughout the rest of the paper. The number of queries required to determine a binary-valued function in a
+finite collection of hypotheses can be bounded (above and below) in terms of a combinatorial parameter of (X , H)
+due to Hegedüs [26] (see the work of Hellerstein et al [27] for related work). Due to its combinatorial nature,
+computing such bounds are generally NP-hard. In contrast, the geometric relationship between X and H developed
+in this paper leads to an upper bound on the query complexity that can be determined analytically or computed in
+polynomial time in many cases of interest.
+  The term GBS is used in this paper to emphasize connections and similarities with classic binary search, which is
+a special case the general problem considered here. Classic binary search is equivalent to learning a one-dimensional
+binary-valued threshold function by selecting point evaluations of the function according to a bisection procedure.
+Consider the threshold function ht (x) := sign(x − t) on the interval X := [0, 1] for some threshold value t ∈ (0, 1).
+Throughout the paper we adopt the convention that sign(0) = +1. Suppose that t belongs to the discrete set
+{ N1+1 , . . . , NN+1 } and let H denote the collection of threshold functions h1 , . . . , hN . The value of t can then
+determined from a constant times log N queries using a bisection procedure analogous to the game of twenty
+questions. In fact, this is precisely what GBS performs in this case (i.e., GBS reduces to classic binary search
+in this setting). If N = 2m for some integer m, then each point evaluation provides one bit in the m-bit binary
+expansion of t. Thus, classic binary search is information-theoretically optimal; see the book by Traub, Wasilkowski
+and Wozniakowski [28] for a nice treatment of classic bisection and binary search. The main results of this paper
+generalize the salient aspects of classic binary search to a much broader class of problems. In many (if not most)
+applications it is unrealistic to assume that the responses to queries are without error. A form of binary search
+with noise appears to have been first posed by Rényi [5]. The noisy binary search problem arises in sequential
+transmission over a binary symmetric channel with noiseless feedback studied by Horstein [2] and Zigangirov [4],
+[29]. The survey paper by Pelc et al [22] discusses the connections between search and coding problems. In channel
+coding with feedback, each threshold corresponds to a unique binary codeword (the binary expansion of t). Thus,
+channel coding with noiseless feedback is equivalent to the problem of learning a one-dimensional threshold function
+in binary noise, as noted by Burnashev and Zigangirov [3]. The near-optimal solutions to the noisy binary search
+problem first appear in these two contexts. Discrete versions of Horstein’s probabilistic bisection procedure [2] were
+shown to be information-theoretically optimal (optimal decay of the error probability) in the works of Zigangirov
+and Burnashev [3], [4], [29]. More recently, the same procedure was independently proposed and analyzed in the
+context of noise-tolerant versions of the classic binary search problem by Karp and Kleinberg [30], which was
+motivated by applications ranging from investment planning to admission control in queueing networks. Closely
+related approaches are considered in the work of Feige et al [8]. The noisy binary search problem has found
+important applications in the minimax theory of sequential, adaptive sampling procedures proposed by Korostelov
+                                                                                                                    19
+
+
+
+and Kim [10], [11] for image recovery and binary classification problems studied by Castro and Nowak [31]. We
+also mention the works of Rivest et al [32], Spencer [33] and Aslam and Dhagat [35], and Dhagat et al [34], which
+consider adversarial situations in which the total number of erroneous oracle responses is fixed in advance.
+  One straightforward approach to noisy GBS is to follow the GBS algorithm, but to repeat the query at each step
+multiple times in order to decide whether the response is more probably +1 or −1. This simple approach has been
+studied in the context of noisy versions of classic binary search and shown to perform significantly worse than
+other approaches in the work of Karp and Kleinberg [30]; perhaps not surprising since this is essentially a simple
+repetition code approach to communicating over a noisy channel. A near-optimal noise-tolerant version of GBS
+was developed in this paper. The algorithm can be viewed as a non-trivial generalization of Horstein’s probabilistic
+bisection procedure. Horstein’s method relies on the special structure of classic binary search, namely that the
+hypotheses and queries can be naturally ordered together in the unit interval. Horstein’s method is a sequential
+Bayesian procedure. It begins with uniform distribution over the set of hypotheses. At each step, it queries at the
+point that bisects the probability mass of the current distribution over hypotheses, and then updates the distribution
+according to Bayes rule. Horstein’s procedure isn’t directly applicable to situations in which the hypotheses and
+queries cannot be ordered togetherl, but the geometric condition developed in this paper provides similar structure
+that is exploited here to devise a generalized probabilistic bisection procedure. The key elements of the procedure
+and the analysis of its convergence are fundamentally different from those in the classic binary search work of
+Burnashev and Zigangirov [3] and Karp and Kleinberg [30].
+
+
+                                VII. C ONCLUSIONS AND P OSSIBLE E XTENSIONS
+
+  This paper investigated a generalization of classic binary search, called GBS, that extends it to arbitrary query
+and hypothesis spaces. While the GBS algorithm is well-known, past work has only partially characterized its
+capabilities. This paper developed new conditions under which GBS (and a noise-tolerant variant) achieve the
+information-theoretically optimal query complexity. The new conditions are based on a novel geometric relation
+between the query and hypothesis spaces, which is verifiable analytically and/or computationally in many cases of
+practical interest. The main results are applied to learning multidimensional threshold functions, a problem arising
+routinely in image processing and machine learning.
+  Let us briefly consider some possible extensions and open problems. First recall that in noisy situations it
+is assumed that the binary noise probability has a known upper bound α < 1/2. It is possible to accommodate
+situations in which the bound is unknown a priori. This can be accomplished using an NGBS algorithm in which the
+number of repetitions of each query, R, is determined adaptively to adjust to the unknown noise level. This procedure
+was developed by the author in [18], and is based on a straightforward, iterated application of Chernoff’s bound.
+Similar strategies have been suggested as a general approach for devising noise-tolerant learning algorithms [36].
+Using an adaptive procedure for adjusting the number of repetitions of each query yields an NGBS algorithm with
+query complexity bound proportional to log N log logδ N , the same order as that of the NGBS algorithm discussed
+above which assumed a known bound α. Whether or not the additional logarithmic factor can be removed if the
+                                                                                                                              20
+
+
+
+noise bound α is unknown is an open question. Adversarial noise models in which total number of errors is fixed
+in advance, like those considered by Rivest et al [32] and Spencer [33], are also of interest in classic binary search
+problems. Repeating each query multiple times and taking the majority vote of the responses, as in the NGBS
+algorithm, is a standard approach to adversarial noise. Thus, NGBS provides an algorithm for generalized binary
+search with adversarial noise.
+  Finally, we suggest that the salient features of the GBS algorithms could be extended to handle continuous,
+uncountable classes of hypotheses. For example, consider the continuous class of halfspace threshold functions
+on Rd . This class is indexed parametrically and it is possible to associate a volume measure with the class (and
+subsets of it) by introducing a measure over the parameter space. At each step of a GBS-style algorithm, all
+inconsistent hypotheses are eliminated and the next query is selected to split the volume of the parameter space
+corresponding to the remaining hypotheses, mimicking the splitting criterion of the GBS algorithm presented here.
+
+
+ACKNOWLEDGEMENTS. The author thanks R. Castro, A. Gupta, C. Scott, A. Singh and the anonymous
+reviewers for helpful feedback and suggestions.
+
+
+                                                     VIII. A PPENDIX
+
+A. Proof of Lemma 2
+                                                                                            P
+  First we derive the precise form of p1 , p2 , . . . is derived as follows. Let δi = (1+       h pi (h) zi (h))/2, the weighted
+
+proportion of hypotheses that agree with yi . The factor that normalizes the updated distribution in (2) is related to δi
+as follows. Note that h pi (h) β (1−zi (h))/2 (1 − β)(1+zi (h))/2 = h:zi (h)=−1 pi (h)β + h:zi (h)=1 pi (h)(1 − β) =
+                     P                                             P                       P
+
+(1 − δi )β + δi (1 − β). Thus,
+                                                      β (1−zi (h))/2 (1 − β)(1+zi (h))/2
+                                 pi+1 (h) = pi (h)
+                                                           (1 − δi )β + δi (1 − β)
+Denote the reciprocal of the update factor for pi+1 (h∗ ) by
+                                                  (1 − δi )β + δi (1 − β)
+                                     γi :=     (1−z    ∗                    ∗       ,                                       (6)
+                                             β     i (h ))/2 (1 − β)(1+zi (h ))/2
+
+
+where zi (h∗ ) = h∗ (xi )yi , and observe that pi+1 (h∗ ) = pi (h∗ )/γi . Thus,
+                                  Ci+1   (1 − pi (h∗ )/γi )pi (h∗ )   γi − pi (h∗ )
+                                       =      ∗                ∗
+                                                                    =               .
+                                   Ci    pi (h )/γi (1 − pi (h ))     1 − pi (h∗ )
+We prove that E[Ci+1 |pi ] ≤ Ci by showing that E[γi |pi ] ≤ 1. To accomplish this, we will let pi be arbitrary.
+                                                                                                     +
+  For every A ∈ A and every h ∈ H let h(A) denote the value of h on the set A. Define δA                 =
+     P
+(1 + h pi (h)h(A))/2, the proportion of hypotheses that take the value +1 on A. Let Ai denote that set that
+                                                                                                                        21
+
+
+
+xi is selected from, and consider the four possible situations:
+                                                                             +     +
+                                                                         (1−δA )β+δA (1−β)
+                                   h∗ (xi ) = +1, yi = +1 : γi =                i
+                                                                                    1−β
+                                                                                              i
+
+
+                                                                          +       +
+                                                                         δA β+(1−δA )(1−β)
+                                   h∗ (xi ) = +1, yi = −1 : γi =            i
+                                                                                     β
+                                                                                          i
+
+
+                                                                             +     +
+                                                                         (1−δA )β+δA (1−β)
+                                   h∗ (xi ) = −1, yi = +1 : γi =                i
+                                                                                     β
+                                                                                              i
+
+
+                                                                          +       +
+                                                                         δA β+(1−δA )(1−β)
+                                   h∗ (xi ) = −1, yi = −1 : γi =            i
+                                                                                    1−β
+                                                                                          i
+
+
+
+
+To bound E[γi |pi ] it is helpful to condition on Ai . Define qi := P(yi 6= h∗ (xi )). If h∗ (Ai ) = +1, then
+                                              +            +
+                                      (1 − δA    )β + δA      (1 − β)                  δ + β + (1 − δA
+                                                                                                     +
+                                                                                                         )(1 − β)
+                 E[γi |pi , Ai ]   =           i            i
+                                                                        (1 − qi ) + Ai                 i
+                                                                                                                  qi
+                                                  1−β                                              β
+                                                                                         
+                                       +             +        β(1 − qi ) qi (1 − β)
+                                = δA       + (1 − δA      )                +                .
+                                         i              i
+                                                                 1−β               β
+                                        h                         i
+                                          β(1−qi )     qi (1−β)
+Define γi+ (Ai ) := δA
+                     +
+                      i
+                        +  (1  − δ +
+                                   Ai
+                                      )     1−β    +        β       . Similarly, if h∗ (Ai ) = −1, then
+                                                                                             
+                                                                      β(1 − qi ) qi (1 − β)
+                     E[γi |pi , Ai ] = (1 − δA      +
+                                                       )  +   δ +
+                                                                Ai               +               =: γi− (Ai )
+                                                     i
+                                                                        1−β              β
+By assumption qi ≤ α < 1/2, and since α ≤ β < 1/2 the factor β(1−qi)
+                                                               1−β +
+                                                                     qi (1−β)
+                                                                         β    ≤ β(1−α)
+                                                                                 1−β +
+                                                                                       α(1−β)
+                                                                                          β   ≤ 1 (strictly
+less than 1 if β > α). Define
+                                                        β(1 − α) α(1 − β)
+                                           ε0 := 1 −            −         ,
+                                                         1−β        β
+to obtain the bounds
+
+                                           γi+ (Ai ) ≤       +
+                                                            δAi
+                                                                        +
+                                                                + (1 − δAi
+                                                                           )(1 − ε0 ) ,                                (7)
+
+                                           γi− (Ai ) ≤       +
+                                                            δAi
+                                                                                  +
+                                                                (1 − ε0 ) + (1 − δA i
+                                                                                      ).                               (8)
+                                      +
+Observe that for every A we have 0 < δA < 1, since at least one hypothesis takes the value −1 on A and p(h) > 0
+for all h ∈ H. Therefore both γi+ (Ai ) and γi− (Ai ) are less or equal to 1, and it follows that E[γi |pi ] ≤ 1 (and
+strictly less than 1 if β > α).                                                                                        
+
+
+B. Proof of Theorem 4
+
+  The proof amounts to obtaining upper bounds for γi+ (Ai ) and γi− (Ai ), defined above in (7) and (8). Consider two
+distinct situations. Define bi := minA∈A |W (pi , A)|. First suppose that there do not exist neighboring sets A and
+A0 with W (pi , A) > bi and W (pi , A0 ) < −bi . Then by Lemma 1, this implies that bi ≤ c∗ , and according the query
+selection step of the modified SGBS algorithm, Ai = arg minA |W (pi , A)|. Note that because |W (pi , Ai )| ≤ c∗ ,
+               +
+(1 − c∗ )/2 ≤ δAi
+                  ≤ (1 + c∗ )/2. Hence, both γi+ (Ai ) and γi− (Ai ) are bounded above by 1 − ε0 (1 − c∗ )/2.
+  Now suppose that there exist neighboring sets A and A0 with W (pi , A) > bi and W (pi , A0 ) < −bi . Recall
+                                                                                         +
+that in this case Ai is randomly chosen to be A or A0 with equal probability. Note that δA > (1 + bi )/2 and
+ +                     ∗       ∗  0
+δA0 < (1 − bi )/2. If h (A) = h (A ) = +1, then applying (7) results in
+
+
+                                           1      1 − bi   1 + bi              1       1 + bi
+         E[γi |pi , Ai ∈ {A, A0 }] <         (1 +        +        (1 − ε0 )) = (2 − ε0        ) ≤ 1 − ε0 /4 ,
+                                           2        2        2                 2         2
+                                                                                                                     22
+
+
+
+since bi > 0. Similarly, if h∗ (A) = h∗ (A0 ) = −1, then (8) yields E[γi |pi , Ai ∈ {A, A0 }] < 1−ε0 /4. If h∗ (A) = −1
+on A and h∗ (A0 ) = +1, then applying (8) on A and (7) on A0 yields
+                                                1 +
+               E[γi |pi , Ai ∈ {A, A0 }] ≤                                +       +           +
+                                                                                                            
+                                                   δA (1 − ε0 ) + (1 − δA    ) + δA 0 + (1 − δA0 )(1 − ε0 )
+                                                2
+                                                1       +     +                       +     +
+                                           =      (1 − δA  + δA 0 + (1 − ε0 )(1 + δA − δA0 ))
+                                                2
+                                                1               +      +
+                                           =      (2 − ε0 (1 + δA  − δA 0 ))
+                                                2
+                                                     ε0       +     +
+                                           =    1 − (1 + δA     − δA 0 ) ≤ 1 − ε0 /2 ,
+                                                     2
+           +    +                                       ∗              ∗  0
+since 0 ≤ δA − δA 0 ≤ 1. The final possibility is that h (A) = +1 and h (A ) = −1. Apply (7) on A and (8) on
+
+
+A0 to obtain
+                                             1 +
+                  E[γi |pi , Ai ∈ {A, A0 }] ≤               +               +                     +
+                                                                                                      
+                                                 δA + (1 − δA )(1 − ε0 ) + δA 0 (1 − ε0 ) + (1 − δA0 )
+                                             2
+                                               1       +    +                      +     +
+                                           =     (1 + δA − δA 0 + (1 − ε0 )(1 − δA + δA0 ))
+                                               2
+                                                         +    +
+Next, use the fact that because A and A0 are neighbors, δA − δA         ∗          ∗
+                                                               0 = pi (h ) − pi (−h ); if −h
+                                                                                            ∗
+                                                                                              does not belong to
+H, then pi (−h∗ ) = 0. Hence,
+                                           1
+           E[γi |pi , Ai ∈ {A, A0 }] ≤             +
+                                             (1 + δA  − δA +                    +     +
+                                                            0 + (1 − 0 )(1 − δA + δA0 ))
+                                           2
+                                           1
+                                       =     (1 + pi (h∗ ) − pi (−h∗ ) + (1 − 0 )(1 − pi (h∗ ) + pi (−h∗ )))
+                                           2
+                                           1                                                   ε0
+                                       ≤     (1 + pi (h∗ ) + (1 − 0 )(1 − pi (h∗ ))) = 1 − (1 − pi (h∗ )) ,
+                                           2                                                    2
+since the bound is maximized when pi (−h∗ ) = 0. Now bound E[γi |pi ] by the maximum of the conditional bounds
+above to obtain
+                                          n   ε0                    ε0                 ε0 o
+                        E[γi |pi ] ≤   max 1 − (1 − pi (h∗ )) , 1 −    , 1 − (1 − c∗ )      ,
+                                              2                     4                  2
+and thus it is easy to see that
+                                       E [γi |pi ] − pi (h∗ )
+                             
+                     Ci+1                                               nε
+                                                                           0       ∗ ε0
+                                                                                         o
+                 E        |pi   =                             ≤ 1 − min      (1 − c ),     .               
+                      Ci                   1 − pi (h∗ )                  2             4
+
+C. Proof of Theorem 5
+                                                                        2
+                                  h)]. Let δn = 2 e−n|R∆ (h1 )−R∆ (h2 )| /6 and consider the conditional expectation
+  First consider the bound on E[R(b
+    h)|h1 , h2 ]; i.e., expectation with respect to the n/3 queries drawn from the region ∆, conditioned on the 2n/3
+E[R(b
+queries used to select h1 and h2 . By Lemma 4
+
+             h)|h1 , h2 ] ≤ (1 − δn ) min{R(h1 ), R(h2 )} + δn max{R(h1 ), R(h2 )} ,
+         E[R(b
+
+                            =   min{R(h1 ), R(h2 )} + δn [max{R(h1 ), R(h2 )} − min{R(h1 ), R(h2 )}] ,
+
+                            =   min{R(h1 ), R(h2 )} + δn |R(h1 ) − R(h2 )| ,
+                                                                                                       2
+                            =   min{R(h1 ), R(h2 )} + 2 |R(h1 ) − R(h2 )| e−n|R∆ (h1 )−R∆ (h2 )| /6 ,
+                                                                                                 2
+                            ≤ min{R(h1 ), R(h2 )} + 2|R(h1 ) − R(h2 )| e−n|R(h1 )−R(h2 )| /6 ,
+                                                                                                                                            23
+
+
+
+where the last inequality follows from the fact that |R(h1 ) − R(h2 )| ≤ |R∆ (h1 ) − R∆ (h2 )|.
+                        2
+                                                       q       p
+  The function 2u e−ζu attains its maximum at u = eζ      2
+                                                             < 1/ζ, and therefore
+                                                                                              p
+                                         h)|h1 , h2 ]
+                                     E[R(b                 ≤ min{R(h1 ), R(h2 )} +                3/n .
+
+Now taking the expectation with respect to h1 and h2 (i.e., with respect to the queries used for the selection of h1
+and h2 )
+                                                                                          p
+                                          h)]
+                                      E[R(b        ≤ E[min{R(h1 ), R(h2 )}] +   3/n ,
+                                                                                p
+                                                   ≤ min{E[R(h1 )], E[R(h2 )]} + 3/n ,
+
+by Jensen’s inequality.
+   Next consider the bound on P(h1 6= h∗ ). This also follows from an application of Lemma 4. Note that if the
+conditions of Theorem 4 hold, then P(h1 6= h∗ ) ≤ N e−λn/3 . Furthermore, if h1 = h∗ and h2 6= h∗ , then
+                                                 h 6= h∗ ) follows by applying the union bound to the events
+|R∆ (h1 ) − R∆ (h2 )| ≥ |1 − 2α|. The bound on P(b
+h1 = h∗ and R(b
+              h) > min{R(h1 ), R(h2 )}.                                                                                                     
+
+
+                                                              R EFERENCES
+
+ [1] R. M. Goodman and P. Smyth, “Decision tree design from a communication theory standpoint,” IEEE Trans. Info. Theory, vol. 34, no. 5,
+     pp. 979–994, 1988.
+ [2] M. Horstein, “Sequential decoding using noiseless feedback,” IEEE Trans. Info. Theory, vol. 9, no. 3, pp. 136–143, 1963.
+ [3] M. V. Burnashev and K. S. Zigangirov, “An interval estimation problem for controlled observations,” Problems in Information Transmission,
+     vol. 10, pp. 223–231, 1974.
+ [4] K. S. Zigangirov, “Upper bounds for the error probability of feedback channels,” Probl. Peredachi Inform., vol. 6, no. 2, pp. 87–82, 1970.
+ [5] A. Rényi, “On a problem in information theory,” MTA Mat. Kut. Int. Kozl., p. 505516, 1961, reprinted in Selected Papers of Alfred Rényi,
+     vol. 2, P. Turan, ed., pp. 631-638. Akademiai Kiado, Budapest, 1976.
+ [6] ——, “On the foundations information theory,” Review of the International Statistical Institute, vol. 33, no. 1, 1965.
+ [7] D. W. Loveland, “Performance bounds for binary testing with arbitrary weights,” Acta Informatica, vol. 22, pp. 101–114, 1985.
+ [8] U. Feige, E. Raghavan, D. Peleg, and E. Upfal, “Computing with noisy information,” SIAM J. Comput., vol. 23, no. 5, pp. 1001–1018,
+     1994.
+ [9] S. R. Kosaraju, T. M. Przytycka, and R. Borgstrom, “On an optimal split tree problem,” Lecture Notes in Computer Science: Algorithms
+     and Data Structures, vol. 1663, pp. 157–168, 1999.
+[10] A. P. Korostelev, “On minimax rates of convergence in image models under sequential design,” Statistics & Probability Letters, vol. 43,
+     pp. 369–375, 1999.
+[11] A. P. Korostelev and J.-C. Kim, “Rates of convergence fo the sup-norm risk in image models under sequential designs,” Statistics &
+     Probability Letters, vol. 46, pp. 391–399, 2000.
+[12] M. Swain and M. Stricker, “Promising directions in active vision,” Int. J. Computer Vision, vol. 11, no. 2, pp. 109–126, 1993.
+[13] D. Geman and B. Jedynak, “An active testing model for tracking roads in satellite images,” IEEE Trans. PAMI, vol. 18, no. 1, pp. 1–14,
+     1996.
+[14] E. M. Arkin, H. Meijer, J. S. B. Mitchell, D. Rappaport, and S. Skiena, “Decision trees for geometric models,” Intl. J. Computational
+     Geometry and Applications, vol. 8, no. 3, pp. 343–363, 1998.
+[15] Y. Freund, H. S. Seung, E. Shamir, and N. Tishby, “Selective sampling using the query by committee algorithm,” Machine Learning,
+     vol. 28, pp. 133–168, 1997.
+[16] S. Dasgupta, “Analysis of a greedy active learning strategy,” in Neural Information Processing Systems, 2004.
+[17] M.-F. Balcan, A. Broder, and T. Zhang, “Margin based active learning,” in Conf. on Learning Theory (COLT), 2007.
+                                                                                                                                              24
+
+
+
+[18] R. Nowak, “Generalized binary search,” in Proceedings of the Allerton Conference, Monticello, IL, (www.ece.wisc.edu/∼nowak/gbs.pdf)
+     2008.
+[19] L. Hyafil and R. L. Rivest, “Constructing optimal binary decision trees is NP-complete,” Inf. Process. Lett., vol. 5, pp. 15–17, 1976.
+[20] M. R. Garey and R. L. Graham, “Performance bounds on the splitting algorithm for binary testing,” Acta Inf., vol. 3, pp. 347–355, 1974.
+[21] C. Cormen, C. Leiserson, R. Rivest, and C. Stein, Introduction to Algorithms, Third Edition.    MIT Press, 2009.
+[22] A. Pelc, “Searching games with erro r– fifty years of coping with liars,” Theoretical Computer Science, vol. 270, pp. 71–109, 2002.
+[23] D. Angluin, “Queries and concept learning,” Machine Learning, vol. 2, pp. 319–342, 1988.
+[24] ——, “Queries revisited,” Springer Lecture Notes in Comp. Sci.: Algorithmic Learning Theory, pp. 12–31, 2001.
+[25] S. R. Kulkarni, S. K. Mitter, and J. N. Tsitsiklis, “Active learning using arbitrary binary valued queries,” Machine Learning, pp. 23–35,
+     1993.
+[26] T. Hegedüs, “Generalized teaching dimensions and the query complexity of learning,” in 8th Annual Conference on Computational Learning
+     Theory, 1995, pp. 108–117.
+[27] L. Hellerstein, K. Pillaipakkamnatt, V. Raghavan, and D. Wilkins, “How many queries are needed to learn?” J. ACM, vol. 43, no. 5, pp.
+     840–862, 1996.
+[28] J. F. Traub, G. W. Wasilkowski, and H. Wozniakowski, Information-based Complexity.        Academic Press, 1988.
+[29] K. S. Zigangirov, “Message transmission in a binary symmetric channel with noiseless feedback 9random transmission time),” Probl.
+     Peredachi Inform., vol. 4, no. 3, pp. 88–97, 1968.
+[30] R. Karp and R. Kleinberg, “Noisy binary search and its applications,” in Proceedings of the 18th ACM-SIAM Symposium on Discrete
+     Algorithms (SODA 2007), pp. 881–890.
+[31] R. Castro and R. Nowak, “Minimax bounds for active learning,” IEEE Trans. Info. Theory, pp. 2339–2353, 2008.
+[32] R. L. Rivest, A. R. Meyer, and D. J. Kleitman, “Coping with errors in binary search procedure,” J. Comput. System Sci., pp. 396–404,
+     1980.
+[33] J. Spencer, “Ulam’s searching game with a fixed number of lies,” in Theoretical Computer Science, 1992, pp. 95:307–321.
+[34] A. Dhagat, P. Gacs, and P. Winkler, “On playing ‘twenty questions’ with a liar,” in Proc. ACM Symposium on Discrete Algorithms (SODA),
+     1992, pp. 16–22.
+[35] J. Aslam and A. Dhagat, “Searching in the presence of linearly bounded errors,” in Proc. ACM Symposium on the Theory of Computing
+     (STOC), 1991, pp. 486–493.
+[36] M. Kääriäinen, “Active learning in the non-realizable case,” in Algorithmic Learning Theory, 2006, pp. 63–77.
+[37] P. Brémaud, Markov Chains, Gibbs Fields, Monte Carlo Simulations, and Queues.        Springer, 1998.
+[38] C. Scott, personal communication.
+[39] E. J. Candès, J. Romberg, and T. Tao, “Robust uncertainty principles: Exact signal reconstruction from highly incomplete frequency
+     information,” IEEE Trans. Inform. Theory, vol. 52, no. 2, pp. 489–509, Feb. 2006.
+[40] D. L. Donoho, “Compressed sensing,” IEEE Trans. Inform. Theory, vol. 52, no. 4, pp. 1289–1306, 2006.
+[41] S. Dasgupta, “Coarse sample complexity bounds for active learning,” in Neural Information Processing Systems, 2005.
+[42] R. C. Buck, “Partition of space,” The American Mathematical Monthly, vol. 50, no. 9, pp. 541–544, 1943.
+[43] V. Vapnik, The Nature of Statistical Learning Theory.    NY: Springer, 1995.
+

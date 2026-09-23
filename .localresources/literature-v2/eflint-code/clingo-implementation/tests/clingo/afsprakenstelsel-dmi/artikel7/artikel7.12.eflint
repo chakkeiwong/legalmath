@@ -1,0 +1,74 @@
+// ARTIKEL 7.12.eflint
+//   by Lut99
+//
+// Created:
+//   04 Jul 2024, 11:45:56
+// Last edited:
+//   20 Aug 2024, 16:28:56
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.12 van het Afsprakenstelsel.
+//   
+//   Dit artikel wordt geïnterpreteerd als dat Deelnemers data niet mogen
+//   gebruiken voor toepassingen die in strijd zijn met de reden genoemd in het
+//   artikel.
+//   
+//   Zie `artikel7.12.md` voor meer informatie.
+//
+
+#require "../begrippen/beheerder.eflint".
+#require "../begrippen/deelnemer.eflint".
+#require "../begrippen/dienst-gebruik.eflint".
+
+
+///// INPUT /////
+/// Benoemt welke `data-gebruik`en in strijd zijn met X.
+Fact data-gebruik-in-strijd-met-x Identified by data-gebruik.
+Extend Fact data-gebruik
+    Derived from (Foreach data-gebruik-in-strijd-met-x : data-gebruik-in-strijd-met-x.data-gebruik).
+
+/// Benoemt welke `data-gebruik`en in strijd zijn met de wet- en regelgeving.
+Fact data-gebruik-in-strijd-met-wet Identified by data-gebruik.
+Extend Fact data-gebruik
+    Derived from (Foreach data-gebruik-in-strijd-met-wet : data-gebruik-in-strijd-met-wet.data-gebruik).
+Extend Fact data-gebruik-in-strijd-met-x
+    Derived from (Foreach data-gebruik-in-strijd-met-wet : data-gebruik-in-strijd-met-x(data-gebruik-in-strijd-met-wet.data-gebruik)).
+
+/// Benoemt welke `data-gebruik`en in strijd zijn met de gebruikstoestemming van individuen op wie de data betrekking heeft (consent).
+Fact data-gebruik-in-strijd-met-gebruikstoestemming Identified by data-gebruik.
+Extend Fact data-gebruik
+    Derived from (Foreach data-gebruik-in-strijd-met-gebruikstoestemming : data-gebruik-in-strijd-met-gebruikstoestemming.data-gebruik).
+Extend Fact data-gebruik-in-strijd-met-x
+    Derived from (Foreach data-gebruik-in-strijd-met-gebruikstoestemming : data-gebruik-in-strijd-met-x(data-gebruik-in-strijd-met-x.data-gebruik)).
+
+/// Benoemt welke `data-gebruik`en in strijd zijn met de wensen van de data houder.
+Fact data-gebruik-in-strijd-met-houder Identified by data-gebruik.
+Extend Fact data-gebruik
+    Derived from (Foreach data-gebruik-in-strijd-met-houder : data-gebruik-in-strijd-met-houder.data-gebruik).
+Extend Fact data-gebruik-in-strijd-met-x
+    Derived from (Foreach data-gebruik-in-strijd-met-houder : data-gebruik-in-strijd-met-x(data-gebruik-in-strijd-met-houder.data-gebruik)).
+
+
+
+
+
+///// REGELS /////
+/// Specificeert dat Deelnemers data alleen mogen gebruiken voor redenen die niet in strijd zijn
+/// met iets.
+/// 
+/// # Afsprakenstelsel
+/// > Aanwending van data voor een toepassing die strijdig is met (i) wet- en regelgeving, (ii) de
+/// > gebruikstoestemming die is verkregen van de individu op wie de data betrekking heeft, dan wel
+/// > (iii) de houder van de data, is nimmer toegestaan, [...].
+Duty data-juist-gebruiken
+    Holder deelnemer
+    Claimant beheerder
+    Related to data-aanwending
+    // De plicht geldt voor elke Deelnemer die data aanwent.
+    Derived from (Foreach data-aanwending, beheerder :
+        data-juist-gebruiken(data-aanwending.deelnemer, beheerder, data-aanwending)
+    )
+    // De plicht is geschonden zodra een Deelnemer data aanwent voor een strijdig gebruik.
+    Violated when data-gebruik-in-strijd-met-x(data-aanwending.data-gebruik).

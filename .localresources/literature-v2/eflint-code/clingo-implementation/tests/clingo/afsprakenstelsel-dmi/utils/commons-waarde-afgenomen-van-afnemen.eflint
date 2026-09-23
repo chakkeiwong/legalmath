@@ -1,0 +1,47 @@
+// COMMONS WAARDE AFGENOMEN VAN AFNEMEN.eflint
+//   by Lut99
+//
+// Created:
+//   10 Jun 2024, 17:12:14
+// Last edited:
+//   07 May 2025, 16:22:17
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Implementeert uitbreidingen voor `afnamen` die ervoor zorgen dat
+//   `commons-waarde-afgenomen` automatisch wordt geupdate wanneer men overeen-
+//   komsten afneemt.
+//
+
+
+///// UITBREIDINGEN /////
+// LET OP: Deze constructie hangt af van het feit dat eFLINT beide berekent gebaseerd op de _oude_
+// set instances, en dan de terminates verwerkt _voordat_ de creates worden verwerkt.
+Extend Act afnemen
+    // Creëer het geupdatet saldo
+    Creates (Foreach commons-waarde-afgenomen, dienst-waarde :
+        commons-waarde-afgenomen(
+            commons-waarde-afgenomen.afnemer,
+            commons-waarde-afgenomen.aanbieder,
+            commons-waarde-afgenomen.waarde + dienst-waarde.waarde,
+            commons-waarde-afgenomen.jaar
+        )
+        When (
+            aanbod-als-commons(overeenkomst.aanbod)
+            && commons-waarde-afgenomen.afnemer == overeenkomst.afnemer
+            && commons-waarde-afgenomen.aanbieder == overeenkomst.aanbod.aanbieder
+            && commons-waarde-afgenomen.jaar == overeenkomst.aanbod.jaar
+            && dienst-waarde.dienst == overeenkomst.aanbod.dienst
+        )
+    )
+    // Verwijder het oude saldo
+    Terminates (Foreach commons-waarde-afgenomen :
+        commons-waarde-afgenomen
+        When (
+            aanbod-als-commons(overeenkomst.aanbod)
+            && commons-waarde-afgenomen.afnemer == overeenkomst.afnemer
+            && commons-waarde-afgenomen.aanbieder == overeenkomst.aanbod.aanbieder
+            && commons-waarde-afgenomen.jaar == overeenkomst.aanbod.jaar
+        )
+    ).

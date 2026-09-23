@@ -1,0 +1,1526 @@
+                                             Representation Results for Defeasible Logic
+                                                   G. Antoniou, D. Billington, G. Governatori and M.J. Maher
+                                               School of Computing and Information Technology, Griffith University
+                                                                 Nathan, QLD 4111, Australia
+                                                               {ga,db,guido,mjm}@cit.gu.edu.au
+arXiv:cs/0003082v1 [cs.LO] 30 Mar 2000
+
+
+
+
+                                                                                      Abstract
+                                                   The importance of transformations and normal forms in logic programming, and gen-
+                                               erally in computer science, is well documented. This paper investigates transformations
+                                               and normal forms in the context of Defeasible Logic, a simple but efficient formalism for
+                                               nonmonotonic reasoning based on rules and priorities. The transformations described in
+                                               this paper have two main benefits: on one hand they can be used as a theoretical tool
+                                               that leads to a deeper understanding of the formalism, and on the other hand they have
+                                               been used in the development of an efficient implementation of defeasible logic.
+
+
+                                         1     Introduction
+                                         Normal forms play an important role in computer science. Examples of areas where normal
+                                         forms have proved fruitful include logic, where normal forms of formulae are used both for the
+                                         proof of theoretical results and in automated theorem proving, and relational databases [7],
+                                         where normal forms have been the driving force in the development of database theory and
+                                         principles of good data modelling.
+                                             In computer science, usually normal forms are supported by transformations, operational
+                                         procedures that transform initial objects (such as programs or logical theories) to their normal
+                                         form. Such transformations are important for two main reasons:
+
+                                             1. They support the understanding and assimilation of new concepts because they allow
+                                                one to concentrate on certain forms and key features only. Thus transformations can be
+                                                useful as theoretical tools.
+
+                                             2. They support the optimized execution of a language; therefore they can facilitate the
+                                                development of algorithms (see resolution [19]; for the significance of transformations in
+                                                logic programming see [17]). Thus transformations are also useful in implementations.
+
+                                             In this paper we will study transformations in the setting of a particular logical formalism,
+                                         Defeasible Logic [15, 16], following the presentation of [6]. Benefits flowing out of our results
+                                         fall into both categories mentioned above.
+                                             Defeasible Logic is an approach to nonmonotonic reasoning [1, 14] that has a very distinctive
+                                         feature: It was designed to be easily implementable right from the beginning, unlike most
+                                         other approaches. Recent implementations include Deimos [20, 13], a query answering system
+                                         capable of dealing with 100,000s of defeasible rules; and Delores [13], a system that calculates
+                                         all conclusions, which makes use of the transformations presented in this paper.
+
+                                                                                          1
+    Defeasible Logic is historically the first of a family of approaches based on the idea of logic
+programming without negation as failure. More recent logics in this family include courteous
+logic programs [10] and LPwNF [9]; interestingly Defeasible Logic was shown to be the most ex-
+pressive of these systems (w.r.t. sceptical reasoning) [5]. This family of approaches has recently
+attracted considerable interest. Apart from implementability, its use in various application
+domains has been advocated, including the modelling of regulations and business rules [11, 3],
+modelling of contracts [18], and the integration of information from various sources [4].
+    There are five kinds of features in Defeasible Logic: facts, strict rules, defeasible rules,
+defeaters, and a superiority relation among rules. Essentially the superiority relation provides
+information about the relative strength of rules, that is, it provides information about which
+rules can overrule which other rules. A program or knowledge base that consists of these items
+is called a defeasible theory.
+    After an introduction of Defeasible Logic in section 2, in section 3 we conduct a detailed
+study of the proof theory of Defeasible Logic. As a consequence, we show that for every
+defeasible theory T there is an equivalent theory T ′ which has an empty superiority relation,
+and neither defeaters nor facts. However in section 3 no insight is provided as to how T ′ might
+be computed by transforming the original theory T . This question is the driving force for the
+remainder of the paper.
+    In section 4 we introduce two key properties of transformations, modularity and incre-
+mentality. Essentially modularity says that a transformation may be applied to each unit of
+information, independent of its context; stated another way, a modular transformation may be
+applied to a part of a program or theory without the need to notify or modify the rest. And
+incrementality says that if a theory has been transformed, then an update in the original theory
+should have cost proportional to the change, without the need to transform the entire updated
+theory anew. Obviously both properties are important for implementations.
+    After establishing these properties we proceed to present in section 5, the main section of
+this paper, transformations that
+
+    • normalize a theory by eliminating facts and separating the definite and defeasible reason-
+      ing levels as much as possible;
+
+    • eliminate defeaters;
+
+    • lead to an empty superiority relation,
+
+without changing the meaning of the defeasible theory (in the original language). For each
+of these transformations we study which of the two key properties they satisfy. Moreover, in
+case they do not satisfy modularity or incrementality, we show that there is no other (correct)
+transformation that satisfies the property. Finally we present a significantly simplified proof
+theory that can be used once all these transformations have been applied.
+
+
+2     Basics of Defeasible Logic
+2.1    An Informal Presentation
+We begin by presenting the basic ingredients of Defeasible Logic. A defeasible theory (a knowl-
+edge base in Defeasible Logic, or a defeasible logic program) consists of five different kinds of
+knowledge: facts, strict rules, defeasible rules, defeaters, and a superiority relation.
+
+
+                                                2
+Facts are indisputable statements, for example, “Tweety is an emu”. Written formally, this
+would be expressed as emu(tweety).
+Strict rules are rules in the classical sense: whenever the premises are indisputable (e.g. facts)
+then so is the conclusion. An example of a strict rule is “Emus are birds”. Written formally:
+
+                                      emu(X) → bird(X).
+
+Defeasible rules are rules that can be defeated by contrary evidence. An example of such a rule
+is “Birds typically fly”; written formally:
+
+                                      bird(X) ⇒ f lies(X).
+
+The idea is that if we know that something is a bird, then we may conclude that it flies, unless
+there is other, not inferior, evidence suggesting that it may not fly.
+Defeaters are rules that cannot be used to draw any conclusions. Their only use is to prevent
+some conclusions. In other words, they are used to defeat some defeasible rules by producing
+evidence to the contrary. An example is “If an animal is heavy then it might not be able to
+fly”. Formally:
+
+                                    heavy(X) ❀ ¬f lies(X).
+
+The main point is that the information that an animal is heavy is not sufficient evidence to
+conclude that it doesn’t fly. It is only evidence that the animal may not be able to fly. In
+other words, we don’t wish to conclude ¬f lies(X) if heavy(X), we simply want to prevent a
+conclusion f lies(X).
+The superiority relation among rules is used to define priorities among rules, that is, where one
+rule may override the conclusion of another rule. For example, given the defeasible rules
+
+                             r:           bird(X) ⇒ f lies(X)
+                             r ′ : brokenW ing(X) ⇒ ¬f lies(X)
+
+which contradict one another, no conclusive decision can be made about whether a bird with
+broken wings can fly. But if we introduce a superiority relation > with r ′ > r, then we can
+indeed conclude that the bird cannot fly.
+    Notice that a cycle in the superiority relation is counter-intuitive. In the above example, it
+makes no sense to have both r > r ′ and r ′ > r. Consequently, we will focus on cases where the
+superiority relation is acyclic.
+    Another point worth noting is that, in Defeasible Logic, priorities are local in the following
+sense: Two rules are considered to be competing with one another only if they have complemen-
+tary heads. Thus, since the superiority relation is used to resolve conflicts among competing
+rules, it is only used to compare rules with complementary heads; the information r > r ′ for
+rules r, r ′ without complementary heads may be part of the superiority relation, but has no
+effect on the proof theory.
+
+2.2    Formal Definition
+In this paper we restrict attention to essentially propositional Defeasible Logic. Rules with free
+variables are interpreted as rule schemas, that is, as the set of all ground instances; in such
+cases we assume that the Herbrand universe is finite. We assume that the reader is familiar
+
+                                                3
+with the notation and basic notions of propositional logic. If q is a literal, ∼q denotes the
+complementary literal (if q is a positive literal p then ∼q is ¬p; and if q is ¬p, then ∼q is p).
+    Rules are defined over a language (or signature) Σ, the set of propositions (atoms) and labels
+that may be used in the rule.
+    A rule r : A(r) ֒→ C(r) consists of its unique label r, its antecedent A(r) (A(r) may be
+omitted if it is the empty set) which is a finite set of literals, an arrow, and its head (or
+consequent) C(r) which is a literal. In writing rules we omit set notation for antecedents and
+sometimes we omit the label when it is not relevant for the context. There are three kinds of
+rules, each represented by a different arrow. Strict rules use →, defeasible rules use ⇒, and
+defeaters use ❀.
+    Given a set R of rules, we denote the set of all strict rules in R by Rs , the set of strict and
+defeasible rules in R by Rsd , the set of defeasible rules in R by Rd , and the set of defeaters in
+R by Rdf t . R[q] denotes the set of rules in R with consequent q.
+    A superiority relation on R is a relation > on R. When r1 > r2 , then r1 is called superior
+to r2 , and r2 inferior to r1 . Intuitively, r1 > r2 expresses that r1 overrules r2 , should both
+rules be applicable. Typically we assume > to be acyclic (that is, the transitive closure of > is
+irreflexive), but in this paper we occasionally study which properties depend on acyclicity.
+    A defeasible theory D is a triple (F, R, >) where F is a finite set of literals (called facts), R
+a finite set of rules, and > a superiority relation on R. D is called well-formed iff > is acyclic
+and > is only defined on rules with complementary heads. D is called cyclic iff > is cyclic. In
+case F = ∅ and >= ∅, we denote a defeasible theory (∅, R, ∅) by R.
+    The language (or signature) of D is the set of propositions and labels Σ that are used within
+D. In cases where it is unimportant to refer to the language of D, Σ will not be mentioned.
+
+2.3    Proof Theory
+A conclusion of D is a tagged literal and can have one of the following four forms:
+
++∆q which is intended to mean that q is definitely provable in D.
+
+−∆q which is intended to mean that we have proved that q is not definitely provable in D.
+
++∂q which is intended to mean that q is defeasibly provable in D.
+
+−∂q which is intended to mean that we have proved that q is not defeasibly provable in D.
+
+In section 3 we will discuss the interconnections of these concepts. At this stage we wish to
+mention only one: If we are able to prove q definitely, then q is also defeasibly provable. This is
+a direct consequence of the formal definition below. It resembles the situation in, say, default
+logic: a formula is sceptically provable from a default theory T = (W, D) (in the sense that it
+is included in each extension) if it is provable from the set of facts W .
+    Provability is defined below. It is based on the concept of a derivation (or proof) in D =
+(F, R, >). A derivation is a finite sequence P = (P (1), . . . P (n)) of tagged literals satisfying the
+following conditions (P (1..i) denotes the initial part of the sequence P of length i):
+
+          +∆: If P (i + 1) = +∆q then either
+                  q ∈ F or
+                  ∃r ∈ Rs [q] ∀a ∈ A(r) : +∆a ∈ P (1..i)
+
+
+
+                                                  4
+   That means, to prove +∆q we need to establish a proof for q using facts and strict rules
+only. This is a deduction in the classical sense – no proofs for the negation of q need to be
+considered (in contrast to defeasible provability below, where opposing chains of reasoning must
+be taken into account, too).
+
+         −∆: If P (i + 1) = −∆q then
+                 q 6∈ F and
+                 ∀r ∈ Rs [q] ∃a ∈ A(r) : −∆a ∈ P (1..i)
+
+    To prove −∆q, i.e. that q is not definitely provable, q must not be a fact. In addition, we
+need to establish that every strict rule with head q is known to be inapplicable. Thus for every
+such rule r there must be at least one antecedent a for which we have established that a is not
+definitely provable (−∆a).
+    It is worth noticing that this definition of nonprovability does not involve loop detection.
+Thus if D consists of the single rule p → p, we can see that p cannot be proven, but Defeasible
+Logic is unable to prove −∆p.
+
+         +∂: If P (i + 1) = +∂q then either
+             (1) +∆q ∈ P (1..i) or
+             (2) (2.1) ∃r ∈ Rsd [q]∀a ∈ A(r) : +∂a ∈ P (1..i) and
+                   (2.2) −∆∼q ∈ P (1..i) and
+                   (2.3) ∀s ∈ R[∼q] either
+                        (2.3.1) ∃a ∈ A(s) : −∂a ∈ P (1..i) or
+                        (2.3.2) ∃t ∈ Rsd [q] such that
+                             ∀a ∈ A(t) : +∂a ∈ P (1..i) and t > s
+
+    Let us illustrate this definition. To show that q is provable defeasibly we have two choices:
+(1) We show that q is already definitely provable; or (2) we need to argue using the defeasible
+part of D as well. In particular, we require that there must be a strict or defeasible rule with
+head q which can be applied (2.1). But now we need to consider possible “attacks”, that is,
+reasoning chains in support of ∼q. To be more specific: to prove q defeasibly we must show that
+∼q is not definitely provable (2.2). Also (2.3) we must consider the set of all rules which are not
+known to be inapplicable and which have head ∼q (note that here we consider defeaters, too,
+whereas they could not be used to support the conclusion q; this is in line with the motivation
+of defeaters given in subsection 2.1). Essentially each such rule s attacks the conclusion q. For
+q to be provable, each such rule s must be counterattacked by a rule t with head q with the
+following properties: (i) t must be applicable at this point, and (ii) t must be stronger than s.
+Thus each attack on the conclusion q must be counterattacked by a stronger rule.
+    The definition of the proof theory of Defeasible Logic is completed by the condition −∂. It
+is nothing more than a strong negation of the condition +∂.
+
+         −∂: If P (i + 1) = −∂q then
+             (1) −∆q ∈ P (1..i) and
+             (2) (2.1) ∀r ∈ Rsd [q] ∃a ∈ A(r) : −∂a ∈ P (1..i) or
+                   (2.2) +∆∼q ∈ P (1..i) or
+                   (2.3) ∃s ∈ R[∼q] such that
+                        (2.3.1) ∀a ∈ A(s) : +∂a ∈ P (1..i) and
+                        (2.3.2) ∀t ∈ Rsd [q] either
+                             ∃a ∈ A(t) : −∂a ∈ P (1..i) or t 6> s
+
+                                                5
+    To prove that q is not defeasibly provable, we must first establish that it is not definitely
+provable. Then we must establish that it cannot be proven using the defeasible part of the
+theory. There are three possibilities to achieve this: either we have established that none of
+the (strict and defeasible) rules with head q can be applied (2.1); or ∼q is definitely provable
+(2.2); or there must be an applicable rule s with head ∼q such that no possibly applicable rule
+t with head q is superior to s (2.3).
+    The elements of a derivation are called lines of the derivation. We say that a tagged literal
+L is provable in D = (F, R, >), denoted D ⊢ L, iff there is a derivation in D such that L is a
+line of P . When D is obvious from the context we write ⊢ L.
+    It is instructive to consider the conditions +∂ and −∂ in the terminology of teams, borrowed
+from [10]. At some stage there is a team A consisting of the applicable rules with head q, and
+a team B consisting of the applicable rules with head ∼q. These teams compete with one
+another. Team A wins iff every rule in team B is overruled by a rule in team A; in that case
+we can prove +∂q. Another case is that team B wins, in which case we can prove +∂∼q. But
+there are several intermediate cases, for example one in which we can prove that neither q nor
+∼q are provable. And there are cases where nothing can be proved (due to loops). A thorough
+discussion of the possible outcomes of this “battle” between the two competing teams is found
+in the next section.
+
+Example 1 Here we wish to give an example1 which illustrates the notion of teams.
+
+      monotreme(platypus)
+      hasF ur(platypus)
+      laysEggs(platypus)
+      hasBill(platypus)
+      r1 : monotreme(X) ⇒ mammal(X)
+      r2 : hasF ur(X) ⇒ mammal(X)
+      r3 : laysEggs(X) ⇒ ¬mammal(X)
+      r4 : hasBill(X) ⇒ ¬mammal(X)
+      r1 > r3
+      r2 > r4
+
+Intuitively we conclude that platypus is a mammal because for every reason against this con-
+clusion (r3 and r4 ) there is a stronger reason for mammal(platypus) (r1 and r2 respectively).
+It is easy to see that +∂mammal(platypus) is indeed provable in Defeasible Logic: there is a
+rule in support of mammal(platypus), and every rule for ¬mammal(platypus) is overridden
+by a rule for mammal(platypus).
+
+    We conclude this section with two remarks. First, strict rules are used in two different
+ways. When we try to establish definite provability, then strict rules are used as in classical
+logic: if they can fire they are applied, regardless of any reasoning chains with the opposite
+conclusion. But strict rules can also be used to show defeasible provability, given that some
+other literals are known to be defeasible provable. In this case, strict rules are used exactly like
+  1
+   Rules in this example are actually rule schemas. Since there are no function symbols and only a finite
+number of propositional constants, it is still essentially a propositional example.
+
+
+                                                   6
+defeasible rules. For example, a strict rule may be applicable yet it may not fire because there is
+a stronger rule with the opposite conclusion. Also, strict rules are not automatically superior to
+defeasible rules. This treatment of strict rules may look a bit confusing and counterintuitive. In
+subsection 5.1 we establish a simple normal form which separates the strict and the defeasible
+part as much as possible, with only a transparent “bridge” being allowed linking the two parts
+together.
+    Finally, in the above definition often we refer to P (1..i), or, intuitively, to the fact that
+a rule is currently applicable. This may create the wrong impression that this applicability
+may change as the proof proceeds (something found often in nonmonotonic proofs). But the
+sceptical nature of Defeasible Logic does not allow for such a situation. For example, if we have
+established that a rule is currently not applicable because we have −∂a for some antecedent a,
+this means that we have proven at a previous stage that a is not provable from the defeasible
+theory D per se.
+
+
+3      An Analysis of the Proof Theory
+We have seen in the previous section that for every proposition p we have the concepts ⊢
++∆p, ⊢ −∆p, ⊢ +∂p, ⊢ −∂p and the complementary concepts 6⊢ +∆p etc. Finally, there are
+the corresponding concepts for ¬p, which we would expect to be related to those for p. This
+section sheds light on the interrelations between these notions.
+    We define four sets of literals encapsulating all the conclusions of a theory D.
+
+     +∆ = {p | D ⊢ +∆p}
+     −∆ = {p | D ⊢ −∆p}
+     +∂ = {p | D ⊢ +∂p}
+     −∂ = {p | D ⊢ −∂p}
+
+Thus, the proof-theoretic effects of a theory are summarized in the 4-tuple (+∆, −∆, +∂, −∂).
+   We define two defeasible theories D1 and D2 to be conclusion equivalent if the two theories
+produce identical 4-tuples. We write D1 ≡ D2 .
+   As straightforward consequences of the proof rules, we have the following relations among
+the sets.
+                                 +∆ ⊆ +∂     +∆ ∩ −∆ = ∅
+                                 −∂ ⊆ −∆     +∂ ∩ −∂ = ∅
+                                 +∆ ∩ −∂ = ∅
+
+The four sets might generate 24 = 16 possible outcomes for a single proposition p. However,
+because of the above relations, for each proposition p we can identify exactly six different
+possible outcomes of the proof theory. With each outcome we present a simple theory that
+achieves this outcome.
+    A: 6⊢ −∆p and 6⊢ +∂p
+       p→p
+    B: ⊢ +∂p and 6⊢ +∆p and 6⊢ −∆p
+       ⇒ p; p → p
+    C: ⊢ +∆p (and also ⊢ +∂p)
+       →p
+
+                                                7
+  D: ⊢ +∂p and ⊢ −∆p
+     ⇒p
+
+  E: ⊢ −∆p and 6⊢ +∂p and 6⊢ −∂p
+     p⇒p
+
+  F: ⊢ −∂p (and also ⊢ −∆p)
+     ∅, the empty theory
+
+   We can represent the outcomes in terms of a Venn diagram in Figure 1.
+
+
+
+
+                         A      B   C         D      E     F
+
+
+
+
+                              Figure 1: Proof Theory Outcomes
+
+
+   In Figure 1, the circle on the left – containing B, C, and D – represents the literals p such
+that +∂p can be proved, and the ellipse inside it (i.e. C) represents the literals p such that
++∆p can be proved. The circle on the right – containing D, E, and F – represents the literals
+p such that −∆p can be proved, and the ellipse inside it (i.e. F) represents the literals p such
+that −∂p can be proved.
+   Similarly, there are the same six possibilities for ¬p. Due to the relationship between p and
+¬p, many fewer than the 6 × 6 = 36 possible combinations are possible outcomes of the proof
+theory. We first establish some simple results that will eliminate many combinations.
+
+Proposition 1 Consider a defeasible theory D.
+
+  1. If 6⊢ −∆¬p and 6⊢ +∆p then 6⊢ +∂p
+
+  2. If ⊢ +∆¬p and ⊢ −∆p then ⊢ −∂p
+
+  3. If ⊢ +∂¬p and ⊢ −∆p and 6⊢ −∂p, then D is cyclic
+
+Proof. Statements 1 and 2 follow directly from the proof rules for +∂ and −∂. Statement 3 is
+proved as follows.
+   Suppose ⊢ +∂¬p, ⊢ −∆p and 6⊢ −∂p. If we could prove +∂¬p via +∆¬p then we could prove
+−∂p through (2.2) of −∂, a contradiction. So there is a rule r for ¬p such that ∀a ∈ A(r) + ∂a
+can be proved.
+   Since 6⊢ −∂p, by (2.3) of −∂ there is a rule t for p such that ∀a ∈ A(t) − ∂a cannot be
+proved, and t > r.
+
+
+
+                                               8
+    Following (2.3) of +∂, there is a rule t1 for ¬p such that ∀a ∈ A(t1 ), +∂a can be proved
+and t1 > t. Reconsidering (2.3) of −∂, there is a rule t2 for p such that ∀a ∈ A(t2 ) − ∂a cannot
+be proved, and t2 > t1 .
+    Repeating this argument enough times, it is clear that there must be a cycle in the superi-
+ority relation, since D has a finite number of rules, by definition.                           ✷
+
+    In terms of the the diagram (Figure 1), the properties of the previous proposition have the
+following effects (where p is a positive or negative literal):
+
+  1. If p satisfies A, B, D, E, or F, and ¬p satisfies A, B, or C then p satisfies A, E, or F
+     (Property 1). Consequently, it is not possible for p to satisfy B or D, and ¬p to satisfy
+     A, B, or C.
+
+  2. If p satisfies D, E, or F, and ¬p satisfies C then p satisfies F (Property 2). Consequently,
+     it is not possible for p to satisfy D or E, and ¬p to satisfy C.
+
+  3. If ¬p satisfies B, C or D, and p satisfies D or E, then D is cyclic (Property 3). Conse-
+     quently, if D is acyclic, it is not possible for ¬p to satisfy B, C or D, and p to satisfy D
+     or E.
+
+In the following table we display the possible combinations of conclusions for a proposition p
+and its negation ¬p. The table is symmetric across the leading diagonal, since the treatment
+of literals in Defeasible Logic – and, in particular, in the effects above – is not affected by the
+polarity of the literal. Those combinations which are possible are displayed as Poss. Those
+combinations which are not possible are displayed as NP (i), where i is the property number
+which implies that they are impossible. The combinations displayed as NP (3) are impossible
+only in acyclic theories, and can be obtained for cyclic theories, as we will see shortly.
+
+                                                   ¬p
+                       A            B            C           D           E           F
+               A      Poss        NP(1)         Poss       NP(1)        Poss        Poss
+               B     NP(1)        NP(1)        NP(1)       NP(1)       NP(3)        Poss
+         p     C      Poss        NP(1)         Poss       NP(1)       NP(2)        Poss
+               D     NP(1)        NP(1)        NP(1)       NP(3)       NP(3)        Poss
+               E      Poss        NP(3)        NP(2)       NP(3)        Poss        Poss
+               F      Poss         Poss         Poss        Poss        Poss        Poss
+
+
+    It is easy to see that for all combinations that are possible, a sample theory can be obtained
+by combining the appropriate theories for each letter, as listed earlier.
+    There are five combinations that cannot be obtained by acyclic theories, but are possible
+when cyclic theories are permitted. These combinations are DD, BE, DE and their reverses,
+for which property 3 is cited in the table above. We give below an example theory for each case.
+
+For DD
+                                    r1 :                ⇒p
+                                    r2 :                ⇒ ¬p
+                                    r1 > r2 , r2 > r1
+
+
+
+                                                 9
+For BE
+                                   r1 :               p ⇒p
+                                   r2 :                 ⇒ ¬p
+                                   r3 :              ¬p → ¬p
+                                   r1 > r2 , r2 > r1
+
+For DE
+                                    r1 :              p ⇒p
+                                    r2 :                ⇒ ¬p
+                                    r1 > r2 , r2 > r1
+
+    From the results summarised in the above table, and the comment immediately following
+it, we can draw the following results.
+
+Theorem 2 If D is an acyclic defeasible theory, then D is conclusion equivalent to a theory
+D ′ that contains no use of the superiority relation, nor defeaters.
+    If D is a cyclic defeasible theory, then D is conclusion equivalent to a theory D ′ that contains
+no use of defeaters, and if D ′ contains cycles then they have length 2, and each cycle involves
+the only two rules for a literal and its complement.
+
+   Applying the same techniques as above, we have a simple proof that the defeasible part of
+an acyclic defeasible theory is consistent. By consistent we mean that a theory cannot conclude
+that both a proposition p and its negation are defeasibly true unless they are both definitely
+true. This was first proved by Billington in [6].
+
+Proposition 3 Let D be an acyclic defeasible theory. If ⊢ +∂p and ⊢ +∂¬p then ⊢ +∆p and
+⊢ +∆¬p. Consequently, if D contains no strict rules and no facts and ⊢ +∂q, then ⊢ −∂¬q.
+
+Proof. If ⊢ +∂p and ⊢ +∂¬p then p and ¬p each satisfies B, C or D. Looking at the table,
+and since D is acyclic, both p and ¬p satisfy C. That is, ⊢ +∆p and ⊢ +∆¬p.           ✷
+
+The theory above for combination DD shows that cyclic theories can be inconsistent. Fur-
+thermore, the formally greater expressiveness, in terms of combinations, of permitting cyclic
+superiority relations appears, from looking at the above examples, not to translate into greater
+usefulness. This suggests that the restriction to acyclic defeasible theories, already justified by
+intuition and avoiding inconsistency, provides no practical limitation.
+    The results of Theorem 2 are constructive in a sense, but they are not useful in implementing
+Defeasible Logic since they suggest a complete evaluation of the defeasible theory before the
+construction of an equivalent theory. In the remainder of this paper we will investigate ways of
+transforming an input defeasible theory to one without facts and defeaters, and with an empty
+superiority relation, without performing an evaluation.
+
+
+4     Properties of Transformations
+Theory transformations are an important way to exploit results of the previous section. They
+can be used to extend an implementation of a subset of defeasible theory to the entire theory.
+   A transformation is a mapping from defeasible theories to defeasible theories. Recall that
+D1 ≡ D2 iff D1 and D2 have the same consequences; similarly, D1 ≡Σ D2 means that D1 and D2
+
+                                                 10
+have the same consequence in the language Σ. A transformation is correct if the transformed
+theory has the same meaning as the original theory. Formally: a transformation T is correct
+iff, for all defeasible theories D, D ≡Σ T (D), where Σ is the language of D.
+     Most operations on theories are minor changes to an existing theory. If the original theory
+has been transformed, say for efficiency reasons, then we would wish a minor update to the
+original theory not require that the entire updated theory be transformed. This is a form of
+incrementality. A transformation is incremental if the application of the transformation can
+be performed on a bit-by-bit basis. Formally: a transformation T is incremental iff, for all
+defeasible theories D1 and D2 , T (D1 ∪ D2 ) ≡Σ T (D1 ) ∪ T (D2 ), where Σ is the union of the
+languages of D1 and D2 .
+     Similarly, when we change the representation of knowledge in a part of a defeasible theory,
+we would like this change to be invisible to the remainder of the theory. This concept of
+modularity is important in all forms of software development. A transformation is modular
+if it can be applied to a part of a theory without modifying the meaning of the theory as
+a whole. Formally: a transformation T is modular iff, for all defeasible theories D1 and D2 ,
+D1 ∪ D2 ≡Σ T (D1 ) ∪ D2 , where Σ is the union of the languages of D1 and D2 .
+
+Proposition 4 If a transformation is modular then it is correct and incremental
+
+Proof. Taking D2 = ∅ in the definition of modularity, we have D1 ≡Σ T (D1 ) which expresses
+correctness. By modularity T (D1 )∪T (D2 ) ≡Σ D1 ∪T (D2 ), again by modularity D1 ∪T (D2 ) ≡Σ
+D1 ∪ D2 , then by correctness D1 ∪ D2 ≡Σ T (D1 ∪ D2 ); therefore T (D1 ) ∪ T (D2 ) ≡Σ T (D1 ∪ D2 )
+which expresses incrementality.                                                                ✷
+
+   In general the inverse of Proposition 4 does not hold. As we shall see in section 5 there are
+correct and incremental transformations that are not modular.
+
+
+5     Transformations of Defeasible Theories
+Previously (Theorem 2) we showed that any acyclic defeasible theory is equivalent to one which
+uses no defeaters and an empty superiority relation. Here we shall provide two transformations
+that together remove defeaters and empty the superiority relation. Both are based on the same
+approach. We introduce new literals that are intermediate between rule bodies and rule heads.
+The effects of the simulated feature in limiting inference are simulated by new defeasible rules
+attacking the inference of these intermediate literals. Since these literals are not in the language
+of the original program, any inferences made by the new rules will not affect correctness.
+    We begin with a normalization process that eliminates facts and makes the dual use of strict
+rules (in the definite and defeasible part) transparent.
+
+5.1    A Normal Form for Defeasible Logic
+We propose a normal form for defeasible theories. The main purpose of this normal form is
+to provide a separation of concerns, within a defeasible theory, between definite and defeasible
+conclusions. In Defeasible Logic, a strict rule may participate in the superiority relation. This
+participation has no effect on the definite conclusions of the theory, but can affect the defeasible
+conclusions. We consider theories where this occurs to be somewhat misleading, and propose a
+normal form in which definite and defeasible reasoning are separated as much as is practicable.
+
+
+
+                                                11
+Definition 5 A defeasible theory D = (F, R, >) is normalized (or in normal form) iff the
+following three conditions are satisfied:
+ (a) Every literal is defined either solely by strict rules, or by one strict rule and other non-
+     strict rules.
+ (b) No strict rule participates in the superiority relation >.
+ (c) F = ∅
+   Every defeasible theory can be transformed into normal form. This establishes that facts are
+not needed in the formulation of defeasible logic, and that the misleading theories we discussed
+above are unnecessary. We now define this transformation explicitly. Following that we prove
+that the transformation preserves the conclusions in the language of D.
+Definition 6 Consider a defeasible theory D = (F, R, >), and Σ be the language of D. We
+define normal(D) = (∅, R′ , >), where R′ is defined below.
+    Let ′ be a function which maps propositions to new (previously unused) propositions, and
+rule names to new rule names. We extend this, in the obvious way, to literals and conjunctions
+of literals.
+R′ = Rd ∪ Rdf t ∪
+    {→ f ′ | f ∈ F } ∪
+    {r ′ : A′ → C ′ | r : A → C is a strict rule in R} ∪
+    {r : A ⇒ C | r : A → C is a strict rule in R} ∪
+    {p′ → p | A → p ∈ R or p ∈ F }
+
+The rules derived from F and rules p′ → p are given distinct new names.
+    It is clear from the transformation described above that normal(D) is normalized (i.e.
+satisfies conditions (a)–(c)). Notice that strict rules have been altered to become defeasible
+rules, although their names are unchanged. Thus although > is unchanged, it now no longer
+concerns any strict rule.
+Example 2 Consider the following defeasible theory.
+
+                                        e
+                                        a
+                                        r1 :      a→b
+                                        r2 :      ⇒c
+                                        r3 :      c→d
+                                        r4 :      e ⇒ ¬d
+                                        r4 > r3
+   The transformed theory looks as follows:
+
+                            r1′ :   a′ → b′             r1 :    a⇒b
+                            r2 :    ⇒c                  r3′ :   c′ → d ′
+                            r3 :    c⇒d                 r4 :    e ⇒ ¬d
+                            r5 :    → e′                r6 :    → a′
+                            r7 :    a′ → a              r8 :    b′ → b
+                            r9 :    d′ → d              r10 :   e′ → e
+                                              r4 > r3
+
+                                                12
+Theorem 7 The transformation normal is correct.
+
+Proof. We split the proof in two cases. Let q be a tagged literal in the language Σ. We
+first prove that if D ⊢ q then normal(D) ⊢ q, and then the other direction, namely: if
+normal(D) ⊢ q, then D ⊢ q.
+Case ⇒. We prove the property by induction on the length of proofs in D.
+Inductive base: n = 1. In this case a proof P consists of the single line P (1). We have two
+cases: 1) P (1) = +∆p or 2) P (1) = −∆p.
+Case P (1) = +∆p. According to the definition of +∆ either i) p ∈ F or ii) ∃r ∈ Rs [p] such
+that A(r) = ∅.
+i) If p ∈ F , then in normal(D) we have the rules → p′ and p′ → p; according to clause 2 of +∆,
+P ′ (1) = +∆p′ is a proof of p′ in normal(D), then we can apply the same clause with respect
+to the rule p′ → p to derive P ′ (2) = +∆p in D ′ .
+ii) The rule r used to derive p has the form → p, and in R′ we have we have the rules → p′ and
+p′ → p, so we can repeat the argument for the previous case.
+Case P (1) = −∆p. This implies i) p ∈    / F and ii) Rs [p] = ∅. In Rs′ we have the rule p′ → p,
+but from i) and ii) we know that there is no strict rule for p′ , and p′ cannot be in F ′ , since
+F ′ = ∅ and p′ is not in Σ. Therefore according to −∆, P ′ (1) = −∆p′ is a proof in normal(D).
+We can now apply the definition of −∆ with respect to p. If Rsd [p] = ∅ then Rs′ [p] = ∅, and
+trivially −∆p. Otherwise the only rule for p in R′ is p′ → p, the only rule for p is p′ → p, and
+all the literals occurring in the antecedent of such a rule have tag −∆, therefore we can append
+P ′ (2) = −∆p to P ′(1) to obtain a proof of −∆p in D ′ .
+     We have thus proved the inductive base.
+Inductive step n > 1. Let us assume that the property holds up to n. We have to consider four
+cases: 1) P (n + 1) = +∆p, 2) P (n + 1) = −∆p, 3) P (n + 1) = +∂p, and P (n + 1) = −∂p.
+Case P (n + 1) = +∆p. We consider only the case different from the analogous case of the
+inductive base. Here we have to consider a rule r : A(r) → p, where ∀ar ∈ A(r), +∆ar ∈
+P (1..n). By inductive hypothesis, each ar ∈ A(r) is provable in normal(D). However, by
+construction, in D ′ there is only one strict rule for each ar , and such a rule has form a′r → ar .
+Let Pr′ be the proof of ar in D ′ , and +∆a′r ∈ Pr′ (1..nr ). We concatenate the proofs of the ar ’s,
+and we append +∆p′ and +∆p. It is immediate to verify that the result is a proof of p in
+normal(D).
+Case P (n + 1) = −∆p. Let us assume that the property holds up to n and −∆p ∈ P (n + 1).
+This means that ∀r ∈ Rs [p]∃a ∈ A(r) such that −∆a ∈ P (1..n).
+   We have two cases:
+   • If r ∈ Rs [p], then, in normal(D) we have r ′ : A(r)′ → p′ and p′ → p; thus we have to
+     show that normal(D) ⊢ −∆p′ . The strict rules for p in D correspond to the strict rules
+     for p′ in normal(D). From the hypothesis we know that p ∈   / F and all strict rules r for
+     p are discarded, then, by inductive hypothesis, the corresponding rules r ′ are discarded
+     too.
+
+   • If Rsd [p] = ∅ then there are no rule for p in R′ , and trivially −∆p. If Rs [p] = ∅ but
+     Rd [p] 6= ∅, then p′ → p ∈ R′ . Since there are no strict rules for p in D, there are no strict
+     rules for p′ in D ′ , therefore normal(D) ⊢ −∆p′ , and so the only rule for p in normal(D)
+     (p′ → p) is discarded.
+
+                                                 13
+We have thus proved that in each case the strict rules for p are discarded in normal(D),
+therefore D ′ ⊢ −∆p.
+Cases P (n+ 1) = +∂p and P (n+ 1) = −∂p. It is enough to notice that the structure (including
+the superiority relation) of defeasible rules and defeaters in R′ is identical with the structure of
+all rules in R. Thus, when deriving a defeasible conclusion concerning a literal from D (i.e., not
+involving a new proposition), the only difference between D and normal(D) is the presence of
+rules p′ → p, but such rules become relevant only when +∆p′ is provable, that means that also
++∆p is provable.
+Case ⇐. or each literal p ∈ Σ the only strict rule for it (if any) in normal(D) is p′ → p. Then
+if P ′(n + 1) = +∆p, then +∆p′ ∈ P (1..n); and if P ′ (n + 1) = −∆p, then −∆p′ ∈ P (1..n). If
+we replace each p′ with p and each rule r ′ with r in P ′ , we obtain a proof in D. For +∂p and
+−∂p we can repeat the same considerations of the previous case.                               ✷
+
+
+Proposition 8 The transformation normal is incremental, but not modular.
+
+Proof. It is immediate to see that for every pair of defeasible theories D1 , D2 , normal(D1 ) ∪
+normal(D2 ) = normal(D1 ∪ D2 ). Consequently normal is incremental.
+   To see that normal is not modular, consider D1 = {a → b} and D2 = {→ a}. Then
+normal(D1 ) = {a ⇒ b, a′ ⇒ b′ , b′ → b}. Clearly D1 ∪ D2 ⊢ +∆b. However normal(D1 ) ∪ D2 ⊢
+−∆b since there is no fact a′ .                                                                ✷
+
+This demonstrates, as promised, that the inverse of Proposition 4 does not hold.
+
+5.2    Simulating the Superiority Relation
+In this section we show that the superiority relation does not contribute anything to the ex-
+pressive power of Defeasible Logic. Of course it does allow one to represent information in a
+more natural way.
+    We define below a transformation elim sup that eliminates all uses of the superiority re-
+lation. For every rule r, it introduces two new previously unused positive literals denoted by
+inf + (r) and inf − (r). Intuitively, inf + (r) and inf − (r) express that r is overruled by a superior
+rule.
+
+Definition 9 Let D = (∅, R, >) be a normal defeasible theory. Let Σ be the language of D.
+Define elim sup(D) = (∅, R′, ∅), where
+
+                         R′ = Rs ∪ {¬inf + (r1 ) ⇒ inf + (r2 ),
+                                    ¬inf − (r1 ) ⇒ inf − (r2 ) | r1 > r2 } ∪
+                                   {A(r) ⇒ ¬inf + (r),
+                                    ¬inf + (r) ⇒ p,
+                                    A(r) ⇒ ¬inf − (r),
+                                    ¬inf − (r) ⇒ p | r ∈ Rd [p]} ∪
+                                   {A(r) ⇒ ¬inf − (r),
+                                    ¬inf − (r) ❀ p | r ∈ Rdf t [p]}
+
+For each r, inf + (r) and inf − (r) are new atoms not in Σ. Furthermore all new atoms are
+distinct.
+
+                                                  14
+    A defeasible proof of a literal p consists of three phases. In the first phase either a strict or
+defeasible rule is put forth in order to support a conclusion p; then we consider an attack on
+this conclusion using the rules for its negation ∼p. The attack fails if each rule for ∼p is either
+discarded (it is possible to prove that part of the antecedent is not defeasibly provable) or if
+we can provide a stronger counterattack, that is, if there is an applicable strict or defeasible
+rule stronger than the rule attacking p. It is worth noting that defeaters cannot be used in the
+last phase. For this reason we have introduced two predicate inf + (r) and inf − (r) for each rule
+r. Intuitively ¬inf + (r) means that r is not inferior to any applicable strict or defeasible rule,
+while ¬inf − (r) states that r is not inferior to an applicable rule.
+    Independently, a somewhat similar construction is given in [12] for eliminating priorities
+among defeasible rules in a credulous abstract argumentation framework. However that trans-
+formation does not work properly in Defeasible Logic because of the presence of defeaters. And
+if defeaters are incorporated in that model, it would still not work properly because defeaters
+could be used to support positive conclusions trough counterattacks, something prohibited in
+our logic (and something we consider counterintuitive). In this context it is worth noting that
+an earlier version of our transformation [2] worked for a different variation of defeasible logic
+where defeaters could be used for counterattacks.
+    Before we study the properties of elim sup we provide an example that illustrates how it
+works.
+
+Example 3 Let us consider the defeasible theory:
+
+   r1 : → gap                                             Tweety is a genetically altered penguin
+   r2 : gap → p                                         Genetically altered penguins are penguins
+   r3 : p → b                                                                  Penguins are birds
+   r4 : b ⇒ f                                                                    Birds usually fly
+   r5 : p ⇒ ¬f                                                                 Penguins don’t fly
+   r6 : gap ❀ f                                            Genetically altered penguins might fly
+   r5 > r4, r6 > r5
+The transformation of the above theory is
+
+      r4a+ :   b ⇒ ¬inf + (r4)      r5a+ :   p ⇒ ¬inf + (r5)          r6a : gap ⇒ ¬inf − (r6)
+      r4a− :   b ⇒ ¬inf − (r4)      r5a− :   p ⇒ ¬inf − (r5)          r6b : ¬inf − (r6) ❀ f
+      r4b+ :   ¬inf + (r4) ⇒ f      r5b+ :   ¬inf + (r5) ⇒ ¬f
+      r4b+ :   ¬inf − (r4) ⇒ f      r5b+ :   ¬inf − (r5) ⇒ ¬f
+and
+                                  s1+ :   ¬inf + (r6) ⇒ inf + (r5)
+                                  s1− :   ¬inf − (r6) ⇒ inf − (r5)
+                                  s2+ :   ¬inf + (r5) ⇒ inf + (r4)
+                                  s2− :   ¬inf − (r5) ⇒ inf − (r4)
+and
+                                           r1 : → gap
+                                           r2 : gap → p
+                                           r3 : p → b
+It is immediate to see that r4 is defeated by r5 , and, at the same time, r5 is defeated by r6 .
+However, r6 is a defeater, thus it does not support a conclusion, and, according to clause (2.3.2)
+
+                                                 15
+of the definition of −∂, it cannot be used to reinstate the conclusion of r4 . To represent this
+fact we have to use two new literals for each rule r, i.e., inf + (r) and inf − (r). In the presence
+of defeaters inf + can be used both to defeat a competing rule or to reinstate the conclusion of
+a rule with the same conclusion. On the other hand inf − can be used only to defeat competing
+rules.
+    Let us examine the transformed theory. There are no rules against ¬inf − (r6), so we can
+derive +∂¬inf − (r6), thus the rule s1− is applicable; this implies −∂¬inf − (r5), and therefore
+r5− is discarded: it cannot be used to support the derivation of ¬f , nor prevent the derivation
+of f . Moreover, also s2− is discarded, then +∂inf − (r4) is derivable, thus r4b− is applicable.
+If we defined only inf − literals then +∂f would be provable. However, we have to consider
+inf + literals. There is no rule for ¬inf + (r6), so −∂¬inf − (r6), s1+ becomes discarded, and we
+can prove +∂¬inf + (r5). At this point r5b+ is applicable; consequently we have two applicable
+competing rules, from which we conclude both −∂f , and −∂¬f .
+
+    To formulate the following theorem we need a condition of distinctness: Two theories D1 =
+(F1 , R1 , >1 ) and D ′ = (F2 , R2 , >2 ) are distinct if the rules of one theory do not appear in the
+superiority relation of the other. Formally: For i = 1, 2, if the pair (r, r ′) is in the relation >i
+then neither r nor r ′ are rules in R3−i .
+
+Theorem 10 The transformation elim sup is modular for distinct well-formed normalized de-
+feasible theories. That is, for such theories D1 and D2 , D1 ∪ D2 ≡Σ T (D1 ) ∪ D2 , where Σ is
+the union of the languages of D1 and D2 . Thus elim sup is also incremental.
+
+Proof. To prove that the transformation elim sup is modular we have to show that D1 ∪D2 ≡Σ
+D1 ∪ elim sup(D2 ) and D1 ∪ D2 ≡Σ elim sup(D1 ) ∪ D2 . We prove only the the first case since
+the second is symmetrical.
+    Since D1 and D2 are well-formed theories their superiority relations are acyclic and since D1
+and D2 are distinct, so are >1 and >2 , moreover they are defined over the rule of D1 and D2 .
+Therefore the superiority relation of the D1 ∪ D2 is acyclic; moreover the superiority relation in
+elim sup(D2 ) is empty, therefore in D1 ∪elim sup(D2 ) the superiority relation is the superiority
+relation of D1 , which is assumed to be acyclic.
+    From now on we use D for D1 ∪ D2 and D ′ for D1 ∪ elim sup(D2 ).
+    We prove the theorem by induction on the length of proofs.
+Inductive base n = 1. Suppose the length of a proof P is 1. The only line in P , P (1) is either
++∆p or −∆p. It is immediate to see that D and D ′ have the same definite conclusions in the
+language Σ since Rs = Rs1 ∪ Rs2 Rs′ = Rs1 ∪ elim sup(Rs2 ), Rs2 = elim sup(Rs2 ), and the
+superiority relation does not affect the proof of definite conclusions.
+Inductive step n > 1. We consider only the cases of defeasible conclusions, since, as we have
+seen in the inductive base, D and D ′ have the same definite conclusions.
+Case D ⊢ +∂p ⇒ elim sup(D) ⊢ +∂p. If +∆p ∈ P (1..n) then D ⊢ +∆p; since D ⊢ +∆p iff
+D ′ ⊢ +∆p, and the latter implies D ′ ⊢ +∂p.
+    Similarly if +∆p ∈ P ′ (1..n), then D ′ ⊢ +∆p; since D ⊢ +∆p iff D ′ ⊢ +∆p, and the former
+implies D ⊢ +∂p.
+We consider the rule r from which p has been derived in D, and we consider the rules corre-
+sponding to r in elim sup(D). We have two cases: 1) r ∈ R1 and 2) r ∈ R2 .
+1) If r ∈ R1 , then r ∈ R′ . In this case ∀ar ∈ A(r), +∂ar ∈ P (1..n − 1), therefore, by inductive
+hypothesis D ′ ⊢ +∂ar , thus r is applicable in D ′ .
+
+                                                 16
+2) If r ∈ R2 , then we consider the rules corresponding to it in D ′ , namely:
+
+
+   r1 : A(r) ⇒ ¬inf + (r)      r2 : A(r) ⇒ ¬inf − (r)   r3 : ¬inf + (r) ⇒ p      r4 : ¬inf − (r) ⇒ p
+
+By inductive hypothesis, both r1 and r2 are applicable, that is, ∀ar ∈ A(r), elim sup(D) ⊢
++∂ar .
+    Let us concentrate to what happens when r ∈ R2 . We have two cases a) r is superior, b) r
+is not superior.
+    For a) if r is superior then ¬∃s : s > r, then, in elim sup(D), R[inf + (r)] = ∅, and so is
+R[inf − (r)]; hence elim sup(D) ⊢ +∂¬inf ± (r).
+    For b) if r is not superior we consider the set of rules S0 such that s > r in D. Since D is a
+well-formed theory, > is defined over competing rules; therefore S0 ⊆ R[∼p]. We consider the
+transformations of such rules: s1 : A(s) ⇒ ¬inf − (s), and eventually s2 : A(s) ⇒ ¬inf + (s) if s
+is not a defeater. The translation of the instances s > r consists of the rules
+
+                   ¬inf + (s) ⇒ inf + (s)                   ¬inf − (s) ⇒ inf − (s)
+
+If s ∈ S0 is discarded in D, i.e., ∃as ∈ A(s) : D ⊢ −∂as , by inductive hypothesis so are s1 and s2
+in elim sup(D), thus they cannot be used to block the derivation of ¬inf ± (r) in elim sup(D).
+    If s ∈ S0 is applicable, then according to clause (2.3.2) of the definition of +∂, ∃t ∈ Rsd [p]
+such that ∀at ∈ A(t), D ⊢ +∂at and t > s. Again, by inductive hypothesis elim sup(D) ⊢ +∂at .
+We have to examine two cases: i) t is superior ii) t is not superior. For i) we can repeat the
+reasoning we have done in a).
+    For ii) if t is not superior, then we consider the set S1 = {s′ : s′ > t}. Since D is a well-
+formed theory, > is defined over competing rules; therefore S1 ⊆ R[∼p], moreover S1 ⊂ S0 ,
+since > is acyclic. Therefore we can repeat n times the same reasoning until we arrive at a
+rule t′ ∈ Rsd [p], which is superior and applicable. Hence ∀at′ ∈ A(t′ ), D ⊢ +∂at′ ; by inductive
+hypothesis, elim sup(D) ⊢ +∂at′ . The rules corresponding to t′ in elim sup are
+
+                  t′1 : A(t′ ) ⇒ ¬inf + (t′ )              t′2 : A(t′ ) ⇒ ¬inf − (t′ )
+
+Therefore elim sup(D) ⊢ +∂¬inf ± (t′ ). According to clause (2.3.2) of the definition of +∂.
+Moreover from the superiority relation t′ > s′ for some rule s′ ∈ Sn , we have the rules
+
+                  ¬inf + (t′ ) ⇒ inf + (s′ )               ¬inf − (t′ ) ⇒ inf − (s′ );
+
+hence elim sup(D) ⊢ −∂inf ± (s′ ). We can repeat backward the steps leading to Sn , and we
+can conclude elim sup(D) ⊢ −∂inf ± (s), and then elim sup(D) ⊢ +∂¬inf ± (r). We have thus
+proved that both r3 and r4 are applicable in D ′ .
+    At this point to prove +∂p, we have to show that clause (2.3) of the definition of +∂ is
+satisfied. To this end, we analyse two cases: we consider a rule s ∈ R[ p]: i) s ∈ R1 or ii)
+s ∈ R2 .
+    i) If s ∈ R1 , then s ∈ R′ . If it is discarded in D, then, by inductive hypothesis, it is
+discarded in D ′ too. Otherwise if s satisfies clause (2.3.2), we consider a rule t that defeats s.
+The superiority relations of D1 and D2 are disjoint, thus no rule in D2 is superior to a rule in
+D1 . Moreover the superiority relation of D ′ is that of D1 , thus t ∈ R1 , and therefore t ∈ R′ . By
+inductive hypothesis t is applicable in D ′ , hence, in this case +∂p is provable in elim sup(D)
+    ii) If s is discarded, then, by inductive hypothesis, the rules corresponding to s in elim sup(D),
+s1 : A(s) ⇒ ¬inf − (s) and, eventually, s2 : A(s) ⇒ ¬inf + (s) are discarded too; there-
+fore elim sup(D) ⊢ −∂¬inf ± (s), from which we infer that the rule s3 : ¬inf − (s) ❀ ∼p, if
+
+                                                 17
+s ∈ Rdft [∼p], or the rules
+
+                   s3 : ¬inf − (s) ⇒ ∼p                     s4 : ¬inf + (s) ⇒ ∼p,
+
+if s ∈ Rsd [p], are discarded. Otherwise, if s satisfies clause (2.3.2), we can repeat the same
+argument of b) to prove that elim sup(D) ⊢ −∂¬inf ± (s).
+    In both cases we have proved that the rules for ∼p are discarded, and therefore, since there
+is an applicable rule for p, elim sup(D) ⊢ +∂p.
+Case elim sup(D) ⊢ +∂p ⇒ D ⊢ +∂p. If D ′ ⊢ +∂p because of D ′ ⊢ +∆p, then we have
+already proved that D ⊢ +∆p, hence D ⊢ +∂p. Otherwise we have to consider the form of the
+applicable rule used to justify the derivation of +∂p in D ′ . We have two cases 1) r : A(r) ⇒ p
+2) r : ¬inf ± (r) ⇒ p. In the first case r corresponds to itself in D ′ ; by inductive hypothesis r
+is applicable in D too. In the second case, according to clause (2.1) of +∂p, it is required that
+either
+
+          elim sup(D) ⊢ +∂¬inf + (r)              or           elim sup(D) ⊢ +∂¬inf − (r)
+
+The rules for ¬inf ± in elim sup(D) have form
+
+                  r3 : A(r) ⇒ ¬inf + (r)                    r4 : A(r) ⇒ ¬inf − (r)
+
+Again, by clause (2.3) of +∂, ∀ar ∈ A(r), elim sup(D) ⊢ +∂ar . By inductive hypothesis
+D ⊢ +∂ar . The rules r1 , r2 , r3 , and r4 correspond to rule r in D, hence r is applicable in D.
+   We have to consider now the rule for ∼p Similarly, we have two cases: 1) The rule for ∼p
+corresponding to rule in R1 , which are the same in both D and D ′ and 2) the rules for ∼p with
+form
+
+                                        s1 : ¬inf − (s) ❀ ∼p
+
+if s ∈ Rdft [∼p], otherwise they have form
+
+                   s1 : ¬inf − (s) ⇒ ∼p                      s2 : ¬inf + (s) ⇒ ∼p
+
+corresponding to rules in R2 .
+    If a rule s for ∼p corresponding to a rule in R1 is discarded in D ′ , so is in D ′ ; if it is
+applicable in D ′ so is in D, and there must be an applicable rule t for p such that t > s Since
+>1 and >2 are disjoint and >′ =>1 ; therefore t also is in R1 .
+    For the same reason as above no rule of the form ¬inf ± (s) ⇒ ∼p is inferior to any other
+rule for p, therefore all such rules must be discarded, that is, elim sup(D) ⊢ −∂¬inf ± (s). The
+rules for ¬inf ± (s) are
+
+          s3 : A(s) ⇒ ¬inf − (s)             s4 : A(s) ⇒ ¬inf + (s) if s is not a defeater.
+
+Now elim sup(D) ⊢ −∂¬inf ± (s) iff 1) R[¬inf ± ] = ∅, this is the case for ¬inf + (s), if s is a
+defeater; or 2) the rules for ¬inf ± (s) are discarded; or 3) the rules for inf ± (s) are supported.
+Case 1) is immediate, so we consider 2) and 3).
+    For 2) The rules for ¬inf ± (s) iff ∃as ∈ A(s) such that elim sup(D) ⊢ −∂as . By construction
+the rules for ¬inf ± (s) correspond to s, and they have the same body; thus, by inductive
+hypothesis, D ⊢ −∂as , and therefore s is discarded.
+    For 3) The rules for inf ± (s) have form ¬inf ± (t) ⇒ inf ± (s), and they correspond to instances
+of t > s in D. Since they are applicable, we have elim sup(D) ⊢ +∂¬inf ± (t). The superiority
+
+                                                 18
+relation in D is defined over competing rules, and since +∂¬inf + (t) can be proved, t ∈ Rsd [p] in
+D. We know that if elim sup(D) ⊢ +∂¬inf ± (t) then the rules for ¬inf ± (t) must be applicable.
+Such rules have form
+
+                   t1 : A(t) ⇒ ¬inf + (t)                        t2 : A(t) ⇒ ¬inf − (t)
+
+Thus, ∀at ∈ A(t), elim sup(D) ⊢ +∂at . By inductive hypothesis D ⊢ +∂at for all at in A(t).
+    From 2) and 3) we can conclude that in D there is an applicable rule r for p, such that for
+every rule s for ∼p, either s is discarded or there exists an applicable rule t for p such that t is
+stronger than s, therefore D ⊢ +∂p.
+Case D ⊢ −∂p ⇒ elim sup(D) ⊢ −∂p. If P (n) = −∂p because +∆∼p ∈ P (1..n − 1), then, by
+inductive hypothesis D ′ ⊢ +∆∼p, and therefore D ′ ⊢ −∂p.
+     Let us consider now the remaining cases. Let r be a rule in Rsd [p]. If r is discarded, then,
+if r ∈ R1 , then, by construction, r is also in R′ , and by inductive hypothesis is discarded in D ′ .
+If r ∈ R2 , then in R′ we have the rules
+
+                  r1+ : A(r) ⇒ ¬inf + (r)                    r1− : A(r) ⇒ ¬inf − (r)
+                       r2+ : ¬inf + (r) ⇒ p                      r2− : ¬inf − (r) ⇒ p
+
+We know that r is discarded in D, thus ∃ar ∈ A(r) such that D ⊢ −∂ar , then, by induc-
+tive hypothesis, elim sup(D) ⊢ −∂ar . The only rules for ¬inf ± (r) are r1± ; this implies that
+elim sup(D) ⊢ −∂¬inf ± (r), and hence the rules r2± are discarded.
+    If −∂p can be proved because its proof satisfied clause 2.3, then there exists a rule s such
+that 1) s is applicable and s is not inferior to any applicable rule for p.
+    Again if s ∈ R1 , then s ∈ R′ . Since R1 and R2 are disjoint no rule in R1 is inferior to a
+rule in R2 . Moreover the superiority relation of D ′ is that of R1 , therefore by construction and
+inductive hypothesis s is applicable in D ′ and it is not inferior to any applicable rule in D ′ .
+    If s ∈ R2 , we consider the rule corresponding to it in R′ :
+                           ±                                                 ±
+                  s±
+                   1 : ¬inf (s) ⇒ ∼p                         s±
+                                                              2 : A(s) ⇒ ¬inf (s)
+
+if s ∈ Rd and
+
+                   s1 : ¬inf − (s) ❀ ∼p                      s2 : A(s) ⇒ ¬inf − (s)
+
+if s is a defeater. In both cases, by inductive hypothesis the rules for ¬inf ± (s) are applicable.
+Let us consider the rules for inf ± (s); they correspond to instances of the superiority relation
+of D2 , t > s, where t ∈ R[p] since D2 is a well-formed theory. Such rules have form
+
+                                            ¬inf ± ⇒ inf ± (s)
+
+However, according to clause (−∂2.3.1) ∀t ∈ Rsd [p] either a) ∃at ∈ A(t) such that D ⊢ −∂at
+or t 6> s. From be we obtain that the rules ¬inf ± (t) ⇒ inf ± (s) do not exist, while from a),
+by inductive hypothesis, we get that the rules ¬inf ± ⇒ inf ± (s) are discarded: the only rules
+for ¬inf ± (t) are A(r) ⇒ ¬inf ± (t), but, by inductive hypothesis, they are discarded. Therefore
+D ′ ⊢ +∂¬inf ± (s).
+    We have to consider that a defeater t is superior to s, but from the defeater we have
+no rules for ¬inf + (t), and therefore D ′ ⊢ −∂¬inf + (t), thus the rule ¬inf + ⇒ inf + (s) is
+discarded. Hence in all cases we are able to prove D ′ ⊢ +∂¬inf + (s). That means that the rules
+¬inf + (s) ⇒ ∼p or ¬inf + ❀ ∼p are applicable in D ′ , and therefore also in this case D ′ ⊢ −∂p.
+
+                                                   19
+                                                                              ′
+Case elim sup(D) ⊢ −∂p ⇒ D ⊢ −∂p. We consider the form of the rules for p in Rsd [p]. We
+have two possibilities:
+
+                             1) A(r) ⇒ p                                2) ¬inf ± (r) ⇒ p
+
+In the first case the rule belongs to R1 , and in D ′ we have the same rule; in the other case the
+rules correspond to r : A(r) ⇒ p in D, and in D ′ we have also A(r) ⇒ ¬inf ± (r).
+    By hypothesis we have a proof P in D ′ where the last line in −∂p. If a rule r ∈ Rs′ [p] is
+discarded, then if it has form 1) then, by inductive hypothesis, the same rule is discarded in D.
+Let us see what happens in the other case. Here we have that D ′ ⊢ −∂¬inf ± (r). The rules for
+¬inf ± (r) are
+
+                                                  A(r) ⇒ ¬inf ± (r)
+
+and those for inf ± (r) have form
+
+                                                ¬inf ± (s) ⇒ inf ± (r)
+
+Such rules, if any, correspond to instances of the superiority relation s > r in D. Thus to prove
+−∂¬inf ± (r) we have to prove either that the rule for it is discarded, or that a rule for inf ± (r)
+is applicable. If it is discarded then, by inductive hypothesis the corresponding rule in D is
+discarded too. If the rule for inf ± is applicable the D ′ ⊢ +∂¬inf ± (s).2
+     The rules for ¬inf ± (s) have form A(s) ⇒ ¬inf ± (s). Thus, since +∂¬inf ± (s) is provable in
+D we have that ∀as ∈ A(s), D ′ ⊢ +∂as , then by inductive hypothesis the corresponding rule s
+   ′
+
+is applicable in D. Moreover since D2 is a well-formed theory s ∈ R[∼p].
+     We have now to prove that s is not inferior to any applicable rule for p in D. From the
+hypothesis we know that D ′ ⊢ +¬inf ± (s); this implies that the rules for inf ± (s), if any, are
+discarded. Since the superiority relation of D ′ is the superiority relation of D1 , there is no
+superiority relation on rules for inf literals.
+     If there are no rules for inf ± (s), then there is no rule t in D such that t > s. Otherwise the
+rules for inf ± (s) have form
+
+                                                ¬inf ± (t) ⇒ inf ± (s)
+
+Thus, if they are discarded, D ′ ⊢ −∂¬inf ± (t). The rules for ¬inf ± (t) are A(t) ⇒ ¬inf ± (t),
+while those for inf ± (t) have form ¬inf ± (s′ ) ⇒ inf ± (t).
+   Since we have a proof of +∂¬inf ± (s), and proofs are finite sequences of nodes, we can
+repeat the cycle above for a finite number of times until we arrive at a point where we can prove
++∂¬inf ± (s∗ ), and either we have no rules inf ± (s∗ ), or all rules for it (i.e., ¬inf ± (t∗ ) ⇒ inf ± (s∗ ))
+are discarded or there are no rules for inf pm (t∗ ). This implies that the corresponding rule s∗
+in D is in R[∼p], and by inductive hypothesis it is applicable, and s∗ is not inferior to an
+applicable rule for p.
+   If a rule for p is applicable in D ′ , so is the corresponding rule in D, and we have to show
+that such a rule is defeated. To this end we consider the rules for ∼p. As usual we have two
+cases3 :
+
+                           s : A(s) ֒→ ∼p                             s′ : ¬inf ± (s) ֒→ ∼p
+   2
+       Notice that the superiority relation is empty for the inf symbols, therefore clause 2.3.2 is vacuously satisfied.
+   3
+       Here ֒→ stands for either ⇒, or ❀.
+
+
+                                                           20
+In the first case s ∈ R1 , and by inductive hypothesis and the considerations about the superi-
+ority relation we have made above, if s is applicable and it is not inferior to any rule for p in
+D, so is in D ′ .
+    In the second case we have already shown that there exists a rule s∗ such that s∗ ∈ R[∼p],
+and it is not inferior to any applicable rule for p in D. Therefore in both cases D ⊢ −∂p.
+    Incrementality follows immediately from Proposition 4.                                     ✷
+   The following result follows immediately from Proposition 4.
+Corollary 11 The transformation elim sup is correct for well-formed normalized theories.
+    Theorem 10 imposes two conditions under which elim sup is modular: acyclicity of the
+superiority relation, and distinctness (of D1 and D2 ). In the following we show that these
+conditions are not needed for the modularity of elim sup only, but they are necessary conditions
+for the existence of any modular transformation that empties the superiority relation. The
+first result shows that acyclicity is a necessary condition for the incrementality (and therefore
+modularity) of such a transformation.
+Theorem 12 Let D = (F, R, >) be a (possibly cyclic) defeasible theory. Then in general there
+is no correct and incremental transformation T such that T (D) = (F ′ , R′ , ∅). It follows that
+there is no modular such transformation either.
+Proof. Let D1 and D2 be a partition of D, where
+             D1 = (∅, r1 : ⇒ p, r1 > r2 )               D2 = (∅, r2 : ⇒ ¬p, r2 > r1 )
+Then, the theory D is cyclic and both +∂p and +∂¬p are provable. On the other hand
+T (D1 ) ∪ T (D2 ) is acyclic (the superiority relation is empty); by consistency +∂p and +∂¬p are
+both provable only if (1) the theory is cyclic or (2) +∆p and +∆¬p are both provable. However
+−∆p and −∆¬p are provable in D so if the transformation T is correct −∆p and −∆¬p should
+be provable in T (D1 ) ∪ T (D2 ), and therefore +∂p and +∂¬p are not provable simultaneously.
+Thus T (D1 ) ∪ T (D1 ) is not equivalent with respect to Σ to D = D1 ∪ D2 , thus contradicting
+the correctness of T .
+   Proposition 4 tells us that there can be no such modular transformation either.             ✷
+  Our next result states that even for acyclic defeasible theories there is no modular transfor-
+mation for simulating the superiority relation.
+Theorem 13 Let D = (F, R, >) be a defeasible theory. Then in general there is no modular
+transformation T such that T (D) = (F ′ , R′ , ∅).
+Proof. Let us consider the defeasible theory D consisting of
+                                            r1 : ⇒ p
+                                            r2 : ⇒ ¬p
+                                            r1 > r2
+We partition D into D1 = {r1 : ⇒ p, r2 : ⇒ ¬p} and D2 = {r1 > r2 }. Let us suppose
+that a modular transformation T removing the superiority relation exists. According to the
+definition of modularity we have D ≡Σ D1 ∪ T (D2 ). It is easy to see that D ⊢ +∂p. Since
+D1 ∪ T (D2 ) contains an applicable rule for ¬p (i.e. r2 ) and the superiority relation is empty,
+D1 ∪ T (D2 ) ⊢ −∂p. But then D 6≡Σ D1 ∪ T (D2 ), which contradicts our assumption.
+                                                                                               ✷
+
+                                               21
+5.3     Simulating the Defeaters
+Similarly to what we have done in the previous section we show that the defeaters do not
+contribute to the expressivity of defeasible logic and that they can be simulated by means of
+strict and defeasible rules.
+     In the following we present a transformation elim dft that transforms every defeasible theory
+into an equivalent defeasible theory without defeaters. To this end for every atom p occurring
+as the consequent of either a defeasible rule or a defeater we introduce two new atoms p+ and
+p− .
+
+Definition 14 Let D = (F, R, >) be a defeasible theory, and let Σ be the language of D. Define
+elim dft(D) = (F, R′ , >′ ) where:
+                                         [
+                                   R′ =     elim dft(r)
+                                                  r∈R
+
+and
+                     
+                     
+                     {r + : A(r) → p+ , r − : A(r) → ¬p− , r : p+ → p}                 r ∈ Rs [p]
+                     
+                      {r − : A(r) → p− , r + : A(r) → ¬p+ , r : p− → ¬p}                r ∈ Rs [¬p]
+                     
+                     
+                     
+                     
+                     {r + : A(r) ⇒ p+ , r − : A(r) ⇒ ¬p− , r : p+ ⇒ p}
+                     
+                                                                                        r ∈ Rd [p]
+       elim dft(r) =
+                     
+                     
+                     {r − : A(r) ⇒ p− , r + : A(r) ⇒ ¬p+ , r : p− ⇒ ¬p}                r ∈ Rd [¬p]
+                     {r : A(r) ⇒ ¬p− }                                                 r ∈ Rdft [p]
+                     
+                     
+                     
+                     
+                      {r : A(r) ⇒ ¬p+ }                                                 r ∈ Rdft [¬p]
+                     
+
+The superiority relation >′ is defined by the following condition
+
+
+ ∀r ′ , s′ ∈ R′ (r ′ >′ s′ ⇔ ∃r, s ∈ R r ′ ∈ elim dft(r), s′ ∈ elim dft(s), r ′ > s, r ′ , s′ are conflicting)
+    For each atom p ∈ Σ, p+ and p− are new atoms, that is they do not appear in Σ. Furthermore
+all new atoms generated are distinct.
+
+As we have seen defeaters neither directly support conclusions nor can they be used in the
+counterattack phase; thus to simulate them we have to introduce two new atoms p+ and p− for
+each atom p. Intuitively the first (p+ ) is used to prove p, and the second (p− ) to block it, thus
+they roughly correspond, respectively, to the literals p and ¬p. This is way a defeater A(r) ❀ p
+is translated into A(r) ⇒ ¬p− . It cannot support p, but it can be used to attack ¬p. On the
+other hand defeasible rules do not suffer from this drawback, they both support, attack, and
+counterattack conclusions, so their translation is twofold, and we replace each defeasible rule
+A(r) ⇒ p with the rules: A(r) ⇒ p+ , A(r) ⇒ ¬p− , and p+ ⇒ p. The first and the third rule
+together support the derivation of p, while the second attack ¬p.
+
+Example 4 Let us consider the defeasible theory of example 3. We apply to it the transfor-
+mation elim dft, obtaining the rules
+                    r1+ : → gap+              r1− : → ¬gap−            r1 : gap+ → gap
+                    r2+ : gap → p+            r1− : gap → ¬p−          r1 : p+ → p
+                    r3+ : p → b+              r3− : p → ¬b−            r3 : b+ → b
+                    r4+ : b ⇒ f +             r4− : b ⇒ ¬f −           r4 : f + → f
+                    r5+ : p ⇒ ¬f +            r5− : p → f −            r5 : f − → ¬f
+                    r6 : gap ⇒ ¬f −
+
+                                                        22
+and the superiority relation
+
+                        r6 > r5−      r5 > r4        r5+ > r4−   r5− > r4+
+
+
+Theorem 15 The transformation elim dft is correct.
+
+Proof.
+   We prove the theorem by induction on the length of proofs. In what follows we use P to
+denote a proof in D, and P ′ for a proof in elim dft(D).
+Inductive base n = 1. Suppose the length of a proof P is 1. The only line in P , P (1) is either
++∆p or −∆p.
+Case If P (1) = +∆p, then elim dft(D) ⊢ +∆p. According to the definition of +∆ either i)
+p ∈ F or ii) ∃r ∈ Rs [p] such that A(r) = ∅.
+i) If p ∈ F , then it suffices to notice that D and elim dft(D) have the same set of facts.
+ii) The rule r used to derive p has the form r :→ p, and in R′ we have the rules r + :→ p+ and
+r : p+ → p. Therefore it is immediate to see that the sequence of tagged literals +∆p+ and
++∆p, is a proof of +∆p in elim dft(D).
+Case If P (1) = −∆p, then elim dft(D) ⊢ −∆p. According to the definition −∆ both p ∈     / F and
+                                             / F ′ and Rs′ [p] = ∅; therefore elim dft(D) ⊢ −∆p.
+Rs [p] = ∅. By construction of elim dft(D) p ∈
+Case If P ′ (1) = +∆p, then D ⊢ +∆p. All strict rules (if any) for p in elim dft(D) have form
+p+ → p, thus p has to be a fact. The set of facts in elim dft(D) and D is the same, thus
+D ⊢ +∆p.
+Case If P ′ (1) = −∆p, then D ⊢ −∆p. p ∈   / F ′ and Rs′ [p] = ∅, but by construction of elim dft(D)
+this is possible only if p ∈
+                           / F and Rs [p] = ∅. Therefore D ⊢ −∆p.
+Inductive base n > 1. We assume that the theorem holds for proof with less than n + 1 lines.
+We prove only the cases different from the inductive base.
+Case If P (n + 1) = +∆p, then elim dft(D) ⊢ +∆p. In this case we have a rule r ∈ Rs [p] such
+that ∀a ∈ A(r), +∆a ∈ P (1..n). In elim dft(r) we have the rules
+
+                        r + : A(r) → p+                          r : p+ → p
+
+By inductive hypothesis r + is applicable, thus we can derive +∆p+ , which implies that r is
+applicable too; therefore elim dft(D) ⊢ +∆p.
+Case If P (n + 1) = −∆p, then elim dft(D) ⊢ −∆p. Each rule for p is discarded, that is,
+there exists a literal a such that −∆a ∈ p(1..n). By inductive hypothesis elim dft(D) ⊢ −∆a.
+By construction in elim dft(D) we a strict rule for p+ (r + ) for each strict rule for p (r) in d;
+moreover r + and r have the same antecedent, therefore elim dft(D) ⊢ −∆p+ . The rules for p
+in elim dft(D) have all form p+ → p, therefore they are all discarded, thus elim dft(D) ⊢ −∆p.
+Case If P ′ (n + 1) = +∆p, then D ⊢ +∆p. In elim dft(D) each rule for p has form p+ → p;
+then +∆p+ ∈ P (1..n). This means there is an applicable strict rule r + for p+ . By construction
+r + corresponds to a strict rule r for p in D with the same antecedent; by inductive hypothesis
+r is applicable too, consequently D ⊢ +∆p.
+Case If P ′(n + 1) = −∆p, then D ⊢ −∆p. The rules for p have form p+ → p, therefore −∆p+ ∈
+P ′ (1..n). This means that every rule for p+ is discarded. By construction of elim dft(D) there
+
+                                                23
+is a one to one correspondence between the rule for p+ in elim dft(D) and those for p in D;
+moreover corresponding rules have the same antecedent. By inductive hypothesis each strict
+rule for p in D, is discarded, thus D ⊢ −∆p.
+     Before proving the remaining cases we need some preliminary results. By construction the
+rules in D and elim dft(D) are closely related. Defeasible rules for p+ and p− are the same as
+the defeasible rules in D for p and ¬p, respectively, apart from the head of the rules. Similarly,
+defeasible rules for ¬p+ and ¬p− are the same as the non-strict rules (defeasible rules and
+defeaters) in D for ¬p and p, respectively, apart from head and type of arrow. Because of
+the direct link between p+ and p, and p− and ¬p, we can use induction to establish direct
+relationships between provability in D of p and ¬p, and provability in elim dft(D) of p+ and
+p− :
+Auxiliary Lemma
+  1. a proof of ±∂p in D can be translated straightforwardly into a proof of ±∂p+ in elim dft(D);
+  2. a proof of ±∂¬p in D can be translated straightforwardly into a proof of ±∂p− in
+     elim dft(D);
+  3. a proof of ±∂p+ in elim dft(D) can be translated straightforwardly into a proof of ±∂p
+     in D;
+  4. a proof of ±∂p− in elim dft(D) can be translated straightforwardly into a proof of ±∂¬p
+     in D.
+Proof of Auxiliary Lemma. Because the proofs of these results all have the same structure,
+we will present only one proof (claims 1 and 3 for +∂p). The interested reader should have no
+problem in adapting it to prove the remaining results.
+                                D ⊢ +∂p iff elim dft(D) ⊢ +∂p+
+Suppose this result holds if the proof of +∂p takes fewer than n lines. We write D ⊢n c if
+conclusion c has a proof with fewer than n lines with defeasible tags.
+   D ⊢ +∂q iff
+
+              (1) D ⊢ +∆q or
+              (2) (2.1) ∃r ∈ Rsd [q]∀a ∈ A(r) : D ⊢n +∂a and
+                  (2.2) D ⊢ −∆∼q and
+                  (2.3) ∀s ∈ R[∼q] either
+                       (2.3.1) ∃a ∈ A(s) : D ⊢n −∂a or
+                       (2.3.2) ∃t ∈ Rsd [q] such that
+                            ∀a ∈ A(t) : D ⊢n +∂a and t > s
+
+   Now, using the induction hypothesis, the fact that D and elim dft(D) have the same strict
+conclusions, and the close relationship between rules from D and elim dft(D), the above implies
+
+              (1) elim dft(D) ⊢ +∆q + or
+                                 ′
+              (2) (2.1) ∃r ∈ Rsd   [q + ]∀a ∈ A(r) : elim dft(D) ⊢ +∂a and
+                   (2.2) elim dft(D) ⊢ −∆∼q + and
+                   (2.3) ∀s ∈ R′ [∼q + ] either
+                        (2.3.1) ∃a ∈ A(s) : elim dft(D) ⊢ −∂a or
+                                         ′
+                        (2.3.2) ∃t ∈ Rsd   [q + ] such that
+                             ∀a ∈ A(t) : elim dft(D) ⊢ +∂a and t > s
+
+                                               24
+    and this, of course, is equivalent to elim dft(D) ⊢ +∂q + . By induction, this direction of the
+result holds for proofs of arbitrary length.
+    In the other direction, we use induction on the defeasible length of proofs in elim dft(D).
+If
+
+              (1) elim dft(D) ⊢ +∆q + or
+                                 ′
+              (2) (2.1) ∃r ∈ Rsd   [q + ]∀a ∈ A(r) : elim dft(D) ⊢n +∂a and
+                   (2.2) elim dft(D) ⊢ −∆∼q + and
+                   (2.3) ∀s ∈ R′ [∼q + ] either
+                        (2.3.1) ∃a ∈ A(s) : elim dft(D) ⊢n −∂a or
+                                         ′
+                        (2.3.2) ∃t ∈ Rsd   [q + ] such that
+                             ∀a ∈ A(t) : elim dft(D) ⊢n +∂a and t > s
+
+   then, in the same way as above,
+
+              (1) D ⊢ +∆q or
+              (2) (2.1) ∃r ∈ Rsd [q]∀a ∈ A(r) : D ⊢ +∂a and
+                  (2.2) D ⊢ −∆∼q and
+                  (2.3) ∀s ∈ R[∼q] either
+                       (2.3.1) ∃a ∈ A(s) : D ⊢ −∂a or
+                       (2.3.2) ∃t ∈ Rsd [q] such that
+                            ∀a ∈ A(t) : D ⊢ +∂a and t > s
+
+   and so D ⊢ +∂q.
+   By induction, this direction holds generally.
+End of Proof of Auxiliary Lemma.
+Now we return to the main proof. It follows immediately from the fact that the only rules for
+p in elim dft(D) are p+ ⇒ p that for every literal p:
+
+   • If D ⊢ −∂p then elim dft(D) ⊢ −∂p
+
+   • If elim dft(D) ⊢ +∂p then D ⊢ +∂p
+
+    Using the inference rule for −∂ and the specific rules in elim dft(D) we have:
+    If elim dft(D) ⊢ −∂p then elim dft(D) ⊢ −∆p and either elim dft(D) ⊢ −∂p+ or [elim dft(D) ⊢
++∂p− and either elim dft(D) ⊢ −∂p+ or ∃s′ ∈ Rsd    ′
+                                                     [∼p]∀t′ ∈ Rsd
+                                                                ′
+                                                                   [p] t′ 6> s′ ].
+    Using the above properties, and the definition of >′ in elim dft, this is equivalent to
+    D ⊢ −∆p and either D ⊢ −∂p or [D ⊢ +∂∼p and either D ⊢ −∂p or ∃s ∈ Rsd [¬p]∀t ∈
+Rsd [p] t 6> s ]
+    and this implies D ⊢ −∂p. Thus we have established that if elim dft(D) ⊢ −∂p then
+D ⊢ −∂p.
+    If D ⊢ +∂p then elim dft(D) ⊢ +∂p+ , by the above properties. Hence, there is an applicable
+rule for p in elim dft(D). If D ⊢ +∂p then D ⊢ +∆p or there is an applicable rule for p in
+D and either D ⊢ −∂∼p or for every applicable rule s for ∼p in D, there is an applicable
+defeasible or strict rule t for p in D such that t > s. (Here a rule is applicable if its body can
+be proved defeasibly.)
+    Thus elim dft(D) ⊢ +∆p or elim dft(D) ⊢ −∂p− or for every applicable rule s′ for ∼p in
+elim dft(D), there is an applicable defeasible or strict rule t′ for p in elim dft(D) such that
+t′ >′ s′ .
+
+                                                25
+   In the first case, clearly elim dft(D) ⊢ +∂p. In the second case, elim dft(D) ⊢ −∂∼p. In
+both this and the third case, it now follows that elim dft(D) ⊢ +∂p since, as observed above,
+there is an applicable rule for p in elim dft(D).
+   Thus we have established that if D ⊢ +∂p then elim dft(D) ⊢ +∂p.                        ✷
+
+
+Proposition 16 The transformation elim dft is incremental, but not modular.
+
+Proof. The incrementality is immediate since given any two defeasible theories D1 and D2 ,
+elim dft(D1 ∪ D2 ) = elim dft(D1 ) ∪ elim dft(D2 ).
+    To show that it is not modular, let us consider D1 = {❀ p}, D2 = {⇒ ¬p} and Σ = {p}. It
+is immediate to see that D1 ∪ D2 ⊢ −∂¬p. elim dft(D1 ) = {⇒ ¬p− }, then elim dft(D1 ) ∪ D2 ⊢
++∂¬p. Therefore D1 ∪ D2 6≡Σ elim dft(D1 ) ∪ D2 .                                           ✷
+
+    The next result shows that, in fact, we cannot eliminate defeaters in a modular way. In the
+following a set of rules R denotes the defeasible theory (∅, R, ∅) (which may be obtained by
+application of normal followed by elim sup).
+
+Theorem 17 There is no modular transformation that transforms every defeasible theory D
+into a theory D ′ such that there are no defeaters in D ′ .
+
+Proof.
+  The claim of the theorem follows directly from the following auxiliary claim.
+Auxiliary Lemma: Let A ❀ p be a defeater. Then, in general, there is no defeasible theory R′
+without defeaters, such that for all defeasible theories R, R ∪ {A ❀ p} and R ∪ R′ allow the
+same conclusions in the language Σ (where Σ is the language of R ∪ {A ❀ p}).
+Proof of the Auxiliary Lemma: Suppose there was such an R′ for the defeater ❀ p. We will
+consider three different sets R:
+
+  1. R = ∅. Since R′ behaves the same as {❀ p} we have:
+
+          R′ ⊢ −∂p, and
+          R′ ⊢ −∂¬p.
+
+  2. R = {⇒ p}. Since R′ ∪ {⇒ p} behaves the same as {❀ p, ⇒ p} we have:
+
+          R′ ∪ {⇒ p} ⊢ +∂p, and
+          R′ ∪ {⇒ p} ⊢ −∂¬p.
+
+  3. R = {⇒ ¬p}. Since R′ ∪ {⇒ ¬p} behaves the same as {❀ p, ⇒ ¬p} we have:
+
+          R′ ∪ {⇒ ¬p} ⊢ −∂p, and
+          R′ ∪ {⇒ ¬p} ⊢ −∂¬p.
+
+
+
+
+                                              26
+Let us first consider R′ ∪ {⇒ p}. Consider a proof P in R′ ∪ {⇒ p} of length i + 1, such that
++∂p is its last line, and +∂p does not occur in P (1..i). By condition (2.3) in the definition of
+a proof4, for every rule r with consequent ¬p there is a b ∈ A(r) such that −∂b ∈ P (1..i).
+    Now we ask the following question: Can we regard P (1..i) as a proof in R′ ? The only
+difference is that now the rule ⇒ p is missing. What is the contribution of this rule in P (1..i)?
+Inspection of the definition of a proof shows that the rule is only used to add a line containing
+either p or ¬p. In our particular case, given that only +∂p and −∂¬p are derivable5 and given
+that +∂p doesn’t appear in P (1..i), the only possible contribution of the rule ⇒ p is to derive
+−∂¬p somewhere in P (1..i). Now we proceed as follows:
+    Case 1: −∂¬p doesn’t occur in P (1..i). Then it can be shown by a simple induction on the
+length of P that P ′ = P is also a proof in R′ .
+    Case 2: −∂¬p occurs in P (1..i). Then define P ′ as follows: We know that −∂¬p is derivable
+in R′ . Take such a proof P ′′ . Concatenate P ′′ and P to construct P ′6 . Again it can be easily
+proven by induction on the length of proof that P ′ is a proof in R′ . Intuitively what we did
+was the following: The missing rule ⇒ p may only cause problems in deriving −∂¬p in P . But
+already we know that −∂¬p is derivable in R′ , so we establish this conclusion first and then
+proceed as in P (1..i).
+    In both cases we get a proof P ′ in R′ with the following property:
+
+ (∗) For every rule r ∈ R′ [¬p] there is a b ∈ A(r) such that R′ ⊢ −∂b.
+
+Now we turn our attention to R′ ∪ {⇒ ¬p}. Despite the presence of ⇒ ¬p which has no
+antecedents, −∂¬p is derivable. Let P be a proof of length i + 1 with last line −∂¬p, such that
+−∂¬p does not occur in P (1..i). By the definition of a proof, there exists a rule r in R′ [p] such
+that for all a ∈ A(r) +∂a ∈ P (1..i).
+   Using the same argument as before7 , we can transform P (1..i) to a proof P ′ in R′ , such that
+there exists a rule s in R′ [p] such that for all a ∈ A(s) +∂a ∈ P ′ . Thus we have:
+
+(∗∗) There exists a rule s in R′ [p] such that for all a ∈ A(s), R′ ⊢ +∂a.
+
+Obviously R′ ⊢ −∆¬p because {❀ p} ⊢ −∆¬p. Properties (∗) and (∗∗), together with the
+condition +∂ in the definition of a proof, show that R′ ⊢ +∂p. But also R′ ⊢ −∂p because
+{❀ p} ⊢ −∂p. [6] has shown that it is impossible to derive both together. Thus we have a
+contradiction.                                                                        ✷
+
+5.4     A Minimal Set of Ingredients
+We have seen transformations that: (i) normalize; (ii) eliminate defeaters; and (iii) empty the
+superiority relation. First we summarize the outcome of our considerations.
+
+Theorem 18 For every well-formed defeasible theory D = (F, R, >) in the language Σ we can
+effectively construct a normalized defeasible theory D ′ = (∅, R′ , ∅), such that D and D ′ have the
+                              ′
+same conclusions in Σ and Rdft   = ∅.
+   4
+    Note that {❀ p, ⇒ p} 6⊢ +∆p, thus +∆p 6∈ P (1..i).
+   5
+    As [6] shows, it is impossible to derive both +∂p and −∂p.
+  6
+    As [6] shows, by concatenating two proof of a defeasible theory D one gets another proof in D.
+  7
+    Essentially we are faced with the same situation: P (1..i) is a proof in R′ ∪ {⇒ ¬p}, we remove the rule
+⇒ ¬p, and −∂¬p doesn’t occur in P (1..i). So the only possible contribution of ⇒ ¬p is to help derive −∂p.
+But −∂p is already derivable in R′ .
+
+
+                                                    27
+Proof. The effective procedure that transforms D to D ′ is the successive application of the
+three transformations we have already described: 1. normal 2. elim dft 3. elim sup.       ✷
+
+    As a result of our discussion we may view a defeasible theory as a set R of strict and
+defeasible rules. Next we show that none of the remaining ingredients used in a defeasible
+theory, strict rules and defeasible rules, can be eliminated while maintaining the set of con-
+clusions. This should not come as a surprise, of course, since there is a technical as well as
+motivational/philosophical distinction between provability based on certain, definite knowledge
+only, and defeasible, nonmonotonic provability based on plausible assumptions, represented as
+defeasible rules.
+
+Proposition 19 There is no correct transformation that eliminates strict rules.
+
+Proof. Suppose that there was such a correct transformation T . Consider the defeasible theory
+R that consists only of the strict rule → p. We have {→ p} ⊢ +∆p. But since there is no strict
+rule in T (R), T (R) 6⊢ +∆p, which gives us a contradiction to the statement of the Proposition.
+                                                                                              ✷
+
+
+Proposition 20 There is no correct transformation that eliminates defeasible rules.
+
+Proof. Suppose there was such a correct transformation T . Consider the defeasible theory R
+that consists only of the defeasible rule ⇒ p. Then {⇒ p} ⊢ +∂p. According to the claim
+of the Proposition T (R) ⊢ +∂p. But T (R) consists only of strict rules. Inspection of the
+definition of the inference conditions in subsection 2.3 (a conclusion must be derived by a strict
+or a defeasible rule) shows that then also T (R) ⊢ +∆p. But {⇒ p} 6⊢ +∆p, so we have a
+contradiction to the correctness of T .                                                         ✷
+
+    In the introduction we claimed that our results are useful for theoretical considerations, in
+addition to the implementational issues. The inference conditions in subsection 2.3 were rather
+complicated. In the following we show how the inference conditions +∂ and −∂ are simplified
+after the transformations have been applied. The reduced complexity is beneficial both for
+understanding the logic and for proofs.
+
+         +∂: If P (i + 1) = +∂q then either
+             (1) +∆q ∈ P (1..i) or
+             (2) (2.1) ∃r ∈ R[q]∀a ∈ A(r) : +∂a ∈ P (1..i) and
+                   (2.2) −∆∼q ∈ P (1..i) and
+                   (2.3) ∀s ∈ R[∼q]∃a ∈ A(s) : −∂a ∈ P (1..i)
+
+         −∂: If P (i + 1) = −∂q then
+             (1) −∆q ∈ P (1..i) and
+             (2) (2.1) ∀r ∈ R[q] ∃a ∈ A(r) : −∂a ∈ P (1..i) or
+                   (2.2) +∆∼q ∈ P (1..i) or
+                   (2.3) ∃s ∈ R[∼q]∀a ∈ A(s) : +∂a ∈ P (1..i)
+
+
+
+
+                                               28
+6     Conclusion
+Defeasible Logic is a sceptical nonmonotonic logic based on the use of logical rules and priorities
+between them. Its features provide for a very natural expression of many of the standard
+examples used to motivate other nonmonotonic logics [16]. Moreover recent work in several
+application domains has demonstrated that defeasible reasoning shows great promise to be
+useful in practice [11, 3, 18].
+     This paper studied transformations of defeasible theories. The main results showed how
+facts, defeaters and the superiority relation can be simulated by the other ingredients of the
+logic. In doing so our focus was on transformations that satisfy modularity and incrementality
+conditions. The reason is that we should not think of a theory as a stand-alone representation
+of knowledge, but rather as a module to which rules can be added (or deleted). In such cases
+it is desirable for changes to be made on a bit-by-bit basis, and to be able to modify a part of
+a theory independently from the remainder.
+     One main consequence of these results is that we can study, without loss of generality,
+a simpler form of Defeasible Logic. Deeper results on a semantics for Defeasible Logic and
+the relationship between Defeasible Logic and other nonmonotonic and logic programming
+formalisms now become more accessible.
+     The other major benefit is in the implementation of systems. In fact our main transfor-
+mations are utilized in an implementation of Defeasible Logic that has just been completed
+[13]. The implementation relies on a linear time algorithm to compute all conclusions from a
+defeasible theory without defeaters, and with an empty superiority relation. An input theory
+is transformed into this normal form by applying the transformations of section 5. It is worth
+noting that the transformations cause only a linear increase in the size of the defeasible theory
+(to be more precise, by a factor of 3 for normalization, a factor of 4 for the superiority relation,
+and a factor of 3 for the defeaters). As a result, we have a system that computes all conclusions
+in time linear in the size of the defeasible theory.
+
+
+Acknowledgments
+This paper extends and revises work presented at the 11th Australian Joint Conference on
+Artificial Intelligence, and the 1998 Joint International Conference and Symposium on Logic
+Programming. This research was supported by the Australia Research Council under Large
+Grant No. A49803544.
+
+
+References
+ [1] G. Antoniou. Nonmonotonic Reasoning. MIT Press 1997.
+ [2] G. Antoniou, D. Billington and M.J. Maher. Normal Forms for Defeasible Logic. In Proc.
+     1998 Joint International Conference and Symposium on Logic Programming, MIT Press
+     1998, 160–174.
+ [3] G. Antoniou, D. Billington and M.J. Maher. On the analysis of regulations using defeasible
+     rules. In Proc. 32nd Hawaii International Conference on Systems Science, 1999.
+ [4] G. Antoniou, F. Maruyama, R. Masuoka and H. Kitajima. Issues in Intelligent Information
+     Integration. In Proc. 3rd IASTED International Conference on Internet and Multimedia
+     Systems and Applications, IASTED 1999, 345-349.
+
+                                                29
+ [5] G. Antoniou, M.J. Maher and D. Billington. Defeasible Logic versus Logic Programming
+     without Negation as Failure. Journal of Logic Programming 41,1 (2000): 45–57.
+
+ [6] D. Billington. Defeasible Logic is Stable. Journal of Logic and Computation 3 (1993):
+     370–400.
+
+ [7] E.F. Codd. Further Normalization of the Data Base Relational Model. In Data Base
+     Systems, Courant Computer Science Symposia Series 6, Prentice Hall 1972.
+
+ [8] M.A. Covington, D. Nute and A. Vellino. Prolog Programming in Depth. Prentice Hall
+     1997.
+
+ [9] Y. Dimopoulos and A. Kakas. Logic Programming without Negation as Failure. In Proc.
+     5th International Symposium on Logic Programming, MIT Press 1995, 369–384.
+
+[10] B.N. Grosof. Prioritized Conflict Handling for Logic Programs. In Proc. Int. Logic Pro-
+     gramming Symposium, J. Maluszynski (Ed.), 197–211. MIT Press, 1997.
+
+[11] B.N. Grosof, Y. Labrou and H.Y. Chan. A Declarative Approach to Business Rules in
+     Contracts: Courteous Logic Programs in XML. In Proc. 1st ACM Conference on Electronic
+     Commerce (EC-99), ACM Press 1999.
+
+[12] R.A. Kowalski and F. Toni. Abstract Argumentation, Artificial Intelligence and Law
+     Journal 4(3-4), Kluwer Academic Publishers 1996.
+
+[13] M.J. Maher, A. Rock, G. Antoniou, D. Billington and T. Miller. Efficient defeasible rea-
+     soning systems. Submitted to the 1st International Conference on Computational Logic,
+     2000.
+
+[14] V. Marek and M. Truszczynski. Nonmonotonic Reasoning. Springer 1993.
+
+[15] D. Nute. Defeasible Reasoning. In Proc. 20th Hawaii International Conference on Systems
+     Science, IEEE Press 1987, 470–477.
+
+[16] D. Nute. Defeasible Logic. In D.M. Gabbay, C.J. Hogger and J.A. Robinson (Eds.): Hand-
+     book of Logic in Artificial Intelligence and Logic Programming Vol. 3, Oxford University
+     Press 1994, 353–395.
+
+[17] A. Pettorossi and M. Proietti. Transformation of Logic Programs: Foundations and Tech-
+     niques. Journal of Logic Programming 19/20, 1994, 261–320.
+
+[18] D.M. Reeves, B.N. Grosof, M.P. Wellman, and H.Y. Chan. Towards a Declarative Language
+     for Negotiating Executable Contracts, Proceedings of the AAAI-99 Workshop on Artificial
+     Intelligence in Electronic Commerce (AIEC-99), AAAI Press / MIT Press, 1999.
+
+[19] J.A. Robinson. A machine oriented logic based on the resolution principle. Journal of the
+     ACM 12,1, 1965, 23–41.
+
+[20] A. Rock. Deimos: Query Answering Defeasible Logic System.
+     http://www.cit.gu.edu.au/∼arock/defeasible/Defeasible.cgi
+
+
+
+
+                                             30
+

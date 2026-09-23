@@ -1,0 +1,54 @@
+Yes, but the proof must be split into separate claims.
+A theorem can prove that Java implements a formal rule. It cannot, by itself, prove that the formal rule is the correct interpretation of an English circular. The source-to-rule decision requires an evidence-backed interpretation process involving the relevant compliance and legal reviewers.
+For a source provision \(E\), controlled specification \(S\), RuleIR program \(F\), assumptions \(A\), and permitted input domain \(D_A\), the formal preservation theorem is:
+\[
+\forall x\in D_A,\qquad
+\operatorname{eval}_{S}(x)=\operatorname{eval}_{F}(x).
+\]That proves equivalence between the reviewed specification and the executable rule. It does not prove that \(S\) faithfully represents \(E\). That second claim needs source authority, definitions, context, alternative readings, and independent adjudication.
+The correct assurance structure is therefore:
+1. Source completeness and authority
+   Retain the official circular, version, effective date, footnotes, definitions, Code provisions, FAQs and cross-references. Missing dependencies block approval.
+2. Independent interpretation
+   A compliance reviewer creates a clause inventory and expected outcomes before seeing the proposed formal rule. A separate reviewer creates or challenges the interpretation. Disagreements are adjudicated and recorded.
+3. Controlled English
+   Express the accepted interpretation in a restricted language with explicit actors, quantities, dates, quantifiers, exceptions, modalities and evidence states. “Must,” “may,” “should,” “not established,” and “outside scope” must be distinct typed constructs.
+4. Alternative readings
+   Preserve competing interpretations instead of silently selecting one. For two candidate rules \(F_1\) and \(F_2\), ask a solver for:
+   \[
+   A(x)\land
+   \bigl(\operatorname{out}(F_1,x)\ne \operatorname{out}(F_2,x)\bigr).
+   \]A satisfying assignment is a concrete case on which the interpretations differ. An unsatisfiable result proves equivalence only under the encoded assumptions. A timeout or unknown result remains unresolved.
+5. Formal preservation
+   Prove or exhaustively test that the controlled specification and RuleIR have identical semantics, including UNKNOWN, CONFLICT, OUT_OF_SCOPE, dates and evidence lineage.
+6. Java preservation
+   Verify generated Java against RuleIR using conformance tests, mutation tests, differential execution and, eventually, a proof for the supported language fragment.
+For example, in SFC circular 23EC46 paragraph 10, let:
+- \(G\): the incentive is classified as a gift;
+- \(P\): it promotes a specific product;
+- \(T\): it promotes a particular product type;
+- \(D\): it is within the fee or charge discount exception.
+The current proposed reading is:
+\[
+F_A=G\land(P\lor T)\land\neg D.
+\]A faulty reading might omit the product-type route:
+\[
+F_B=G\land P\land\neg D.
+\]The assignment \(G=\text{true}, P=\text{false}, T=\text{true}, D=\text{false}\) distinguishes them. The solver proves only that they differ. The source wording and an independent reviewer must determine which reading is warranted.
+Another important ambiguity is whether a fee discount exempts only that incentive component or an entire mixed offer. A voucher accompanied by a fee waiver distinguishes those readings. The system should expose this question rather than silently treating the offer as exempt.
+The most relevant literature is:
+- Catala: Huttner and Merigoux describe lawyer-programmer “literate pair programming,” where every formal rule remains connected to the source text. Merigoux et al. separately prove preservation properties for a core compiler translation. The proof concerns the formal language and compiler, not the legal interpretation itself.
+  Huttner and Merigoux (2022), Merigoux et al. (2021)
+- LegalRuleML: Athan et al. explicitly represent multiple incompatible interpretations of one legal provision, with provenance and contextual metadata. This is directly relevant to retaining alternative readings. It does not automatically determine which interpretation is legally correct.
+  Athan et al. (2014)
+- Logical English: Kowalski et al. use a restricted English whose syntax has a defined logical translation. It reduces ambiguity through explicit templates, variable binding and restrictions on pronouns and relative clauses. It is useful as a readable intermediate language, but it does not make unrestricted English unambiguous.
+  Kowalski et al. (2023), software repository
+- Roundtrip verification: Amrollahi, Lopez and Barrett formalize English, translate the result back to English, formalize it again and check logical equivalence. This is valuable for detecting translation drift and generating targeted repairs. The authors explicitly state that agreement can still preserve the same error: if the first translation drops a condition and the later stages reproduce the omission, roundtrip equivalence passes.
+  Amrollahi et al. (2026)
+- ARc: An et al. combine policy-model construction, human vetting, structured-English inspection, symbolic testing and counterexample generation. Their reported “soundness” is an empirical false-positive metric, not a proof of English-to-logic correctness. Their treatment of human vetting and distinguishing assignments is highly reusable.
+  An et al. (2025/2026)
+- ContractNLI: Koreeda and Manning show the value of pairing a conclusion with supporting source spans and explicitly studying exceptions that appear far from the main rule. We can borrow the evidence-linking model, while replacing the NDA dataset with an SFC-specific review protocol.
+  Koreeda and Manning (2021)
+- Faithfulness and implicit assumptions: Wang et al. show that formal solvers expose missing assumptions while language models often insert them silently. This supports making every assumption explicit in the interpretation packet.
+  Wang et al. (2026)
+MathDevMCP is appropriate for proving preservation theorems after the controlled language and RuleIR semantics are fixed. DynareMCP-style proof search could generate alternative interpretations and prioritize cases that distinguish them, but proof success must not be its reward by itself: an incorrect interpretation can be easier to prove. ResearchAssistant is valuable for source retrieval, versioning, citation tracing and technical paper inspection; it cannot adjudicate the legal meaning.
+I documented the complete method, concrete 23EC46 examples, literature review, proof obligations and implementation plan in [English Interpretation Assurance](/home/chakwong/python/legalmath/docs/research/english-interpretation-assurance.md). I also added the roundtrip paper to the local library. The existing engineering evidence still passes, but it remains evidence of execution relative to a supplied interpretation, not proof that the interpretation itself is legally correct.

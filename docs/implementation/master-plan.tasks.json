@@ -1,0 +1,998 @@
+{
+  "schema_version": 1,
+  "plan_version": "1.0",
+  "date": "2026-09-22",
+  "plan": "docs/implementation/master-plan.md",
+  "authority": "Executed public/synthetic engineering record; user authorized implementation; no bank approval",
+  "application_status": "ENGINEERING_MVP_COMPLETE; LOCAL_SYNTHETIC",
+  "independent_claude_review": "User reported complete and requested no further review; report not available locally; no review invoked during implementation",
+  "tasks": [
+    {
+      "id": "T00",
+      "title": "Close contracts before runtime work",
+      "milestone": "M0",
+      "maps_to_work_packages": [
+        "preparation"
+      ],
+      "depends_on": [],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A02",
+        "A08",
+        "A09",
+        "A10",
+        "A12"
+      ],
+      "acceptance_criteria": "No contradictory execution definitions remain; generated contracts reproduce; adversarial cases and bank-issue owners are recorded.",
+      "planned_outputs": [
+        "docs/specs/v0.1",
+        "scripts/build_spec_examples.py",
+        "tests/conformance/contract-matrix.json"
+      ],
+      "acceptance_command": ".venv/bin/python scripts/check_contracts.py",
+      "command_status": "PASSED_RECORDED_COMMAND_AND_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml",
+        "artifacts/runs/acceptance/contracts.log",
+        "docs/specs/v0.1/openapi.json",
+        "docs/specs/v0.1/implementation-closure.md"
+      ],
+      "original_planned_outputs": [
+        "docs/specs/v0.1",
+        "scripts/build_spec_examples.py",
+        "tests/conformance/contract-matrix.json"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_api.py",
+        "tests/unit/test_validation_precedence.py"
+      ],
+      "passing_test_count": 10
+    },
+    {
+      "id": "T01",
+      "title": "Isolated application package and toolchain",
+      "milestone": "M1",
+      "maps_to_work_packages": [
+        "W00"
+      ],
+      "depends_on": [
+        "T00"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [],
+      "acceptance_criteria": "a clean environment installs the locked\napplication and runs import/CLI checks; a dependency manifest is preserved.",
+      "planned_outputs": [
+        "pyproject.toml",
+        "requirements-dev.lock",
+        "src/legalmath/cli.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/unit/test_bootstrap.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml",
+        "artifacts/runs/fresh-install/import.txt",
+        "artifacts/runs/fresh-install/pip-check.txt"
+      ],
+      "original_planned_outputs": [
+        "pyproject.toml",
+        "requirements-dev.lock",
+        "src/legalmath/cli.py"
+      ],
+      "executed_test_files": [
+        "tests/unit/test_bootstrap.py"
+      ],
+      "passing_test_count": 1
+    },
+    {
+      "id": "T02",
+      "title": "Canonical JSON, blobs and database",
+      "milestone": "M1",
+      "maps_to_work_packages": [
+        "W00"
+      ],
+      "depends_on": [
+        "T01"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A08"
+      ],
+      "acceptance_criteria": "golden\nbytes agree across fresh Python processes, corrupt/missing blobs fail, migrations\nare repeatable, foreign keys work, and interrupted writes leave no committed\nmissing references. Orphan cleanup is a separate explicit maintenance operation.",
+      "planned_outputs": [
+        "src/legalmath/canonical.py",
+        "src/legalmath/storage",
+        "tests/integration/test_storage.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/unit/test_canonical.py tests/integration/test_storage.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/canonical.py",
+        "src/legalmath/storage",
+        "tests/integration/test_storage.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_storage.py",
+        "tests/unit/test_canonical.py"
+      ],
+      "passing_test_count": 11
+    },
+    {
+      "id": "T03",
+      "title": "Offline circular intake and exact anchors",
+      "milestone": "M1",
+      "maps_to_work_packages": [
+        "W01"
+      ],
+      "depends_on": [
+        "T02"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A01"
+      ],
+      "acceptance_criteria": "changed source bytes, wrong page/offset, missing\nannex and HTML-instead-of-PDF are detected; source register and original-page\ndisplay input are reproducible. Scanned/OCR passages need a recorded visual check\nbefore release. Network pagination belongs to T19, not this first import.",
+      "planned_outputs": [
+        "src/legalmath/sources",
+        "corpus/sources/pilot.json"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_spi_import.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/sources",
+        "corpus/sources/pilot.json"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_spi_import.py"
+      ],
+      "passing_test_count": 5
+    },
+    {
+      "id": "T04",
+      "title": "Definitions, scope and provision coverage",
+      "milestone": "M1",
+      "maps_to_work_packages": [
+        "W01",
+        "W04"
+      ],
+      "depends_on": [
+        "T03"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A01",
+        "A15"
+      ],
+      "acceptance_criteria": "removed annex\nparagraphs and unresolved definitions block affected releases; a product-provider\nrule is not automatically assigned to a distributor; source and bank-policy\nauthority remain distinct. Output a reviewer-readable inventory, not an LLM-only\ncoverage denominator.",
+      "planned_outputs": [
+        "src/legalmath/sources/dependencies.py",
+        "src/legalmath/review/coverage.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_coverage.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/sources/dependencies.py",
+        "src/legalmath/review/coverage.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_coverage.py"
+      ],
+      "passing_test_count": 2
+    },
+    {
+      "id": "T05",
+      "title": "Full AST loading and semantic validation",
+      "milestone": "M1",
+      "maps_to_work_packages": [
+        "W02"
+      ],
+      "depends_on": [
+        "T04"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A02"
+      ],
+      "acceptance_criteria": "existing six\nnegative cases plus duplicate source/interpretation IDs, unresolved interpretation\nspans, direct/indirect cycles and malformed Unicode/date/numeric values are\nrejected with stable codes/pointers. Accepted nodes have declared types.",
+      "planned_outputs": [
+        "src/legalmath/ir/load.py",
+        "src/legalmath/ir/typecheck.py",
+        "src/legalmath/ir/graph.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/unit/test_types.py tests/unit/test_graph.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/ir/load.py",
+        "src/legalmath/ir/typecheck.py",
+        "src/legalmath/ir/graph.py"
+      ],
+      "executed_test_files": [
+        "tests/unit/test_graph.py",
+        "tests/unit/test_types.py",
+        "tests/unit/test_validation_precedence.py"
+      ],
+      "passing_test_count": 13
+    },
+    {
+      "id": "T06",
+      "title": "Dated evidence normalization",
+      "milestone": "M1",
+      "maps_to_work_packages": [
+        "W02"
+      ],
+      "depends_on": [
+        "T05"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A09"
+      ],
+      "acceptance_criteria": "exact expiry, late corrections, future-valid\ncorrections, identical-value evidence merging, correction cycles/unknown targets\nand cross-subject corrections behave as specified. A known selected value can\nbe explained from preserved evidence and its contributing records.",
+      "planned_outputs": [
+        "src/legalmath/ir/normalize.py",
+        "tests/unit/test_normalize.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/unit/test_normalize.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/ir/normalize.py",
+        "tests/unit/test_normalize.py"
+      ],
+      "executed_test_files": [
+        "tests/unit/test_normalize.py"
+      ],
+      "passing_test_count": 2
+    },
+    {
+      "id": "T07",
+      "title": "Full reference evaluator",
+      "milestone": "M2",
+      "maps_to_work_packages": [
+        "W03"
+      ],
+      "depends_on": [
+        "T06"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07"
+      ],
+      "acceptance_criteria": "all 35 full-language\ncases execute through `legalmath.conformance:evaluate_case`, including unknowns,\nequal-valued exception conflicts and inexact arithmetic. Add interactions such\nas an eager sibling error, a skipped but conflicting input, empty exception list\nand negative exact scaling input. No external tool is called during evaluation.",
+      "planned_outputs": [
+        "src/legalmath/ir/evaluate.py",
+        "src/legalmath/conformance.py"
+      ],
+      "acceptance_command": ".venv/bin/python scripts/check_spec_pack.py --runtime legalmath.conformance:evaluate_case",
+      "command_status": "PASSED_RECORDED_COMMAND_AND_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml",
+        "artifacts/runs/acceptance/spec-runtime.log"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/ir/evaluate.py",
+        "src/legalmath/conformance.py"
+      ],
+      "executed_test_files": [
+        "tests/conformance/test_decisions.py",
+        "tests/conformance/test_operator_interactions.py"
+      ],
+      "passing_test_count": 40
+    },
+    {
+      "id": "T08",
+      "title": "Trace, identity and independent decision oracle",
+      "milestone": "M2",
+      "maps_to_work_packages": [
+        "W03"
+      ],
+      "depends_on": [
+        "T07"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A04",
+        "A08"
+      ],
+      "acceptance_criteria": "altered evidence/source links, child ordering, skipped\nroots, duplicate nodes, blocking sets and forged hashes fail. Preserve manually\nderived boundary outcomes as a separate oracle from generated tests.",
+      "planned_outputs": [
+        "src/legalmath/ir/trace.py",
+        "tests/conformance/test_decisions.py",
+        "tests/conformance/test_result_identity.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/conformance/test_decisions.py tests/conformance/test_result_identity.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/ir/trace.py",
+        "tests/conformance/test_decisions.py",
+        "tests/conformance/test_result_identity.py"
+      ],
+      "executed_test_files": [
+        "tests/conformance/test_decisions.py",
+        "tests/conformance/test_result_identity.py"
+      ],
+      "passing_test_count": 49
+    },
+    {
+      "id": "T09",
+      "title": "Full deterministic Java backend",
+      "milestone": "M2",
+      "maps_to_work_packages": [
+        "W03J"
+      ],
+      "depends_on": [
+        "T08"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A03",
+        "A06",
+        "A07",
+        "A08"
+      ],
+      "acceptance_criteria": "all 35 cases and migrated 32 SPI scenarios agree by section 4.2,\nwith real backend identities and independently checked execution hashes. Compile\nthe three outcome-changing mutants and demonstrate detection. Test type/malformed\ninputs and invoked non-Boolean rule results. Keep narrow-demo regressions separate.",
+      "planned_outputs": [
+        "src/legalmath/java/emit.py",
+        "src/legalmath/java/runtime",
+        "tests/conformance/test_java.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/conformance/test_java.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/java/emit.py",
+        "java-runtime/src/main/java/hk/legalmath",
+        "tests/conformance/test_java.py"
+      ],
+      "executed_test_files": [
+        "tests/conformance/test_java.py",
+        "tests/conformance/test_operator_interactions.py"
+      ],
+      "passing_test_count": 8
+    },
+    {
+      "id": "T10",
+      "title": "Candidate build and portable Java evidence",
+      "milestone": "M2",
+      "maps_to_work_packages": [
+        "W03J",
+        "W04"
+      ],
+      "depends_on": [
+        "T09"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A08",
+        "A12"
+      ],
+      "acceptance_criteria": "fresh rebuild hashes match,\ninjected stale class files cannot leak into the JAR, wrong toolchain/target is\nvisible, and Java executes without Python or model services. Evidence names the\nactual JAR tested. Normalize build paths/timestamps only under documented rules.",
+      "planned_outputs": [
+        "src/legalmath/java/manifest.py",
+        "tests/integration/test_java_host.py",
+        "tests/integration/test_java_build.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_java_host.py tests/integration/test_java_build.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml",
+        "artifacts/runs/mvp-accepted/java-release/build-manifest.json",
+        "artifacts/runs/mvp-accepted/BankHost.java"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/java/manifest.py",
+        "tests/integration/test_java_host.py",
+        "tests/integration/test_java_build.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_java_build.py",
+        "tests/integration/test_java_host.py"
+      ],
+      "passing_test_count": 3
+    },
+    {
+      "id": "T11",
+      "title": "Review lifecycle and local role enforcement",
+      "milestone": "M3",
+      "maps_to_work_packages": [
+        "W04"
+      ],
+      "depends_on": [
+        "T10",
+        "T04"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A12",
+        "A14"
+      ],
+      "acceptance_criteria": "self-approval, forged body roles, edited-after-approval bytes, unresolved\ndependency, concurrent stale review and incorrect evidence hashes fail. Every\naccepted change has an atomic audit record. Explicitly mark synthetic review\nauthority; do not present it as compliance adjudication.",
+      "planned_outputs": [
+        "src/legalmath/review/lifecycle.py",
+        "tests/integration/test_review.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_review.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/review/lifecycle.py",
+        "tests/integration/test_review.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_coverage.py",
+        "tests/integration/test_review.py"
+      ],
+      "passing_test_count": 5
+    },
+    {
+      "id": "T12",
+      "title": "Release selection, export and historical import",
+      "milestone": "M3",
+      "maps_to_work_packages": [
+        "W04"
+      ],
+      "depends_on": [
+        "T11"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A12",
+        "A15"
+      ],
+      "acceptance_criteria": "absent/overlapping applicable release, wrong JAR/report,\nretired new-use request, stale activation revision and tampered package are\nrejected. Historical replay uses its recorded version and evidence. Rollback\nrepairs implementation; it cannot revive a superseded legal rule automatically.",
+      "planned_outputs": [
+        "src/legalmath/review/releases.py",
+        "src/legalmath/storage/archive.py",
+        "tests/integration/test_release.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_release.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml",
+        "artifacts/runs/mvp-accepted/walkthrough.json"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/review/releases.py",
+        "src/legalmath/adapters/export.py",
+        "tests/integration/test_release.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_release.py"
+      ],
+      "passing_test_count": 4
+    },
+    {
+      "id": "T13",
+      "title": "Full event ingestion and Python replay",
+      "milestone": "M3",
+      "maps_to_work_packages": [
+        "W05"
+      ],
+      "depends_on": [
+        "T12"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A10",
+        "A11"
+      ],
+      "acceptance_criteria": "eight existing event scenarios execute, plus late\ntimely evidence, duplicate/colliding IDs, sequence conflicts, unknown deadlines,\nfuture seals, wrong subject/actor/category and February 29 policies. Without a\ncomplete observation window, absence does not establish breach. Opening source\nversion remains attached to an obligation unless a reviewed migration exists.",
+      "planned_outputs": [
+        "src/legalmath/events",
+        "tests/conformance/test_events.py",
+        "tests/unit/test_calendar.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/conformance/test_events.py tests/unit/test_calendar.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/events",
+        "tests/conformance/test_events.py",
+        "tests/unit/test_calendar.py"
+      ],
+      "executed_test_files": [
+        "tests/conformance/test_events.py",
+        "tests/unit/test_calendar.py"
+      ],
+      "passing_test_count": 16
+    },
+    {
+      "id": "T14",
+      "title": "Java event projection and decision composition",
+      "milestone": "M3",
+      "maps_to_work_packages": [
+        "W05",
+        "W03J"
+      ],
+      "depends_on": [
+        "T13",
+        "T09"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A10",
+        "A11"
+      ],
+      "acceptance_criteria": "complete replay results agree across languages, the eleven narrow consent\nregressions remain visible, and withdrawal/regrant/late-evidence end-to-end cases\nreach the correct generated decision. Passing a consent Boolean alone does not\ncomplete the full attributed event contract. Release tests now cover both components.",
+      "planned_outputs": [
+        "src/legalmath/java/runtime/EventReplay.java",
+        "tests/conformance/test_java_events.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/conformance/test_java_events.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml",
+        "artifacts/runs/mvp-accepted/java-release/verification-report.json"
+      ],
+      "original_planned_outputs": [
+        "java-runtime/src/main/java/hk/legalmath/events",
+        "tests/conformance/test_java_events.py"
+      ],
+      "executed_test_files": [
+        "tests/conformance/test_java_events.py",
+        "tests/integration/test_full_walkthrough.py"
+      ],
+      "passing_test_count": 2
+    },
+    {
+      "id": "T15",
+      "title": "Synthetic host transaction protocol",
+      "milestone": "M3",
+      "maps_to_work_packages": [
+        "Java host"
+      ],
+      "depends_on": [
+        "T12",
+        "T14"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A13",
+        "A14"
+      ],
+      "acceptance_criteria": "concurrent withdrawal,\nrelease change, changed retry payload, duplicate retry and exhausted retries\nproduce specified outcomes. This tests a synthetic adapter, not the bank's systems.",
+      "planned_outputs": [
+        "tests/integration/test_host_transactions.py",
+        "src/legalmath/java/runtime/SyntheticHost.java"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_host_transactions.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "tests/integration/test_host_transactions.py",
+        "examples/transactional-host"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_host_transactions.py"
+      ],
+      "passing_test_count": 1
+    },
+    {
+      "id": "T16",
+      "title": "Service API, jobs and integration boundaries",
+      "milestone": "M4",
+      "maps_to_work_packages": [
+        "W06"
+      ],
+      "depends_on": [
+        "T12",
+        "T14"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A14",
+        "A16"
+      ],
+      "acceptance_criteria": "malformed requests have documented\nHTTP errors, semantic ERROR is distinct, idempotency/revisions survive restart,\njob results can be retrieved, timeouts confer no proof, and local role checks are\nenforced. Store OpenAPI/request/response snapshots and path/resource-limit tests.",
+      "planned_outputs": [
+        "src/legalmath/api",
+        "tests/integration/test_api.py",
+        "tests/integration/test_jobs.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_api.py tests/integration/test_jobs.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/api",
+        "tests/integration/test_api.py",
+        "tests/integration/test_jobs.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_api.py",
+        "tests/integration/test_jobs.py"
+      ],
+      "passing_test_count": 8
+    },
+    {
+      "id": "T17",
+      "title": "Source/rule/case/amendment reviewer screens",
+      "milestone": "M4",
+      "maps_to_work_packages": [
+        "W06"
+      ],
+      "depends_on": [
+        "T16"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A04",
+        "A16"
+      ],
+      "acceptance_criteria": "browser/keyboard checks, escaped hostile text, exact cents-to-HKD\nformatting, source revision links and historic decision views work. Record an\nengineering walkthrough. Human understanding/usability remains pending until\na compliance reader completes a separate walkthrough; it does not block later\noffline engineering tasks.",
+      "planned_outputs": [
+        "src/legalmath/web",
+        "tests/integration/test_review_screens.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_review_screens.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml",
+        "artifacts/runs/browser-review/report.json"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/web",
+        "tests/integration/test_review_screens.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_review_screens.py"
+      ],
+      "passing_test_count": 1
+    },
+    {
+      "id": "T18",
+      "title": "Bounded solver comparison",
+      "milestone": "M5",
+      "maps_to_work_packages": [
+        "W07"
+      ],
+      "depends_on": [
+        "T08",
+        "T12"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A03",
+        "A04",
+        "A16"
+      ],
+      "acceptance_criteria": "strict-boundary and OR-to-AND\ndifferences are found, `A or not A` differs from true for unknown A, and timeout,\nempty domain, unsupported date/default/event/scale constructs remain explicit.\nUse exhaustive tiny T/F/U domains as an independent encoding check. An unsat\nanswer is solver evidence, not a replayed proof certificate.",
+      "planned_outputs": [
+        "src/legalmath/analysis",
+        "tests/conformance/test_solver.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/conformance/test_solver.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/analysis",
+        "tests/conformance/test_solver.py"
+      ],
+      "executed_test_files": [
+        "tests/conformance/test_solver.py"
+      ],
+      "passing_test_count": 5
+    },
+    {
+      "id": "T19",
+      "title": "Pilot corpus discovery and changes",
+      "milestone": "M5",
+      "maps_to_work_packages": [
+        "W08"
+      ],
+      "depends_on": [
+        "T04",
+        "T16"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A01",
+        "A15",
+        "A16"
+      ],
+      "acceptance_criteria": "repeated pages, deleted attachments, changed\nbytes, no-result/fetch-error distinction and private-network redirects are\nhandled. 25EC48 remains a review announcement, not an invented numeric rule;\n23EC53/26EC22 retain their replacement relationship. Discovery coverage is not\nthe bank's complete regulatory perimeter.",
+      "planned_outputs": [
+        "src/legalmath/sources/fetch.py",
+        "tests/integration/test_discovery.py",
+        "tests/security/test_fetch.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_discovery.py tests/security/test_fetch.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml",
+        "artifacts/runs/sfc-live-refresh/report.json",
+        "corpus/sources/pilot.json"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/sources/fetch.py",
+        "tests/integration/test_discovery.py",
+        "tests/security/test_fetch.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_discovery.py",
+        "tests/security/test_fetch.py"
+      ],
+      "passing_test_count": 16
+    },
+    {
+      "id": "T20",
+      "title": "Candidate drafting with a deterministic stub first",
+      "milestone": "M5",
+      "maps_to_work_packages": [
+        "W08"
+      ],
+      "depends_on": [
+        "T17",
+        "T19"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A02",
+        "A16"
+      ],
+      "acceptance_criteria": "a stub\nprovider exercises success, malformed output, missing citation, repeated repair,\ntimeout and prompt injection. Preserve model configuration/prompts/costs when a\nreal provider is later enabled. Three repeated model suggestions are not three\nindependent legal opinions. Live model quality belongs to T24.",
+      "planned_outputs": [
+        "src/legalmath/drafting",
+        "tests/integration/test_drafting.py",
+        "tests/security/test_source_instructions.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_drafting.py tests/security/test_source_instructions.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/drafting",
+        "tests/integration/test_drafting.py",
+        "tests/security/test_source_instructions.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_drafting.py",
+        "tests/security/test_source_instructions.py"
+      ],
+      "passing_test_count": 2
+    },
+    {
+      "id": "T21",
+      "title": "Amendment impact and historical replay",
+      "milestone": "M5",
+      "maps_to_work_packages": [
+        "W04",
+        "W08"
+      ],
+      "depends_on": [
+        "T12",
+        "T14",
+        "T18",
+        "T19"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A01",
+        "A15"
+      ],
+      "acceptance_criteria": "changed definition\ninvalidates dependent evidence, new approvals bind the new bundle/JAR, original\ndecisions reproduce, ongoing obligations retain their opening version, and\nunsupported migration stays an issue. Exercise actual tokenisation replacement\nmetadata and a clearly synthetic SPI threshold/consent amendment separately.",
+      "planned_outputs": [
+        "src/legalmath/review/amendment.py",
+        "tests/integration/test_amendment.py"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_amendment.py -q",
+      "command_status": "PASSED_IN_FULL_SUITE",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml"
+      ],
+      "original_planned_outputs": [
+        "src/legalmath/review/amendment.py",
+        "tests/integration/test_amendment.py"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_amendment.py",
+        "tests/integration/test_full_walkthrough.py"
+      ],
+      "passing_test_count": 2
+    },
+    {
+      "id": "T22",
+      "title": "Engineering MVP acceptance",
+      "milestone": "M6",
+      "maps_to_work_packages": [
+        "W10 engineering"
+      ],
+      "depends_on": [
+        "T15",
+        "T17",
+        "T18",
+        "T20",
+        "T21"
+      ],
+      "implementation_status": "COMPLETE",
+      "entry_state": "ACCEPTANCE_PASSED",
+      "required_for_engineering_mvp": true,
+      "acceptance_cases": [
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A11",
+        "A12",
+        "A13",
+        "A14",
+        "A15",
+        "A16"
+      ],
+      "acceptance_criteria": "all core acceptance rows pass; no unresolved critical source,\nidentity, numeric, event, review or release defect is hidden by averages. Export\nand restore into a new working directory. Report `ENGINEERING_MVP_COMPLETE` with\nsynthetic authority, remaining legal scope and human usability explicitly pending.",
+      "planned_outputs": [
+        "tests/integration/test_full_walkthrough.py",
+        "artifacts/runs/mvp-accepted"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest -q --junitxml=artifacts/runs/acceptance/tests.xml",
+      "command_status": "PASSED_RECORDED_COMMAND_AND_WALKTHROUGH",
+      "evidence_paths": [
+        "artifacts/runs/acceptance/tests.xml",
+        "artifacts/runs/acceptance/run-manifest.json",
+        "artifacts/runs/acceptance/final-artifacts.json",
+        "artifacts/runs/mvp-accepted/walkthrough.json"
+      ],
+      "original_planned_outputs": [
+        "tests/integration/test_complete_spi.py",
+        "artifacts/acceptance/spi-23ec35"
+      ],
+      "executed_test_files": [
+        "tests/integration/test_amendment.py",
+        "tests/integration/test_api.py",
+        "tests/integration/test_coverage.py",
+        "tests/integration/test_discovery.py",
+        "tests/integration/test_drafting.py",
+        "tests/integration/test_full_walkthrough.py",
+        "tests/integration/test_host_transactions.py",
+        "tests/integration/test_java_build.py",
+        "tests/integration/test_java_host.py",
+        "tests/integration/test_jobs.py",
+        "tests/integration/test_release.py",
+        "tests/integration/test_review.py",
+        "tests/integration/test_review_screens.py",
+        "tests/integration/test_spi_import.py",
+        "tests/integration/test_storage.py",
+        "tests/security/test_fetch.py",
+        "tests/security/test_source_instructions.py"
+      ],
+      "passing_test_count": 49
+    },
+    {
+      "id": "T23",
+      "title": "Optional research adapters",
+      "milestone": "M7",
+      "maps_to_work_packages": [
+        "W09"
+      ],
+      "depends_on": [
+        "T18",
+        "T20"
+      ],
+      "implementation_status": "NOT_RUN_OPTIONAL",
+      "entry_state": "CORE_DEPENDENCIES_COMPLETE",
+      "required_for_engineering_mvp": false,
+      "acceptance_cases": [],
+      "acceptance_criteria": "captured-contract\ntests plus one bounded real invocation, or explicit NOT_RUN with cause. MCTS/UCB\nneeds its own question and baseline; search score never grants interpretation\nauthority. Optional failures leave the core workbench usable.",
+      "planned_outputs": [
+        "src/legalmath/adapters",
+        "artifacts/adapter-review"
+      ],
+      "acceptance_command": ".venv/bin/python -m pytest tests/integration/test_adapters.py -q",
+      "command_status": "NOT_RUN",
+      "evidence_paths": [
+        "docs/implementation/execution-report.md"
+      ],
+      "disposition_reason": "Optional adapters are not required by the core. Real invocation, license/interface review and any proof-search study remain separate."
+    },
+    {
+      "id": "T24",
+      "title": "Human/model pilot and investment decision",
+      "milestone": "M7",
+      "maps_to_work_packages": [
+        "W10 research"
+      ],
+      "depends_on": [
+        "T22"
+      ],
+      "implementation_status": "PENDING_HUMAN_PILOT",
+      "entry_state": "CORE_DEPENDENCIES_COMPLETE",
+      "required_for_engineering_mvp": false,
+      "acceptance_cases": [],
+      "acceptance_criteria": "independent\nadjudication, complete outcomes/abstentions, paired uncertainty or an explicit\ndescriptive-only conclusion, costs and a scoped investment decision. Insufficient\nreviewers/families blocks claims about effectiveness, not engineering completion.",
+      "planned_outputs": [
+        "docs/plans/pilot-comparison.md",
+        "artifacts/pilot"
+      ],
+      "acceptance_command": "Use the registered pilot protocol; no live experiment command is approved by this plan.",
+      "command_status": "NOT_RUN",
+      "evidence_paths": [
+        "docs/implementation/execution-report.md"
+      ],
+      "disposition_reason": "Independent participants, legal adjudication and registered model/human study are unavailable; no live experiment is authorized by the plan."
+    }
+  ],
+  "execution_report": "docs/implementation/execution-report.md",
+  "evidence_manifest": "artifacts/runs/acceptance/final-artifacts.json"
+}

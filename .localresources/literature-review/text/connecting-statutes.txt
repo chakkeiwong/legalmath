@@ -1,0 +1,1225 @@
+                         Connecting Symbolic Statutory Reasoning
+                            with Legal Information Extraction
+
+                 Nils Holzenberger                                       Benjamin Van Durme
+                    Télécom Paris                                       Johns Hopkins University
+           Institut Polytechnique de Paris                               vandurme@jhu.edu
+    nils.holzenberger@telecom-paris.fr
+
+
+
+                       Abstract                                                Statutes                                  Cases
+                                                              §2. Definitions and special rules                   In 2017, Alice was paid
+
+     Statutory reasoning is the task of determining           (a) Definition of surviving spouse
+                                                                                                                  $33200. Alice and Bob have
+                                                                                                                  been married since Feb
+                                                                                                                  3rd, 2017. Alice was born
+     whether a given law – a part of a statute – ap-          (1) In general                                      March 2nd, 1950 and Bob
+                                                                                                                  was born March 3rd, 1955.
+     plies to a given legal case. Previous work has           For purposes of section 1, the term "surviving
+                                                              spouse" means a taxpayer-                           Section 63(f)(1)(A)
+
+     shown that structured, logical representations           (A) whose spouse died during either of the two
+                                                              years immediately preceding the taxable year, and
+                                                                                                                  applies to Alice in 2017.
+
+
+     of laws and cases can be leveraged to solve              (B) who maintains as his home a household which…
+
+     statutory reasoning, including on the StAtu-
+     tory Reasoning Assessment dataset (SARA),
+     but rely on costly human translation into struc-                Prolog program                                Prolog KBs
+     tured representations. Here, we investigate a               s2_a(Taxpayer, Spouse, Household,
+                                                                 Dependent, Year) :-
+                                                                                                                  payment_(“paid”).
+                                                                                                                  patient_(“paid”,”Alice”).
+     form of legal information extraction atop the                 s2_a_1(Taxpayer, Spouse,
+                                                                 Previous_marriage, Household, Dependent,
+                                                                                                                  start_(“paid”,”2017-12-31").
+                                                                                                                  amount_(“paid”,33200).
+
+     SARA cases, illustrating how the task can be                Year),
+                                                                   \+ s2_a_2(Taxpayer, Spouse,
+                                                                                                                  marriage_(“married”).
+                                                                                                                  agent_(“maried”,”Alice”).
+                                                                 Previous_marriage, Year).                        …
+     done with high performance. Further, we show                s2_a_1(Taxpayer, Spouse, Previous_marriage,      ?- s63_f_1_A(alice,2017).
+     how the performance of downstream symbolic                  Household, Dependent, Year) :-
+                                                                   s2_a_1_A(Taxpayer, Spouse,
+                                                                 Previous_marriage, Year), …
+     reasoning directly correlates with the quality
+     of the information extraction.
+                                                                                            Prolog engine
+1    Introduction
+Statutory reasoning is the task of reasoning about          Figure 1: Statutory reasoning connects statutes and
+                                                            case descriptions. In previous work, both were manu-
+legal cases with legal statutes. It is gener-
+                                                            ally translated into Prolog code to enable formal reason-
+ally contrasted with case-based reasoning, and              ing. Here, we illustrate the right portion of the figure:
+is complementary to it in legal systems based               automated translation of cases into Prolog.
+on common law (Lawsky, 2017). The StAtu-
+tory Reasoning Assessment dataset (SARA) is a
+benchmark for statutory reasoning for US federal            Knowledge Base (KB) requires a large amount of
+tax law (Holzenberger et al., 2020).                        repetitive labor. Automating this translation task
+   In some settings, laws and regulations can be            would be more scalable, and could take advantage
+encoded into first-order logic programs to reason           of the high-quality expert system built on statutes.
+about cases (El Hamdani et al., 2021; Merigoux                 In this work, we develop a form of Information
+et al., 2021a; Bench-Capon et al., 1987). In Holzen-        Extraction (IE) for legal cases (Filtz et al., 2020),
+berger et al. (2020), SARA statutes and cases were          corresponding to the task highlighted on the right
+manually translated into Prolog code, solving statu-        of Figure 1. We release a new version of the SARA
+tory reasoning in that context, in a process depicted       dataset, with updated annotations for the Prolog
+in Figure 1. Here, we take the standpoint advo-             KBs, and establish baseline results in extracting
+cated by Merigoux et al. (2021a), and start with            those KBs from case descriptions. This allows us
+the premise that a structured form of the statutes          to answer the following:
+is available, while cases are stated in natural lan-        • What representation of Knowledge Base Ele-
+guage. In practice, many governments across the               ments (KBEs) in Prolog is appropriate for IE?
+world use expert systems to compute taxes owed
+by taxpayers, maintained by a dedicated team of             • How well can IE models perform on SARA?
+experts (Oskamp and Lauritsen, 2002; Merigoux               • How does performance in IE translate to perfor-
+et al., 2021b). In contrast, translating cases into a         mance in statutory reasoning?
+                                                        113
+                  Proceedings of the Natural Legal Language Processing Workshop 2023, pages 113–131
+                          December 7, 2023 ©2023 Association for Computational Linguistics
+   We report improved scores on statutory reason-        and this section is limited to a few examples. Black-
+ing, showing the benefit of a structured Prolog          burn and Bos (2005) describe the role of first-order
+representation for statutes. We further show an          logic in representing the semantics of natural lan-
+intuitive correlation in IE performance with perfor-     guage. The book reviews fundamental issues in
+mance in statutory reasoning. This represents an         semantic representations, with the goal of mak-
+exciting outcome for IE practitioners: the SARA          ing inferences. Abstract Meaning Representation
+dataset can provide a clearly motivated downstream       (AMR) (Banarescu et al., 2013) represents the se-
+task that is directly impacted by improved IE.           mantic content of sentences, without alignment to
+                                                         the syntax of the source text. Universal Conceptual
+2   Related work                                         Cognitive Annotation (Hershcovich et al., 2017)
+                                                         is aimed at more flexibility than AMR, especially
+Statutory reasoning While the present work is
+                                                         cross-linguisticality, and its graphs feature more
+mainly concerned with IE, it is done for the pur-
+                                                         challenges for parsing than AMR graphs. Univer-
+pose of statutory reasoning (Holzenberger et al.,
+                                                         sal Decompositional Semantics (White et al., 2020)
+2020). This legal NLP task (Chalkidis et al., 2022;
+                                                         provides multiple layers of annotations, separating
+Zhong et al., 2020) is close to that of legal entail-
+                                                         syntactic and semantic information, and decom-
+ment (Rabelo et al., 2022) and case outcome pre-
+                                                         positional semantics. There are semantic repre-
+diction (Branting et al., 2021; Luo et al., 2017).
+                                                         sentations that aim to reflect the full content of
+Large Language Models (LLMs) have recently
+                                                         language, such as Episodic Logic (Kim et al., 2021;
+set state-of-the-art on statutory reasoning (Blair-
+                                                         Schubert et al., 2010). Closer to this work, the
+Stanek et al., 2023; Guha et al., 2023).
+                                                         PropBank dataset (Palmer et al., 2005; O’Gorman
+Legal-domain IE IE has been done extensively             et al., 2018) adds predicate-argument relations on
+on contracts, as a potentially high-impact applica-      top of the Penn Treebank parse trees (Marcus et al.,
+tion (Chalkidis et al., 2018; Glaser et al., 2018;       1993). This effort has been extended to more lan-
+Liepin, a et al., 2020). The goal is to automate         guages (Moeller et al., 2020; Anwar et al., 2016;
+routine legal tasks, such as legal contract analy-       Wu and Palmer, 2015). The structures considered
+sis (Hendrycks et al., 2021) and contract manage-        here are represented using Neo-Davidsonian se-
+ment (Schneider et al., 2022). IE has also been at-      mantics (Castañeda, 1967; Davidson, 1967; Par-
+tempted on regulatory texts: Chalkidis et al. (2019)     sons, 1990). In particular, they only capture the
+released a dataset of legal documents produced           content relevant for interpreting the SARA statutes.
+by the EU annotated with a set of legal terms.           Previous work on semantic representations for the
+There are datasets for classifying paragraphs in         legal domain, including the tax-law domain, have
+policies (Bartolini et al., 2004), extracting subject-   made use of ad-hoc ontologies, depending on the
+object relationships (Alohaly et al., 2018), and         application domain (Bench-Capon et al., 1987;
+identifying cross-references (Boella et al., 2019).      Sherman, 1987; Merigoux et al., 2021a).
+Closer to this paper, IE has been applied to case
+law. Yao et al. (2022) introduce a dataset of Chi-       Task-oriented representations When perform-
+nese court cases annotated with a custom event           ing semantic parsing for a specific task, it is possi-
+ontology. Navas-Loro and Santos (2018) offer a           ble to sacrifice expressivity for performance (Kollar
+review of event extraction in the legal domain, both     et al., 2018). Zelle and Mooney (1996) introduce
+annotation schemas and computational models, as          C HILL, a shift-reduce parser producing queries ex-
+well as annotations of European Court of Justice         ecutable against the Geoquery database. With the
+cases. Filtz et al. (2020) provide a corpus of events    same benchmark dataset, Zettlemoyer and Collins
+based on the decisions of the European Court of          (2005) induce a grammar and a log-linear model to
+Human Rights, and compare statistical and rule-          map questions to queries. Similarly, Berant et al.
+based models for event extraction.                       (2013) answer questions stated in natural language
+                                                         to a KB. They translate the question into a query
+Semantic representations This paper is con-              that can be executed against the KB. Beltagy et al.
+cerned with the extraction of events and their ar-       (2014) use semantic parsing for the tasks of Rec-
+guments by mapping the semantic content of lan-          ognizing Textual Entailment and Semantic Tex-
+guage into a structured format (Sundheim, 1992).         tual Similarity. Zhang et al. (2019) and Weir et al.
+There are numerous formalisms for that purpose,          (2020) generate SQL queries from natural language
+                                                     114
+questions. Here too, compositionality can play a                     Some case descriptions state facts that are re-
+role (Pasupat and Liang, 2015). Campagna et al.                   peated across multiple instances — see Appendix A
+(2019) focus on parsing language for virtual as-                  for an example. Some cases explicitly state that
+sistant commands. Goldwasser et al. (2011) intro-                 a given part of the SARA statutes applies: “Al-
+duce a method to train a semantic parser with self-               ice’s taxable income for the year 2017 is $22895.”
+supervision, using a model’s own high-confidence                  (case s1_c_iii_neg). These are expressed
+predictions on the Geoquery dataset as training                   in terms of the corresponding Prolog predicates:
+examples. Liang et al. (2011) offer an alternate                  s63("Alice",2017,22895,_).
+approach, treating the semantic parse as a latent
+variable. We are not aware of any prior work on                   3.2     Design choices
+legal-domain task-oriented semantic parsing.                      Events and entities Our main improvement
+                                                                  over Holzenberger and Van Durme (2021) is
+3       Annotation of SARA                                        that we represent entities and events with a di-
+                                                                  rect reference to the text of the case descrip-
+In Holzenberger et al. (2020) and again in Holzen-
+                                                                  tion. This is common practice in IE annota-
+berger and Van Durme (2021), the semantics of
+                                                                  tions (Walker et al., 2006). For that, entities and
+each SARA case have been translated into a set
+                                                                  events are represented as structured span objects:
+of KBEs. These annotations, based on a custom
+                                                                  span(Value, Start_index, End_index).
+ontology in Prolog, effectively make it possible to
+                                                                     Start_index and End_index are inclusive
+solve SARA with a Prolog program that reflects
+                                                                  character indices into the case description, provid-
+the semantics of the statutes. However, with IE in
+                                                                  ing an anchor in the text for the entity or event.
+mind, the ontology has several design flaws. We
+                                                                  Value is a string or integer meant to be used inter-
+will focus on two of them. First, the events are rep-
+                                                                  nally by the Prolog program. For events and people,
+resented using strings and integers, without clear
+                                                                  this is a string, which is often the same as the an-
+reference to the text of the case description. Second,
+                                                                  chor, e.g. "Alice". As much as possible, we use
+the use of the ontology is somewhat inconsistent.
+                                                                  single words to represent events, as can be seen in
+We improve over this annotation scheme to enable
+                                                                  the bottom left of Figure 4. For dates, Value is
+the training of IE models.1
+                                                                  an integer representation of the date, as in lines 2
+3.1 SARA semantics                                                and 8 of Figure 2. Value can generally be parsed
+                                                                  out of the anchor using rule-based heuristics (see
+The existing ontology relies on a set of pre-                     Appendix B). For dollar amounts, Value is an
+defined predicates, denoted using strings end-                    integer (inferable from the anchor), as on line 4.
+ing in “_”. Those roughly 60 predicates are
+used to specify event and argument types. In-                     Ontology We enforce constraints on the ontol-
+stances of entities and events are referred to us-                ogy to make it more consistent, and thus improve
+ing strings and integers. For example, line 1 in                  the training of the IE system. Events that are con-
+Figure 2 expresses that "gross income" is                         sidered instantaneous for the purposes of statutory
+an event of type income_.2 Line 2 expresses                       reasoning are allowed to have a start_ argument,
+that the event "gross income" occurred on                         but no end_ argument.3 See e.g. lines 17 and 21
+January 1st, 2017. Line 3 expresses that the                      in Figure 2, which are present in Holzenberger
+entity "Alice" is the agent_ of the event                         and Van Durme (2021), but absent in our annota-
+"gross income". Predicates that specify event                     tion. Whenever the day of an event is not specified
+types take a single argument, which is an instance                but only the year, we enforce that the value for
+of an event. Predicates that specify arguments take               start_ is the first day of the specified year, and
+two arguments: the first one is the instance of an                the last day for end_ — see e.g. line 2.
+event, and the second one is an entity or, occa-
+sionally, an event. This follows Neo-Davidsonian                  Prolog program We adjust the Prolog program
+semantics (Davidson, 1967).                                       to the changes mentioned above. We implement
+                                                                  functions to extract year, month and day from the
+    1
+    The data can be found at https://nlp.jhu.edu/                 integer representations of dates. When comparing
+law/sara_v3.
+  2                                                                   3
+    We use Prolog syntax highlighting, and occasionally              Those are birth_, death_, deduction_,
+omit final periods, which are normally part of Prolog syntax.     income_, joint_return_ and payment_.
+
+                                                                115
+ In 2017, Alice’s gross income was $326332. Alice and Bob have been married since Feb 3rd, 2017, and have had the
+ same principal place of abode since 2015. Alice was born March 2nd, 1950 and Bob was born March 3rd, 1955. Alice
+ and Bob file separately in 2017. Bob has no gross income that year. Alice takes the standard deduction.
+  1   income_("gross income")                       income_(span("income", 23, 28))
+  2   start_("gross income", "2017-12-31")          start_(span("income", 23, 28), span(20170101, 3, 6))
+  3   agent_("gross income", "Alice")               agent_(span("income", 23, 28), span("Alice", 9, 13))
+  4   amount_("gross income", 326332)               amount_(span("income", 23, 28), span(326332, 35, 40))
+  5   marriage_("married")                          marriage_(span("married", 67, 73))
+  6   agent_("married", "Alice")                    agent_(span("married", 67, 73), span("Alice", 43, 47))
+  7   agent_("married", "Bob")                      agent_(span("married", 67, 73), span("Bob", 53, 55))
+  8   start_("married", "2017-02-03")               start_(span("married", 67, 73), span(20170203, 81, 93))
+  9   residence_("principal place of abode")        residence_(span("abode", 137, 141))
+ 10   agent_("principal place of abode", "Alice")   agent_(span("abode", 137, 141), span("Alice", 43, 47))
+ 11   agent_("principal place of abode", "Bob")     agent_(span("abode", 137, 141), span("Bob", 53, 55))
+ 12   patient_("principal place of abode",          patient_(span("abode", 137, 141),
+               "the same principal place of abode")          span("place", 128, 132))
+ 13   start_("principal place of abode",            start_(span("abode", 137, 141),
+             "2015-01-01")                                 span(20150101, 149, 152))
+ 14   birth_("Alice was born")                      birth_(span("born", 165, 168))
+ 15   agent_("Alice was born", "Alice")             agent_(span("born", 165, 168), span("Alice", 155, 159))
+ 16   start_("Alice was born", "1950-03-02")        start_(span("born", 165, 168), span(19500302, 170, 184))
+ 17   end_("Alice was born", "1950-03-02")          [ REMOVED ]
+ 18   birth_("Bob was born")                        birth_(span("born", 198, 201))
+ 19   agent_("Bob was born", "Bob")                 agent_(span("born", 198, 201), span("Bob", 190, 192))
+ 20   start_("Bob was born", "1955-03-03")          start_(span("born", 198, 201), span(19550303, 203, 217))
+ 21   end_("Bob was born", "1955-03-03")            [ REMOVED ]
+
+Figure 2: Case description and semantic annotation of tax_case_5. Left column: annotations from Holzen-
+berger and Van Durme (2021). Right column: updated annotations. KBEs are aligned. The term [ REMOVED ]
+indicates content deprecated under the new standard introduced here.
+
+
+events, we compare value, start and end indices.             4    Model
+This enables distinguishing the events on lines 14
+and 18 of Figure 2, even though the textual form of
+their anchor is identical. When comparing entities,          Overview We frame the problem of IE as map-
+we only compare values, enabling basic corefer-              ping the case description (a string) to a tree of
+ence, as between the agent_ on lines 3 and 15.               depth 2 or less, like the one on Figure 3. Each
+                                                             node of the tree is a span in the case description,
+                                                             and each edge is labeled with an element from
+                                                             the ontology. The tree is built incrementally from
+Content of cases Further, we modified 4 cases.               the root: for each node, we predict its child nodes
+The conclusion of s152_a_neg was ambiguous,                  and the corresponding labelled edges. The exam-
+and possibly wrong, because Bob did indeed fulfill           ple in Figure 3 is predicted in 3 steps, predicting
+the criteria to be a dependent of Alice, as a qual-          (1) the nodes with full lines, (2) the top 3 nodes
+ifying child. We found that because of Prolog’s              with dashed lines, and (3) the bottom 3 nodes with
+closed-world assumption, Alice was triggering an             dashed lines. This section details the steps in this
+exception, causing the Prolog solver to produce              procedure, and line numbers refer to Algorithm 1,
+the expected (but incorrect) conclusion. We min-             which describes how individual nodes and edges
+imally edited the case to disambiguate it and pro-           are predicted. Algorithm 2 describes how trees are
+duce the expected negative conclusion. We found              predicted. To put this approach into context: we
+cases s152_b_1_pos and s152_b_1_neg to                       use a span-based parser, which incrementally seg-
+be somewhat ambiguous, and added a single disam-             ments the input text and types each segment (Das
+biguating sentence. Finally, throughout the world,           et al., 2014). We use the model described in Sec-
+Sunday is alternatively considered to be either the          tion 4.5 of Yarmohammadi et al. (2021), which
+first or the last day of the week. This has an im-           has state-of-the-art performance for FrameNet pars-
+pact on cases involving section 3306. To avoid any           ing (Xia et al., 2021). We make one major change:
+ambiguities, in 3306_a_1_B_neg, we changed                   we use a multi-layer perceptron instead of a BiL-
+March 19, 2017 to March 18; April 2, 2017 to                 STM. Appendix C describes how predicted KBEs
+April 1; and December 3, 2017 to December 2.                 are associated with probabilities.
+                                                         116
+Alice and Bob got married on April 5th, 2012. Alice and Bob were legally
+separated under a decree of divorce on September 16th, 2017.                                       Algorithm 1: Find the children of a given
+marriage_(span("married", 18, 24)).
+                                                                                                   node and labels of edges. F IND C HIL -
+agent_(span("married", 18, 24), span("Alice", 0, 4)).                                              DREN (X, r)
+agent_(span("married", 18, 24), span("Bob", 10, 12)).
+start_(span("married", 18, 24), span(20120405, 29, 43)).                                            Require: text X, root span r
+legal_separation_(span("separated", 73, 81)).
+patient_(span("separated", 73, 81), span("married", 18, 24)).
+                                                                                                    Ensure: knowledge base elements K
+agent_(span("separated", 73, 81), span("decree of divorce", 91, 107)).                               1: K ← ∅
+start_(span("separated", 73, 81), span(20170916, 112, 131)).                                         2: H ← E MBED(X) # embed text with pre-trained
+                                                        span("Alice", 0, 4)
+                                                                                                        encoder E
+                                              agent_                                                 3: F ← AUGMENT(H, r) # add distance features
+                   span("married", 18, 24)    agent_    span("Bob", 10, 12)                          4: x ← C OMPUTE S PAN R EPRESENTATION(H, r) #
+                                              start_                                                    compute contextualized representation of root span r
+         marriage_
+                                                        span(20120405, 29, 43)                       5: S ← BIOTAGGER(F, x) # extract spans with BIO
+  ROOT                                                                                                  tagger T
+                                                        span("married", 18, 24)
+                                                                                                     6: for s in S do
+     legal_separation_
+                                             patient_                                                7:    z ← C OMPUTE S PAN R EPRESENTATION(F, s) #
+                span("separated", 73, 81)    agent_     span("decree of divorce", 91, 107)                 compute contextualized representation of span s
+                                              start_                                                 8:    l ← P REDICT L ABEL(z, x) # predict label with
+                                                         span(20170916, 112, 131)                          classifier L
+                                                                                                     9:    K ← K ∪ {(l, r, s)} # add new KBE
+                                                                                                    10: end for
+Figure 3: Inputs and outputs of the IE task for case                                                11: return K
+s7703_a_2. Top frame: input case description. Bot-
+tom frame: output KB. Bottom: tree representation of
+the KB. Events are in orange with full line, and their                                             Algorithm 2: Predict the IE tree for a given
+arguments in purple with dashed line.                                                              case. P REDICT T REE(X)
+                                                                                                    Require: case description X
+                                                                                                    Ensure: tree T
+Features We use LLMs as pre-trained encoders                                                         1: T ← ∅
+                                                                                                     2: Q ← [ROOT] # queue of nodes to be processed
+(see Section 5.2). The case description is tokenized                                                 3: while Q is not empty do
+into X = x1 , x2 , ..., xn using the LLM’s tokenizer.                                                4:    q ← P OP(Q) # take first node
+X is mapped to features H = h1 , h2 , ..., hn using                                                  5:    K ← F IND C HILDREN(X, q) # find its children
+                                                                                                     6:    T ← T ∪ K # add predicted relations to tree
+the pre-trained encoder (line 2). Given the span                                                     7:    if q is ROOT then
+of the parent node, we augment hi with the dis-                                                      8:        for l, r, s ∈ K do
+tance between the span of the parent node and i.                                                     9:            Q ← Q ∪ {s} # add children of the root
+                                                                                                                   to the queue, to predict one more level of
+This distance is expressed in number of tokens,                                                                    children
+and represented using learned embeddings. If the                                                    10:        end for
+parent node is the root of the tree, then we set                                                    11:    end if
+                                                                                                    12: end while
+the distance feature to the zero vector. We con-                                                    13: return T
+catenate hi and the distance feature pi to obtain
+fi = [hi , pi ] (1 ≤ i ≤ n) where [., .] denotes con-
+catenation (line 3). Further, we compute x, the                                                dex send 4 On line 7, we map each span s to
+                                                                                                    j .                                j
+representation of the parent node, as the average                                                                                              Psend
+of the tokens that represent the span of the parent                                            its representation qj = send −s1start +1          j
+                                                                                                                                                  k=sstart
+                                                                                                                                                           fk
+                                                                                                                                j     j                j
+node (line 4). If the parent node is the root, we set                                          i.e. the average of the features in                sj .5 We
+x = v where v is a learnable vector embedding.                                                 use a multi-layer perceptron L to map each
+                                                                                               uj = [qj , x] (1 ≤ j ≤ m) to label logits lj (line 8).
+Finding nodes Given the parent node, we find its
+children as spans in the case description. We map                                              Training Our model consists of encoder E, BIO
+each gi = [fi , x] (1 ≤ i ≤ n) to BIO logits with                                              tagger T , label classifier L, distance embeddings
+a multi-layer perceptron. We use a Conditional                                                 D, and root representation v. We have gold spans
+Random Field (Lafferty et al., 2001) with BIO tags                                             for all nodes in the tree, that we use to generate
+to predict a set of spans S = {s1 , s2 , ..., sm }. We                                         gold sequences of BIO tags and to train T . We
+denote this BIO tagger as T (line 5).
+                                                                                                   4
+                                                                                                     At training time, S is the set of gold spans. At eval time,
+Predicting labels We now label the edges con-                                                  S is the set of spans predicted by the BIO tagger.
+                                                                                                   5
+                                                                                                     For roughly 80% of gold spans, the span is a single token,
+necting each child node to the parent. Each span                                               so that sstart
+                                                                                                         j     = send
+                                                                                                                   j , and this amounts to selecting a single
+sj ∈ S has a start index sstart
+                             j    and an end in-                                               vector in the sequence f1 , f2 , ..., fn .
+
+                                                                                             117
+use the loss                                           KBEs rejected, the top 10% represent 96%, 98%
+                         1                             and 71% of the rejected KBEs in train, dev and
+               LT = −       log p(G)                   test, respectively. Figure 4 in Appendix G shows
+                        |G|
+                                                       statistics on the partial dataset.
+where G is the gold sequence of BIO tags, and |G|         At training time, we use the partial dataset. At
+its length in tokens. The labels of the edges are      test time, we report IE scores against both the par-
+used to train L, with the loss                         tial (Table 2) and full datasets (Table 4). To clarify
+                                                       the difference: the partial dataset contains only
+                   1      X
+         LL = −                  log p(l|r, c)         those KBEs from the full dataset that our frame-
+                  |U | (l,r,c)∈U                       work is designed to handle. Both contain the same
+                                                       SARA cases. Note that this filtering only mildly
+where (l, r, c) is a triplet of (label, parent node,   affects the overall task of statutory reasoning, as
+child node) from the training set U . Finally, E,      can be seen in Table 3, T OPLINE: more than 90%
+D and v are used to compute features input to          of the cases in the partial dataset can still be solved
+T and L. Information is passed from one mod-           by the Prolog program, despite missing KBEs.
+ule to the next in a differentiable way, making
+the entire model trainable end-to-end with the                               Train    Dev    Test
+single loss function                                             Kept        2830     664    1305
+                                                                 Rejected    3099     411    1719
+               L = λLT + (1 − λ)LL
+                                                       Table 1: Number of KBEs kept and rejected, as de-
+where λ ∈ [0, 1] is a tradeoff hyperparameter.         scribed in Section 5.1.
+
+5   Experiments                                           The SARA dataset only provides a train/test split.
+                                                       For the purposes of early stopping and hyperparam-
+5.1 Data pre-processing                                eter search, we split up the train set into a train
+First, we run Prolog queries against each case         and dev set, the same way that the train/test split
+to produce an exhaustive inventory of events           was created in Holzenberger et al. (2020). We pair
+and arguments.          For example, the query         binary cases by the part of the statutes that they
+?- income_(X). returns all events of type              test: e.g. s2_b_1_pos and s2_b_1_neg are
+income_, and the query ?- agent_(X, Y).                grouped together. We randomly select 20% of these
+returns all X, Y pairs such that entity Y is the       groups for the dev set. We also randomly pick 20%
+agent of event X. We thus produce a set of cases       of numerical cases to be used in the dev set. The
+containing only KBEs, to avoid the need to extract     result is a train set with 206 cases and a dev set
+the rules shown in Appendix A. This dataset we         with 50 cases.
+refer to as the full dataset.
+   Some spans cannot be extracted using the IE         5.2    Results
+framework described in Section 4. First, it cannot     Information Extraction We use the AllenNLP
+deal with overlapping spans. Out of 2 overlapping      codebase (Gardner et al., 2018) version 2.7.0 to
+spans we keep the one that appears earliest in the     code and train models.6 We use stochastic gradient
+case description. Second, some values cannot be        descent with early stopping on the dev set.
+inferred from their anchor. For example, some sen-        Performance of a given model is measured as
+tences describe repeating events, without explicitly   its F1 score, averaged across cases. We count a
+mentioning all the dates of occurrence. This makes     KBE predicted by the model as correct if it appears
+it impossible to extract those unmentioned dates.      exactly in the gold KB. The model receives no
+Appendix A describes one such event.                   credit for a slightly inaccurate span or label.
+   We produce the partial dataset by removing all         We use Optuna (Akiba et al., 2019) to search
+unextractable spans and corresponding KBEs. Ta-        for the best set of hyperparameters. Appendix F
+ble 1 shows statistics on how many KBEs were           reports the range of hyperparameters explored and
+removed in the process. The number of KBEs re-         best hyperparameters found. We measure perfor-
+jected can seem large in comparison to those kept.     mance for a given set of hyperparameters as the
+However, a fraction of the cases contains most re-        6
+                                                          Code for experiments can be found at https://
+jected KBEs. Ranking the cases by number of            github.com/SgfdDttt/sara-ie.
+
+                                                    118
+mean F1 score across 3 different runs, with 3 dif-                harder it is to get all arguments right. To summa-
+ferent random seeds. This is to mitigate variability              rize, models mainly struggle with arguments. They
+from random initializations.                                      both (1) miss arguments entirely, having generally
+   In Table 2, we report precision, recall and F1                 higher precision than recall, and (2) occasionally
+scores, for dev and test sets, on the partial dataset.            predict additional arguments, such as predicting
+We report results on the full dataset in Table 4 in               two amount_ arguments by tagging all integers
+Appendix D. We compare 5 different pre-trained                    preceded by a “$” sign.
+encoders (used to map X to H in Section 4):
+                                                                  Statutory reasoning We further measure how
+• L EGAL BERT: the legal-domain encoder of                        useful model outputs are for statutory reasoning,
+  Holzenberger et al. (2020), trained on a subset of              and report results in Table 3. We feed the KB
+  the case.law corpus (caselaw), starting from                    produced with IE to the Prolog program. We
+  bert-base-cased,                                                add any statements about statutes of the form
+                                                                  s63("Alice",2017,22895,_) to the KB,
+• L EGAL BERT’: an alternative trained by Zheng
+                                                                  as described in Section 3.1. In addition to the five
+  et al. (2021) on more data,
+                                                                  models above, we report results on (1) T OPLINE,
+• BERT: BERT-base-cased (Devlin et al., 2019),                    which is the partial KB used to train models, and
+  which has the same architecture and training ob-                (2) E MPTY, which corresponds to a model that pre-
+  jective as both L EGAL BERTs, but was trained                   dicts no KBEs. Since we evaluated each model by
+  on general-domain English,                                      running training and test with 5 different random
+• RO BERTA: RoBERTa-base (Liu et al., 2019)                       seeds, we pick the model with the highest dev F1
+  which was shown to achieve higher performance                   score to produce the KB used for this evaluation on
+  than BERT on downstream tasks, and                              statutory reasoning.
+
+• T5: T5-base (Raffel et al., 2020), which was                    5.3   Discussion
+  shown to achieve higher performance than
+                                                                  Focusing on the IE scores, L EGAL BERT performs
+  RoBERTa on downstream tasks. We only use
+                                                                  best out of all encoders, and T5 performs worst,
+  the encoder of T5-base in our experiments, dis-
+                                                                  with large performance gaps between encoders. For
+  carding the decoder.
+                                                                  T5, only the encoder was used, and presumably,
+                                                                  more training data is needed to retrain it as a stand-
+Error analysis We compare model outputs on                        alone encoder. Legal-domain pre-training clearly
+3 binary cases and 3 numerical cases picked at                    yields performance improvements. As can be seen
+random from the test set.7 We report the detail                   by comparing L EGAL BERT and L EGAL BERT’,
+of the error analysis in Appendix E. From this                    for the SARA dataset, more data does not automat-
+sample, it seems that models are generally able                   ically translate to better performance.
+to correctly detect all event anchors, and to fur-                   As noted in the caption of Table 3, results from
+ther type them correctly in at least 90% of cases.                Holzenberger et al. (2020), Holzenberger and Van
+Predicting arguments correctly is still a challenge,              Durme (2021) and Blair-Stanek et al. (2023) are
+and an important one: a single missing argument                   not directly comparable to ours. Holzenberger
+can throw off the Prolog program, especially in                   et al. (2020) and Blair-Stanek et al. (2023) apply
+computing tax amounts. For example, missing the                   NLP models directly to the text of the cases and
+amount_ argument to an income_ event is prac-                     statutes, without using any Prolog code. Holzen-
+tically as bad as not detecting the income_ event                 berger and Van Durme (2021) rely on a set of
+in the first place. When arguments are predicted,                 lightweight semantic annotations of the statutes
+their value tends to be correct, and in any case                  and cases to develop a neuro-symbolic model for
+of the right type (strings versus integers). For ex-              statutory reasoning; they also exclude Prolog code.
+ample, models rarely mistake the agent_ of an                     Contrary to prior work mentioned in this para-
+event: they either predict it correctly, or miss it               graph, we use a human-curated Prolog representa-
+entirely. In addition, the more events there are, the             tion of the statutes.
+   7
+                                                                     Holzenberger et al. (2020) report that majority
+     In binary cases, the outcome to be predicted is either
+“Yes” or “No”. In numerical cases, the outcome is an integer,     baselines achieve 50% entailment, and 20% nu-
+representing a dollar amount of taxes owed.                       merical accuracies on the test set. Performance of
+                                                                119
+                           Dev                                            Test
+           Model           Precision      Recall           F1             Precision    Recall         F1
+           L EGAL BERT     88.7 ± 0.6     88.6 ± 0.6       88.1 ± 0.3     88.1 ± 0.2   91.0 ± 0.5     87.0 ± 0.3
+           L EGAL BERT’    87.4 ± 1.0     83.2 ± 1.4       84.4 ± 0.8     85.4 ± 0.9   84.6 ± 1.4     82.7 ± 0.9
+           BERT            85.9 ± 2.1     75.1 ± 2.5       78.7 ± 1.6     85.2 ± 2.3   77.0 ± 2.3     77.4 ± 1.8
+           RO BERTA        84.5 ± 0.6     80.8 ± 1.5       81.9 ± 0.9     86.4 ± 0.7   83.9 ± 1.6     82.0 ± 1.0
+           T5              73.2 ± 0.6     56.2 ± 2.4       62.1 ± 1.5     71.6 ± 1.1   59.0 ± 1.3     61.4 ± 1.0
+
+Table 2: Performance metrics on the IE task measured on the partial dataset. Scores are computed across 5 runs
+with different random seeds. We format statistics as average ± standard error. Best scores are bolded.
+
+                                        Entailment                                Numerical
+   Model                                Train          Dev              Test      Train         Dev           Test
+   Holzenberger et al. (2020)        -                 -                55 ± 8.3 -              -             25 ± 17.1
+   Holzenberger and Van Durme (2021) -                 -                59 ± 8.2 -              -             45 ± 19.7
+   Blair-Stanek et al. (2023)        -                 -                71 ± 7.6 -              -             -
+   T OPLINE                             93.7 ± 3.4 97.1 ± 5.0 97 ± 2.8 98.4 ± 2.6 93.8 ± 11.0 90 ± 11.9
+   E MPTY                               69.7 ± 6.4 67.6 ± 13.8 71 ± 7.6 26.6 ± 9.3 18.8 ± 17.7 25 ± 17.2
+   L EGAL BERT                          88.7 ± 4.4 88.2 ± 9.5 89 ± 5.2 73.4 ± 9.3 56.2 ± 22.5 60 ± 19.4
+   L EGAL BERT’                         86.6 ± 4.7 91.2 ± 8.4 86 ± 5.8 68.8 ± 9.7 50.0 ± 22.6 60 ± 19.4
+   BERT                                 79.6 ± 5.6 73.5 ± 13.0 81 ± 6.5 46.9 ± 10.5 37.5 ± 21.9 45 ± 19.7
+   RO BERTA                             79.6 ± 5.6 79.4 ± 11.9 79 ± 6.8 50.0 ± 10.5 43.8 ± 22.5 40 ± 19.4
+   T5                                   78.2 ± 5.8 73.5 ± 13.0 76 ± 7.1 31.2 ± 9.7 25.0 ± 19.6 25 ± 17.2
+
+Table 3: Statutory reasoning accuracies (in %) with 90% confidence interval, obtained by applying the Prolog
+solver to the predicted KBs. Accuracies are measured using the metrics described in Holzenberger et al. (2020);
+numerical predictions need not match the ground truth exactly to be correct. Best scores within the IE-based
+approaches are bolded. The top three lines are not directly comparable, and are provided for reference.
+
+
+E MPTY on statutory reasoning is higher than that.              et al., 2020). SARA cases may contain the infor-
+First, with the E MPTY KBs containing no facts, it              mation that an event is ongoing, or happening at a
+is generally hard to prove anything at all, so that             certain point in time, without explicitly referring to
+negative cases tend to succeed thanks to Prolog’s               a start or end time. Event calculus (Kowalski and
+negation as failure. Second, since statements about             Sergot, 1986; Miller and Shanahan, 2002) could
+statutes are added automatically to the KB, cases               be used to represent a wider spectrum of time ex-
+that rely on them have a chance to succeed.                     pressions, reducing the amount of rejected KBEs.
+   There is overall strong Pearson correlation be-              It would also make it possible for the logical rep-
+tween F1 and statutory reasoning scores: on the                 resentation to align more closely to the language
+test set, 80% for entailment accuracy, and 88%                  of the case description. This would yield a better
+for numerical accuracy. This shows that, for the                inductive bias for the IE models while not sacrific-
+SARA dataset, improvements in IE translate to im-               ing expressivity. More generally, progress on IE
+provements in statutory reasoning. This suggests                could be made by picking a more expressive, more
+that IE is important for statutory reasoning, and               general ontology, such that the translation between
+encourages progress on this task. IE models tend                language and logical form would be more straight-
+to perform better than E MPTY on statutory reason-              forward. But this would require re-writing the Pro-
+ing, so that even imperfect IE is useful for statutory          log solver, to accommodate the new ontology, and
+reasoning. Still, there is room for improvement,                to encode relevant commonsense knowledge.
+both for IE and for statutory reasoning.
+   Here, the choice of ontology limits the informa-                Finally, the use of explicit KBEs introduces in-
+tion that the IE model can effectively extract from             terpretability and auditability in the model’s output,
+the SARA cases. In particular, the current ontology             since it becomes clear what facts are used to per-
+expresses time with two relations, start_ and                   form statutory reasoning. This is generally absent
+end_. In contrast, natural language can express                 from the direct application of LLMs to statutory
+time in many different ways, which can occasion-                reasoning, even if this can be mitigated with prompt
+ally be hard to parse into a structured form (Filtz             engineering (Blair-Stanek et al., 2023).
+                                                             120
+6   Conclusion                                           References
+                                                         Takuya Akiba, Shotaro Sano, Toshihiko Yanase,
+We improve the SARA ontology and re-annotate               Takeru Ohta, and Masanori Koyama. 2019. Op-
+cases for their semantics. Compared to the previ-          tuna: A next-generation hyperparameter optimiza-
+ous iteration of the SARA dataset, the KBEs and            tion framework. In Proceedings of the 25th ACM
+overall structure are now richer and more complete.        SIGKDD International Conference on Knowledge
+                                                           Discovery & Data Mining, KDD 2019, Anchor-
+We also take a step towards more consistent an-            age, AK, USA, August 4-8, 2019, pages 2623–2631.
+notations, and more extractable KBEs. We adapt             ACM.
+state-of-the-art IE models to extract KBEs from
+                                                         Manar Alohaly, Hassan Takabi, and Eduardo Blanco.
+case descriptions. With empirical results on the          2018. A deep learning approach for extracting at-
+SARA dataset, we find that good performance with          tributes of ABAC policies. In Proceedings of the
+a strict metric can be reached on this small dataset,     23nd ACM on Symposium on Access Control Mod-
+and that performance in IE translates directly into       els and Technologies, SACMAT 2018, Indianapolis,
+                                                          IN, USA, June 13-15, 2018, pages 137–148. ACM.
+performance in statutory reasoning.
+   We see three main directions for future work.         Maaz Anwar, Riyaz Ahmad Bhat, Dipti Misra Sharma,
+First, as stated in Section 5.1, the current ontology     Ashwini Vaidya, Martha Palmer, and Tafseer Ahmed
+                                                          Khan. 2016. A proposition bank of urdu. In Pro-
+is not flexible enough to both (1) allow for KBEs         ceedings of the Tenth International Conference on
+closely aligned to the case description, and (2) ex-      Language Resources and Evaluation LREC 2016,
+press complex relationships, in particular time rela-     Portorož, Slovenia, May 23-28, 2016. European Lan-
+tionships. This is one major limitation that could be     guage Resources Association (ELRA).
+addressed, and would likely require overhauling the      Laura Banarescu, Claire Bonial, Shu Cai, Madalina
+expert system representing the statutes. Second, we        Georgescu, Kira Griffitt, Ulf Hermjakob, Kevin
+have so far assumed that the statutes were parsed          Knight, Philipp Koehn, Martha Palmer, and Nathan
+                                                           Schneider. 2013. Abstract meaning representation
+into a logical form ahead of time. A meaningful
+                                                           for sembanking. In Proceedings of the 7th Linguis-
+step would be to augment the approach presented            tic Annotation Workshop and Interoperability with
+here with the automated extraction of the logical          Discourse, LAW-ID@ACL 2013, August 8-9, 2013,
+form of statutes, effectively performing semantic          Sofia, Bulgaria, pages 178–186. The Association for
+parsing. Finally, cases in SARA are not represen-          Computer Linguistics.
+tative of the full scope and diversity of legal cases.   Roberto Bartolini, Alessandro Lenci, Simonetta Mon-
+Real-world legal cases are generally much longer,          temagni, Vito Pirrelli, and Claudia Soria. 2004. Se-
+the language is denser, and the phrasing is more           mantic mark-up of italian legal texts through nlp-
+                                                           based techniques. In Proceedings of the Fourth In-
+diverse. We see the choice of an ontology and the          ternational Conference on Language Resources and
+annotation of data as two crucial challenges.              Evaluation, LREC 2004, May 26-28, 2004, Lisbon,
+                                                           Portugal. European Language Resources Associa-
+                                                           tion.
+7   Limitations
+                                                         Islam Beltagy, Stephen Roller, Gemma Boleda, Katrin
+In this paper, we performed experiments on the              Erk, and Raymond J. Mooney. 2014. Utexas: Nat-
+SARA dataset, a semi-synthetic dataset for US fed-          ural language semantics using distributional seman-
+                                                            tics and probabilistic logic. In Proceedings of the
+eral tax law. The conclusions drawn about legal-
+                                                            8th International Workshop on Semantic Evaluation,
+domain IE and about statutory reasoning should              SemEval@COLING 2014, Dublin, Ireland, August
+take care to understand that this dataset is not rep-       23-24, 2014, pages 796–801. The Association for
+resentative of the full scope of legal data.                Computer Linguistics.
+                                                         Trevor J. M. Bench-Capon, G. O. Robinson, Tom
+Acknowledgments                                            Routen, and Marek J. Sergot. 1987. Logic program-
+                                                           ming for large scale applications in law: A formali-
+This work has been supported by the U.S. National          sation of supplementary benefit legislation. In Pro-
+                                                           ceedings of the First International Conference on Ar-
+Science Foundation under grant No. 2204926. Any            tificial Intelligence and Law, ICAIL ’87, Boston, MA,
+opinions, findings, and conclusions or recommen-           USA, May 27-29, 1987, pages 190–198. ACM.
+dations expressed in this article are those of the
+                                                         Jonathan Berant, Andrew Chou, Roy Frostig, and
+authors and do not necessarily reflect the views of        Percy Liang. 2013. Semantic parsing on freebase
+the National Science Foundation.                           from question-answer pairs. In Proceedings of the
+                                                           2013 Conference on Empirical Methods in Natural
+                                                     121
+  Language Processing, EMNLP 2013, 18-21 Octo-             Dipanjan Das, Desai Chen, André F. T. Martins,
+  ber 2013, Grand Hyatt Seattle, Seattle, Washington,        Nathan Schneider, and Noah A. Smith. 2014. Frame-
+  USA, A meeting of SIGDAT, a Special Interest Group         semantic parsing. Comput. Linguistics, 40(1):9–56.
+  of the ACL, pages 1533–1544. ACL.
+                                                           Donald Davidson. 1967. The logical forms of action
+Patrick Blackburn and Johan Bos. 2005. Representa-           sentences. The Logic of Decision and Action.
+  tion and Inference for Natural Language - a First
+  Course in Computational Semantics. CSLI Studies          Jacob Devlin, Ming-Wei Chang, Kenton Lee, and
+  in Computational Linguistics. CSLI Publications.            Kristina Toutanova. 2019. BERT: pre-training of
+                                                              deep bidirectional transformers for language under-
+Andrew Blair-Stanek, Nils Holzenberger, and Ben-              standing. In Proceedings of the 2019 Conference
+  jamin Van Durme. 2023. Can GPT-3 perform statu-             of the North American Chapter of the Association
+  tory reasoning? CoRR, abs/2302.06100.                       for Computational Linguistics: Human Language
+                                                             Technologies, NAACL-HLT 2019, Minneapolis, MN,
+Guido Boella, Luigi Di Caro, and Valentina Leone.             USA, June 2-7, 2019, Volume 1 (Long and Short Pa-
+  2019. Semi-automatic knowledge population in a              pers), pages 4171–4186. Association for Computa-
+  legal document management system. Artif. Intell.            tional Linguistics.
+  Law, 27(2):227–251.
+                                                           Rajaa El Hamdani, Majd Mustapha, David Re-
+Luther Karl Branting, Craig Pfeifer, Bradford Brown,         strepo Amariles, Aurore Clément Troussel,
+  Lisa Ferro, John S. Aberdeen, Brandy Weiss, Mark           Sébastien Meeùs, and Katsiaryna Krasnash-
+  Pfaff, and Bill Liao. 2021. Scalable and explainable       chok. 2021. A combined rule-based and machine
+  legal prediction. Artif. Intell. Law, 29(2):213–238.       learning approach for automated GDPR compliance
+Giovanni Campagna, Silei Xu, Mehrad Moradshahi,              checking. In ICAIL ’21: Eighteenth International
+  Richard Socher, and Monica S. Lam. 2019. Genie:            Conference for Artificial Intelligence and Law, São
+  a generator of natural language semantic parsers for       Paulo Brazil, June 21 - 25, 2021, pages 40–49.
+  virtual assistant commands. In Proceedings of the          ACM.
+  40th ACM SIGPLAN Conference on Programming
+                                                           Erwin Filtz, María Navas-Loro, Cristiana Santos, Axel
+  Language Design and Implementation, PLDI 2019,
+                                                             Polleres, and Sabrina Kirrane. 2020. Events mat-
+  Phoenix, AZ, USA, June 22-26, 2019, pages 394–
+                                                             ter: Extraction of events from court decisions. In
+  410. ACM.
+                                                             Legal Knowledge and Information Systems - JURIX
+caselaw. 2019. Caselaw access project.                       2020: The Thirty-third Annual Conference, Brno,
+                                                             Czech Republic, December 9-11, 2020, volume 334
+Hector Neri Castañeda. 1967. Comment on D. David-            of Frontiers in Artificial Intelligence and Applica-
+  son’s “The logical forms of action sentences”. The         tions, pages 33–42. IOS Press.
+  Logic of Decision and Action.
+                                                           Matt Gardner, Joel Grus, Mark Neumann, Oyvind
+Ilias Chalkidis, Ion Androutsopoulos, and Achilleas         Tafjord, Pradeep Dasigi, Nelson F. Liu, Matthew E.
+   Michos. 2018. Obligation and prohibition extrac-         Peters, Michael Schmitz, and Luke Zettlemoyer.
+   tion using hierarchical rnns. In Proceedings of the      2018. Allennlp: A deep semantic natural language
+   56th Annual Meeting of the Association for Com-          processing platform. CoRR, abs/1803.07640.
+   putational Linguistics, ACL 2018, Melbourne, Aus-
+   tralia, July 15-20, 2018, Volume 2: Short Papers,       Ingo Glaser, Bernhard Waltl, and Florian Matthes.
+   pages 254–259. Association for Computational Lin-          2018. Named entity recognition, extraction, and
+   guistics.                                                  linking in german legal contracts. In IRIS: Inter-
+                                                              nationales Rechtsinformatik Symposium, pages 325–
+Ilias Chalkidis, Manos Fergadiotis, Prodromos Malaka-         334.
+   siotis, and Ion Androutsopoulos. 2019. Large-scale
+   multi-label text classification on EU legislation. In   Dan Goldwasser, Roi Reichart, James Clarke, and Dan
+   Proceedings of the 57th Conference of the Asso-           Roth. 2011. Confidence driven unsupervised seman-
+   ciation for Computational Linguistics, ACL 2019,          tic parsing. In The 49th Annual Meeting of the Asso-
+   Florence, Italy, July 28- August 2, 2019, Volume          ciation for Computational Linguistics: Human Lan-
+   1: Long Papers, pages 6314–6322. Association for          guage Technologies, Proceedings of the Conference,
+   Computational Linguistics.                                19-24 June, 2011, Portland, Oregon, USA, pages
+                                                             1486–1495. The Association for Computer Linguis-
+Ilias Chalkidis, Abhik Jana, Dirk Hartung, Michael           tics.
+   J. Bommarito II, Ion Androutsopoulos, Daniel Mar-
+   tin Katz, and Nikolaos Aletras. 2022. Lexglue: A        Neel Guha, Julian Nyarko, Daniel E. Ho, Christo-
+   benchmark dataset for legal language understanding        pher Ré, Adam Chilton, Aditya Narayana, Alex
+   in english. In Proceedings of the 60th Annual Meet-       Chohlas-Wood, Austin Peters, Brandon Waldon,
+   ing of the Association for Computational Linguistics      Daniel N. Rockmore, Diego Zambrano, Dmitry Tal-
+   (Volume 1: Long Papers), ACL 2022, Dublin, Ire-           isman, Enam Hoque, Faiz Surani, Frank Fagan,
+   land, May 22-27, 2022, pages 4310–4330. Associa-          Galit Sarfaty, Gregory M. Dickinson, Haggai Po-
+   tion for Computational Linguistics.                       rat, Jason Hegland, Jessica Wu, Joe Nudell, Joel
+                                                         122
+  Niklaus, John J. Nay, Jonathan H. Choi, Kevin To-     Robert A. Kowalski and Marek J. Sergot. 1986. A
+  bia, Margaret Hagan, Megan Ma, Michael A. Liv-          logic-based calculus of events. New Gener. Comput.,
+  ermore, Nikon Rasumov-Rahe, Nils Holzenberger,          4(1):67–95.
+  Noam Kolt, Peter Henderson, Sean Rehaag, Sharad
+  Goel, Shang Gao, Spencer Williams, Sunny Gandhi,      John D. Lafferty, Andrew McCallum, and Fernando
+  Tom Zur, Varun Iyer, and Zehua Li. 2023. Legal-         C. N. Pereira. 2001. Conditional random fields:
+  bench: A collaboratively built benchmark for mea-       Probabilistic models for segmenting and labeling se-
+  suring legal reasoning in large language models.        quence data. In Proceedings of the Eighteenth Inter-
+  CoRR, abs/2308.11462.                                   national Conference on Machine Learning (ICML
+                                                          2001), Williams College, Williamstown, MA, USA,
+Dan Hendrycks, Collin Burns, Anya Chen, and               June 28 - July 1, 2001, pages 282–289. Morgan
+  Spencer Ball. 2021. CUAD: an expert-annotated           Kaufmann.
+  NLP dataset for legal contract review. In Pro-
+  ceedings of the Neural Information Processing Sys-    Sarah B Lawsky. 2017. A logic for statutes. Fla. Tax
+  tems Track on Datasets and Benchmarks 1, NeurIPS        Rev., 21:60.
+  Datasets and Benchmarks 2021, December 2021,          Percy Liang, Michael I. Jordan, and Dan Klein. 2011.
+  virtual.                                                Learning dependency-based compositional seman-
+Daniel Hershcovich, Omri Abend, and Ari Rappoport.        tics. In The 49th Annual Meeting of the Association
+  2017. A transition-based directed acyclic graph         for Computational Linguistics: Human Language
+  parser for UCCA. In Proceedings of the 55th An-         Technologies, Proceedings of the Conference, 19-24
+  nual Meeting of the Association for Computational       June, 2011, Portland, Oregon, USA, pages 590–599.
+  Linguistics (Volume 1: Long Papers), pages 1127–        The Association for Computer Linguistics.
+  1138, Vancouver, Canada. Association for Computa-     Rūta Liepin, a, Federico Ruggeri, Francesca Lagioia,
+  tional Linguistics.                                      Marco Lippi, Kasper Drazewski, and Paolo Tor-
+Nils Holzenberger, Andrew Blair-Stanek, and Ben-           roni. 2020. Explaining potentially unfair clauses
+  jamin Van Durme. 2020. A dataset for statutory rea-      to the consumer with the CLAUDETTE tool. In
+  soning in tax law entailment and question answer-        Proceedings of the Natural Legal Language Pro-
+  ing. In Proceedings of the Natural Legal Language        cessing Workshop 2020 co-located with the 26th
+  Processing Workshop 2020 co-located with the 26th       ACM SIGKDD International Conference on Knowl-
+  ACM SIGKDD International Conference on Knowl-            edge Discovery & Data Mining (KDD 2020), Vir-
+  edge Discovery & Data Mining (KDD 2020), Vir-            tual Workshop, August 24, 2020, volume 2645 of
+  tual Workshop, August 24, 2020, volume 2645 of           CEUR Workshop Proceedings, pages 61–64. CEUR-
+  CEUR Workshop Proceedings, pages 31–38. CEUR-            WS.org.
+  WS.org.                                               Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Man-
+Nils Holzenberger and Benjamin Van Durme. 2021.           dar Joshi, Danqi Chen, Omer Levy, Mike Lewis,
+  Factoring statutory reasoning as language under-        Luke Zettlemoyer, and Veselin Stoyanov. 2019.
+  standing challenges. In Proceedings of the 59th         Roberta: A robustly optimized BERT pretraining ap-
+  Annual Meeting of the Association for Compu-            proach. CoRR, abs/1907.11692.
+  tational Linguistics and the 11th International       Bingfeng Luo, Yansong Feng, Jianbo Xu, Xiang
+  Joint Conference on Natural Language Processing,        Zhang, and Dongyan Zhao. 2017. Learning to
+  ACL/IJCNLP 2021, (Volume 1: Long Papers), Vir-          predict charges for criminal cases with legal ba-
+  tual Event, August 1-6, 2021, pages 2742–2758. As-      sis. In Proceedings of the 2017 Conference on Em-
+  sociation for Computational Linguistics.                pirical Methods in Natural Language Processing,
+Gene Kim, Mandar Juvekar, and Lenhart Schubert.           EMNLP 2017, Copenhagen, Denmark, September 9-
+  2021.     Monotonic inference for underspecified        11, 2017, pages 2727–2736. Association for Compu-
+  episodic logic. In Proceedings of the 1st and           tational Linguistics.
+  2nd Workshops on Natural Logic Meets Machine          Mitchell P. Marcus, Beatrice Santorini, and Mary Ann
+  Learning (NALOMA), pages 26–40, Groningen,              Marcinkiewicz. 1993. Building a large annotated
+  the Netherlands (online). Association for Computa-      corpus of english: The penn treebank. Comput. Lin-
+  tional Linguistics.                                     guistics, 19(2):313–330.
+Thomas Kollar, Danielle Berry, Lauren Stuart,           Denis Merigoux, Nicolas Chataing, and Jonathan
+  Karolina Owczarzak, Tagyoung Chung, Lambert             Protzenko. 2021a. Catala: a programming language
+  Mathias, Michael Kayser, Bradford Snow, and Spy-        for the law. Proc. ACM Program. Lang., 5(ICFP):1–
+  ros Matsoukas. 2018. The alexa meaning represen-        29.
+  tation language. In Proceedings of the 2018 Confer-
+  ence of the North American Chapter of the Associ-     Denis Merigoux, Raphaël Monat, and Jonathan
+  ation for Computational Linguistics: Human Lan-         Protzenko. 2021b. A modern compiler for the
+  guage Technologies, NAACL-HLT 2018, New Or-             french tax code. In CC ’21: 30th ACM SIGPLAN
+  leans, Louisiana, USA, June 1-6, 2018, Volume 3         International Conference on Compiler Construction,
+  (Industry Papers), pages 177–184. Association for       Virtual Event, Republic of Korea, March 2-3, 2021,
+  Computational Linguistics.                              pages 71–82. ACM.
+                                                    123
+Rob Miller and Murray Shanahan. 2002. Some alter-           the limits of transfer learning with a unified text-to-
+  native formulations of the event calculus. In Com-        text transformer. Journal of Machine Learning Re-
+  putational Logic: Logic Programming and Beyond,           search, 21(140):1–67.
+  Essays in Honour of Robert A. Kowalski, Part II,
+  volume 2408 of Lecture Notes in Computer Science,       Julián Moreno Schneider, Georg Rehm, Elena Montiel-
+  pages 452–490. Springer.                                   Ponsoda, Víctor Rodríguez-Doncel, Patricia Martín-
+                                                             Chozas, María Navas-Loro, Martin Kaltenböck,
+Sarah Moeller, Irina Wagner, Martha Palmer, Kathryn          Artem Revenko, Sotirios Karampatakis, Christian
+  Conger, and Skatje Myers. 2020. The Russian Prop-          Sageder, Jorge Gracia, Filippo Maganza, Ilan Kern-
+  Bank. In Proceedings of the 12th Language Re-              erman, Dorielle Lonke, Andis Lagzdins, Julia
+  sources and Evaluation Conference, pages 5995–             Bosque-Gil, Pieter Verhoeven, Elsa Gomez Diaz,
+  6002, Marseille, France. European Language Re-             and Pascual Boil Ballesteros. 2022. Lynx: A
+  sources Association.                                       knowledge-based AI service platform for content
+                                                             processing, enrichment and analysis for the legal do-
+María Navas-Loro and Cristiana Santos. 2018. Events          main. Inf. Syst., 106:101966.
+ in the legal domain: first impressions. In Proceed-
+ ings of the 2nd Workshop on Technologies for Reg-        Lenhart K. Schubert, Benjamin David Van Durme, and
+ ulatory Compliance co-located with the 31st Inter-         Marzieh Bazrafshan. 2010. Entailment inference in
+ national Conference on Legal Knowledge and In-             a natural logic-like general reasoner. In Common-
+ formation Systems (JURIX 2018), Groningen, The             sense Knowledge, Papers from the 2010 AAAI Fall
+ Netherlands, December 12, 2018, volume 2309 of             Symposium, Arlington, Virginia, USA, November 11-
+ CEUR Workshop Proceedings, pages 45–57. CEUR-              13, 2010, volume FS-10-02 of AAAI Technical Re-
+ WS.org.                                                    port. AAAI.
+
+Tim O’Gorman, Sameer Pradhan, Martha Palmer, Ju-          David M. Sherman. 1987. A prolog model of the in-
+  lia Bonn, Kathryn Conger, and James Gung. 2018.           come tax act of canada. In Proceedings of the First
+  The new propbank: Aligning propbank with AMR              International Conference on Artificial Intelligence
+  through POS unification. In Proceedings of the            and Law, ICAIL ’87, Boston, MA, USA, May 27-29,
+  Eleventh International Conference on Language Re-         1987, pages 127–136. ACM.
+  sources and Evaluation, LREC 2018, Miyazaki,            Beth Sundheim. 1992. Overview of the fourth message
+  Japan, May 7-12, 2018. European Language Re-              understanding evaluation and conference. In Pro-
+  sources Association (ELRA).                               ceedings of the 4th Conference on Message Under-
+                                                            standing, MUC 1992, McLean, Virginia, USA, June
+Anja Oskamp and Marc Lauritsen. 2002. AI in law             16-18, 1992, pages 3–21. ACL.
+  practice? so far, not much. Artif. Intell. Law,
+  10(4):227–236.                                          Christopher Walker, Stephanie Strassel, Julie Medero,
+                                                            and Kazuaki Maeda. 2006. ACE 2005 multilingual
+Martha Palmer, Daniel Gildea, and Paul Kingsbury.           training corpus (LDC2006T06). Philadelphia: Lin-
+ 2005. The Proposition Bank: An Annotated Cor-              guistic Data Consortium.
+ pus of Semantic Roles. Computational Linguistics,
+ 31(1):71–106.                                            Nathaniel Weir, Prasetya Utama, Alex Galakatos, An-
+                                                            drew Crotty, Amir Ilkhechi, Shekar Ramaswamy,
+Terence Parsons. 1990. Events in the Semantics of En-       Rohin Bhushan, Nadja Geisler, Benjamin Hättasch,
+  glish, volume 334. MIT press Cambridge, MA.               Steffen Eger, Ugur Çetintemel, and Carsten Binnig.
+                                                            2020. Dbpal: A fully pluggable NL2SQL train-
+Panupong Pasupat and Percy Liang. 2015. Composi-            ing pipeline. In Proceedings of the 2020 Interna-
+  tional semantic parsing on semi-structured tables. In     tional Conference on Management of Data, SIG-
+  Proceedings of the 53rd Annual Meeting of the Asso-       MOD Conference 2020, online conference [Portland,
+  ciation for Computational Linguistics and the 7th In-     OR, USA], June 14-19, 2020, pages 2347–2361.
+  ternational Joint Conference on Natural Language          ACM.
+  Processing of the Asian Federation of Natural Lan-
+  guage Processing, ACL 2015, July 26-31, 2015, Bei-      Aaron Steven White, Elias Stengel-Eskin, Siddharth
+  jing, China, Volume 1: Long Papers, pages 1470–           Vashishtha, Venkata Subrahmanyan Govindarajan,
+  1480. The Association for Computer Linguistics.           Dee Ann Reisinger, Tim Vieira, Keisuke Sakaguchi,
+                                                            Sheng Zhang, Francis Ferraro, Rachel Rudinger,
+Juliano Rabelo, Randy Goebel, Mi-Young Kim, Yoshi-          Kyle Rawlins, and Benjamin Van Durme. 2020. The
+   nobu Kano, Masaharu Yoshioka, and Ken Satoh.             universal decompositional semantics dataset and de-
+   2022. Overview and discussion of the competition         comp toolkit. In Proceedings of The 12th Language
+   on legal information extraction/entailment (COL-         Resources and Evaluation Conference, LREC 2020,
+   IEE) 2021. Rev. Socionetwork Strateg., 16(1):111–        Marseille, France, May 11-16, 2020, pages 5698–
+  133.                                                      5707. European Language Resources Association.
+Colin Raffel, Noam Shazeer, Adam Roberts, Kather-         Shumin Wu and Martha Palmer. 2015. Improving
+  ine Lee, Sharan Narang, Michael Matena, Yanqi             Chinese-English PropBank alignment. In Proceed-
+  Zhou, Wei Li, and Peter J. Liu. 2020. Exploring           ings of the Ninth Workshop on Syntax, Semantics
+                                                      124
+  and Structure in Statistical Translation, pages 74–      Lucia Zheng, Neel Guha, Brandon R. Anderson, Pe-
+  82, Denver, Colorado, USA. Association for Com-            ter Henderson, and Daniel E. Ho. 2021. When does
+  putational Linguistics.                                    pretraining help?: assessing self-supervised learning
+                                                             for law and the casehold dataset of 53, 000+ legal
+Patrick Xia, Guanghui Qin, Siddharth Vashishtha,             holdings. In ICAIL ’21: Eighteenth International
+  Yunmo Chen, Tongfei Chen, Chandler May, Craig              Conference for Artificial Intelligence and Law, São
+  Harman, Kyle Rawlins, Aaron Steven White, and              Paulo Brazil, June 21 - 25, 2021, pages 159–168.
+  Benjamin Van Durme. 2021. LOME: Large ontol-               ACM.
+  ogy multilingual extraction. In Proceedings of the
+  16th Conference of the European Chapter of the           Haoxi Zhong, Chaojun Xiao, Cunchao Tu, Tianyang
+  Association for Computational Linguistics: System          Zhang, Zhiyuan Liu, and Maosong Sun. 2020. How
+  Demonstrations, pages 149–159, Online. Associa-            does NLP benefit legal system: A summary of le-
+  tion for Computational Linguistics.                        gal artificial intelligence. In Proceedings of the
+                                                             58th Annual Meeting of the Association for Compu-
+Feng Yao, Chaojun Xiao, Xiaozhi Wang, Zhiyuan Liu,           tational Linguistics, ACL 2020, Online, July 5-10,
+  Lei Hou, Cunchao Tu, Juanzi Li, Yun Liu, Weixing           2020, pages 5218–5230. Association for Computa-
+  Shen, and Maosong Sun. 2022. LEVEN: A large-               tional Linguistics.
+  scale chinese legal event detection dataset. In Find-
+  ings of the Association for Computational Linguis-       A    Repeated events
+  tics: ACL 2022, Dublin, Ireland, May 22-27, 2022,
+  pages 183–201. Association for Computational Lin-        The sentence “Bob earned $300000 every year
+  guistics.                                                from 2015 to 2019.” (case s2_b_3_B_pos) is
+                                                           represented in Prolog as:
+Mahsa Yarmohammadi, Shijie Wu, Marc Marone,
+ Haoran Xu, Seth Ebner, Guanghui Qin, Yunmo                bob_income(Year, Event, Start_day,
+ Chen, Jialiang Guo, Craig Harman, Kenton Mur-                        End_day) :-
+ ray, Aaron Steven White, Mark Dredze, and Ben-                between(2015, 2019, Year),
+ jamin Van Durme. 2021. Everything is all it takes:            atom_concat("earned ", Year, Event),
+ A multipronged strategy for zero-shot cross-lingual           first_day_year(Year, Start_day),
+ information extraction. In Proceedings of the 2021            last_day_year(Year, End_day).
+ Conference on Empirical Methods in Natural Lan-
+                                                           income_(span(Event, 286, 291)) :-
+ guage Processing, EMNLP 2021, Virtual Event /
+                                                               bob_income(_, Event, _, _).
+ Punta Cana, Dominican Republic, 7-11 November,
+ 2021, pages 1950–1967. Association for Computa-           agent_(span(Event, 286, 291),
+ tional Linguistics.                                              span("Bob", 282, 284)) :-
+                                                               bob_income(_, Event, _, _).
+John M. Zelle and Raymond J. Mooney. 1996. Learn-
+  ing to parse database queries using inductive logic      amount_(span(Event, 286, 291),
+  programming. In Proceedings of the Thirteenth                    span(300000, 294, 299)) :-
+  National Conference on Artificial Intelligence and           bob_income(_, Event, _, _).
+  Eighth Innovative Applications of Artificial Intelli-
+                                                           start_(span(Event, 286, 291),
+  gence Conference, AAAI 96, IAAI 96, Portland, Ore-              span(Start_day, 317, 320)) :-
+  gon, USA, August 4-8, 1996, Volume 2, pages 1050–            bob_income(_, Event, Start_day, _).
+  1055. AAAI Press / The MIT Press.
+                                                             This makes it possible to generate 4 different
+Luke S. Zettlemoyer and Michael Collins. 2005. Learn-
+  ing to map sentences to logical form: Structured         payment_ events and their arguments:
+  classification with probabilistic categorial grammars.
+                                                           income_(span("earned 2015", 286, 291)).
+  In UAI ’05, Proceedings of the 21st Conference
+                                                           agent_(span("earned 2015", 286, 291),
+  in Uncertainty in Artificial Intelligence, Edinburgh,           span("Bob", 282, 284)).
+  Scotland, July 26-29, 2005, pages 658–666. AUAI          amount_(span("earned 2015", 286, 291),
+  Press.                                                           span(300000, 294, 299)).
+                                                           start_(span("earned 2015", 286, 291),
+Rui Zhang, Tao Yu, Heyang Er, Sungrok Shim,                       span(20150101, 317, 320)).
+  Eric Xue, Xi Victoria Lin, Tianze Shi, Caiming
+  Xiong, Richard Socher, and Dragomir R. Radev.            income_(span("earned 2016", 286, 291)).
+  2019. Editing-based SQL query generation for             agent_(span("earned 2016", 286, 291),
+  cross-domain context-dependent questions. In Pro-               span("Bob", 282, 284)).
+                                                           amount_(span("earned 2016", 286, 291),
+  ceedings of the 2019 Conference on Empirical Meth-               span(300000, 294, 299)).
+  ods in Natural Language Processing and the 9th In-       start_(span("earned 2016", 286, 291),
+  ternational Joint Conference on Natural Language                span(20160101, 317, 320)).
+  Processing, EMNLP-IJCNLP 2019, Hong Kong,
+  China, November 3-7, 2019, pages 5337–5348. As-          income_(span("earned 2017", 286, 291)).
+  sociation for Computational Linguistics.                 agent_(span("earned 2017", 286, 291),
+
+                                                       125
+       span("Bob", 282, 284)).                            the argument of an end_ relation and where only
+amount_(span("earned 2017", 286, 291),                    the year is specified, defaults to the last day of that
+        span(300000, 294, 299)).
+start_(span("earned 2017", 286, 291),                     year. This is enforced at annotation time. It is thus
+       span(20170101, 317, 320)).                         sufficient to find the string “2020” as the argument
+                                                          to the start_ relation to get it right. S and E are
+income_(span("earned 2018", 286, 291)).
+agent_(span("earned 2018", 286, 291),                     set to the start and end of “2020”: S=3 and E=6.
+       span("Bob", 282, 284)).
+amount_(span("earned 2018", 286, 291),                    B.2    Decoding
+        span(300000, 294, 299)).
+start_(span("earned 2018", 286, 291),                     At decoding time, we look for arguments to
+       span(20180101, 317, 320)).
+                                                          start_ and end_ relations, and do our best to
+income_(span("earned 2019", 286, 291)).                   convert them to dates. The model of Section 4
+agent_(span("earned 2019", 286, 291),                     returns spans. First, we get the surface form of
+       span("Bob", 282, 284)).
+amount_(span("earned 2019", 286, 291),                    that span, i.e. the string that was selected by the
+        span(300000, 294, 299)).                          IE model. Next, we use the datetime package
+start_(span("earned 2019", 286, 291),                     from Python and its strptime function to parse
+       span(20190101, 317, 320)).
+                                                          the string. We try an ordered list of possible regu-
+  With the model of Section 4, it is not possible to      lar expressions for dates, going from most specific
+generate a date in 2016, so that it cannot generate       (“August 24th, 1970”) to least specific (“2020”). If
+the fact:                                                 one of them works, we will have a value at least for
+                                                          the year, and in the best case, values for year, month
+start_(span("earned 2016", 286, 291),                     and day. From there, we can deduce missing values
+       span(20160101, 317, 320))
+                                                          for month and day, following the convention with
+B     Dates in IE                                         start_ and end_ mentioned above. If none of
+                                                          the regular expressions work, we look for a 4-digit
+B.1    Encoding                                           integer as close as possible to the span, and use that
+In order to facilitate handling time in Prolog, we        as the year. Failing that, we set the year to 0. In our
+represent a date as a base-10 integer of the form         error analysis in Appendix E, we have found that
+YYYYMMDD. For example, August 23rd, 2017 is               dates were generally either extracted correctly, or
+represented as 20170823. In that, we follow Sher-         not extracted at all, which suggests that the above
+man (1987). This makes it straightforward to order        heuristic is not a limiting factor in the performance.
+two dates, to extract the day from date d as d%100,
+the month as (d/100)%100, and so on. It is also           C     Probabilities of Knowledge Base
+possible to compute the day of the week, or the                 Elements
+index of the week in the current year. In practice,
+                                                          As depicted in Figure 3, the tree can be represented
+whenever the full date is stated in the case text, that
+                                                          as a set of pairs and triplets. Here, we will use
+is the anchor for the date. For instance, “Alice and
+                                                          the language of KBEs, which are either pairs (l, r)
+Bob got married on August 24th, 1970” contains
+                                                          or triplets (l, r, c). Pairs (l, r) contain an event
+a clear anchor for the date 19700824. Sometimes,
+                                                          predicate l and a span r. Triplets (l, r, c) contain an
+days are not mentioned explicitly: “In 2020, Alice
+                                                          argument predicate l, a span r, and a span c. Our
+earned $33200.” Decomposing this sentence into
+                                                          model parameterizes their probability as follows.
+events, we get
+                                                             For a pair, p(l, r) = p(l|r)p(r). The probabil-
+income_(span("earned", 15, 20)).                          ity of the span p(r) is computed as the probability
+agent_(span("earned", 15, 20),
+       span("Alice", 9, 13)).
+                                                          assigned to r by the BIO tagger T (line 6 of Al-
+amount_(span("earned", 15, 20),                           gorithm 1). This is computed by summing the
+        span(33200, 23, 27)).                             probabilities of all BIO sequences that allow r as
+start_(span("earned", 15, 20),
+       span(D, S, E)).
+                                                          a span. The probability p(l|r) is assigned to event
+                                                          predicate l by the label classifier L (line 8). It is
+By default, here, we set D=20200101. Any date             the probability that r is labeled with l.
+that is the argument of a start_ relation, and               For a triplet, p(l, r, c) = p(l|r, c)p(c|r)p(r).
+where only the year is specified, defaults to the         The probability of the span p(r) is given by the
+first day of that year. Similarly, any date that is       BIO tagger, as above. The probability of the sec-
+                                                       126
+ond span p(c|r) is given by the BIO tagger when                          T A X _ C A S E _28. This case contains 3 events.
+conditioned on r. Here too, p(c|r) is computed                        L EGAL BERT misses a token when predicting the
+by summing the probabilities of all BIO sequences                     amount_ argument of the payment_ event: it
+that allow c as a span. Finally, the probability of                   predicts “53” instead of “53200”. L EGAL BERT’
+the argument predicate p(l|r, c) is given by the clas-                perfectly predicts all 3 events and their arguments.
+sifier.                                                               BERT misses the purpose_ of service_,
+                                                                      and predicts 2 amount_ arguments for the
+D     Additional results                                              same income_ event, confusing amount_ of
+In Table 4, the target KB is the set of KBEs con-                     payment_ event and that of income_ event.
+tained in the original SARA cases. We report pre-                     RO BERTA predicts the income_ event and its
+cision, recall and F1 scores, for dev and test sets.                  arguments, but then additionally predicts 3 argu-
+Consequently,                                                         ments: an extra agent_ (also Alice, but a different
+                                                                      mention), start_ (some other date in the case),
+• recall scores are systematically lower in Table 4
+                                                                      and amount_ (the amount_ of the income_
+  as compared to Table 2, and
+                                                                      event). RO BERTA misses the purpose_ of the
+• precision scores are identical.8                                    service_ event. Like BERT , RO BERTA pre-
+                                                                      dicts two amount_ arguments for the income_
+E     Error analysis                                                  event. T5 correctly predicts all 3 events, but misses
+We compare model outputs on 3 binary cases and 3                      half the arguments of the payment_ event, and
+numerical cases picked at random from the test set.                   misses the agent_ of the income_ event.
+We only mention the errors made by the models.                           S 68_ A _2_ P O S . This case contains a single
+Table 5 shows the answers produced by the Prolog                      income_ event. All models perfectly predict
+program and the KB on those 6 cases.                                  the gold KB, except for T5 missing the agent_
+   T A X _ C A S E _78.  This case has 6 events.                      argument, and BERT predicting that 2 different
+L EGAL BERT misses one argument of the first                          “Alice” spans are both agent_ arguments of the
+out of two residence_ events, and overpredicts                        income_ event.
+a second start_ date. L EGAL BERT mispre-                               S 3306_ C _10_B_ N E G .       This case contains 4
+dicts the patient_ of the second residence_                           events. L EGAL BERT predicts 2 start_ dates to
+event, but nonetheless makes a sensible predic-                       the medical_patient_ event. L EGAL BERT’
+tion. Together with L EGAL BERT’, BERT and                            fails to classify a hospital as a hospital, instead clas-
+T5, L EGAL BERT correctly detects a payment_                          sifying it as an educational institution. It incorrectly
+event, even though that event had been dis-                           infers start_ and end_ dates to the service_
+carded as part of pre-processing, as described                        event. BERT correctly classifies a hospital as a
+in Section 5.1. For the first residence_                              hospital, but misses an argument of that event. It
+event, L EGAL BERT’ mispredicts Bob as the                            fails to predict that Alice is a patient at this hos-
+agent_ instead of Charlie, predicts 2 start_                          pital, as well as what hospital someone is a pa-
+dates, and 2 patient_ arguments. For the                              tient at, and incorrectly infers start_ and end_
+second residence_ event, L EGAL BERT’ pre-                            arguments to the payment_ event, like L EGAL -
+dicts 2 agent_ and 2 patient_ arguments,                              BERT’. RO BERTA misses the agent_ of the
+one too many in each case. BERT, RO BERTA                             hospital_ event, and predicts 2 start_ dates
+and T5 make similar predictions, getting all the                      to medical_patient_. T5 correctly classifies
+event anchors right, but missing about half the                       the hospital, and otherwise misses or hallucinates
+arguments per event.                                                  one or two arguments per event. For example, it
+   T A X _ C A S E _34. This case contains a single
+                                                                      detects the fact that someone is a patient at a hospi-
+income_ event. All 5 models perfectly predict                         tal, but fails to predict the agent_ of that relation,
+the gold KB.                                                          and predicts two start_ dates.
+    8
+      Precision is higher in Table 4 for dev precision for L EGAL -
+                                                                        S 152_ A _ N E G .
+                                                                                        This case contains a single
+BERT. This difference comes from one out of the five runs,
+where AllenNLP returned precisions of 88.6 and 88.7. This             event: a brother_ relationship between Al-
+is unexpected, and can presumably be ascribed to an artefact          ice and Bob. L EGAL BERT, L EGAL BERT’ and
+in rounding in Python. The remaining four runs have identical
+precision, and this single discrepancy led to different means,        RO BERTA correctly predict the KB. BERT and
+88.74 and 88.76.                                                      T5 miss the patient_ of the relationship.
+                                                                  127
+                           Dev                                     Test
+           Model           Precision    Recall       F1            Precision     Recall       F1
+           L EGAL BERT     88.8 ± 0.6   83.1 ± 0.6   83.6 ± 0.3    88.1 ± 0.2    79.0 ± 0.3   77.5 ± 0.3
+           L EGAL BERT’    87.4 ± 1.0   78.3 ± 1.3   80.2 ± 0.8    85.4 ± 0.9    75.4 ± 0.8   74.4 ± 0.6
+           BERT            85.9 ± 2.1   71.2 ± 2.4   75.0 ± 1.5    85.2 ± 2.3    69.4 ± 1.7   70.0 ± 1.4
+           RO BERTA        84.5 ± 0.6   76.2 ± 1.4   77.6 ± 0.8    86.4 ± 0.7    74.2 ± 1.1   73.4 ± 0.8
+           T5              73.2 ± 0.6   52.8 ± 2.1   58.8 ± 1.4    71.6 ± 1.1    52.8 ± 0.8   55.1 ± 0.8
+
+Table 4: Performance metrics on the IE task measured on the full dataset. Scores are computed across 5 runs with
+different random seeds. We format statistics as average ± standard error. Best scores are bolded.
+
+              tax_case_78 tax_case_34 tax_case_28 s68_a_2_pos s3306_c_10_B_neg s152_a_neg
+L EGAL BERT $15213            $2684          $344428         Yes                No                   No
+L EGAL BERT’ $15213           $2684          $344848         Yes                No                   No
+BERT         $0               $2684          $365916         Yes                No                   No
+RO BERTA     $0               $2684          $365916         Yes                No                   No
+T5           $0               $2684          $0              Yes                No                   No
+E MPTY        $0              $0             $0              Yes                No                   No
+T OPLINE      $15213          $2684          $344848         Yes                No                   No
+Correct answer $14470         $2684          $344848         Yes                No                   No
+
+Table 5: Answers obtained with the Prolog program and the KBs extracted with different encoders. The cases are
+those analyzed in Appendix E. Incorrect answers are in red italics.
+
+
+F   Hyperparameters
+In Section 5.2, we use Optuna (Akiba et al., 2019)
+to find good hyperparameters for each pre-trained
+encoder, running 100 experiments per encoder. In
+Table 6, we report the range searched over for each
+hyperparameter. If there is a single value under
+“value range”, it means this hyperparameter was set
+and not searched over with Optuna. Each exper-
+iment consists of 3 training runs with 3 different
+random seeds, using the average micro F1 score on
+the validation set.
+   We also report the hyperparameters of the
+best performing models, in Tables 7, 8, 9, 10,
+and 11. For each number, we report up to
+5 significant digits.
+
+G    Data statistics
+Figure 4 reports statistics on the dataset used for
+IE, as well as some examples.
+
+
+
+
+                                                       128
+Part of model                    Hyperparameter                             Value range
+Encoder E                        Transformer model encoding the case de-    {bert-base-cased,   roberta-base,
+                                 scription X                                t5-base, zlucia/custom-legalbert,
+                                                                            jhu-clsp/LegalBert}
+Distance embeddings D            Size of the embeddings encoding the dis-   {8, 16, 32, 64,128, 256, 512}
+                                 tance of each token to the event anchor
+Label classifier L               Feature dropout in between the layers of   [0, 0.8]
+                                 the MLP
+                                 Number of units per layer                  {32, 64, 128, 256, 512, 1024, 2048}
+                                 Number of layers                           {1, 2, 3, 4}
+BIO tagger T                     Feature dropout in between the layers of   Always equal to the dropout of L
+                                 the MLP
+                                 Number of units                            {32, 64, 128, 256, 512, 1024, 2048}
+                                 Number of layers                           {1, 2, 3, 4}
+Trainer                          Batch size                                 {8, 16, 32, 64, 128, 256}
+                                 Learning rate                              [1e-6, 1e-3]
+                                 Learning rate scheduler                    reduce_on_plateau — this scheduler halves
+                                                                            the learning rate when the validation score stops
+                                                                            improving
+                                 Optimizer                                  huggingface_adamw
+                                 Maximum number of epochs to train for      200
+                                 Patience                                   20
+                                 Gradient clipping                          1.0
+Loss function                    Loss trade-off — see λ in Section 4        [0, 1]
+
+                               Table 6: Hyperparameter ranges in the hyperparameter search.
+
+                        Part of model                Hyperparameter         Value
+                        Encoder E                    Transformer model      jhu-clsp/LegalBert
+                        Distance embeddings D        Size                   8
+                        Label classifier L           Feature dropout        7.6067 · 10−2
+                                                     Number of units        2048
+                                                     Number of layers       3
+                        BIO tagger T                 Feature dropout        -
+                                                     Number of units        1024
+                                                     Number of layers       3
+                        Trainer                      Batch size             8
+                                                     Learning rate          6.1891 · 10−5
+                        Loss function                Loss trade-off         7.5288 · 10−1
+
+                                  Table 7: Hyperparameters of best L EGAL BERT model.
+
+                     Part of model                Hyperparameter        Value
+                     Encoder E                    Transformer model     zlucia/custom-legalbert
+                     Distance embeddings D        Size                  8
+                     Label classifier L           Feature dropout       4.7806 · 10−1
+                                                  Number of units       2048
+                                                  Number of layers      1
+                     BIO tagger T                 Feature dropout       -
+                                                  Number of units       2048
+                                                  Number of layers      3
+                     Trainer                      Batch size            8
+                                                  Learning rate         3.8743 · 10−5
+                     Loss function                Loss trade-off        9.3341 · 10−1
+
+                                 Table 8: Hyperparameters of best L EGAL BERT’ model.
+
+                                                              129
+Part of model             Hyperparameter         Value
+Encoder E                 Transformer model      bert-base-cased
+Distance embeddings D     Size                   8
+Label classifier L        Feature dropout        1.5865 · 10−1
+                          Number of units        64
+                          Number of layers       1
+BIO tagger T              Feature dropout        -
+                          Number of units        256
+                          Number of layers       4
+Trainer                   Batch size             16
+                          Learning rate          7.7282 · 10−5
+Loss function             Loss trade-off         4.4946 · 10−1
+
+          Table 9: Hyperparameters of best BERT model.
+
+
+
+
+  Part of model             Hyperparameter           Value
+  Encoder E                 Transformer model        roberta-base
+  Distance embeddings D     Size                     8
+  Label classifier L        Feature dropout          3.8621 · 10−1
+                            Number of units          2048
+                            Number of layers         2
+  BIO tagger T              Feature dropout          -
+                            Number of units          2048
+                            Number of layers         2
+  Trainer                   Batch size               32
+                            Learning rate            1.1132 · 10−4
+  Loss function             Loss trade-off           6.6690 · 10−1
+
+      Table 10: Hyperparameters of best RO BERTA model.
+
+
+
+
+    Part of model             Hyperparameter             Value
+    Encoder E                 Transformer model          t5-base
+    Distance embeddings D     Size                       8
+    Label classifier L        Feature dropout            3.7523 · 10−1
+                              Number of units            64
+                              Number of layers           1
+    BIO tagger T              Feature dropout            -
+                              Number of units            1024
+                              Number of layers           1
+    Trainer                   Batch size                 32
+                              Learning rate              5.6507 · 10−4
+    Loss function             Loss trade-off             5.0650 · 10−1
+
+            Table 11: Hyperparameters of best T5 model.
+
+
+
+                                   130
+                   number of KBEs                                         number of spans
+  0.4                                         train     0.20
+  0.3                                         dev
+                                              test      0.15
+  0.2                                                   0.10
+  0.1                                                   0.05
+  0.0                                                   0.00
+                                                                  1 2 3 4 5 6 7 8 9 10+
+          0-4
+          5-9
+
+        15 14
+        20 19
+        25 24
+        30 29
+        35 34
+         40 9
+             +
+           -3
+           -
+           -
+           -
+           -
+           -
+        10
+
+
+
+
+                  span length - words                               span length - characters
+  0.8
+                                                          0.4
+  0.6                                                     0.3
+  0.4                                                     0.2
+  0.2                                                     0.1
+  0.0                                                     0.0
+              1         2          3         4+
+                                                                1-4
+
+                                                                         5-9
+
+                                                                                   -14
+
+                                                                                           -19
+
+                                                                                                    +
+                                                                                                  20
+                                                                                10
+
+                                                                                         15
+
+
+
+
+Examples of spans of length 1, 2 and 3: “Alice”, “Bob”, “marriage”, “joint return”, “Feb 3rd, 1992” and
+“decree of divorce”.
+Figure 4: Statistics of the data used for IE (partial dataset). Number of KBEs and spans are per case. The large
+number of 3-word spans is due to many date expressions being 3-word phrases.
+
+
+
+
+                                                      131
+

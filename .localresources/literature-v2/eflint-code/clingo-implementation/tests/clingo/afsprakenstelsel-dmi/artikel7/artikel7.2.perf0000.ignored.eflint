@@ -1,0 +1,71 @@
+// AFNEMEN.eflint
+//   by Lut99
+//
+// Created:
+//   10 Jun 2024, 17:00:42
+// Last edited:
+//   07 May 2025, 21:15:52
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Scenario dat een paar voorbeelden toont voor
+//   `afnemen` uit artikel 7.2.
+//
+
+
+///// SCENARIO /////
+// Er is een huidig jaar
++huidig-jaar(2023).
+
+// Er is een maximale afname
++jaarlijkse-commons-waarde(2500, 2023).
+
+// Er is een beheerder
++beheerder(Ecoraad).
+
+// Er zijn drie partijen
++deelnemer(Amy).
++deelnemer(Bob).
++deelnemer(Cho).
+
+// Twee bieden iets aan als Commons; de derde niet als commons
++dienst-waarde(Appel, 1000).
++aanbod(0, Amy, Appel, 2023).
++aanbod-als-commons(aanbod(0, Amy, Appel, 2023)).
++dienst-waarde("Gouden Appel", 5000).
++aanbod(1, Amy, "Gouden Appel", 2023).
++aanbod-als-commons(aanbod(1, Amy, "Gouden Appel", 2023)).
+
++dienst-waarde(Banaan, 500).
++aanbod(2, Bob, Banaan, 2023).
++aanbod-als-commons(aanbod(2, Bob, Banaan, 2023)).
+
++dienst-waarde(Citroen, 1500).
++aanbod(3, Cho, Citroen, 2023).
+
+
+
+// Amy mag iets van Bob en Cho afnemen, ze heeft het recht
++overeenkomst(aanbod(2, Bob, Banaan, 2023), Amy).
+afnemen(Amy, Bob, overeenkomst(aanbod(2, Bob, Banaan, 2023), Amy)).           // Geen violation
+//#violated !afnemen(deelnemer(Amy), deelnemer(Bob), overeenkomst(aanbod(id(2), deelnemer(Bob), dienst(Banaan), jaar(2023)), deelnemer(Amy))).
++overeenkomst(aanbod(3, Cho, Citroen, 2023), Amy).
+afnemen(Amy, Cho, overeenkomst(aanbod(3, Cho, Citroen, 2023), Amy)).          // Geen violation; ook geen extra afgenomen Commons!
+//#violated !afnemen(deelnemer(Amy), deelnemer(Cho), overeenkomst(aanbod(id(3), deelnemer(Cho), dienst(Citroen), jaar(2023)), deelnemer(Amy))).
+
+// Cho mag van beiden afnemen (maar ook maar net)
++overeenkomst(aanbod(0, Amy, Appel, 2023), Cho).
+afnemen(Cho, Amy, overeenkomst(aanbod(0, Amy, Appel, 2023), Cho)).            // Geen violation
+//#violated !afnemen(deelnemer(Cho), deelnemer(Amy), overeenkomst(aanbod(id(0), deelnemer(Amy), dienst(Appel), jaar(2023), deelnemer(Cho)))).
++overeenkomst(aanbod(2, Bob, Banaan, 2023), Cho).
+afnemen(Cho, Bob, overeenkomst(aanbod(2, Bob, Banaan, 2023), Cho)).           // Geen violation
+//#violated !afnemen(deelnemer(Cho), deelnemer(Bob), overeenkomst(aanbod(id(2), deelnemer(Bob), dienst(Banaan), jaar(2023), deelnemer(Cho)))).
+
+// Maar Bob mag niet van Amy afnemen; geen saldo meer
++overeenkomst(aanbod(1, Amy, "Gouden Appel", 2023), Bob).
+afnemen(Bob, Amy, overeenkomst(aanbod(1, Amy, "Gouden Appel", 2023), Bob)).   // Violation!
+//#violated afnemen(deelnemer("Bob"), deelnemer("Amy"), overeenkomst(aanbod(id(1), deelnemer("Amy"), dienst("Gouden Appel"), jaar(2023)), deelnemer("Bob"))).
++overeenkomst(aanbod(3, Cho, Citroen, 2023), Bob).
+afnemen(Bob, Cho, overeenkomst(aanbod(3, Cho, Citroen, 2023), Bob)).          // Geen violation, zijn geen Commons
+//#violated !afnemen(deelnemer(Bob), deelnemer(Cho), overeenkomst(aanbod(id(3), deelnemer(Cho), dienst(Citroen), jaar(2023), deelnemer(Bob)))).

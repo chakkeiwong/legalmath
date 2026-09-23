@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="30" time="1.733" timestamp="2026-09-23T02:21:29.379088+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="tests.interpretation.test_contracts" name="test_reject_unsafe_policies[change0]" time="0.001" /><testcase classname="tests.interpretation.test_contracts" name="test_reject_unsafe_policies[change1]" time="0.000" /><testcase classname="tests.interpretation.test_contracts" name="test_reject_unsafe_policies[change2]" time="0.000" /><testcase classname="tests.interpretation.test_contracts" name="test_reject_unsafe_policies[change3]" time="0.000" /><testcase classname="tests.interpretation.test_contracts" name="test_reject_unsafe_policies[change4]" time="0.000" /><testcase classname="tests.interpretation.test_contracts" name="test_reject_unsafe_policies[change5]" time="0.000" /><testcase classname="tests.interpretation.test_contracts" name="test_reject_unsafe_policies[change6]" time="0.000" /><testcase classname="tests.interpretation.test_contracts" name="test_reject_unsafe_policies[change7]" time="0.001" /><testcase classname="tests.interpretation.test_contracts" name="test_packaged_schema_matches_monograph" time="0.000" /><testcase classname="tests.interpretation.test_contracts" name="test_run_validation_and_date" time="0.087"><failure message="Failed: DID NOT RAISE &lt;class 'legalmath.errors.LegalMathError'&gt;">run = {'action_ids': [], 'actions_issued': 0, 'candidate_ids': [], 'completed_initial_roles': [], ...}
+
+    def test_run_validation_and_date(run):
+        validate('run',run)
+&gt;       with pytest.raises(LegalMathError): validate('run',{**run,'created_at':'2026-02-31T00:00:00.000000Z'})
+E       Failed: DID NOT RAISE &lt;class 'legalmath.errors.LegalMathError'&gt;
+
+tests/interpretation/test_contracts.py:17: Failed</failure></testcase><testcase classname="tests.interpretation.test_inventory" name="test_unanimous_omission_is_visible" time="0.223" /><testcase classname="tests.interpretation.test_inventory" name="test_dependency_and_inventory_are_independent" time="0.083" /><testcase classname="tests.interpretation.test_inventory" name="test_invalid_packets[change0]" time="0.026" /><testcase classname="tests.interpretation.test_inventory" name="test_invalid_packets[change1]" time="0.026" /><testcase classname="tests.interpretation.test_inventory" name="test_invalid_packets[change2]" time="0.024" /><testcase classname="tests.interpretation.test_inventory" name="test_source_version_cannot_be_silently_replaced" time="0.107" /><testcase classname="tests.interpretation.test_candidates" name="test_minority_and_parent_preserved" time="0.156" /><testcase classname="tests.interpretation.test_candidates" name="test_untrusted_candidate[change0]" time="0.078" /><testcase classname="tests.interpretation.test_candidates" name="test_untrusted_candidate[change1]" time="0.071" /><testcase classname="tests.interpretation.test_candidates" name="test_untrusted_candidate[change2]" time="0.071" /><testcase classname="tests.interpretation.test_candidates" name="test_untrusted_candidate[change3]" time="0.071" /><testcase classname="tests.interpretation.test_candidates" name="test_untrusted_candidate[change4]" time="0.067" /><testcase classname="tests.interpretation.test_candidates" name="test_cap_keeps_frontier_and_issue" time="0.182" /><testcase classname="tests.interpretation.test_candidates" name="test_assumption_creates_issue" time="0.116" /><testcase classname="tests.interpretation.test_issues" name="test_root_inherited_and_auth_revision" time="0.198" /><testcase classname="tests.interpretation.test_issues" name="test_missing_dependency_cannot_be_voted_away" time="0.073"><failure message="legalmath.errors.LegalMathError: Expected revision does not match current revision.">svc = &lt;legalmath.interpretation.service.Interpretations object at 0x73459e34d290&gt;
+packet = {'authority': 'SYNTHETIC_FIXTURE', 'dependencies': [{'dependency_id': 'code', 'source_hash': None}], 'family_ids': ['literal', 'alternative'], 'selected_slice': 'Promotional route', ...}
+proposal = {'arguments': [], 'assumptions': [], 'bundle_hash': None, 'controlled_language': 'Prior investment route', ...}
+
+    def test_missing_dependency_cannot_be_voted_away(svc,packet,proposal):
+        packet['dependencies']=[{'dependency_id':'code','source_hash':None}]
+&gt;       run=svc.create('author','r2',packet);proposal['source_packet_hash']=run['source_packet_hash']
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/interpretation/test_issues.py:20: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/interpretation/service.py:120: in create
+    return self.db.mutate(caller,key,dict(op='interpretation.create',packet=packet,policy=settings,predecessor=predecessor),op)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/storage/database.py:79: in mutate
+    result = operation(con)
+             ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+con = &lt;sqlite3.Connection object at 0x73459e4c7c40&gt;
+
+    def op(con):
+        self.lc.require(con,caller,'author')
+        p = self._validate_packet(con,packet)
+        ph = self.db.put(con,'interpretation_packet',p)
+        if predecessor:
+            self._owner(con,caller,predecessor)
+            old = self._run(con,predecessor)
+            if old['status'] not in TERMINAL: raise LegalMathError('E_JOB_STATE')
+            if self._packet(con,old)['source_key'] != p['source_key']: raise LegalMathError('E_REFERENCE')
+        previous = con.execute('SELECT packet_hash FROM interpretation_sources WHERE source_key=?',(p['source_key'],)).fetchone()
+        if previous and previous[0] != ph:
+            # A source key cannot be silently replaced by a new investigation.
+&gt;           raise LegalMathError('E_STALE_REVIEW')
+E           legalmath.errors.LegalMathError: Expected revision does not match current revision.
+
+src/legalmath/interpretation/service.py:100: LegalMathError</failure></testcase><testcase classname="tests.interpretation.test_master" name="test_predecessor_and_repair_blocks" time="0.004" /><testcase classname="tests.interpretation.test_master" name="test_budget_and_stale_review" time="0.008" /><testcase classname="tests.interpretation.test_master" name="test_interrupted_attempt_is_preserved" time="0.001"><failure message="ValueError: '/tmp/pytest-of-chakwong/pytest-22/test_interrupted_attempt_is_pr0/out/P0/attempt-01/run-manifest.json' is not in the subpath of '/home/chakwong/python/legalmath' OR one path is relative and the other is absolute.">master = &lt;module 'master' from '/home/chakwong/python/legalmath/scripts/run_interpretation_plan.py'&gt;
+
+    def test_interrupted_attempt_is_preserved(master):
+        s=master.state();s['phases']['P0']['status']='RUNNING'
+        path=master.OUT/'P0/attempt-01/run-manifest.json'
+        master.write(path,{'status':'RUNNING'})
+&gt;       master.recover('P0',s)
+
+tests/interpretation/test_master.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/run_interpretation_plan.py:189: in recover
+    ps['attempts'].append({'path':str((attempt/'run-manifest.json').relative_to(ROOT)),'sha256':sha(attempt/'run-manifest.json'),'status':'FAILED','failure':'SUPERVISOR_INTERRUPTED'})
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/tmp/pytest-of-chakwong/pytest-22/test_interrupted_attempt_is_pr0/out/P0/attempt-01/run-manifest.json')
+other = (PosixPath('/home/chakwong/python/legalmath'),)
+parts = ['/', 'tmp', 'pytest-of-chakwong', 'pytest-22', 'test_interrupted_attempt_is_pr0', 'out', ...]
+drv = '', root = '/'
+
+    def relative_to(self, *other):
+        """Return the relative path to another path identified by the passed
+        arguments.  If the operation is not possible (because this is not
+        a subpath of the other path), raise ValueError.
+        """
+        # For the purpose of this method, drive and root are considered
+        # separate parts, i.e.:
+        #   Path('c:/').relative_to('c:')  gives Path('/')
+        #   Path('c:/').relative_to('/')   raise ValueError
+        if not other:
+            raise TypeError("need at least one argument")
+        parts = self._parts
+        drv = self._drv
+        root = self._root
+        if root:
+            abs_parts = [drv, root] + parts[1:]
+        else:
+            abs_parts = parts
+        to_drv, to_root, to_parts = self._parse_args(other)
+        if to_root:
+            to_abs_parts = [to_drv, to_root] + to_parts[1:]
+        else:
+            to_abs_parts = to_parts
+        n = len(to_abs_parts)
+        cf = self._flavour.casefold_parts
+        if (root or drv) if n == 0 else cf(abs_parts[:n]) != cf(to_abs_parts):
+            formatted = self._format_parsed_parts(to_drv, to_root, to_parts)
+&gt;           raise ValueError("{!r} is not in the subpath of {!r}"
+                    " OR one path is relative and the other is absolute."
+                             .format(str(self), str(formatted)))
+E           ValueError: '/tmp/pytest-of-chakwong/pytest-22/test_interrupted_attempt_is_pr0/out/P0/attempt-01/run-manifest.json' is not in the subpath of '/home/chakwong/python/legalmath' OR one path is relative and the other is absolute.
+
+../../miniconda3/envs/tfgpu/lib/python3.11/pathlib.py:730: ValueError</failure></testcase><testcase classname="tests.interpretation.test_master" name="test_fixed_commands" time="0.001" /></testsuite></testsuites>

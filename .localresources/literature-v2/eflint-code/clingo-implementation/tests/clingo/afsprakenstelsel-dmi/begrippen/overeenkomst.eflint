@@ -1,0 +1,79 @@
+// OVEREENKOMST.eflint
+//   by Lut99
+//
+// Created:
+//   19 Aug 2024, 11:38:45
+// Last edited:
+//   20 Aug 2024, 15:14:55
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Specificeert een uitbreiding van een `aanbod` dat specifiek is naar
+//   een afnemer.
+//
+
+#require "aanbod.eflint".
+
+
+///// REGELS /////
+/// Representeert een aanbod waar de afnemer al bekent is. De transactie heeft dan nog niet
+/// plaatsgevonden.
+/// 
+/// Deze stap bestaat vanwege compatabiliteit met het ODRL-model
+/// (<https://www.w3.org/TR/odrl-model/#policy-agreement>).
+Fact overeenkomst Identified by aanbod * afnemer.
+Extend Fact deelnemer
+    Derived from (Foreach overeenkomst : overeenkomst.afnemer).
+
+
+
+/// Specificeert als hoeveel een dienst wordt aangeboden aan een bepaalde Deelnemer.
+/// 
+/// Dit kan verschillen van de algemenere `aanbod-kosten` omdat gebruikers onderling andere kosten
+/// kunnen afspreken.
+Fact overeenkomst-kosten Identified by overeenkomst * waarde.
+Extend Fact waarde
+    Derived from (Foreach overeenkomst-kosten : overeenkomst-kosten.waarde).
+
+/// Specificeert hoeveel gebruikskosten er aan een overeenkomst hangen voor een bepaalde Deelnemer.
+/// 
+/// Dit kan verschillen van de algemenere `aanbod-gebruiks-kosten` omdat gebruikers onderling
+/// andere kosten kunnen afspreken.
+Fact overeenkomst-gebruiks-kosten Identified by overeenkomst * waarde.
+Extend Fact waarde
+    Derived from (Foreach overeenkomst-gebruiks-kosten : overeenkomst-gebruiks-kosten.waarde).
+
+/// Specificeert hoeveel gebruikskosten er verbonden zijn aan het gebruik van de AV per overeenkomst.
+Fact overeenkomst-av-kosten Identified by overeenkomst * waarde.
+Extend Fact waarde
+    Derived from (Foreach overeenkomst-av-kosten : overeenkomst-av-kosten.waarde).
+
+
+
+
+
+///// ASSERTIONS /////
+/// Er mag maar maximaal één `overeenkomst-kosten` per `overeenkomst` worden gegeven omdat:
+///   a) we niet willen sommeren als we niet hoeven; en
+///   b) er geen duplicate waardes in hetzelfde jaar kunnen worden weergeven (eFLINT voegt beide
+///      instanties samen tot één).
+Invariant maximaal-een-overeenkomst-kosten
+    When (Forall overeenkomst :
+        Count(Foreach overeenkomst-kosten :
+            overeenkomst-kosten
+            When overeenkomst-kosten.overeenkomst == overeenkomst
+        ) <= 1
+    ).
+
+/// Er mag maar maximaal één `overeenkomst-gebruiks-kosten` per `overeenkomst` worden gegeven omdat:
+///   a) we niet willen sommeren als we niet hoeven; en
+///   b) er geen duplicate waardes in hetzelfde jaar kunnen worden weergeven (eFLINT voegt beide
+///      instanties samen tot één).
+Invariant maximaal-een-overeenkomst-gebruiks-kosten
+    When (Forall overeenkomst :
+        Count(Foreach overeenkomst-gebruiks-kosten :
+            overeenkomst-gebruiks-kosten
+            When overeenkomst-gebruiks-kosten.overeenkomst == overeenkomst
+        ) <= 1
+    ).

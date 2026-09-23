@@ -1,0 +1,1746 @@
+                                                  Formal Verification of Legal Contracts:
+                                                     A Translation-based Approach
+
+                                         Reiner Hähnle1[0000−0001−8000−7613] , Cosimo Laneve2[0000−0002−0052−4061] , and
+                                                             Adele Veschetti1[0000−0002−0403−1889]
+                                                       1
+                                                            Department of Computer Science, TU Darmstadt, Germany
+                                                               {reiner.haehnle,adele.veschetti}@tu-darmstadt.de
+arXiv:2509.20421v2 [cs.SE] 26 Sep 2025
+
+
+
+
+                                                   2
+                                                           Department of Computer Science, University of Bologna, Italy
+                                                                            cosimo.laneve@unibo.it
+
+
+
+
+                                               Abstract. Stipula is a domain-specific programming language designed
+                                               to model legal contracts with enforceable properties, especially those in-
+                                               volving asset transfers and obligations. This paper presents a methodol-
+                                               ogy to formally verify the correctness of Stipula contracts through trans-
+                                               lation into Java code annotated with Java Modeling Language specifica-
+                                               tions. As a verification backend, the deductive verification tool KeY is
+                                               used. Both, the translation and the verification of partial and total cor-
+                                               rectness for a large subset of Stipula contracts, those with disjoint cycles,
+                                               is fully automatic. Our work demonstrates that a general-purpose deduc-
+                                               tive verification tool can be used successfully in a translation approach.
+
+                                               Keywords: Formal Verification · Stipula Language · Translation-based
+                                               Verification · Deductive Verification.
+
+
+                                         1   Introduction
+                                         As the legal domain continues its digital transformation, the demand for pre-
+                                         cise, machine-verifiable representations of legal contracts becomes increasingly
+                                         important. Traditional legal texts, written in natural language, are inherently
+                                         ambiguous and prone to misinterpretation, making them challenging to process,
+                                         analyze, or verify by automated means. To address this issue, several projects
+                                         are being developed for defining programming languages to write legal contracts,
+                                         e.g. [16–18, 20]. Although these projects introduce a precise syntax for legal con-
+                                         tracts and provide graphical tools to associate normative elements with code,
+                                         they pay limited attention to the verification of correctness. Yet, this aspect is
+                                         crucial in legal contexts, where ambiguities or unintended behavior during exe-
+                                         cution can lead to significant legal and financial repercussions. Despite advances
+                                         in the formal verification of legal contracts, formal reasoning is rare in practice
+                                         due to tool complexity.
+                                             To overcome this lack of automatic verification techniques, in 2021, we de-
+                                         signed Stipula [7, 8, 15], a new domain-specific language with few concise and
+                                         intelligible primitives that have a precise correspondence with the distinctive
+                                         elements of legal contracts. The language has a formal operational semantics, so
+2       R. Hähnle, C. Laneve, A. Veschetti
+
+that the behavior is fully specified and amenable to automatic verification. Its
+current tool chain [9] contains a runtime environment, a type checker, a graphical
+IDE, and an analyzer verifying the reachability of clauses [10, 14].
+    In this paper, we advance the automatic verification of Stipula contracts by in-
+troducing a systematic approach for verifying contracts through translation into
+a general-purpose deductive verification tool. Specifically, we translate Stipula
+contracts into Java programs annotated with JML (Java Modeling Language)
+specifications, and we employ the KeY verification system [3, 5] as a backend.
+We define translation patterns and principles that preserve the semantics of core
+Stipula constructs — such as asset transfers, functions, and events — within the
+program logic supported by KeY. Our approach admits both manual and auto-
+mated translation, and it accommodates a variety of contract types, including
+those with cyclic behavior and partial asset transfers.
+    It is by no means evident that a translation-based approach to verifica-
+tion will succeed. For deductive verification tools such as KeY to operate in
+a fully automated mode, the availability of sufficiently precise specification an-
+notations is crucial. In the general case, such specifications need to be provided
+manually, which renders deductive verification inherently interactive and, con-
+sequently, costly. In the case of Stipula, every smart contract is associated with
+a well-defined automaton: the states represent control points of the contract,
+while the transitions correspond to its clauses, such as functions or events. This
+automaton-based representation makes the contract’s behavior explicit and pro-
+vides a natural foundation for reasoning about possible execution paths. More-
+over, when the automaton of a contract satisfies the structural property of dis-
+joint cycles – that is, cycles that do not share any states – it becomes possible
+to automatically synthesize suitable JML annotations, including guarantees and
+loop invariants. This synthesis step significantly reduces the annotation burden
+and paves the way for a high degree of automation in the verification process,
+thus demonstrating the potential of the translation-based approach in practice.
+    Nonetheless, there are limitations that affect full generality. Time-dependent
+behavior must be scheduled symbolically and evaluated statically. Our tech-
+nique handles this by using symbolic boolean variables representing the time
+constraint. The event is then translated into a conditional guarded by the sym-
+bolic variable that KeY evaluates by exploring both possibilities: one where the
+event occurs and one where it does not. More complex forms of time manage-
+ment, such as dynamically registered events during loops or asynchronous be-
+havior, are outside the current scope. Similarly, non-deterministic behavior, such
+as contracts where multiple transitions may be enabled concurrently, is not yet
+supported: our translation assumes that guards deterministically select a unique
+transition. These aspects pose challenges for extending the approach beyond the
+verified fragment we currently target.
+    The paper is structured as follows. Section 2 introduces the Stipula language
+and its execution semantics; an illustrative example highlights how obligations,
+permissions, and events are expressed in Stipula. We also provide a short intro-
+duction to KeY. Section 3 formalizes our translation methodology from Stipula
+                                          Formal Verification of Legal Contracts     3
+
+to Java, detailing how fields, assets, functions, events, and contract behavior are
+encoded in Java and specified with JML. Section 4 discusses the implementation
+of our translator tool and presents case studies that apply our approach to rep-
+resentative Stipula contracts, demonstrating the effectiveness of the method and
+discussing verification outcomes. Section 5 reviews related efforts in contract
+languages and formal verification. Section 6 concludes the paper and outlines
+directions for future work.
+
+
+2     Background
+
+To set the stage for our translation-based verification method, we briefly review
+the relevant background. Section 2.1 presents the Stipula language, emphasizing
+its constructs for assets, states, and timed events. Section 2.2 introduces the KeY
+system, which we later employ as the verification backend.
+
+
+2.1   Stipula
+
+A Stipula contract consists of a set of parties, states, assets, fields, and a set of
+functions and events, generically called clauses. The declaration of a contract is
+defined in Fig. 1, where C is the name of the contract, h and x are the assets
+and fields, respectively, A are the parties. The agreement construct declares the
+
+
+         stipula C {
+                asset h
+                field x
+                agreement(A) {
+                      A1 : x1 S                  S                  T
+                      · · · // i∈1..n Ai ⊆ A ,    i∈1..n xi ⊆ x ,   i∈1..n xi = ∅
+                      An : xn
+                } => @Q
+                F
+         }
+
+
+                                                                        ′
+       Functions          F ::=   -- | @Q A : f(y)[k] (E){ S ; W } => @Q F
+       Prefixes           P ::=   E → x | E → A | E ⊸ h, h′ | E ⊸ h, A
+       Statements         S ::=   -- | P S | if (E) { S } else { S } S
+                                                                 ′
+       Events             W ::=   -- | now + k ≫ @Q { S } => @Q W
+       Expressions        E ::=   v | X | E op E | uop E
+       Values             v ::=   n | false | true | s
+
+                                  Fig. 1. Syntax of Stipula
+
+
+parties that set the initial value of the fields and the initial state of the contract.
+For example, if the agreement has three parties A1 , A2 , A3 and the contract has
+4        R. Hähnle, C. Laneve, A. Veschetti
+
+two fields x1 , x2 , if it declares A1 : x1 and A2 , A3 : x2 then x1 will be set by A1
+and x2 will be set upon agreement on the value between A2 and A3 . When the
+agreement is concluded, the parties may invoke a function in F .
+    A function @Q A : f(y)[k] (E){ S; W } => @Q′ can be invoked by a party A if
+the contract is in state Q and the guard E is true. The names y and k are the
+formal parameters of f; they are kept separate because y are field values while k
+are asset quantities.
+    Function bodies are statements followed by events. The former include value
+transfers, asset movements, conditional logic, and field assignments. Stipula dis-
+tinguishes between different transfer operations: field and message updates use
+the symbol → with the usual semantics of assignment, while asset transfers use
+the linear implication operator ⊸ to emphasize the conservation semantics. For
+instance, an expression like “1 ⊸ wallet, Seller” denotes exclusive transfer of a
+unit in wallet to the Seller and, at the same time, the wallet is decreased by 1.
+In contrast “ code → Licensee” models non-exclusive passing of information. The
+operation “ wallet ⊸ wallet, Seller” is always shortened to “ wallet ⊸ Seller”.
+    Events now + k ≫ @Q { S } => @Q′ , where k is either a natural number or a
+field name, define a statement S to be executed if, after k time units from the
+current execution, the contract is in the state Q. If the event is executed, the
+contract will transition to the state Q′ .
+    We refer to article [8] for background on the design of Stipula, as well as its
+formal semantics. A comment about the model of time in Stipula may be useful
+for what follows. The model has a multiset of events to be executed; every event
+has a time value that is a natural number representing minutes. This number is
+computed when the event is created by replacing now with 0 in the expression
+now + k (recall that k is either a natural number or a field name). Time advances
+when the contract has no statements to execute and no events can be triggered.
+In such cases, a “tick” occurs, decrementing the time values in the multiset of
+events. Events with negative time values are discarded. Subsequently, any event
+whose initial state matches the current contract state and whose time value
+reaches zero may be scheduled for execution.3
+    In this paper we use the state transition models of Stipula contracts, called
+the underlying automata. The states of these automata are those of the Stipula
+contract. The transitions correspond to clauses and are labelled either with the
+function name (the party name is always omitted, for simplicity’s sake we assume
+that function names are pairwise different) or with the event line number (e.g.,
+ev10 is the event at code line 10). Fig. 2 shows an underlying automaton.
+    We illustrate Stipula through two representative examples that allow us to
+highlight crucial Stipula features:
+normative permissions: functions are enabled only for specific parties in spe-
+   cific states;
+asset safety : assets are never duplicated or lost; transfers are explicitly en-
+   coded and conditional;
+3
+    The syntax of Stipula in [8] admits absolute time expressions like "2022/1/1:00:15";
+    these expressions are rewritten into terms now + k when the event is created.
+                                        Formal Verification of Legal Contracts    5
+
+timed obligations: the event construct encodes deadlines and enforces com-
+    pliance without external intervention;
+stateful logic: contract progress is encoded through explicit state transitions,
+    supporting both branching and linear workflows.
+Example 1 (The License Contract). Listing 1 defines a license contract that reg-
+ulates a licensing transaction between a Licensor and a Licensee, with time-
+bound trial periods and the possibility to purchase or decline the license. In
+particular, the Licensee may request a trial and then decide whether to buy
+the license. If the Licensee does not purchase the license before the trial period
+expires, the contract terminates and the cost is automatically returned to the
+Licensee.
+    The contract begins with an agreement clause in Line 4, where both parties
+define the trial start time (t_start), its duration (t_limit), and the license cost.
+This mirrors the legal principle of mutual consent (“meeting of the minds”): no
+contract behavior is enabled until consensus is reached. Upon agreement, the
+first control state is @Init (Line 6).
+ 1   stipula License {
+ 2       asset balance, token
+ 3       field t_start, t_limit, cost, code
+ 4       agreement (Licensor, Licensee)(t_start, t_limit, cost) {
+ 5           Licensor, Licensee : t_start, t_limit, cost
+ 6       } => @Init
+ 7       @Init Licensor: offer(x)[n] {
+ 8           n ⊸ token
+ 9           x → code
+10          now + t_start ≫ @Prop { token ⊸ Licensor } => @End
+11       } => @Prop
+12       @Prop Licensee: activate()[b] (b == cost) {
+13           b ⊸ balance
+14          code → Licensee ;
+15          now + t_limit ≫ @Trial {
+16                     balance ⊸ Licensee
+17                     token ⊸ Licensor
+18                     } => @End
+19       } => @Trial
+20       @Trial Licensee: buy()[] {
+21          balance ⊸ Licensor
+22          token ⊸ Licensee
+23       } => @End
+24   }
+                       Listing 1. The License contract in Stipula
+
+    The underlying automaton of License is shown in Fig. 2. In the Init state,
+the Licensor may invoke offer, transferring a token (representing the license)
+into escrow and generating a license code. A scheduled event is simultaneously
+registered at t_start time units in the future to reclaim the token if the Licensee
+fails to act within the trial start window. The contract then moves to Prop. If
+6      R. Hähnle, C. Laneve, A. Veschetti
+
+                                   offer           activate
+                            Init            Prop               Trial
+
+
+
+                                           ev1     buy
+                                                         ev2
+
+
+                                             End
+
+
+
+
+               Fig. 2. Underlying automaton of the License contract
+
+
+no function is called in this state, then time is advanced by one unit, eventually
+triggering the timeout at t_start. These event transitions are dynamically added
+to the state machine during function execution, e.g., the two events in Fig. 2
+are not initially present. This dynamic creation increases the expressiveness of
+Stipula [10].
+    In Prop, the Licensee can activate the trial by paying the cost (observe that
+b is an asset of the Licensee), which is transferred to the contract’s balance: the
+contract acts as a notary for assets that are not finally disposed. Now the license
+code is revealed to the Licensee and another event is scheduled to handle the
+expiration of the trial period: if the license is not purchased before t_limit time
+units, the balance is refunded and the token is returned to the Licensor.
+    In the Trial state, the Licensee has the option to purchase the license via
+buy, which finalizes the transaction by transferring the balance to the Licensor
+and assigning the token permanently to the Licensee. In either case, the contract
+terminates in the End state, without retaining any asset.
+Example 2 (The Deposit Contract). Listing 2 presents a deposit contract that
+models the interaction between a Farm and a Client. The Farm deposits flour,
+while the Client purchases and withdraws the corresponding amount at an
+agreed price. The contractual terms are enforced over a validity period of 365
+days. The clause send allows the Farm to deposit flour into the contract’s stock.
+In send()[h], the assignment h→Client is only an informational message to the
+Client about the deposited amount (h is not emptied), while the asset transfer
+h⊸flour increases the contract’s internal balance of flour (and, at the same
+time, empties the asset h). Observe that the converse ordering of the instruc-
+tions (h⊸flour h→Client) sends 0 to the Client as informational message.
+Also, no flour is transferred to the Client by send. Actual delivery occurs only
+with buy()[w], where (w/cost_flour)⊸flour, Client transfers flour from the
+contract’s stock to the Client (hence w/cost_flour must not be greater than
+flour) and w⊸Farm represents the payment to the Farm. In this way, send sup-
+plies the stock, whereas buy withdraws from it under payment.
+1   stipula Deposit {
+2       asset flour
+3       field cost_flour
+4       agreement (Client, Farm)(cost_flour) {
+5           Client, Farm : cost_flour
+                                         Formal Verification of Legal Contracts   7
+
+ 6       } => @Start
+ 7       @Start Farm : begin()[h]{
+ 8           h → Client
+ 9           h ⊸ flour;
+10          now + 365 ≫ @RunF { flour ⊸ Farm } => @End
+11          now + 365 ≫ @RunC { flour ⊸ Farm } => @End
+12       } => @RunC
+13       @RunF Farm : send()[h]{
+14           h → Client
+15           h ⊸ flour
+16       } => @RunC
+17       @RunC Client : buy()[w](w/cost_flour <= flour){
+18           (w/cost_flour) ⊸ flour, Client
+19           w ⊸ Farm
+20       } => @RunF
+21   }
+                       Listing 2. The Deposit contract in Stipula
+
+
+
+                                      begin           ev1
+                              Start            RunC         End
+
+
+
+                                        send    buy
+                                                        2
+                                                      ev
+
+
+
+
+                                               RunF
+
+
+
+
+               Fig. 3. Underlying automaton of the Deposit contract
+
+
+   Unlike the License contract, the Deposit contract has cyclic interactions: the
+Farm and Client can repeatedly invoke send and buy as long as the contract
+remains valid, as shown in the automaton in Fig. 3. This is modeled by the
+function send transitioning from RunF to RunC and the function buy in the reverse
+direction, enabling iteration until the validity period expires.
+    The alternation between RunF and RunC in Example 2 is by design: it ensures
+that each iteration of the cycle is well-formed and contributes to disjointness
+of cycles in the underlying automaton. Allowing the Client to buy repeatedly
+without intervening deposits would introduce overlapping cycles, which are out-
+side the scope of the current automatic verification approach. Cycles increase
+the complexity of formal analysis [14]. In particular, this feature, combined with
+deadlines (the events) and permission-dependent transitions enlarge the state
+space and introduce subtle cross dependencies, making automated verification
+challenging.
+Definition 1 (Cyclic Contracts and Disjoint Cycles). A Stipula contract
+is cyclic if its underlying automaton has a sequence of pairwise different states
+8        R. Hähnle, C. Laneve, A. Veschetti
+
+                                  µi                 µn
+Q1 , . . . , Qn with transitions Qi −→ Qi+1 and Qn −→ Q1 where µi are either func-
+tion names or events. The contract has disjoint cycles if different cycles have no
+state in common.
+
+    We focus on contracts whose automata contain only disjoint cycles — a
+structural property that simplifies path generation and enables modular, fully
+automatic verification. For example, the Deposit contract includes a single cycle,
+while License is entirely acyclic. Disjoint cycles ensure determinism: If a state
+has multiple outgoing transitions, at most one of them belongs to any given
+cycle. This allows our tool to synthesize all execution paths statically, without
+ambiguity or runtime checks.
+    While this restriction enhances tractability, it limits generality. Contracts
+with overlapping cycles are currently out of scope, though we discuss possible
+extensions in the conclusion. The current implementation does not yet enforce
+that cycles are disjoint; an algorithm for checking it is presented in Appendix A
+and will be integrated in a future version.
+
+2.2     Deductive Verification with the KeY System
+The KeY system [3, 5] is a deductive verification framework for Java that com-
+bines symbolic execution, invariant reasoning, and method contracts4 on top
+of a calculus for an expressive program logic. The main use case of KeY is
+formal verification of Java programs annotated with specifications written in
+JML. It provides an interactive user environment, where one can construct cor-
+rectness proofs of Java methods against their JML contracts. These contracts
+typically include preconditions (requires), postconditions (ensures), frame con-
+ditions (assignable), class invariants, and auxiliary annotations such as loop
+invariants and assertions. Given a JML-annotated Java class, KeY translates
+the specifications into logical proof obligations and attempts to discharge them
+using its symbolic execution engine. The details of the verification process are
+irrelevant for the purpose of this paper: KeY is used as a black box, the input
+is a JML-annotated Java file that results from translation of a Stipula contract.
+In general, KeY is used in interactive or auto-active mode, however, for all case
+studies discussed below, the verification is fully automatic.
+
+
+3     Translation Approach
+To enable formal verification of Stipula contracts, we define a systematic trans-
+lation into Java code annotated with JML specifications. Java and JML are
+versatile enough to express Stipula in a natural manner: functions are modeled
+by stateful Java methods, the specific semantics of assets are modeled by suit-
+able JML method contracts, etc.; the details are given below. Our translation
+4
+    Not to be confused with Stipula contracts. In this paper, both kinds of contract are
+    featured, but it should be obvious from the context when we mean Stipula contracts
+    or Java/JML method contracts.
+                                      Formal Verification of Legal Contracts      9
+
+preserves the semantics of Stipula’s normative constructs, including asset owner-
+ship, state transitions, permissions, and events, by representing them as verifiable
+Java/JML proof obligations.
+
+
+3.1   Assets, Fields and States
+
+We distinguish three categories of contract data: fields, assets, and the control
+state. Each is translated into corresponding elements in the target Java class,
+along with accompanying JML specifications to capture correctness properties.
+
+Fields. Stipula contracts define mutable fields that store contract-specific state
+information, such as numeric counters, time stamps, or configuration parameters.
+These fields evolve during execution and influence both transitions and obliga-
+tions. We must ensure that field updates are explicitly modeled and tracked in
+the translated Java code.
+
+Definition 2 (Field Mapping). Let F be the set of mutable fields declared in
+a Stipula contract. Each field f ∈ F is translated to a static Java field, which
+holds the contract state data. Changes to these fields are tracked and constrained
+using JML assignable clauses.
+
+   This representation allows JML to reason about field updates and supports
+the specification of frame conditions through assignable clauses.
+
+Assets. In Stipula, assets are classified automatically as divisible or indivisible
+to enable explicit ownership modeling and prevent asset duplication or loss. The
+translator infers this heuristically from usage: assets transferred with a variable
+quantity (“ v⊸ h, h’”) are treated as divisible and represented as an int, while
+those transferred directly (“ h⊸ h’”) are considered indivisible and represented as
+a boolean. To enforce exclusivity for indivisible assets, safety preconditions like
+“ requires !h.token” are generated. Based on this classification, we now formally
+define how asset ownership is represented.
+
+Definition 3 (Asset Ownership Representation). Let A be the set of de-
+clared assets, and P the set of participants in a Stipula contract C. Each asset
+a ∈ A is represented by a set of Java fields:
+
+                              {P.a | P ∈ P} ∪ {C.a},
+
+where each field P.a is either of a numeric type (int) indicating the quantity of
+asset a held by party P or a boolean variable indicating that the party P owns
+asset a. The field C.a tracks the quantity owned by the contract itself.
+
+   To ensure that each indivisible asset is held by exactly one owner at all times,
+we define an invariant that formalizes the exclusivity constraint.
+10         R. Hähnle, C. Laneve, A. Veschetti
+
+Property 1 (Indivisible Asset Exclusivity). Each asset is owned by exactly one
+party in P or by the contract C at any given time. Formally, the
+                                                                 following in-
+                                   W                V
+variant must hold for all a ∈ A:     X∈P∪{C} X.a ∧    Y ̸=X ¬Y.a .
+   This invariant becomes part of the translated Java class as a static JML
+invariant, ensuring asset linearity throughout execution.
+
+In our current encoding, exclusivity of indivisible assets is often enforced via ex-
+plicit postconditions on methods. Alternatively, these properties can be stated
+as JML class invariants, which would provide a more uniform and modular treat-
+ment; we plan to explore this refinement in future versions of the tool.
+
+Example 3. The asset token in the License contract in Section 2 is modeled
+by three Java fields: License.token, Licensee.token, and Licensor.token. Prop-
+erty 1 is ensured in JML as:
+         static invariant (License.token∧¬Licensee.token∧¬Licensor.token)
+                           ∨(Licensee.token∧¬License.token∧¬Licensor.token)
+                           ∨(Licensor.token∧¬License.token∧¬Licensee.token)
+
+   For divisible assets, rather than enforcing exclusivity, we ensure that the total
+quantity of the asset remains constant throughout the contract execution. This
+principle is captured by the following property, which generalizes the invariants
+used in examples such as currency transfers and resource tracking.
+
+Property 2 (Divisible Asset Conservation). For each divisible asset a ∈ A, de-
+clared with a fixed total quantity κa , the system ensures that the total amount
+held by all participants in P and the contract C remains constant:
+                                  X
+                                          X.a = κa
+                                   X∈P∪{C}
+
+Example 4. The Deposit contract provides an illustration of Property 2. In this
+contract, the farmer transfers an amount h of the divisible asset flour to the
+contract by calling the send(h) function. Importantly, this transfer does not
+create assets: the amount h is subtracted from the farmer’s Farm.flour field and
+added to the contract’s Deposit.flour field. This is reflected in the generated
+JML postcondition:
+ /*@ public normal_behavior
+    ...
+     @ ensures       Deposit.flour == \old(Deposit.flour) + h
+     @               && Farm.flour == \old(Farm.flour) - h
+     @               && Client.flour == \old(Client.flour);
+     ...
+     @*/
+     public final static void send(int h) {
+           Deposit.flour = Deposit.flour + h;
+           Farm.flour = Farm.flour - h;
+     }
+                                      Formal Verification of Legal Contracts      11
+
+Thus, the total quantity of the asset flour remains constant across the system, as
+required by the conservation property. The complete translation of the Deposit
+contract, including this method, is shown in Appendix B.3.
+
+Functions. In Stipula, contract behavior is defined by transitions that correspond
+to functions and events. Each transition is enabled under specific conditions, such
+as the current control state, the invoking party, and the availability of required
+assets. And it may update fields, transfer assets, or trigger further state changes.
+To reflect this logic in Java, each Stipula function is translated into a static Java
+method with a formal specification in terms of a JML contract:
+
+ – the requires clause specifies the initial control state, party permissions, and
+   preconditions over asset ownership and fields;
+ – the ensures clause describes the resulting state transition, updates to fields,
+   and asset transfers;
+ – the assignable clause enumerates the state variables that may be modified.
+
+    Preconditions in the generated JML specifications are derived directly from
+Stipula’s guards, permissions, and asset requirements. In particular, they capture
+the enabling conditions for invoking a function, rather than being reconstructed
+backwards from the post-state.
+Example 5. We illustrate the encoding of functions and states in JML with the
+buy() function in Listing 1. Observe that the invariant for asset exclusivity is
+implicitly present in the pre- and postcondition. Fully automatic verification of
+the contract in KeY, including invariant preservation, takes fractions of a second.
+/*@ public normal_behavior
+  @ requires   License.balance && License.token;
+  @ ensures    Licensor.balance && !License.balance &&
+  @            Licensee.token && !License.token;
+  @ assignable Licensor.balance, License.balance, Licensee.token, License.token;
+  @*/
+  public final static void buy() {
+      Licensor.balance = true;
+      License.balance = false;
+      Licensee.token = true;
+      License.token = false;
+  }
+
+
+
+Definition 4 (Indivisible Asset Transfer Semantics). Let a ∈ A be an
+indivisible asset of contract C, and P, Q ∈ P. A transfer of a from P to Q is
+modeled by the following postcondition:
+                                     ^
+                    ¬P.a ∧ Q.a ∧             (R.a = old (R.a))
+                                  R∈P∪{C}\{P,Q}
+
+where old (R.a) refers to the value of R.a before the transfer is executed.
+12        R. Hähnle, C. Laneve, A. Veschetti
+
+    This pattern guarantees that only the ownership of P and Q changes, preserv-
+ing the asset exclusivity invariant of Stipula. In addition, all changes are confined
+to the locations occurring in the assignable clause. If we assume Property 1 to
+be ensured by the exclusivity invariant, then Q.a alone is sufficient as postcon-
+dition. Conditional statements and field updates in a Stipula function body are
+translated directly into Java code.
+
+
+3.2     Time and Events
+
+Timed clauses in Stipula define transitions that become enabled only once logical
+time reaches a specified value. Such a transition is written as
+                                                           ′
+                                now + k ≫ @Q { S } => @Q
+
+which expresses that, when time reaches now + k and the current state is Q, the
+contract may execute S and move to state Q′ . In the Java translation, these time-
+dependent transitions are not realized by manipulating a global clock. Instead,
+each timed event is guarded by a symbolic boolean variable representing the time
+constraint. For example, a transition scheduled at a future time is translated into
+code of the form:
+if (ev_event1) { event1(); return; }
+
+Here, ev_event1 is a symbolic guard introduced by the translator. Verification
+tools such as KeY handle this guard symbolically, thereby exploring both pos-
+sibilities: one where the event occurs and one where it does not. Each event is
+mapped to a dedicated Java method, named systematically (event1(), event2(),
+. . .), that encapsulates the corresponding body S.5 A key point is that the sym-
+bolic guard ev_event1 does not encode the source state Q explicitly. Instead,
+state constraints are enforced structurally: our translator automatically gener-
+ates so-called scenario methods (see Section 3.4), which represent feasible exe-
+cution paths. An event method is reachable only from the correct source state
+along such a path. In other words, the interplay between scenario construction
+and method preconditions guarantees that events can fire only in the intended
+states.
+      All event methods are statically defined during translation and never gen-
+erated dynamically at runtime. This strategy eliminates the need for explicit
+clocks or schedulers: time-dependent behavior is captured entirely through sym-
+bolic guards. As a result, temporal reasoning can be carried out using standard
+symbolic verification tools. Furthermore, static analyses can identify and prune
+unreachable event branches, improving efficiency. For instance, the technique
+described in [14] can be integrated into our translator, and we plan to pursue
+this as future work.
+5
+     Deterministic event names are assigned via an internal counter to guarantee consis-
+     tency and traceability.
+                                      Formal Verification of Legal Contracts     13
+
+3.3     Cyclic Behavior and Loop Translation
+When translating a Stipula contract whose underlying automaton exhibits dis-
+joint cycles, each cycle is mapped to a dedicated Java while loop. Conceptually,
+the body of the loop corresponds to a single traversal of the cycle, i.e., one
+complete execution of the contract operations contained within it. During each
+iteration, the loop updates both the contract’s asset variables and its control-
+state fields to reflect the effect of the executed operations. Loop execution is
+not governed by explicit counters hard-coded in the program, but by symbolic
+scalar variables introduced during translation. These variables represent itera-
+tion bounds and loop counters, and they serve two complementary purposes:
+ 1. operational control : they determine when and how many times the loop body
+    may be executed;
+ 2. specification support: they provide the basis for precise JML annotations,
+    such as loop invariants and postconditions, that capture the intended effect
+    of repeated executions.
+    This combination ensures that the generated Java code remains faithful to
+the original contract semantics while enabling deductive verification tools to
+reason soundly about all possible iterations. By structuring cycles as loops an-
+notated with symbolic constraints, the translation bridges the gap between the
+automaton view of contracts and the logic-based reasoning frameworks used in
+verification.
+Example 6. Consider the Deposit contract in Listing 2. The translator generates
+scalar parameters h, w, h_send, and counter to represent single asset transfer
+amounts and the number of iterations, respectively. The generated code imple-
+ments the cyclic behavior as follows: For instance, one part of the invariant states
+that the amount of flour held by the contract evolves according to the sum of
+incoming deposits minus outgoing uses:
+  /*@ loop_invariant
+    @ ... flour == \old(flour) - i * w/cost_flour + i * h_send; ...
+    @*/
+  while (i < counter) {
+      buy(w);
+      send(h_send);
+      i++;
+  }
+
+    Other parts of the invariant reflect the evolution of the farm and client asset
+fields (Farm.flour, Client.flour, etc.) and include standard loop annotations
+such as bounds and decreases clauses. The translator automatically generates
+the full invariant by analyzing how each variable changes during loop execution
+(see Appendix B.3 for the complete form).
+
+   It is important to emphasize a limitation of our current encoding strategy.
+Parameters such as w in Example 6 are treated as symbolic constants throughout
+the entire execution of a loop. In other words, all iterations are analyzed under
+14         R. Hähnle, C. Laneve, A. Veschetti
+
+a single symbolic instantiation of the parameter. While the semantics of Stipula
+would, in principle, permit different values of w across different iterations, verify-
+ing such non-deterministic behavior would require loop invariants that quantify
+over sequences of iteration-dependent values. At present, verification tools such
+as KeY cannot discharge such invariants automatically. Supporting this more
+general setting remains theoretically possible by allowing user-supplied invari-
+ants and resorting to interactive proofs, but this goes beyond the scope of our
+fully automated approach.
+    We also note that the loop in Example 6 is bounded by the symbolic pa-
+rameter counter, which provides an upper bound on the number of iterations.
+Our construction associates a decreasing variant, namely (counter - i), which
+enables KeY to automatically prove termination for contracts whose automata
+consist of disjoint cycles. For more intricate cyclic structures, where such simple
+variants are not available, proving termination would require richer annotations
+and remains an open direction for future work.
+    Finally, regarding correctness, the loop invariants generated by our trans-
+lation suffice to establish preservation of the basic asset and state properties
+in the examples we studied. In general, however, automatically synthesized in-
+variants are intentionally conservative: they guarantee soundness but may be
+incomplete, in the sense that they do not allow KeY to prove every conceiv-
+able postcondition. Our design philosophy prioritizes invariants that are simple,
+structurally derived, and always generated automatically. This choice ensures
+robustness and automation for typical Stipula contracts, while leaving open the
+possibility of user-supplied annotations in cases where more complex behaviors
+demand stronger reasoning power.
+
+
+3.4       Scenario-Based Reasoning
+
+To verify behavioral properties across complete execution paths within a Stipula
+contract, we declare scenario methods that represent legal sequences of contract
+actions. These methods model complete paths through the underlying automa-
+ton of a Stipula contract, from initial to final states. Each such method is anno-
+tated with a JML contract summarizing its overall effect, including field updates,
+asset transfers, and control state progression.
+
+Example 7. The following scenario method models the successful completion of
+the contract in Listing 1. It ensures that the assets are swapped as expected.
+During verification, the already proven contracts of the called methods are used,
+the method bodies need not be inlined.
+  /*@ requires Licensor.token && Licensee.balance ;
+    @ ensures Licensee.token && Licensor.balance ;*/
+      public static void success() {
+          offer(); activate(); buy();
+      }
+                                      Formal Verification of Legal Contracts      15
+
+    When a Stipula contract features disjoint cycles or branching behavior that
+may lead to structurally distinct executions, our translator automatically gener-
+ates a dedicated scenario method for each feasible path. Each scenario method
+corresponds to a linearized execution trace, thereby capturing one possible evo-
+lution of the Stipula contract. The generation process begins with a static anal-
+ysis of the contract’s control structure. In particular, the translator verifies that
+the clauses of the contract give rise to disjoint control paths. This is achieved
+by constructing the set of linear traces induced by the underlying automaton
+and checking that the cycles explored along each trace do not overlap. Once
+this structural property has been established, the translator can safely emit one
+scenario per disjoint trace, with each scenario representing a distinct and non-
+interfering contract behavior. This design makes contract executions explicit for
+automated reasoning, and isolates traces into independent scenarios to avoid
+combinatorial explosion.
+
+Example 8. Consider a Loan contract that regulates a sequence of financial op-
+erations between a Client and a Bank.
+  @Start Bank : give_money()[w](w == amount) {
+      w ⊸ Client ;
+      now + 30 >> @Pay1 {   } => @Fail
+  } => @Pay1
+
+
+  @Start Bank : withdraw()[u](u == amount * interest_rate) {
+      u ⊸ Client
+      "The_Bank_withdraws" → Client;
+  } => @Withdraw
+
+    In particular, the Client and the Bank agree on the amount of the loan
+and the interest_rate. They also agree on a number of installment payments
+and on a conditional early withdrawal by the Bank. If the Bank exercises the
+early withdraw then it has to pay a penalty to the client that is equal to
+amount * interest_rate. (The complete code with three payment installments is
+available in Appendix B.4.) This contract exhibits two disjoint execution paths:
+one where the Client proceeds through all the payment steps, and another where
+the Bank initiates an early withdrawal. The two execution paths are represented
+by the following two scenarios automatically generated by the translator (vari-
+ables u, h, w are bound in the precondition of the JML contract of the scenario,
+not shown here):
+public final static void seq1() {             public final static void seq2() {
+  give_money(w);                                  withdraw(u);
+  if (ev_event1) { event1(); return; }        }
+  pay_installment1(h);
+  if (ev_event2) { event2(); return; }
+  pay_installment2(h);
+  if (ev_event3) { event3(); return; }
+  pay_installment3(h); }
+16     R. Hähnle, C. Laneve, A. Veschetti
+
+4    Implementation and Evaluation
+
+To evaluate our translation and verification method, we implemented a translator
+available in the online repository [13]. The tool, realized in ca. 2,000 lines of
+Java, uses ANTLR4 for parsing and a listener-based traversal to extract contract
+components such as parties, assets, fields, states, and transitions. We assess its
+effectiveness in this section by analyzing four representative Stipula contracts:
+
+Betting: illustrating branching resolution logic based on external outcomes;
+Deposit: modeling recurring resource exchanges between client and provider,
+    with timed fallback events and cyclic asset flows;
+Loan: encoding installment-based repayment with symbolic arithmetic over loan
+    parameters and time-triggered enforcement mechanisms;
+License: involving timed obligations and conditional asset transfers.
+
+    These case studies encompass the main features of Stipula contracts, including
+asset transfer, exclusive ownership, timed events, and cyclic interaction. While
+not fully exhaustive, this selection demonstrates that our approach handles the
+major constructs found in practice. Each Stipula contract was automatically
+translated using our tool chain (see Appendix B for the Stipula source and gen-
+erated Java+JML code), and verified using KeY in automatic mode. No manual
+proof steps or user-supplied annotations were required. The reported perfor-
+mance results were obtained on a MacBook Pro (2023) equipped with an Apple
+M2 Pro processor and 16 GB of RAM.
+    We focus on generic contract properties that are automatically generated
+together with the Java+JML code and verified without user interaction. These
+include functional correctness, loop invariants, total termination, and symbolic
+handling of time-triggered transitions. Custom or domain-specific properties
+could be added manually as additional postconditions, but are not required for
+the scenarios we test. The following verification goals are considered:
+
+P1: Functional Correctness Each scenario method satisfies the expected fi-
+   nal state as specified by the automatically generated ensures clauses.
+P2: Loop Termination All loops are annotated with decreasing variant terms
+   that are sufficient to prove termination.
+P3: Loop Invariant Preservation Automatically generated inductive invari-
+   ants ensure that key state relationships are preserved across iterations.
+P4: Time-Guard Soundness Event-triggered clauses are guarded by sym-
+   bolic boolean variables (e.g., ev_event1), ensuring that transitions corre-
+   sponding to timed clauses occur only under valid scheduling conditions.
+
+   Table 1 summarizes the successfully verified and relevant properties for each
+contract. Verification time reflects the duration reported by KeY when proving
+the main top-level scenario. Verification times for other scenarios tend to be
+somewhat less and the times to verify individual function and event contracts
+are negligible.
+                                       Formal Verification of Legal Contracts       17
+
+
+                   Contract      P1    P2    P3    P4        Time
+                   Betting       ✓      –     –     ✓        ∼2.1s
+                   Deposit       ✓      ✓     ✓     –        ∼1.3s
+                   Loan          ✓      –     –     ✓        ∼1.8s
+                   License       ✓      –     –     ✓        ∼0.7s
+
+Table 1. Properties verified in the case studies. A dash (”−”) denotes that no property
+of the corresponding category applies to the given contract.
+
+
+
+
+    For the Betting contract, the outcome logic is expressed through mutually
+exclusive branches in its data() method. Verification ensures that all valid sym-
+bolic inputs result in safe asset redistribution, and that execution halts in a
+consistent final configuration.
+    In the Deposit contract, cyclic interactions between client and provider are
+translated into a while loop with a symbolic iteration bound (counter). Loop
+invariants preserve the consistency of transferred assets across rounds, while a
+variant term guarantees termination. Timed transitions are abstracted via sym-
+bolic events (e.g., ev_event1, ev_event2), which may interrupt execution early.
+    The Loan contract models installment-based repayment with time constraints.
+The translated code verifies that each installment is transferred correctly and
+only when the corresponding symbolic time guard holds. The contract’s structure
+relates to properties P1 and P4.
+    In the License contract, verification ensures that all conditional obligations
+and asset transfers, such as license activation or revocation, occur only under
+valid scheduling conditions. All possible contract outcomes are covered, based
+on symbolic inputs like price, deadlines, and initial ownership.
+
+
+5    Related Work
+
+The formal modeling and verification of digital contracts receives increasing at-
+tention, especially at the intersection of legal informatics, programming lan-
+guages, and formal methods. Our work contributes by bridging a legal domain-
+specific language (Stipula) with a deductive verification framework (KeY) through
+translation into JML-annotated Java.
+    Legal modeling frameworks like Ergo [19], OpenLaw [20], Lexon [16], and
+Accord [18] embed contracts into broader systems, but they lack a precise for-
+mal semantics. Stipula offers an operational model with explicit permissions,
+assets, and timed clauses. While Catala [17] formalizes legislative logic and has
+a runtime environment, it does not address contract verification.
+    Closer to our work, prior efforts explored translation-based verification: OCL-
+to-Java with JML [12], and Circus-to-Java for formal reasoning [11]. Our ap-
+proach applies this paradigm to legal contracts, preserving their normative and
+temporal semantics.
+18      R. Hähnle, C. Laneve, A. Veschetti
+
+    While the current Stipula runtime is realized by compilation to Java [9], the
+language is implementation-agnostic and could be compiled to blockchain smart
+contracts like Solidity [1] or Obsidian [2]. This path is promising, as our verifica-
+tion approach using KeY [3] can build on established work that already applies
+the system to blockchain platforms like Hyperledger Fabric [6] and Solidity via
+the SolidiKeY tool [4]. Using these advances would enable rigorous verification
+of Stipula contracts on decentralized infrastructures.
+
+
+6    Conclusion
+We presented a translation-based approach for verifying Stipula contracts by
+translating them into JML-annotated Java and applying deductive verification.
+This enables reasoning over normative properties — permissions, asset transfers,
+state transitions, and timed clauses — using an existing deductive verification
+tool. What we verify in this setting is the correctness of the Java/JML encod-
+ing of Stipula’s semantics, derived automatically from generation of scenarios,
+rather than an independent abstract notion of functional correctness of con-
+tracts. Allowing users to state additional derived properties directly in Stipula
+would be a natural extension, but it is beyond the scope of this work. Alter-
+native paradigms based on state-based formalisms (e.g., statecharts or timed
+automata) could in principle support reasoning in temporal logics over possible
+behaviors. We chose a deductive setting with KeY to leverage its mature au-
+tomation and direct JML support, while exploring complementary verification
+approaches remains a promising avenue for the future.
+    Our translation targets an expressive, yet analyzable, fragment of Stipula,
+with symbolic time, disjoint loops, loop-free clauses, and limited non-determinism.
+Within this fragment, verification is fully automatic and requires no manual an-
+notation or interactive proof. Case studies confirm that functional and temporal
+behavior can be verified compositionally, suggesting that legal contracts can be
+verifiable by design if execution semantics is preserved.
+    The current approach synthesizes scenario methods by statically traversing
+the contract automaton. This relies on a structural restriction: all cycles must
+be disjoint. Future work will focus on lifting this restriction to support overlap-
+ping cycles and more general control flow. One possible direction is to introduce
+dynamic scheduling mechanisms, such as a dispatch table, that can track and
+trigger enabled clauses at runtime. While this would increase expressiveness,
+it also introduces verification challenges that may require interactive proofs or
+hybrid verification strategies.
+    Deductive tools like KeY can often produce counterexamples, which, when
+mapped back to the legal domain, help authors detect inconsistencies and refine
+their contracts. Another direction is integrating runtime or hybrid verification
+to support cases where full deductive reasoning is infeasible.
+
+Acknowledgments We thank Maximilian Scheid for his work on the imple-
+mentation of the translator.
+                                         Formal Verification of Legal Contracts         19
+
+References
+ 1. Solidity       Documentation:      State         Machine       Common         Pattern.
+    https://docs.soliditylang.org/en/v0.8.0/common-patterns.html#state-machine
+ 2. Obsidian: A safer blockchain programming language. Language Site at
+    http://obsidian-lang.com/ (2018)
+ 3. Ahrendt, W., Beckert, B., Bubel, R., Hähnle, R., Schmitt, P.H., Ulbrich, M. (eds.):
+    Deductive Software Verification: The KeY Book, LNCS, vol. 10001. Springer, Cham
+    (2016). https://doi.org/10.1007/978-3-319-49812-6
+ 4. Ahrendt, W., Bubel, R.: Functional verification of smart contracts via strong data
+    integrity. In: ISoLA (3). Lecture Notes in Computer Science, vol. 12478, pp. 9–24.
+    Springer (2020). https://doi.org/10.1007/978-3-030-61467-6_2
+ 5. Beckert, B., Bubel, R., Drodt, D., Hähnle, R., Lanzinger, F., Pfeifer, W., Ulbrich,
+    M., Weigl, A.: The Java verification tool KeY: A tutorial. In: Platzer, A., Rozier,
+    K.Y., Pradella, M., Rossi, M. (eds.) Proc. 26th Intl. Symp. on Formal Meth-
+    ods, Milan, Italy. LNCS, vol. 14934, pp. 597–623. Springer, Cham (Sep 2024).
+    https://doi.org/10.1007/978-3-031-71177-0_32
+ 6. Beckert, B., Herda, M., Kirsten, M., Schiffl, J.: Formal specification and verification
+    of hyperledger fabric chaincode. In: 3rd Symp. on Distributed Ledger Technology
+    (SDLT), Gold Coast, Australia, November 12, 2018. pp. 44–48. Institute for Inte-
+    grated and Intelligent Systems (2018)
+ 7. Crafa, S., Laneve, C.: Programming legal contracts - A beginners guide to
+    stipula. In: The Logic of Software. A Tasting Menu of Formal Methods. Lec-
+    ture Notes in Computer Science, vol. 13360, pp. 129–146. Springer (2022).
+    https://doi.org/10.1007/978-3-031-08166-8_7
+ 8. Crafa, S., Laneve, C., Sartor, G., Veschetti, A.: Pacta sunt servanda: Legal
+    contracts in Stipula. Science of Computer Programming 225, 102911 (2023).
+    https://doi.org/10.1016/j.scico.2022.102911
+ 9. Crafa, S., Laneve, C., Veschetti, A.: Stipula Prototype (July 2022), available on
+    github: https://github.com/stipula-language
+10. Delzanno, G., Laneve, C., Sangnier, A., Zavattaro, G.: Decidability problems for
+    micro-stipula. In: COORDINATION. Lecture Notes in Computer Science, vol.
+    15731, pp. 133–152. Springer (2025). https://doi.org/10.1007/978-3-031-95589-1_7
+11. Freitas, A.F., Cavalcanti, A.: Automatic translation from Circus to Java. In: Misra,
+    J., Nipkow, T., Sekerinski, E. (eds.) Formal Methods, 14th Intl. Symp. on For-
+    mal Methods, Hamilton, Canada. LNCS, vol. 4085, pp. 115–130. Springer (2006).
+    https://doi.org/10.1007/11813040_9
+12. Hamie, A.: Translating the Object Constraint Language into the Java modelling
+    language. In: Haddad, H., Omicini, A., Wainwright, R.L., Liebrock, L.M. (eds.)
+    Proc. of the ACM Symp. on Applied Computing (SAC), Nicosia, Cyprus. pp.
+    1531–1535. ACM (2004). https://doi.org/10.1145/967900.968206
+13. Hähnle, R., Laneve, C., Veschetti, A.: Tool Implementation Prototype (September
+    2025),     https://github.com/stipula-language/stipula/tree/master/Stipula-KeY-
+    Tool
+14. Laneve, C.: Reachability analysis in Micro-Stipula. In: Proc. 26th International
+    Symposium on Principles and Practice of Declarative Programming, PPDP 2024.
+    pp. 17:1–17:12. ACM (2024). https://doi.org/10.1145/3678232.3678247
+15. Laneve, C., Parenti, A., Sartor, G.: Legal contracts amending with Stipula. In:
+    Jongmans, S., Lopes, A. (eds.) Coordination Models and Languages, 25th IFIP
+    WG 6.1 Intl. Conf., COORDINATION, Lisbon, Portugal. LNCS, vol. 13908, pp.
+    253–270. Springer, Cham (2023). https://doi.org/10.1007/978-3-031-35361-1_14
+20     R. Hähnle, C. Laneve, A. Veschetti
+
+16. Lexon Foundation: Lexon Home Page. http://www.lexon.tech (2019)
+17. Merigoux, D., Chataing, N., Protzenko, J.: Catala: A programming lan-
+    guage for the law. Proc. ACM Program. Lang. 5(ICFP), 1–29 (Aug 2021).
+    https://doi.org/10.1145/3473582
+18. Open Source Contributors: The Accord Project. https://accordproject.org (2018)
+19. Roche, N., Hernandez, W., Chen, E., Siméon, J., Selman, D.: Ergo - a pro-
+    gramming language for smart legal contracts. CoRR abs/2112.07064 (2021),
+    https://arxiv.org/abs/2112.07064
+20. Wright, A., Roon, D., ConsenSys AG: OpenLaw Web Site. https://www.openlaw.io
+    (2019)
+                                         Formal Verification of Legal Contracts      21
+
+A     Verifying a Contract having Disjoint Cycles
+
+To verify that a contract has disjoint cycles, we construct all the cycles and
+verify the absence of overlapping. To define the algorithm we use the following
+auxiliary operations and notions:
+ – Clauses of a contract are identified by tuples Q·f·Q′ or Q·evn ·Q′ ; we use φ to
+   range over f and evn . When C is a Stipula contract, we write Q·φ·Q′ ∈ C when
+   C has a clause Q·φ·Q′ ;
+ – linear traces of clauses, ranged over by A, A′ , . . ., are sequences of clauses
+   without repetitions Q1 ·φ1 ·Q2 ; . . . ; Qn−1 ·φn ·Qn ;
+ – states(Q1 ·φ1 ·Q2 ; . . . ; Qn−1 ·φn ·Qn ) = {Q1 , · · · , Qn };
+ – the extension A ◁ Q·φ·Q′ of a linear trace A with the clause Q·φ·Q′ is
+
+                       A ; Q·φ·Q′         if A = A′ ; Q′′ ·φ′ ·Q and Q′ ∈
+                     
+               ′ def                                                    / states(A)
+      A ◁ Q·φ·Q =
+                       A                  otherwise
+
+    Observe that Q·φ·Q′ is not added when either (i ) Q is not the last state of A or
+    (ii ) when A contains a cycle if Q·φ·Q′ is added. We also write {A1 , · · · , An } ◁
+            def
+    Q·φ·Q′ = {A1 ◁ Q·φ·Q′ , · · · , An ◁ Q·φ·Q′ }.
+
+    The algorithm uses two sets of linear traces A, C — A contains linear traces
+without cycles, C contains cyclic linear traces. Consider a Stipula contract C with
+initial state Q0 . We start with A0 , C0 where
+                          
+                    A0 =  Q0 ·φ·Q | Q0 ·φ·Q ∈ C and Q0 ̸= Q
+                    C0 = Q0 ·φ·Q0 | Q0 ·φ·Q0 ∈ C
+
+and we iteratively define Ai+1 , Ci+1 as follows
+                               ′         ′
+                
+       Ai+1 = A    Si ◁ Q·φ·Q | Q·φ·Q ∈ C
+        Ci+1 = Ci S  Q·φ·Q | Q·φ·Q ∈ C and A ; Q′ ·φ′ ·Q ∈ Ai
+                         A′ ; Q·φ·Q′ | Q·φ·Q′ ∈ C and A ; A′ ∈ Ai
+                                       and A′ = Q′ ·φ′ ·Q′′ ; A′′ ; Q′′′ ·φ′′ ·Q
+
+    Observe that Ci+1 extends Ci by adding cycles of length one on final states
+of linear traces of Ai and longer cycles if A ; A′ ∈ Ai and A′ ; Q·φ·Q′ is a cycle.
+    The above iteration always terminates — there exists n such that An , Cn =
+An+1 , Cn+1 , because the clauses of a contract are finite and a contract may have
+finitely many linear traces. Upon termination, we verify whether states(A) ∩
+states(A′ ) = ∅, for all pairwise different linear traces A, A′ ∈ Cn . If this is the
+case the contract has disjoint states and we may verify it in automatic way.
+22       R. Hähnle, C. Laneve, A. Veschetti
+
+B      Case Study Code Listings
+
+B.1     License Contract
+
+The License contract models a software licensing agreement with a time-limited
+offer and a trial period. The agreement involves two parties: a Licensor who
+owns the software license, and a Licensee who wishes to purchase it at a specific
+cost. The contract’s logic progresses through distinct states, from the initial offer
+to the final purchase or expiration. The process begins in the @Inactive state
+and proceeds as follows:
+
+ – The Licensor initiates the process by calling the offerLicense() function.
+   This action deposits an indivisible license token into the contract’s escrow
+   and sets an activation code. A timer, t_start, begins, giving the Licensee a
+   limited time to accept the offer. If the offer expires, the token is returned to
+   the Licensor, and the contract terminates. Upon a successful offer, the state
+   transitions to @Proposal.
+ – While in the @Proposal state, the Licensee can call activateLicense() by
+   paying the agreed-upon cost into escrow. In return, the Licensee receives
+   the activation code. This starts a new timer, t_limit, which defines the
+   trial period, and moves the state to @Trial. If this trial period expires, the
+   Licensee is automatically refunded their payment, the token is returned to
+   the Licensor, and the contract ends.
+ – During the @Trial period, the Licensee can finalize the purchase by calling
+   the buy() function. This action executes the final transfer: the escrowed
+   payment (balance) is sent to the Licensor, and the escrowed license token
+   is sent to the Licensee, successfully completing the transaction and moving
+   the contract to the @End state.
+
+stipula License {
+      assets balance, token
+      fields t_start, t_limit, cost, code
+      agreement (Licensor, Licensee)(t_start, t_limit, cost){
+                  Licensor , Licensee : t_start, t_limit, cost
+      } => @Inactive
+      @Inactive Licensor : offerLicense (x)[n]{
+          n -o token
+          x -> code
+          now + t_start >> @Proposal{
+                 token -o Licensor
+              } => @End
+      } => @Proposal
+      @Proposal Licensee : activateLicense()[b] (b == cost) {
+          b -o balance
+         code -> Licensee
+         now + t_limit >> @Trial {
+                 balance -o Licensee
+                 token -o Licensor
+                                        Formal Verification of Legal Contracts   23
+
+           } => @End
+    } => @Trial
+    @Trial Licensee : buy ()[]{
+       balance -o Licensor
+       token -o Licensee
+    } => @End
+}
+                Listing 3. Original Stipula code for the License contract
+24        R. Hähnle, C. Laneve, A. Veschetti
+
+public final class License {
+
+
+     public static int Licensor, Licensee;
+     public static boolean LicensorBalance, LicenseeBalance;
+     public static boolean balance, token;
+     public static boolean LicensorToken, LicenseeToken;
+     public static int t_start, t_limit;
+     public static int cost;
+     public static int code, LicenseeCode;
+     public static int b, x, n;
+     public static boolean ev_event1, ev_event2;
+
+
+     /*@ public normal_behavior
+       @ ensures     LicensorToken == false && token == true && code == x;
+         @ assignable   LicensorToken, code, token;
+       @*/
+     public final static void offerLicense(int x, boolean n) {
+          token = true;
+          LicensorToken = false;
+          code = x;
+     }
+
+
+     /*@ public normal_behavior
+       @ requires    b==cost;
+         @ ensures      balance == true && LicenseeBalance == false && LicenseeCode
+               ,→== code;
+         @ assignable   LicenseeBalance, LicenseeCode, balance;
+       @*/
+     public final static void activateLicense(boolean b) {
+          balance = true;
+          LicenseeBalance = false;
+          LicenseeCode = code;
+     }
+
+
+     /*@ public normal_behavior
+       @ ensures     balance == false && LicensorBalance == true && LicenseeToken
+               ,→ == true && token == false;
+         @ assignable   LicenseeToken, LicensorBalance, balance, token;
+       @*/
+     public final static void buy() {
+          LicensorBalance = true;
+          balance = false;
+          LicenseeToken = true;
+          token = false;
+     }
+
+
+     /*@ public normal_behavior
+       @ ensures     LicensorToken == true && token == false;
+         @ assignable LicensorToken, token;
+         @*/
+                                          Formal Verification of Legal Contracts     25
+
+    public final static void event1() {
+            LicensorToken = true;
+            token = false;
+    }
+
+
+    /*@ public normal_behavior
+      @ ensures     balance == false && LicenseeBalance == true && LicensorToken
+                ,→ == true && token == false;
+        @ assignable LicenseeBalance, LicensorToken, balance, token;
+      @*/
+    public final static void event2() {
+            LicenseeBalance = true;
+            balance = false;
+            LicensorToken = true;
+            token = false;
+    }
+
+
+    /*@ public normal_behavior
+      @ requires b==cost;
+        @ ensures (
+        @   (ev_event1 && LicensorToken == false && token == true && code == x)
+        @       || (!ev_event1 && ev_event2 && LicensorToken == false && token == true
+                ,→ && code == x && balance == true && LicenseeBalance == false &&
+                ,→LicenseeCode == code)
+        @       || (!ev_event1 && !ev_event2 && LicensorToken == false && token ==
+                ,→true && code == x && balance == true && LicenseeBalance == false &&
+                ,→ LicenseeCode == code && LicensorBalance == true && LicenseeToken
+                ,→== true)
+        @ );
+      @*/
+    public final static void seq1() {
+            offerLicense(x, n);
+            if(ev_event1){
+                 event1();
+                 return;
+            }
+            activateLicense(b);
+            if(ev_event2){
+                 event2();
+                 return;
+            }
+            buy();
+    }
+
+
+}
+                   Listing 4. Generated Java code for the License contract
+26      R. Hähnle, C. Laneve, A. Veschetti
+
+B.2    Betting Contract
+
+The Betting contract, displayed in Listing 5, provides an example of condi-
+tional asset transfers. In simple terms, this contract functions as a trusted, auto-
+mated escrow service for a bet between two parties, Better1 and Better2, with
+a DataProvider acting as the oracle to determine the outcome.
+    In the contract, each participant sequentially calls the place_bet function.
+This function serves two crucial roles: first, it registers the participant’s predic-
+tion (e.g., who will win a match); second, it transfers the participant’s stake into
+the secure escrow assets controlled by the resolution phase, the DataProvider
+submits the actual outcome by calling the data function. The contract then ex-
+ecutes its core logic: an if-else block that compares the official outcome to the
+predictions. Based on the results, the funds held in wallet1 and wallet2 are au-
+tomatically redistributed to the winner(s) or, if neither party guessed correctly,
+to the DataProvider.
+stipula Bet {
+        assets wallet1, wallet2
+        fields val1, val2, event, amount, t_before, t_after
+
+
+        agreement (Better1 , Better2 , DataProvider)
+                          (event, amount, t_before, t_after){
+                Better1, Better2 : event, amount, t_before, t_after
+        } => @Init
+
+
+        @Init Better1: place_bet(x)[h] (h == amount){
+                h -o wallet1
+                x -> val1
+                t_before >> @First { wallet1 -o Better1 } => @Fail
+        } => @First
+
+
+        @First Better2: place_bet(x)[h] (h == amount){
+                h -o wallet2
+                x -> val2
+                t_after >> @Run {
+                         wallet1 -o Better1
+                         wallet2 -o Better2
+                } => @Fail
+        } => @Run
+
+
+        @Run DataProvider: data(x,z)[](x==event){
+                if (z==val1 && z==val2){
+                         wallet1 -o Better1
+                         wallet2 -o Better2
+                }
+                else if (z==val1 && z!=val2){
+                         wallet2 -o Better1
+                         wallet1 -o Better1
+                }
+                                          Formal Verification of Legal Contracts      27
+
+                   else if (z!=val1 && z==val2){
+                              wallet1 -o Better2
+                              wallet2 -o Better2
+                   }
+                   else{
+                              wallet2 -o DataProvider
+                              wallet1 -o DataProvider
+                   }
+            } => @End
+}
+
+                 Listing 5. Original Stipula code for the Betting contract
+
+
+public final class Bet {
+
+
+    public static int Better1, Better2, DataProvider;
+    public static boolean wallet1, wallet2;
+    public static boolean Better1Wallet1, Better2Wallet1, DataProviderWallet1;
+    public static boolean Better1Wallet2, Better2Wallet2, DataProviderWallet2;
+    public static int val1, val2, event, amount;
+    public static int t_before, t_after;
+    public static int x, h, z;
+    public static boolean ev_event1, ev_event2;
+
+
+    /*@ public normal_behavior
+      @   requires    h == amount;
+        @    ensures       Better1Wallet1 == false && wallet1 == true && val1 == x;
+        @    assignable    Better1Wallet1, val1, wallet1;
+      @*/
+    public final static void place_bet(int x, boolean h) {
+            wallet1 = true;
+            Better1Wallet1 = false;
+            val1 = x;
+    }
+
+
+    /*@ public normal_behavior
+      @   requires    h == amount;
+        @    ensures       Better2Wallet2 == false && wallet2 == true && val2 == x;
+        @    assignable    Better2Wallet2, val2, wallet2;
+      @*/
+    public final static void place_bet1(int x, boolean h) {
+            wallet2 = true;
+            Better2Wallet2 = false;
+            val2 = x;
+    }
+
+
+    /*@ public normal_behavior
+      @   requires    x == event;
+        @    ensures
+        @       ( (z == val1 && z == val2) &&
+28           R. Hähnle, C. Laneve, A. Veschetti
+
+         @          (Better1Wallet1 && !wallet1 && Better2Wallet2 && !wallet2) )
+         @         ||
+         @         ( (z == val1 && z != val2) &&
+         @          (Better1Wallet2 && !wallet2 && Better1Wallet1 && !wallet1) )
+         @         ||
+         @         ( (z != val1 && z == val2) &&
+         @          (Better2Wallet1 && !wallet1 && Better2Wallet2 && !wallet2) )
+         @         ||
+         @         ( (z != val1 && z != val2) &&
+         @          (DataProviderWallet2 && !wallet2 && DataProviderWallet1 && !
+                 ,→wallet1) );
+         @       assignable
+         @        Better1Wallet1, Better1Wallet2, Better2Wallet1, Better2Wallet2,
+         @        DataProviderWallet1, DataProviderWallet2, wallet1, wallet2;
+       @*/
+     public final static void data(int x, int z) {
+             if (z == val1 && z == val2) {
+                  Better1Wallet1 = true;
+                  wallet1 = false;
+                  Better2Wallet2 = true;
+                  wallet2 = false;
+             } else if (z == val1 && z != val2) {
+                  Better1Wallet2 = true;
+                  wallet2 = false;
+                  Better1Wallet1 = true;
+                  wallet1 = false;
+             } else if (z != val1 && z == val2) {
+                  Better2Wallet1 = true;
+                  wallet1 = false;
+                  Better2Wallet2 = true;
+                  wallet2 = false;
+             } else {
+                  DataProviderWallet2 = true;
+                  wallet2 = false;
+                  DataProviderWallet1 = true;
+                  wallet1 = false;
+             }
+     }
+
+
+     /*@ public normal_behavior
+       @   assignable Better1Wallet1, wallet1;
+       @*/
+     public final static void event1() {
+             Better1Wallet1 = true;
+             wallet1 = false;
+     }
+
+
+     /*@ public normal_behavior
+       @   assignable Better1Wallet1, Better2Wallet2, wallet1, wallet2;
+         @*/
+                                          Formal Verification of Legal Contracts   29
+
+    public final static void event2() {
+            Better1Wallet1 = true;
+            wallet1 = false;
+            Better2Wallet2 = true;
+            wallet2 = false;
+    }
+
+
+    /*@ public normal_behavior
+      @   requires h == amount &&
+        @                 x == event;
+        @       ensures
+        @        ( (z == val1 && z == val2) &&
+        @          (Better1Wallet1 && !wallet1 && Better2Wallet2 && !wallet2) )
+        @        ||
+        @        ( (z == val1 && z != val2) &&
+        @          (Better1Wallet2 && !wallet2 && Better1Wallet1 && !wallet1) )
+        @        ||
+        @        ( (z != val1 && z == val2) &&
+        @          (Better2Wallet1 && !wallet1 && Better2Wallet2 && !wallet2) )
+        @        ||
+        @        ( (z != val1 && z != val2) &&
+        @          (DataProviderWallet2 && !wallet2 && DataProviderWallet1 && !
+                ,→wallet1) );
+      @*/
+    public final static void seq1() {
+        place_bet(x, h);
+            if (ev_event1) {
+                 event1();
+                 return;
+            }
+            place_bet1(x, h);
+            if (ev_event2) {
+                 event2();
+                 return;
+            }
+            data(x, z);
+    }
+}
+                   Listing 6. Generated Java code for the Betting contract
+30        R. Hähnle, C. Laneve, A. Veschetti
+
+B.3      Deposit Contract
+The Deposit contract, displayed in Listing 7, models a recurring supply-and-
+purchase agreement, illustrating how Stipula handles cyclic behavior and divisi-
+ble assets. One party, the Farm, can stock a resource (flour), and another party,
+the Client, can purchase it at a pre-agreed price.
+    The contract’s logic is built around an alternating cycle between two main
+states, @RunF (the Farm’s turn) and @RunC (the Client’s turn). The Farm makes
+an initial deposit with the begin() function. Then, the cycle proceeds as follows:
+    – When in state @RunC, the Client can call the buy() function to make a pur-
+      chase. The contract automatically calculates the amount of flour to dispense
+      based on the payment w and the agreed cost_flour. It then transfers the
+      flour to the Client and routes the payment to the Farm. After a purchase,
+      the state transitions to @RunF.
+    – When in state @RunF, the Farm can replenish the stock by calling the send()
+      function, depositing more flour into the contract’s escrow. This transitions
+      the state back to @RunC, allowing the Client to buy again.
+This cycle of sending and buying can repeat indefinitely. To ensure termination,
+the contract includes a 365-day deadline. A timed event ensures that if the
+contract is still active after this period, any remaining flour is safely returned
+to the Farm.
+stipula Deposit {
+    assets flour
+    fields cost_flour
+
+
+    agreement (Client, Farm)(cost_flour) {
+      Client, Farm : cost_flour
+    } => @Start
+
+
+    @Start Farm : begin()[h]{
+      h -> Client
+      h -o flour
+      now + 365 >> @RunF { flour -o Farm } => @End
+      now + 365 >> @RunC { flour -o Farm } => @End
+    } => @RunC
+
+
+    @RunF Farm : send()[h]{
+      h -> Client
+      h -o flour
+    } => @RunC
+
+
+    @RunC Client : buy()[w](w/cost_flour <= flour){
+      (w/cost_flour) -o flour, Client
+      w -o Farm
+    } => @RunF
+}
+                  Listing 7. Original Stipula code for the Deposit contract
+                                         Formal Verification of Legal Contracts     31
+
+public final class Deposit {
+
+
+   public static int Client, Farm;
+   public static int ClientFlour, FarmFlour;
+   public static int flour;
+   public static int cost_flour;
+   public static int h;
+   public static int c_w, c_h;
+   public static int counter;
+   public static boolean ev_event1, ev_event2;
+
+
+    /*@ public normal_behavior
+      @ ensures     flour == \old(flour)      + h && FarmFlour == \old(FarmFlour)   -
+            ,→ h;
+        @ assignable   FarmFlour, flour;
+     @*/
+   public final static void begin(boolean h) {
+         flour += h;
+         FarmFlour -= h;
+    }
+
+
+    /*@ public normal_behavior
+      @ ensures     flour == \old(flour)      + h && FarmFlour == \old(FarmFlour)   -
+            ,→ h;
+        @ assignable   FarmFlour, flour;
+     @*/
+   public final static void send(boolean h) {
+         flour += h;
+         FarmFlour -= h;
+    }
+
+
+    /*@ public normal_behavior
+      @ requires    w/cost_flour<=flour;
+        @ ensures      ClientFlour == \old(ClientFlour)    + (w/cost_flour) && flour
+            ,→== \old(flour) - (w/cost_flour) && Farm == \old(Farm)        + w &&
+            ,→Client == \old(Client) - w;
+        @ assignable   Client, ClientFlour, Farm, flour;
+     @*/
+   public final static void buy(boolean w) {
+       ClientFlour += (w*1 / cost_flour);
+         flour -= (w*1 / cost_flour);
+         Farm += w;
+         Client -= w;
+    }
+
+
+    /*@ public normal_behavior
+      @ ensures     flour == false && FarmFlour == true;
+        @ assignable FarmFlour, flour;
+     @*/
+   public final static void event1() {
+32           R. Hähnle, C. Laneve, A. Veschetti
+
+             FarmFlour += flour;
+             flour = 0;
+     }
+
+
+     /*@ public normal_behavior
+       @ ensures     flour == false && FarmFlour == true;
+         @ assignable FarmFlour, flour;
+       @*/
+     public final static void event2() {
+             FarmFlour += flour;
+             flour = 0;
+     }
+
+
+     /*@ public normal_behavior
+       @ requires counter >= 0;
+         @ ensures Client == \old(Client)+ counter * (- w) &&
+         @              ClientFlour == \old(ClientFlour)+ counter * (+ (w/cost_flour))
+                 ,→&&
+         @              Farm == \old(Farm)+ counter * (+ w) &&
+         @              FarmFlour == \old(FarmFlour)- h + counter * (- h) &&
+         @              flour == \old(flour)+ h + counter * (- (w/cost_flour)   + h);
+       @*/
+     public final static void seq1() {
+             begin(h);
+             if(ev_event1){
+                  event1();
+                  return;
+             }
+             if(ev_event2){
+                  event2();
+                  return;
+             }
+             int i=0;
+             /*@ loop_invariant 0 <= i && i <= counter;
+                 @ loop_invariant c_w/cost_flour<=flour;
+                 @ loop_invariant ClientFlour == \old(ClientFlour) + i * (+ (c_w/
+                     ,→cost_flour));
+                 @ loop_invariant flour == \old(flour) + i * (- (c_w/cost_flour)    + c_h
+                     ,→);
+                 @ loop_invariant Farm == \old(Farm) + i * (+ c_w);
+                 @ loop_invariant Client == \old(Client) + i * (- c_w);
+                 @ loop_invariant FarmFlour == \old(FarmFlour) + i * (- c_h);
+                 @ assignable Client, ClientFlour, Farm, FarmFlour, flour, i;
+                 @ decreases counter - i;
+              @*/
+             while(i < counter) {
+                 buy(c_w);
+                  send(c_h);
+                  i++;
+             }
+                               Formal Verification of Legal Contracts   33
+
+    }
+
+
+}
+        Listing 8. Generated Java code for the Deposit contract
+34       R. Hähnle, C. Laneve, A. Veschetti
+
+B.4     Loan Contract
+
+The Loan contract models a fixed-term installment loan between two parties.
+A Bank provides an initial loan to a Client, who must then repay it in three
+installments based on a pre-agreed amount and interest_rate.
+    The contract’s logic follows a primary success path from the initial state,
+@Start, to the final state, @Success, but also includes alternative paths for can-
+cellation or failure. The process begins when the Bank initiates the loan:
+
+ – In the @Start state, the Bank calls the give_money() function, transferring
+   the principal amount w to the Client. This action initiates a 30-day timer
+   and transitions the contract to the first repayment state, @Pay1.
+ – The Client is then expected to make three repayments by calling the pay_installment()
+   function. Each call transfers an installment payment h, calculated from the
+   principal and interest rate, back to the Bank. This process moves the contract
+   sequentially through the states @Pay1, @Pay2, and @Pay3.
+ – After the third and final installment, the contract successfully concludes by
+   moving to the @Success state. Each repayment step is governed by a 30-day
+   timeout; if the Client fails to make a payment within the allotted time, the
+   contract transitions to a @Fail state.
+
+As an alternative to initiating the loan, the Bank has the option to call withdraw()
+from the @Start state, effectively canceling the agreement and moving to the
+@Withdraw state.
+
+stipula Loan {
+      fields interest_rate, amount
+
+
+      agreement (Client, Bank)(interest_rate, amount) {
+          Client, Bank: interest_rate, amount
+      } => @Start
+
+
+      @Start Bank: give_money()[w](w == amount){
+          w -o Client
+          now + 30 >> @Pay1 { } => @Fail
+      } => @Pay1
+
+
+      @Pay1 Client: pay_installment()[h](h == (amount * (1 + interest_rate))/3){
+          h -o Bank
+          now + 30 >> @Pay2 { } => @Fail
+      } => @Pay2
+
+
+      @Pay2 Client: pay_installment()[h](h == (amount * (1 + interest_rate))/3){
+          h -o Bank
+          now + 30 >> @Pay3 { } => @Fail
+      } => @Pay3
+
+
+      @Pay3 Client: pay_installment()[h](h == (amount * (1 + interest_rate))/3){
+          h -o Bank
+                                       Formal Verification of Legal Contracts      35
+
+    } => @Success
+
+
+    @Start Bank: withdraw()[]{
+         "The Bank withdraws" -> Client
+    } => @Withdraw
+}
+
+                Listing 9. Original Stipula code for the Loan contract
+
+
+public final class Loan {
+
+
+    public static int Client, Bank;
+    public static int interest_rate;
+    public static int amount;
+    public static int w, h;
+    public static boolean ev_event1, ev_event2, ev_event3;
+
+
+    /*@ public normal_behavior
+      @ requires    w==amount;
+        @ ensures      Bank == \old(Bank)   - w && Client == \old(Client)   + w;
+        @ assignable   Bank, Client;
+      @*/
+    public final static void give_money(boolean w) {
+         Client += w;
+         Bank -= w;
+    }
+
+
+    /*@ public normal_behavior
+      @ requires    h==(amount*(1+interest_rate))/3;
+        @ ensures      Bank == \old(Bank)   + h && Client == \old(Client)   - h;
+        @ assignable   Bank, Client;
+      @*/
+    public final static void pay_installment(boolean h) {
+         Bank += h;
+         Client -= h;
+    }
+
+
+    /*@ public normal_behavior
+      @ requires    h==(amount*(1+interest_rate))/3;
+        @ ensures      Bank == \old(Bank)   + h && Client == \old(Client)   - h;
+        @ assignable   Bank, Client;
+      @*/
+    public final static void pay_installment1(boolean h) {
+         Bank += h;
+         Client -= h;
+    }
+
+
+    /*@ public normal_behavior
+      @ requires    h==(amount*(1+interest_rate))/3;
+        @ ensures      Bank == \old(Bank)   + h && Client == \old(Client)   - h;
+36           R. Hähnle, C. Laneve, A. Veschetti
+
+         @ assignable       Bank, Client;
+       @*/
+     public final static void pay_installment2(boolean h) {
+             Bank += h;
+             Client -= h;
+     }
+
+
+     /*@ public normal_behavior
+       @*/
+     public final static void withdraw() {
+     }
+
+
+     /*@ public normal_behavior
+       @*/
+     public final static void event1() {
+     }
+
+
+     /*@ public normal_behavior
+       @*/
+     public final static void event2() {
+     }
+
+
+     /*@ public normal_behavior
+       @*/
+     public final static void event3() {
+     }
+
+
+     /*@ public normal_behavior
+       @ requires w==amount &&
+         @          h==(amount*(1+interest_rate))/3;
+         @ ensures (
+         @   (ev_event1 && Bank == \old(Bank) - w && Client == \old(Client)                + w)
+         @       || (!ev_event1 && ev_event2 && Bank == \old(Bank)      - w   + h && Client
+                 ,→== \old(Client)     + w   - h)
+         @       || (!ev_event1 && !ev_event2 && ev_event3 && Bank == \old(Bank)           - w
+                 ,→+ h   + h && Client == \old(Client) + w - h - h)
+         @       || (!ev_event1 && !ev_event2 && !ev_event3 && Bank == \old(Bank)          - w
+                 ,→ + h     + h   + h && Client == \old(Client)   + w   - h   - h   - h)
+         @ );
+       @*/
+     public final static void seq1() {
+         give_money(w);
+             if(ev_event1){
+                  event1();
+                  return;
+             }
+             pay_installment(h);
+             if(ev_event2){
+                  event2();
+                  return;
+                                    Formal Verification of Legal Contracts   37
+
+        }
+        pay_installment1(h);
+        if(ev_event3){
+            event3();
+            return;
+        }
+        pay_installment2(h);
+    }
+
+
+    /*@ public normal_behavior
+      @*/
+    public final static void seq2() {
+        withdraw();
+    }
+
+
+}
+              Listing 10. Generated Java code for the Loan contract
+

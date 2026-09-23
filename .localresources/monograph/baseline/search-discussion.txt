@@ -1,0 +1,42 @@
+Yes. There is a substantial literature specifically on constructing and comparing competing legal theories. AGATHA is particularly close to your proposal. I would make this an explicit stage before approving an interpretation and generating Java.
+The important change is that the translator’s output becomes a set of interpretations, their supporting and opposing arguments, and the questions that distinguish them. Search can narrow that set while preserving unresolved disagreement.
+I have written a detailed [research and implementation note](/home/chakwong/python/legalmath/docs/research/interpretation-search.md) and added eight relevant papers to [docs/papers](/home/chakwong/python/legalmath/docs/papers/README.md).
+The most useful literature is:
+Work	Relevant mechanism	What we can borrow
+AGATHA — Chorley and Bench-Capon	Constructs competing case-law theories through analogy, distinction and counterexample; searches using heuristic and adversarial methods.	Explicit operations for creating and challenging interpretations, with a recorded search history.
+Legal reasoning with theories and values — Bench-Capon and Sartor	Represents alternative accounts of cases through factors, rules and explicit preferences.	Hypotheses that differ in substantive legal assumptions, rather than merely wording.
+ASPIC+ — Prakken	Represents arguments, attacks, preferences and several possible acceptable sets of arguments.	Preserve conclusions that remain defensible under different resolutions of a dispute.
+Carneades — Gordon, Prakken and Walton	Distinguishes evidence, assumptions, exceptions and burdens of argument.	Make missing premises and challenges visible to reviewers.
+Tree of Thoughts and Language Agent Tree Search	Explore alternative reasoning paths; LATS uses MCTS and external feedback.	Generation and search machinery, with a new evaluation policy appropriate to legal interpretation.
+
+
+AGATHA is the strongest direct precedent, but its original objective includes constructing arguments for a party’s desired outcome. Our compliance system should investigate competing readings without rewarding the outcome the bank would prefer.
+Your breadth-first proposal needs a deliberate diversity mechanism. Ordinary breadth-first beam search can retain ten paraphrases of the same interpretation. I would implement the following sequence:
+1. Identify the actual interpretive choices.
+   Examples include which actor is covered, how a term is defined, where an exception attaches, whether conditions are conjunctive, and which date controls applicability.
+2. Generate candidates across those choices.
+   Preserve representation from different interpretation families before applying a global ranking. Record families that remain unexplored. A low-ranked or unvisited candidate stays deferred, with its history intact.
+3. Construct arguments for and against each candidate.
+   Every substantive premise should point to source text, an incorporated definition, relevant authority, or an explicitly unresolved assumption. Shared premises belong in an argument graph so that new evidence can update several candidates together.
+4. Find situations where candidates disagree.
+   Once candidates have formal representations, a solver can generate a transaction for which interpretation A and interpretation B produce different decisions. Those scenarios become focused review questions.
+5. Allocate further investigation and return the surviving set.
+   Search selects the next useful action: inspect a cross-reference, retrieve contrary authority, challenge an analogy, or obtain a scoped human judgment. The result includes survivors, defeated candidates with reasons, and the remaining uncertainty.
+The fourth step is especially valuable. It connects your idea to active learning: choose questions that distinguish the remaining hypotheses. Nowak’s generalized binary search provides a mathematical treatment of that strategy. Its identification guarantees require assumptions we cannot automatically make about legal interpretation, but the question-selection principle transfers well.
+For example, take our existing SFC circular 23EC46, paragraph 10, and its exception for a discount of fees or charges. We can investigate two candidate definitions:
+- A: the exception covers reducing the fee charged.
+- B: it also covers a documented subsequent refund of an actual fee.
+These are hypotheses to investigate, not established SFC interpretations. Consider a customer who paid a fee and subsequently received an equal cash rebate. With the other conditions fixed, the candidates may yield different decisions. The system should identify the source material or reviewer decision needed to resolve that difference. The referenced Code and FAQ matter here. SFC circular 23EC46
+This produces a much sharper review question than “Is the generated rule correct?”
+Scores should describe different things separately. I recommend exposing:
+- Search priority: how useful investigating this branch appears.
+- Supporting and contrary evidence: with exact sources and applicability.
+- Unresolved assumptions: including definitions and factual classifications.
+- Argument status: acceptance under a specified argument model.
+- Search coverage: explored families and unresolved frontier.
+- Probability: explicitly uncalibrated until there is independent evaluation evidence.
+ASPIC+ gives useful terminology here. A conclusion supported in every acceptable argument set is skeptically accepted; one supported in at least one is credulously accepted. Both are conditional on the supplied arguments and preferences. Neither means that the English interpretation has been independently proved correct.
+MCTS can help decide which investigation to perform next. Its reward should measure something inspectable, such as resolving a material question or finding a verified counterexample. Model agreement, search visits and successful Java tests cannot by themselves become probabilities of legal correctness.
+Your case-law intuition is also well founded. HYPO-style reasoning explicitly develops a favorable analogy, a distinction or contrary precedent, and a reply. The product must additionally capture the issue decided, material facts, holding, reasoning, jurisdiction and subsequent treatment. Similar text or matching case outcomes alone is insufficient. HYPO’s Legacy
+I inspected DynareMCP as well. Its hypothesis records already capture evidence, diagnostics and falsifiers, and its frontier records offer useful patterns. The inspected scheduler uses priorities; I did not find a generic UCT/MCTS engine in the inspected source. The reusable starting point is therefore its hypothesis and evidence discipline.
+My recommendation is to build the explicit candidate set, argument graph and disagreement generator first, then evaluate MCTS against a simpler search controller. The [research note](/home/chakwong/python/legalmath/docs/research/interpretation-search.md) specifies those stages and their acceptance conditions. The Java path remains the final stage: it implements the reviewed interpretation or explicitly approved conditional policy.

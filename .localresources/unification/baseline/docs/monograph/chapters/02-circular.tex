@@ -1,0 +1,530 @@
+\chapter{The second circular, from source to an unreleased control}
+\label{ch:circular}
+
+\section{The source packet and the question it supports}
+\label{sec:circular-packet}
+The running example begins with an identifiable public document: SFC circular
+23EC46, issued on 24 October 2023, concerning additional returns and other
+services or arrangements offered when marketing SFC-authorised funds
+\citep{sfcmarketing}. The retained experiment selected its paragraph-10 gift
+restriction. The circular as a whole discusses more than that restriction. A
+reader needs to know both what was selected and what remains outside the control
+before a result from the control can be interpreted.
+
+The experiment preserved the official source response, an extracted text
+derivative and anchors connecting the selected rule to its source passages.
+On 22 September 2026, a fresh retrieval matched the retained raw bytes. This
+check establishes that the retained response matched what the retrieval route
+returned at that time. It does not establish the complete current legal position
+or resolve the effective versions of incorporated sources. A hash identifies
+bytes; it does not by itself establish their authority, completeness or legal
+effect.
+
+The selected assessment concerns one proposed incentive component, offered by a
+distributor in promoting a fund within the declared profile. It is a question
+about a specific restriction. It is not a whole-offer compliance verdict. The
+distinction is visible in the result vocabulary. A true result means that the
+selected prohibition trigger is established. A false result means that this
+trigger is not established as true on the supplied, resolved facts under the
+specified semantics. It supplies no general permission to market the offer.
+
+The retained packet explicitly leaves the applicable Code paragraph and cited
+FAQ unresolved. This matters twice. Those sources may settle the meaning or
+scope of a term; they may also establish that the selected profile is narrower
+than the underlying requirement. Their absence is therefore a release-blocking
+dependency, not a bibliographic inconvenience. The example is useful precisely
+because it continues to expose that absence after its executable tests pass.
+
+The book uses this historical, selected packet to teach implementation and
+assurance. New commercial offers, cashback definitions and mixed-component
+scenarios introduced below are synthetic investigations. They are not reported
+SFC rulings. The unresolved references are not silently filled using a language
+model's recollection of a Code provision. Doing so would convert a visible gap
+into an untraceable premise.
+
+\section{Reading the surrounding circular before isolating the rule}
+\label{sec:circular-context}
+A translation that begins by copying the most convenient sentence can miss why
+that sentence is there. The circular's opening establishes its distribution
+context. The next passages describe observed practices, including additional
+features, standing investment arrangements and marketing. Those observations
+help identify the activity being discussed, but they are not automatically
+individual executable prohibitions. A source inventory should retain their
+function without manufacturing a rule for every paragraph.
+
+The discussion then turns to additional returns and their possible regulatory
+consequences. Some questions concern the structure of an arrangement and public
+promotion. Others concern impressions created about the underlying fund. The
+gift discussion appears within that broader context. Consequently, a finding
+that one separate classification is absent does not clear the gift issue. The
+gift control is not conditional on first finding that every other regulatory
+concern applies.
+
+Later passages address redemption arrangements, administrative cutoffs,
+advertising and the description of services. Some concerns require event or
+workflow evidence; others require qualitative assessment of communication.
+Those mechanisms differ from the paragraph-10 Boolean control. An adequate
+implementation of the whole circular would need to preserve those differences.
+It cannot simply accumulate a larger expression around the gift predicate and
+call the circular complete.
+
+The existing disposition inventory has 18 numbered paragraphs and four
+footnotes. Its assignments are agent-authored and unreviewed. They include
+context, separate controls, qualitative review and unresolved dependencies.
+Paragraph 10 is the only numbered passage with an executable control in this
+exercise. A future independent reviewer should challenge both the assignments
+and the completeness of the inventory. Merely approving the final formula would
+leave the earlier decision about what to implement unexamined.
+
+This provides an immediate requirement for the ensemble. One path must inspect
+the source independently of the candidates and ask what obligations, exceptions
+and dependencies need a disposition. Another path may develop the selected
+rule. Comparing those paths creates a place for an omitted requirement to
+appear. If both start from the same already-filtered list of paragraphs, the
+apparent redundancy begins too late.
+
+\section{Naming the six inputs precisely}
+\label{sec:circular-inputs}
+The executable example has two scope inputs and four body inputs. Their names
+are convenient for software, but their definitions do the substantive work.
+The first scope input records whether the assessed actor is a distributor in
+the declared profile. The second records whether the activity concerns promotion
+of an SFC-authorised fund within that profile. Both are reviewed classifications.
+The prototype does not infer them from the actor's name or the presence of the
+word ``fund'' in a document.
+
+The first body input records whether the proposed component is classified as a
+gift. The second and third record a promotional link to a specific product and
+to a particular product type. A link to funds from a particular fund house
+requires an explicit classification where the relevant example is used; the
+engine does not assume that every mention of a fund house creates such a link.
+The fourth body input records whether the entire assessed component falls
+within the fee-or-charge-discount exception.
+
+The word ``entire'' in that final definition is an engineering expression of
+the proposed component-level reading. It prevents an assessed voucher from
+inheriting the classification of a separate fee waiver. It does not prove that
+the decomposition is legally correct. A reviewer must establish the relevant
+unit of assessment from the source and context. The definition and the review
+issue must travel together until that question is resolved.
+
+For a compact mathematical account, let $A$ denote established actor scope and
+$S$ the fund/activity scope. Let $G$ denote the gift classification, $P$ the
+specific-product link, $T$ the product-type link and $D$ the discount exception.
+For now suppose these are known Boolean values. The body condition is
+\begin{equation}
+ B=G\land(P\lor T)\land\neg D.
+ \label{eq:gift-body}
+\end{equation}
+It asks three things together: is the component a gift, does either promotional
+route hold, and is the exception absent? The two alternatives occur inside one
+parenthesized condition. Replacing that disjunction by a test of $P$ alone
+changes the rule for offers linked only to a product category.
+
+Scope is assessed separately. When both scope inputs are true, the body answers
+the selected question. When a scope input is known false, the limited profile
+returns \texttt{OUT\_OF\_SCOPE}. When scope is unresolved, it returns
+\texttt{UNKNOWN}, even if a body condition might otherwise be false. The
+distinction prevents an unresolved applicability question from being concealed
+inside an apparently definitive in-scope result.
+
+The current runtime also has a conservative conflict policy. It checks the
+static dependency closure of the requested rule before evaluating branches.
+Conflicting referenced evidence produces \texttt{CONFLICT}, including when a
+later scope branch would otherwise make the body irrelevant. This policy is
+part of the declared engineering semantics. It should not be attributed to the
+wording of the SFC circular. Chapter~\ref{ch:proof} explains why such a policy
+must be fixed before comparing implementations.
+
+\section{The named cases are an argument about the rule}
+\label{sec:circular-cases}
+The 22 named cases are most useful when read as a sequence of challenges to an
+interpretation. They do not merely fill rows in a test fixture. Each changes a
+fact or evidentiary condition that a plausible implementation might mishandle.
+The baseline case is a component classified as a gift, linked to one specific
+fund, with no fee-discount exception, and known in-scope actor and activity.
+
+\subsection{The alternative promotional route}
+Case g01 establishes the baseline prohibition trigger. Under
+equation~\eqref{eq:gift-body}, $G$ and $P$ are true and $D$ is false, so the
+body is true. This is a necessary example but a weak test on its own. An
+incorrect expression $G\land P$ would also return true, even though it omits
+both an exception and an alternative route.
+
+Case g02 changes the promotional facts: no individual fund is named, but the
+component is linked to a fund category. Now $P$ is false and $T$ is true.
+The disjunction remains true. A candidate that omitted the product-type route
+would return false, making this case a concrete witness to the omission. The
+source's inclusion of that route supplies the interpretive objection; the
+different program outputs make its consequence inspectable.
+
+Case g15 uses the fund-house example through a supplied reviewed product-type
+classification. Its purpose is not to write a text classifier for fund-house
+mentions. It checks that the chosen formal vocabulary has a place to represent
+the classification when review establishes it. This distinction prevents a
+source example from being silently generalized into a universal inference from
+an entity name.
+
+Case g09 establishes a specific-product link while leaving the product-type
+link unknown. The known route is sufficient for the disjunction. Unknown
+information about a second route does not erase the first. Case g14 reverses
+the situation: the specific-product route is false and the remaining route is
+unknown. Here the unresolved fact can change the outcome, so the correct result
+under the declared semantics is unknown.
+
+Taken together, these cases explain the meaning of ``either'' in an executable
+rule with partial evidence. The system must neither require every route to be
+known true nor convert every missing route to false. This is a semantic
+distinction, not a preference about how verbose the explanation should be.
+
+\subsection{The exception and the object it qualifies}
+Case g03 changes the baseline component to one classified as solely a fee or
+charge discount. The exception settles the selected body condition as false.
+The result says that this particular gift restriction is not triggered under
+the supplied classification. It does not resolve advertising, authorization or
+any other requirement associated with the offer.
+
+Case g04 returns to a voucher while another component of the same offer is a
+fee waiver. The assessed component remains the voucher, so the waiver does not
+set its $D$ value to true. This case challenges an implementation that stores a
+single offer-level discount flag and reuses it for every component. If that flag
+is the only available data, the adapter has insufficient information to apply
+the proposed component-level rule. It should request a finer assessment rather
+than derive a convenient value.
+
+Case g07 leaves the discount classification unresolved for a component otherwise
+meeting the trigger. If $D$ is false, the prohibition is triggered; if $D$ is
+true, the exception applies. Both possibilities remain consistent with the
+supplied evidence. Unknown is therefore the informative answer. A system that
+turns this unknown into false would remove the exception by default; one that
+turns it into true would invent the exception.
+
+Case g16 provides known discount evidence while leaving the gift and promotional
+classifications unknown. Within known scope, a true $D$ makes $\neg D$ false,
+which settles this conjunction as false. The case demonstrates that every
+missing fact need not prevent every narrow conclusion. Its safety depends on
+the specific conclusion being reported. It would be unsafe to broaden the
+result into a complete clearance of the marketing arrangement.
+
+The contrast between g04 and g16 is particularly useful for reviewer training.
+An established exception can settle a condition, but only for the object to
+which it applies. A precise value attached to the wrong subject is not better
+evidence than an unknown value attached to the right one.
+
+\subsection{Classification is not supplied by the formula}
+Case g08 concerns additional returns whose gift classification has not been
+settled. The circular's qualified treatment of such returns motivates an
+assessment; it does not establish $G$ for every arrangement. The proposed
+candidate must retain unknown when the remaining facts would make that
+classification decisive. Replacing the missing judgment by an unconditional
+``additional return implies gift'' would create a new interpretive rule.
+
+Cases g06 and g22 establish that no gift is offered. In g06 the discount
+classification is also missing. The false gift predicate settles the body as
+false under the declared Boolean semantics. Case g22 makes the point with a
+known product link: a promotional link alone does not establish that a gift
+exists. These cases catch a candidate that assumed $G$ from the context instead
+of requiring evidence for it.
+
+Case g05 establishes that neither product-link route holds. This also makes the
+body false, while leaving other regulatory questions outside the result. It
+does not establish that every incentive unrelated to an identified product is
+permissible under all applicable requirements. The selected condition is only
+one element of a broader assessment.
+
+Case g17 separates regulatory classifications. A separate assessment finds no
+structured product, but the component is a non-discount gift with a relevant
+product link. The gift trigger remains true. The case challenges a workflow
+that exits early after resolving one concern and never evaluates another.
+Correct integration therefore requires an inventory of outstanding controls,
+not a single reassuring flag named \texttt{regulatory\_check\_passed}.
+
+\subsection{Applicability precedes an in-scope answer}
+Cases g10 and g11 establish that, respectively, the actor and the product/activity
+are outside the selected profile. The response is out of scope. The underlying
+Code requirement may have a broader reach; the example cannot answer that
+broader question. Treating out of scope as false would erase the distinction
+between an in-scope condition that is not triggered and a question the selected
+control does not purport to decide.
+
+Case g12 leaves the fund/activity scope unknown. The system cannot establish
+whether the profile applies. Case g13 leaves actor scope unknown while
+establishing no gift. A Boolean programmer might be tempted to use the false
+gift fact to return false immediately. The declared profile instead reports
+unknown scope. This preserves the fact that the system has not established the
+context in which its body answer would be meaningful.
+
+This is a design choice that an independent implementation must reproduce.
+Another language could define a different scope-combination policy, but it
+would then implement a different specification. Differential testing only has
+a clear target after the policy has been made explicit. A reviewer must also
+decide how an unknown scope result affects the transaction workflow.
+
+\subsection{Contradiction, expiry and later knowledge}
+Case g18 supplies conflicting gift evidence. The result is conflict, not
+unknown and not the value favored by the latest-arriving record. Unknown means
+the evidence does not determine a value. Conflict means admissible records
+assert incompatible values. These require different remediation: obtaining
+missing evidence in the first case, and resolving or superseding contradictory
+evidence in the second.
+
+Case g19 combines an out-of-scope actor with conflicting discount evidence.
+The current static-closure conflict policy returns conflict before scope
+evaluation. This is deliberately conservative. The example must teach the
+policy honestly because a reviewer might otherwise expect out of scope and
+mistake the difference for a Java bug. The policy is recorded as engineering
+semantics, subject to separate operational review.
+
+Case g20 makes the gift evidence stale at assessment time. The rule does not
+continue treating an expired classification as current. Case g21 places the
+recording time after the historical knowledge cutoff. A historical assessment
+cannot use that later knowledge. Both become unknown when the missing gift
+classification remains decisive, but their reason codes and repair actions
+differ. Refreshing an expired record does not justify rewriting what was known
+at an earlier point in time.
+
+All 22 cases therefore contribute a distinct aspect of the specified behavior.
+Some concern the wording of the selected restriction. Others concern evidence,
+scope and operational conventions needed to execute the reading. The case
+packet should label those sources of expected behavior separately. Otherwise
+an implementation convention can acquire the apparent authority of a legal
+sentence simply because both are stored in the same JSON file.
+
+\section{What the 729 combinations cover}
+\label{sec:circular-enumeration}
+Each of the six abstract inputs takes one of three values: true, false or
+unknown. The number of assignments is therefore
+\begin{equation}
+ 3^6=729.
+ \label{eq:case-domain-size}
+\end{equation}
+This is a statement about a finite abstraction. It does not count legal
+interpretations, marketing documents, evidence histories or real client offers.
+The enumeration is exhaustive for that abstraction because it visits every
+combination of the six declared values.
+
+The independent truth oracle handles scope first. For the four body facts it
+replaces each unknown by both possible Boolean values and evaluates the formula
+under every completion. If every completion returns true, the oracle returns
+true; if every completion returns false, it returns false; otherwise it returns
+unknown. The code does not import RuleIR or the reference evaluator. This makes
+it useful for detecting a defect in how the expression was encoded or evaluated.
+
+For this particular body, each input occurs once and with a single polarity.
+The completion calculation agrees with the current three-valued operations.
+That agreement should not be generalized to every expression. For example, a
+formula containing a variable and its negation can be true under every Boolean
+completion while a compositional three-valued evaluator returns unknown. The
+next chapter derives that difference. The oracle's representation is independent
+of the candidate AST, but its semantic scope remains specific.
+
+Conflict, stale evidence and later-recorded evidence are not extra members of
+the three-value enumeration. Their normalization and precedence are exercised
+by named cases and other application checks. The count 729 must not be used to
+imply exhaustive testing of those mechanisms. Nor does it exhaust numerical
+inputs, dates, arbitrary rule graphs or the Java runtime's entire implementation.
+A result summary should always name the finite object that was exhausted.
+
+The comparison checked full semantic responses and relevant traces, while
+respecting each backend's own identity. It would be wrong to require the Python
+and Java engine identifiers to be identical: those identifiers describe
+different implementations. It would also be wrong to ignore all metadata in a
+comparison, because source, evidence and rule identities are part of an
+explainable decision. Chapter~\ref{ch:verification} specifies the distinction
+between semantic agreement and implementation-specific provenance.
+
+\section{Mutations ask whether the tests can notice an error}
+\label{sec:circular-mutations}
+Successful cases can be uninformative if they would also pass a wrong program.
+Mutation testing addresses this by deliberately changing the rule and asking
+whether the checks detect the change. A mutation is not a plausible legal
+interpretation merely because it can be compiled. It is an instrument for
+testing the sensitivity of the evidence.
+
+The first retained mutation removed the fee-discount exception. Cases g03, g07,
+g16 and g19 detected the change. Some of these detections concern the logical
+exception, while g19 also exposes the effect of changing the static dependency
+closure. Removing an expression can remove a referenced fact from conflict
+analysis. A mutation report should therefore explain why a case detects a
+change rather than treating every detection as the same kind of evidence.
+
+The second mutation omitted the product-type route. Cases g02, g14 and g15
+detected it. Their relationship to the source is direct: they isolate the
+route that the mutation removed, including a case where that route is
+unresolved. A baseline case with a named fund could not provide this evidence.
+
+The third mutation assumed that a gift existed without requiring its evidence.
+Cases g06, g08, g18, g20, g21 and g22 detected the resulting change. The set
+includes known absence, missing classification, conflict, expiry and later
+knowledge. This shows why evidence-handling cases are necessary even for a
+small logical condition. A wrong classification default can alter outcomes
+across several superficially different scenarios.
+
+The fourth mutation ignored the selected actor/product scope. Cases g10 through
+g13 detected it. The expected difference includes both out-of-scope and unknown
+results. If the test harness compared only a final allow/deny bit after
+flattening all other statuses, it could conceal these errors.
+
+All four mutations were compiled into Java before comparison. The result thus
+concerns executable altered candidates, not a textual inspection of a proposed
+patch. Still, detecting four mutations does not establish detection of every
+possible implementation or interpretation defect. Mutation operators are chosen
+by people or software and can themselves omit an important failure mode. The
+ensemble evaluation must maintain a documented fault model and extend it when
+new failures are discovered.
+
+\section{A new discrepancy: what counts as a discount?}
+\label{sec:circular-cashback}
+The existing tests assume that a reviewer can supply the discount classification.
+To investigate the missing interpretation step, consider a synthetic offer in
+which a customer pays a fee and later receives cash back. Two candidate
+definitions might be proposed. One restricts the exception to a reduction of
+the fee initially charged. Another includes a documented refund of a fee that
+was actually paid. The source packet alone has not established that both
+readings are legally tenable. Their purpose here is to expose a question whose
+answer affects implementation.
+
+Fix the actor, activity and promotional link, and assume for the comparison
+that the component otherwise meets the gift condition. Let the fee paid be
+HK\$100 and the later rebate also HK\$100. Under the first proposed definition,
+the later transfer is outside the defined exception. Under the second, it may
+fall within the exception if the required refund relationship is established.
+Those conditions must be derived from authority or review; the example does
+not introduce them as new SFC requirements.
+
+The next action should be a targeted investigation of the applicable definition,
+Code and FAQ, not a request for the same model to vote again on the word
+``discount.'' A source that explicitly includes the relevant refund treatment
+would support refinement of the second candidate. A source that excludes it
+would defeat that candidate in the applicable scope. A source discussing
+another product, actor or period may be informative without settling the
+question. The retrieval result needs an applicability assessment before it can
+resolve the discrepancy.
+
+Now alter the cash amount to HK\$150. If a candidate definition treats only a
+refund of an actual HK\$100 fee as falling within the exception, the extra
+HK\$50 raises a further classification question. It does not follow that the
+system can automatically split the transfer into a lawful and unlawful part.
+The legal unit of assessment and treatment of mixed benefits must first be
+settled. An arithmetic decomposition is easy; its legal significance is the
+question under investigation.
+
+A second variation changes the evidence. The marketing material describes the
+transfer as a fee refund, but no record establishes that a fee was paid. The
+candidate's definition may be clear while its decisive factual premise remains
+unknown. This discrepancy belongs to fact classification or evidence
+availability, not necessarily to interpretation. The resolution controller
+should request the relevant evidence or return unresolved, rather than
+changing the definition to make the missing record unnecessary.
+
+A third variation combines a refund with a separate voucher. A whole-offer
+exception would remove the need to assess the voucher independently. The
+proposed component-level interpretation would retain it. This is a different
+branch in the hypothesis space from the timing of a refund. Preserving separate
+issue identifiers prevents a source that resolves the timing question from
+being incorrectly treated as resolving the mixed-offer question as well.
+
+These variations show how an ensemble can make review more precise. It should
+produce a small set of materially different definitions, the source reasons
+for each, and the smallest scenarios on which they diverge. The reviewer then
+decides an identifiable question. A long narrative saying that an offer appears
+reasonable would provide less actionable evidence.
+
+\section{A complete dry run of the proposed workflow}
+\label{sec:circular-dryrun}
+The following dry run specifies proposed behavior. It is not a report that the
+new ensemble has already run. Start by creating an assessment whose context
+contains the retained circular revision, declared distributor/fund scope,
+selected effective interval and an inventory of dependencies. The historical
+engineering example uses a synthetic September 2026 interval; the workflow must
+not infer a regulatory commencement date from that setting.
+
+The source-review path inventories the circular and flags the incorporated Code
+and FAQ as unresolved. The interpretation path proposes the component-level
+gift rule. A second interpretation path omits the product-type route. A
+definition-focused path asks whether cashback is a discount and whether a
+combined offer changes the assessed unit. At this stage the system has a
+candidate set and several issues, not a winner.
+
+The comparator identifies a decision difference between the complete promotional
+condition and the candidate omitting the product-type route. It constructs a
+case with a gift linked only to a fund category and no exception. The
+source-grounding check points to the relevant paragraph. The candidate author
+can propose a repair adding the missing route. The system stores the repaired
+candidate as a new revision, reruns the discrepancy case and the retained
+regression cases, and preserves the original candidate and its rejection reason.
+
+The cashback definition issue follows a different route. Retrieval attempts to
+obtain the incorporated sources with the right identity and version. If the
+sources are unavailable, another language-model explanation cannot close the
+issue. The controller records the failed acquisition and the remaining
+dependency. It may retry an authorized retrieval route within its budget, or
+stop automatic work because no permitted action can supply the missing
+authority. The issue remains unresolved either way.
+
+The mixed-offer issue can produce a useful witness even before legal resolution.
+The comparison holds the voucher facts fixed and toggles the presence of a
+separate fee waiver. If a candidate's voucher decision changes solely because
+of the other component's exception, the report explains the dependence. A
+reviewer must then confirm the unit to which the exception applies. The witness
+does not grant the controller authority to make that legal decision itself.
+
+The accepted formal candidate can be compiled and checked in parallel with this
+research. Candidate compilation is valuable because it exposes implementation
+defects early. It does not change the issue status. The report may legitimately
+say that the candidate passed all specified execution checks and remains
+unavailable for release because source interpretation is unresolved. Keeping
+those two observations together is more informative than suppressing either.
+
+When automatic work reaches its finite limit, the controller freezes a report.
+It identifies the source revision, surviving definitions, rejected encodings,
+discriminating scenarios, completed actions, failed actions, unresolved
+dependencies and the exact effect of each unresolved issue on the control.
+There is no final vote to select a legally preferred answer. The state is ready
+for targeted human review or blocked on a named dependency, according to the
+reason for stopping.
+
+A designated reviewer can later resolve an issue using newly obtained authority.
+That creates a new context revision. Dependent candidate scores and comparisons
+are invalidated where appropriate, and the formal rule and tests are updated.
+The earlier report remains a faithful account of what was unresolved before the
+new material arrived. This is essential for reproducibility: a current reviewer
+must be able to see why the earlier system abstained.
+
+\section{From the JSON oracle to independent adjudication}
+\label{sec:circular-independent}
+The filename \texttt{oracle.json} is an engineering term. It designates a source
+of expected results for tests. It does not establish institutional authority or
+legal independence. The file states that the same agent authored it and the
+candidate. A future user interface should display that authorship rather than
+letting the label ``oracle'' imply a gold standard.
+
+Independent adjudication should begin from the retained source packet and
+declared task, before exposing reviewers to the proposed formal expression.
+One reviewer identifies requirements, definitions and difficult cases. Another
+can independently develop or challenge the interpretation. Disagreements are
+recorded and, where possible, resolved with source reasons. A third role may
+adjudicate material disagreement. Independence here concerns information and
+responsibility as well as the identity of a person or model.
+
+After that source-based stage, reviewers can inspect the candidate rules and
+their discriminating cases. This order reduces anchoring on the generated
+answer. It does not make reviewers infallible. The reference packet must allow
+an unresolved category, later correction and competing defensible readings.
+If a reviewer cannot determine the treatment of a cash rebate without the
+referenced FAQ, the correct reference outcome is not a guessed Boolean chosen
+to make benchmark scoring convenient.
+
+The original 22 cases should remain frozen as historical engineering evidence.
+New adjudicated cases belong in a separately versioned packet with its own
+authors, source context and review decisions. A changed expected outcome should
+explain whether the earlier interpretation was rejected, the scope changed,
+new evidence became available or the evaluation semantics were corrected.
+Those causes imply different repairs and different consequences for existing
+releases.
+
+The chapter has now followed a source to a rule, tested the rule, exposed
+unresolved definitions and specified how a future ensemble should handle them.
+The remaining task is to state precisely what each formal check can prove.
+Without that precision, a solver's success could once again be mistaken for
+the missing judgment about meaning.

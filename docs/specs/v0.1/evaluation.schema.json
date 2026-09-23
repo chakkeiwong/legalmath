@@ -1,0 +1,356 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legalmath.invalid/spec/0.1/evaluation",
+  "type": "object",
+  "properties": {
+    "status": {
+      "enum": [
+        "TRUE",
+        "FALSE",
+        "VALUE",
+        "UNKNOWN",
+        "CONFLICT",
+        "OUT_OF_SCOPE",
+        "ERROR"
+      ]
+    },
+    "type": {
+      "anyOf": [
+        {
+          "enum": [
+            "bool",
+            "integer",
+            "money_hkd",
+            "date"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "value": {
+      "type": [
+        "boolean",
+        "string"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "mode": {
+      "enum": [
+        "draft",
+        "production",
+        "replay"
+      ]
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "pointer": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code",
+          "pointer",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "missing_inputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.-]*$"
+      },
+      "minItems": 0
+    },
+    "blocking_inputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.-]*$"
+      },
+      "minItems": 0
+    },
+    "trace": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "op": {
+            "type": "string",
+            "minLength": 1
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "minItems": 0
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bool",
+                  "integer",
+                  "money_hkd",
+                  "date"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "TRUE",
+              "FALSE",
+              "VALUE",
+              "UNKNOWN",
+              "CONFLICT",
+              "OUT_OF_SCOPE",
+              "ERROR",
+              "SKIPPED"
+            ]
+          },
+          "value": {
+            "type": [
+              "boolean",
+              "string"
+            ]
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "minItems": 0
+          },
+          "source_span_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "node_id",
+          "op",
+          "children",
+          "type",
+          "status",
+          "evidence_ids",
+          "source_span_ids"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "bundle_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "snapshot_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "engine_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "valid_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$"
+    },
+    "known_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$"
+    },
+    "result_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "status",
+    "type",
+    "mode",
+    "diagnostics",
+    "reason_codes",
+    "missing_inputs",
+    "blocking_inputs",
+    "trace",
+    "bundle_hash",
+    "snapshot_hash",
+    "engine_version",
+    "valid_at",
+    "known_at",
+    "result_hash"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "TRUE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "bool"
+          },
+          "value": {
+            "const": true
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "FALSE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "bool"
+          },
+          "value": {
+            "const": false
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "VALUE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "enum": [
+              "integer",
+              "money_hkd",
+              "date"
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "UNKNOWN",
+              "CONFLICT",
+              "OUT_OF_SCOPE",
+              "ERROR"
+            ]
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "value"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "VALUE"
+          },
+          "type": {
+            "enum": [
+              "integer",
+              "money_hkd"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "pattern": "^(0|-?[1-9][0-9]*)$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "VALUE"
+          },
+          "type": {
+            "const": "date"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    }
+  ]
+}

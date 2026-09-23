@@ -1,0 +1,53 @@
+// ARTIKEL 7.15.eflint
+//   by Lut99
+//
+// Created:
+//   05 Aug 2024, 12:06:50
+// Last edited:
+//   08 Aug 2024, 15:14:45
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.15 van het Afsprakenstelsel.
+//   
+//   Dit artikel wordt geïnterpreteerd als dat een dataset niet tegelijkertijd mag zijn aangeboden als Commons én als open data.
+//   
+//   Zie `artikel7.15.md` voor meer informatie.
+//
+
+#require "../begrippen/aanbod.eflint".
+#require "../begrippen/beheerder.eflint".
+
+
+///// INPUT /////
+/// Encodeert dat een dataset al gepubliceerd is als open data.
+Fact data-als-open-data Identified by data.
+Extend Fact data
+    Derived from (Foreach data-als-open-data : data-als-open-data.data).
+
+
+
+
+
+///// REGELS /////
+/// Legt een plicht op aan aanbieders dat ze data niet mogen aanbieden als Commons als het al
+/// gepubliceerd is als open data.
+/// 
+/// # Afsprakenstelsel
+/// > Aanbieding als Commons mag nimmer data betreffen die reeds als “open data” gepubliceerd wordt
+/// > (al dan niet tegen verstrekkingskosten).
+Duty open-data-niet-als-commons
+    Holder aanbieder
+    Claimant beheerder
+    Related to data
+    // De plicht geldt zodra een aanbieder iets heeft aangeboden.
+    Derived from (Foreach aanbod, beheerder :
+        open-data-niet-als-commons(aanbod.aanbieder, beheerder, data(aanbod.dienst))
+        When (
+            aanbod-als-commons(aanbod)
+            && data(aanbod.dienst)
+        )
+    )
+    // De plicht is geschonden zodra de dataset is gemerkt als open data.
+    Violated when data-als-open-data(data).

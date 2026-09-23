@@ -1,0 +1,795 @@
+\chapter{Languages that make interpretation inspectable}
+\label{ch:languages}
+
+\section{Choose the question before choosing the language}
+\label{sec:languages-question}
+The gift example needs a condition over classified facts. A consent example
+needs a history of grants and withdrawals. A payment agreement may need parties,
+assets and deadlines. A dispute about the meaning of an exception needs
+alternative readings and their supporting reasons. These are related questions,
+but a representation designed for one does not automatically solve the others.
+The purpose of reviewing formal legal languages is to identify which structures
+help make each question precise.
+
+A formal legal language is a language in which statements about a legal or
+normative domain have defined syntax and computational meaning. The word
+``legal'' identifies the intended subject matter and useful abstractions. It
+does not mean the language has legal authority, that a program written in it
+is enforceable, or that translation into it establishes a correct reading.
+Authority still comes from the relevant source and institutional decision.
+
+For our product, a useful language must support at least three forms of
+inspection. A reviewer needs to see how a condition corresponds to source
+text. An engineer needs to know exactly what values and events the program
+expects. A verification tool needs unambiguous semantics. A language that is
+expressive enough to represent any program may make verification harder; a
+language that permits only simple decision tables may fail to represent
+important temporal or exception structure.
+
+This chapter develops the relevant mechanisms through examples. It does not
+choose a universal replacement for the bank's Java system. The recommended
+architecture keeps a bounded executable representation, a richer interpretation
+record and explicit adapters for specialized analyses. The relationship between
+those representations must itself be checked. Adding more languages without
+defining that relationship would create new translation boundaries rather than
+redundancy.
+
+\section{Rules do not all behave like ordinary implications}
+\label{sec:languages-norms}
+An ordinary material implication says that if a proposition is true, another
+proposition is true. A legal norm often says that, under specified circumstances,
+someone ought to do something. The existence of the duty does not establish
+that the action occurred. A rule requiring a document to be supplied cannot
+be used as evidence that the document was supplied. The distinction between
+facts and normative outputs is central to input/output logics
+\citep[secs.~2--4]{inputoutput2000}.
+
+For a simple illustration, suppose an adopted specification says that a
+distributor must provide a named warning when a condition holds. The condition
+can create a duty record. Performance requires separate evidence of the
+warning being delivered to the correct recipient in the required context.
+If the program inserts the duty's content into its factual database as though
+it had happened, every obligation can appear automatically satisfied.
+
+Prohibitions and permissions also need care. Failure to derive a prohibition
+may mean the act is permitted under one explicitly defined logic; in a bank
+workflow it may instead mean the relevant sources or facts are missing. The
+literature distinguishes strong and weak permissions under particular
+defeasible-logical definitions \citep[secs.~2--4]{permissions2012}. Those
+definitions are not a general license to treat an empty query result as
+authorization. The selected RuleIR gift result remains a subcondition, with
+permission supplied only by a separate approved decision policy.
+
+Many legal rules are defeasible: they normally support a conclusion, but an
+exception or stronger opposing rule can override that support. A defeasible
+rule is not the same as an ordinary implication with an informal comment
+attached. Its evaluation must account for applicable opposing rules and
+priorities. Defeasible-logic systems formalize different ways to do this,
+including rules that support conclusions and defeaters that block opposing
+support \citep[sec.~2]{defeasible2000}.
+
+The engineering implication is simple but demanding. ``Has exceptions'' is
+not a complete semantics. The specification must say what happens when no
+exception is known, one is established, two compete, or an exception remains
+unknown. It must also say whether a priority is supplied by legal authority,
+an explicit interpretation decision or a programming convention. File order
+is not an adequate hidden source of legal priority.
+
+The early logic-program treatment of the British Nationality Act demonstrated
+how a selected body of legislation could be decomposed into rules with
+inspectable reasoning \citep{sergot1986}. That work is valuable here as an
+example of disciplined formalization, including attention to time and negative
+information. It should not be read as a claim that ordinary legal prose can
+always be converted automatically into a complete logic program.
+
+\section{Controlled English: readable structure with restricted freedom}
+\label{sec:languages-logicalenglish}
+Ordinary English permits pronouns, elliptical references, implied subjects and
+several possible attachments of a qualification. Those features make writing
+compact, but they leave a translator with choices. Controlled English restricts
+some of that freedom so a sentence can be mapped into logic by explicit rules.
+Logical English develops this approach for law and education
+\citep[language specification and examples]{logicalenglish2023}.
+
+Consider the sentence ``If it is a gift and is linked to the product or its
+type, it is prohibited unless discounted.'' The sentence is short, but ``it''
+could refer to the offer or component, ``its'' needs a binding, and ``discounted''
+does not identify the exception. A controlled rendering should repeat the
+subject where necessary and name each definition. Repetition in the language
+is useful if it removes a legally consequential ambiguity.
+
+One possible authoring form for our own restricted profile is:
+\begin{lstlisting}[caption={Illustrative LegalMath authoring notation. This is a proposed template, not claimed to be valid Logical English or Catala source.}]
+subject: component C in offer O
+scope:
+  actor(O) satisfies distributor_profile
+  activity(O) satisfies authorised_fund_promotion_profile
+condition:
+  C satisfies gift_definition
+  AND (
+    C has specific_product_link
+    OR C has product_type_link
+  )
+  AND NOT (C satisfies fee_discount_definition)
+consequence:
+  selected_gift_restriction_triggered
+\end{lstlisting}
+The form makes four decisions inspectable: the subject, the scope, the
+condition and the named consequence. Every definition identifier refers to
+a versioned record. A reviewer can ask why a definition applies without
+reverse-engineering the syntax tree. An engineer can translate the connectives
+deterministically once the template is fixed.
+
+Variable binding is a practical source of error. If one occurrence of $C$
+refers to the voucher and another to the whole offer, the sentence has changed
+its subject midway. The authoring language should enforce a declared variable
+and type environment. A reference to an undeclared subject should be rejected.
+An association such as ``component C belongs to offer O'' should be explicit
+when the rule uses facts about both.
+
+Negation requires similar precision. ``There is no evidence that C is a gift''
+is not the same assertion as ``evidence establishes that C is not a gift.''
+Logical-programming systems may distinguish explicit negation from failure to
+prove a proposition. Our evidence model records known false, unknown and
+conflict separately. A controlled sentence that asks about missing evidence
+should use that information state explicitly; it should not rely on a model
+to guess which sense of negation the author intended.
+
+Controlled English improves the boundary between reviewed meaning and
+implementation. It does not remove the earlier task of choosing the controlled
+sentence from the original circular. A reviewer can still choose the wrong
+definition or omit a phrase. That is why the product retains source anchors,
+alternative templates and contrasting scenarios alongside the readable rule.
+The language makes a chosen interpretation precise enough to challenge.
+
+\section{Catala: defaults, exceptions and source-linked authoring}
+\label{sec:languages-catala}
+Catala was designed around a recurring pattern in legislation: a general rule
+defines a value, and explicit exceptions may replace it. Its core calculus
+gives that structure a formal meaning; its authoring approach keeps legal text
+near the corresponding code \citep[secs.~2--4]{catala2021}. For a reviewer,
+this can be more intelligible than a long sequence of ordinary conditional
+statements whose priority is implicit in their order.
+
+A hypothetical policy might normally require an explanation and waive a
+particular step under a reviewed condition, while restoring it if the client
+requests assistance. The important structure is the relationship between
+the general rule and its exceptions. A nested exception can express a priority
+that differs from two sibling exceptions. Moving a condition one level in
+that structure can change the result even when every word remains present.
+
+For a small teaching example, suppose a base value is false and one exception
+returns true when $g$ holds. If $g$ is established, the exception supplies the
+value. If $g$ is refuted, the base applies. If the specification supplies two
+sibling exceptions and both are active, the system needs a conflict rule.
+Catala's core treatment distinguishes an absent applicable value from a
+conflict between exceptions; more than one active exception can conflict even
+when the values agree. Agreement of the values does not prove that their
+legal priority has been resolved.
+
+LegalMath borrows explicit exception structure but adds its own treatment of
+incomplete evidence. In the present RuleIR profile, every sibling guard is
+evaluated. Two true guards conflict. One true guard with an unknown competitor
+remains unknown because the competitor may become active. One true guard with
+all competitors false selects its value. When all guards are false, the base
+is selected. This is a separately specified design; it is not a claim that
+RuleIR implements the whole Catala calculus.
+
+The distinction matters for ensemble comparisons. A Catala model and a RuleIR
+model can be useful independent representations, but they do not become
+equivalent merely because both have an ``exception'' construct. The adapter
+must define how missing evidence, no applicable value and competing exceptions
+are represented. A comparison outside that common fragment should return
+unsupported or expose the difference, not choose a convenient interpretation.
+
+Catala's compiler work also illustrates how formal claims should be scoped.
+The paper establishes properties for a core translation; the production
+compiler and surrounding tooling are separate implementation objects. The
+retained repository inspection also records an admitted supporting lemma in
+the formalization notes. This project has not replayed those proofs. We borrow
+the explicit language structure and preservation discipline, while requiring
+independent evidence for any concrete adapter used in the bank product.
+
+\citet[sec.~4.2]{huttner2022} discuss legal/programmer collaboration as a way
+to keep source meaning and executable rules connected. The useful lesson is
+organizational as well as technical. A legal reviewer can challenge an
+exception's interpretation while an engineer checks that its computational
+consequence matches that interpretation. Neither role should be expected to
+certify the other's entire domain from a single code review.
+
+\section{Metadata is part of the meaning: LegalRuleML}
+\label{sec:languages-legalruleml}
+A formula alone does not say which provision it interprets, which jurisdiction
+it concerns, when it applies, or whether a competing formula is also
+defensible. LegalRuleML addresses representation of legal rules together with
+such contextual and provenance information. The work on legal interpretations
+explicitly represents alternative readings associated with source material
+\citep[secs.~2--4]{legalinterpretations2014}; the later OASIS specification
+provides a broader standardized vocabulary \citep{legalruleml2021}.
+
+For the fee-discount issue, two candidate rules can point to the same source
+span while naming different interpretation records. One record might restrict
+the exception to an initial reduction; another might include a documented
+refund. Their source identity is shared, but their assumptions and consequences
+differ. The system should not assign a single interpretation identifier to
+both merely because the source paragraph is the same.
+
+The representation must also preserve the authority of a selection. A legal
+reviewer may adopt one interpretation for a defined product and date range.
+That selection is an event with an author, reason and scope. It does not erase
+the alternative or establish that the alternative was syntactically invalid.
+A future source clarification may require reconsidering the choice. The
+provenance record is what lets the system determine which decisions depend on it.
+
+LegalRuleML is a representation standard, not a turnkey engine for resolving
+every legal dispute. A serialized permission or priority still requires a
+specified evaluation semantics. Different reasoning engines may support
+different fragments or make different assumptions. For the prototype we should
+borrow the discipline of explicit context and alternatives without requiring
+the entire standard to become the first runtime dependency.
+
+This leads to a useful separation in the proposed storage model. A source span
+identifies words. An interpretation claim identifies an adopted or proposed
+meaning. A formal rule identifies a computation. A review decision identifies
+who accepted which claim under which context. Keeping those identities
+separate prevents a hash of the source text from being used as if it also
+identified the meaning chosen from that text.
+
+\section{Stipula: a contract as parties, resources and transitions}
+\label{sec:languages-stipula}
+Stipula becomes relevant when a legal arrangement changes through actions over
+time. Its original paper describes agreements, parties, fields, assets,
+functions, states and scheduled events \citep[secs.~3--6]{stipula2021}. A
+function can be available only to a specified party in a specified state, with
+a precondition on the current data. Executing it changes fields or resources
+and moves the contract to another state. This is a much richer object than
+a single decision-table row.
+
+To understand the mechanism, consider a synthetic service agreement. It begins
+in a state awaiting agreement on terms. After the designated parties agree,
+it enters an active state. An authorized party can request a permitted service
+only while the agreement is active. A withdrawal changes the state so that
+the same request is no longer available under that agreement. A timed event
+may move the agreement into an expired state. This example illustrates a state
+model; it is not a claim about the legal effect of any particular bank consent.
+
+The state matters because the same action name can have different consequences
+at different points in the history. A function called \texttt{requestService}
+cannot be understood by its input parameters alone if its availability depends
+on whether consent is active. A current Boolean copied from a stale database
+may also be inadequate. The state should be derived from an attributable
+history or a reviewed snapshot plus a complete subsequent event stream.
+
+Stipula's agreement construct explicitly identifies who participates and who
+must agree on the initial terms. This is useful as a modeling discipline:
+the identity of the party agreeing is not an untyped annotation on a field.
+For LegalMath, the analogous review question is who has authority to approve a
+meaning, data mapping or release. We borrow the importance of explicit parties
+and transitions, not a claim that a regulatory circular is itself a private
+contract between the bank and regulator.
+
+Assets in Stipula are distinguished from ordinary fields. An ordinary numeric
+field can be copied as information; an asset transfer must account for the
+resource leaving one location and arriving at another. In the original
+semantics, asset movement prevents creating a negative quantity and preserves
+the relevant resource through transfer. This supports questions about duplicate
+spending, locked resources and the availability of contractual actions. It is
+not a model of market liquidity or a substitute for the bank's general ledger.
+
+For a synthetic escrow, suppose a contract holds a resource amount $b$ and
+transfers $q$ to a recipient. A local arithmetic description is
+\begin{equation}
+ b'=b-q,\qquad r'=r+q,\qquad 0\leq q\leq b,
+ \label{eq:asset-transfer}
+\end{equation}
+where $r$ is the recipient's modeled holding. Adding the first two equalities
+gives $b'+r'=b+r$. This is a conservation property of the modeled transfer.
+It says nothing about whether the underlying asset exists off-system or whether
+the transfer is legally authorized. Those are separate premises. The example
+shows how a formal language can support a useful exact property without
+claiming to settle the whole legal arrangement.
+
+Scheduled events add another dimension. A Stipula event can schedule a
+continuation at a time and execute it only if the contract remains in a
+specified state. An action taken before the event can change whether that
+continuation is applicable. The ordering of an event and a function call at
+the same time is consequently significant. The inspected original semantics
+gives scheduled events precedence in the relevant equal-time situation. A bank
+adapter must not assume that this is the legally correct ordering for its own
+deadlines. The source, clock precision and event-order authority need review.
+
+This example also distinguishes observation from permission. A formal contract
+may describe which function calls its own execution platform permits. A bank
+audit system must still record actions that occurred outside a permitted
+workflow. Deleting an observed transaction because the policy would have
+forbidden it would erase evidence of a possible violation. A normative monitor
+therefore needs a clear separation between advice about an action and recording
+its actual occurrence.
+
+\section{A small state contract that a reader can execute by hand}
+
+A complete miniature model helps distinguish the legal-language idea from its
+implementation in a particular tool. Consider a synthetic escrow agreement in
+which a payer deposits a fixed amount, a recipient may receive it after an
+accepted delivery, and the payer can recover it after an expiry if delivery has
+not been accepted. The example is chosen to teach states, parties, resources and
+time. It is not a model of an actual bank product or a proposed interpretation of
+the gift circular.
+
+Let the contract state be one of \texttt{UNFUNDED}, \texttt{HELD},
+\texttt{PAID} and \texttt{REFUNDED}. Let $b$ be the amount held by the contract,
+$p$ the payer's modeled external holding and $r$ the recipient's holding. All
+amounts are nonnegative integer units. Let $d$ be the agreed deposit, $\tau$ the
+expiry time and $t$ the current event time. The parties and the meaning of
+accepted delivery are agreed inputs to this model.
+
+The state transition table is the executable meaning of the miniature contract.
+It says which caller can perform which action, under what guard, and how the
+state and resources change. It is deliberately written in a neutral notation;
+it is not presented as tested Stipula source code.
+
+\begin{longtable}{@{}P{24mm}P{33mm}P{42mm}P{49mm}@{}}
+\caption{Synthetic escrow transitions, inspired by state-contract languages.}\\
+\toprule
+From & Action and caller & Guard & Effect and next state\\\midrule\endfirsthead
+\toprule From & Action and caller & Guard & Effect and next state\\\midrule\endhead
+\texttt{UNFUNDED} & Deposit by payer & $p\geq d$, $d>0$, $t<\tau$ & $p'=p-d$, $b'=d$, $r'=r$; enter \texttt{HELD}.\\
+\texttt{HELD} & Release by authorized acceptance process & Accepted delivery and $t<\tau$ & $r'=r+b$, $b'=0$, $p'=p$; enter \texttt{PAID}.\\
+\texttt{HELD} & Expiry event & $t\geq\tau$ & $p'=p+b$, $b'=0$, $r'=r$; enter \texttt{REFUNDED}.\\
+\texttt{PAID} or \texttt{REFUNDED} & Any repeat transfer & No enabled transition & No second transfer is permitted by this model.\\
+\bottomrule
+\end{longtable}
+
+Start with $p=100$, $b=0$, $r=0$, and an agreed deposit $d=40$. A valid deposit
+produces $(p,b,r)=(60,40,0)$ and state \texttt{HELD}. If delivery is accepted before
+expiry, release produces $(60,0,40)$ and state \texttt{PAID}. If expiry occurs
+first, the refund produces $(100,0,0)$ and state \texttt{REFUNDED}. The same deposit
+has two possible future paths, determined by events and their timing.
+
+A reader can now check a conservation property without trusting a compiler. Define
+$W=p+b+r$, the total modeled resource. For the deposit transition,
+\begin{equation}
+ W'=(p-d)+d+r=p+r=W,
+ \label{eq:escrow-deposit}
+\end{equation}
+because the initial contract holding is zero. For release,
+$W'=p+0+(r+b)=W$. For refund, $W'=(p+b)+0+r=W$. Each permitted transition therefore
+preserves the total. Since the initial holdings are nonnegative and the deposit
+guard requires sufficient funds, these transitions also preserve nonnegativity.
+This is a local derivation about the stated miniature model.
+
+The terminal states prevent a second transfer. After release, no transition from
+\texttt{PAID} can release the same balance again. A Java implementation that
+updates balances but forgets the state change could violate that property under
+a repeated call. This is why the state transition is part of the contract, not
+just a user-interface label. An idempotency mechanism can support repeated
+requests, but must be specified consistently with the state model.
+
+Time is equally substantive. The table uses $t<\tau$ for release and
+$t\geq\tau$ for expiry. At exactly $\tau$, only expiry is enabled. If the intended
+agreement allowed delivery at the deadline, the guards would need a different
+boundary or an explicit ordering rule. A test performed one minute before expiry
+cannot establish the exact-deadline behavior. The Stipula literature's event
+ordering is therefore a modeling choice to understand, not a universal answer
+for every contract \citep{stipula2021}.
+
+The model also exposes a dependency hidden by ordinary prose: what establishes
+accepted delivery? It might be an authorized person's recorded acknowledgment,
+an external system event or a disputed factual assessment. The transition table
+assumes that this predicate is supplied correctly. Conservation and no-double-
+transfer proofs do not establish that assumption. If acceptance can be forged,
+the formal transfer properties may hold while the wrong person receives the
+resource.
+
+The distinction between safety and progress is now visible. Conservation is a
+safety property: no permitted step creates or destroys the modeled resource.
+The ability to reach \texttt{PAID} or \texttt{REFUNDED} is a progress question.
+If the platform never processes the expiry event and delivery is never accepted,
+the resource can remain held. Proving eventual refund requires assumptions about
+time advancement and event execution, not merely the transition table's arithmetic.
+The contract-liquidity literature concerns such availability of actions and
+resources; it should not be confused with market liquidity \citep{liquidity2023}.
+
+This miniature also clarifies what a Java/JML translation would need to preserve.
+A precondition specifies the caller, state and guard. A postcondition specifies
+the new balances and state. An invariant states nonnegative holdings and any
+conserved total. The verifier reasons about all allowed calls under those
+conditions. It must also account for the event mechanism and any loop abstraction
+used by the translation. The inspected Stipula-to-Java work provides a relevant
+route, with the restrictions already described \citep{stipulakey2025}.
+
+For LegalMath, the corresponding benefit is a disciplined way to model review,
+consent and obligation lifecycles. A report awaiting review is not an approved
+report; a withdrawn consent is not an active generation; an opened duty is not
+fulfilled merely because a document was eventually delivered late. Explicit
+states and transitions make these distinctions executable and testable.
+
+The correspondence is methodological rather than a claim that every circular is
+an escrow contract. Regulatory obligations can apply even when a party never
+agreed to a private contract, and actual events must be recorded even if a formal
+platform would reject them. A bank's monitoring system therefore separates the
+normative question of what should occur from the factual record of what did
+occur. The state model helps express that separation only when it is designed
+for the intended purpose.
+
+A practical specification exercise follows directly. Before implementing a new
+history-dependent control, write its states, actors, events, guards and effects;
+execute one normal path, one boundary path and one violating observation by hand;
+identify the facts that the model assumes; and state which invariants and progress
+properties matter. Then choose a language or verifier that supports those
+properties. This sequence gives Stipula, Symboleo, eFLINT or a restricted custom
+monitor a concrete role rather than selecting a language because its name occurs
+frequently in the literature.
+
+\section{What contract verification does and does not buy}
+\label{sec:languages-contractverification}
+Once a contract has a transition semantics, tools can ask whether certain
+states are reachable, whether a resource can become trapped, or whether two
+contracts have corresponding observable behavior. Stipula's legal-bisimulation
+work gives a formal account of selected observable equivalences
+\citep[behavioral equivalence section]{stipula2021}. A bisimulation relates
+states so that an observable step on one side can be matched by a corresponding
+step on the other. It is a statement about modeled behavior under that
+definition of observation.
+
+For the bank, an analogous question might ask whether a revised consent
+implementation preserves the reviewed behavior for grants, withdrawals and
+transactions. The observation set must include what matters: subject, category,
+time, permitted use and recorded violations. If the comparison ignores
+withdrawal, equivalence of the remaining observations would not establish the
+property the bank needs. Formal observation boundaries deserve the same
+scrutiny as ordinary input-domain restrictions.
+
+\citet{stipulakey2025} demonstrate a translation from Stipula contracts into
+Java with JML specifications and verification using KeY. JML expresses properties
+of Java behavior, such as preconditions, postconditions and invariants; KeY
+reasons about whether the Java program satisfies them. This is especially
+relevant to our Java delivery target because it illustrates a route from a
+specialized contract language into a general-purpose verification environment.
+
+The inspected work has explicit restrictions. Its event conditions are modeled
+symbolically, and the automated encoding keeps certain loop inputs constant
+across iterations. Its examples establish feasibility for the examined models,
+not complete fidelity to arbitrary calendars or external event streams. The
+official translator source was inspected in the earlier project review; no KeY
+proof was replayed. Adopting a similar route would require a precise mapping
+from our RuleIR and event profile to the Java/JML semantics, including the
+unknown and conflict results that ordinary Boolean contracts omit.
+
+General verification cannot be promised for every expressive contract language.
+\citet{reachability2026} establish undecidability results for clause reachability
+in Stipula fragments and identify a decidable fragment under particular
+restrictions. The restrictions concern disjoint function/event source states
+and immediate events; they should not be confused with the different
+disjoint-cycle condition used in the Java/JML translation work. A shared word
+in two papers does not identify a shared theorem.
+
+The practical consequence is to define bounded questions and supported
+fragments. A tool can report that no bad state was found up to a specified
+depth, or prove a property under a restricted transition model. It cannot
+turn a finite search into a complete reachability decision for a language
+whose general problem is undecidable. The report must retain the bounds so a
+reviewer can understand which behaviors were left unexplored.
+
+Stipula's amendment literature is also relevant. A contract can change its
+declarations, state and permissible behavior through a specified amendment
+mechanism \citep[secs.~3--5]{amending2023}. For regulatory controls, an amendment
+must similarly identify whether existing obligations keep their opening source
+version or migrate to a new one. Hot-replacing code without a state-migration
+interpretation can change the treatment of historical events. The versioned
+control and its transition obligations need separate approval.
+
+\section{Other normative languages clarify different distinctions}
+\label{sec:languages-other}
+Symboleo models legal contracts using concepts such as obligations and powers,
+with lifecycle distinctions that are easy to lose in a Boolean implementation
+\citep[secs.~II--IV]{symboleo2020}. Creating a duty is not always the same as
+activating it. A power can change a normative relationship, for example by
+suspending or terminating an obligation. These distinctions are useful when a
+bank workflow has review, activation, withdrawal and corrective actions with
+different legal effects.
+
+The retained Symboleo paper and software inspection do not provide a complete
+implemented axiom set for LegalMath. Some supporting references in the early
+paper are not fully available in the retained edition. We can use the lifecycle
+questions to improve requirements, while treating any direct engine adoption
+as a separate interface and semantics audit. A familiar conceptual diagram is
+not a substitute for an executable contract.
+
+eFLINT separates facts, actions and duties in a normative specification
+\citep[secs.~3--5]{eflint2020}. A particularly useful distinction is that an
+impermissible action may still occur, change state and create a violation.
+This matches the difference between a bank's pre-transaction advice and its
+post-event audit. A system that refuses to represent an unauthorized observed
+action cannot explain what happened after a control failure.
+
+The eFLINT literature also shows why language versions matter. The later
+stable-model semantics provides a particular formal grounding and can produce
+no model or several models \citep[translation and evaluation sections]{eflintstable2025}.
+Those outcomes carry information; selecting one model silently would conceal
+ambiguity or inconsistency. The newer language survey discusses implementations
+whose semantic guarantees differ \citep{eflint2026}. A proof or test result for
+one version should not be attributed to every interpreter bearing the same name.
+
+s(LAW) combines legal formalization with logic programming that can explain
+positive and negative outcomes and explore possible models
+\citep[secs.~2--5]{slaw2024}. This makes assumptions visible in a way that a
+single opaque classification may not. However, a model containing a hypothetical
+fact does not establish that the fact is true for the client. Counterfactual
+reasoning should propose what would change an answer, while the evidence
+service establishes whether the corresponding condition actually holds.
+
+These methods suggest an interface in which normative classification,
+state transition and factual evidence are separate inputs to a decision. The
+implementation should reject an unsupported duty kind explicitly. A maintenance
+obligation, which must hold throughout an interval, cannot be implemented by
+checking that it was true once. A non-preemptive achievement obligation cannot
+be discharged by a performance before it came into force. The taxonomy in
+\citet[sec.~3]{normative2016} helps identify these choices; the precise profile
+still needs a source-grounded interpretation.
+
+\section{Decision tables and business-rule engines}
+\label{sec:languages-tables}
+Decision tables remain useful when their rows and hit policy have a precise
+meaning. A table can show, for example, that a known discount exception changes
+the selected trigger while an unknown exception leaves a material question.
+The reader must know what happens when several rows match: choose the first,
+require a unique row, collect results or apply a priority. DMN makes such hit
+policies explicit \citep[sec.~8.2.11]{dmn2024}.
+
+That explicitness is the valuable part. A spreadsheet whose row order silently
+resolves competing legal exceptions is harder to review because its legal
+priority is hidden in presentation. Changing the sort order can change the
+answer. A unique-hit table can reject overlap, but it cannot determine whether
+the missing row represents an omitted legal situation. Independent source
+coverage and boundary cases remain necessary.
+
+Drools, OPA and other rule engines can execute policy logic and integrate with
+enterprise applications. The question for this product is not whether they
+are capable software. It is whether the selected engine's semantics, evidence
+model, explanation behavior and deployment interface match the adopted
+specification. Unknowns, conflicts, exception priorities and event ordering
+need explicit mappings. A backend name is not an assurance claim.
+
+For the prototype, a small RuleIR is easier to specify and compare than a
+large engine with many unsupported features. Other engines can serve as
+independent reference encodings for a supported fragment after that fragment
+is defined. The comparison must include the behavior that ordinary Boolean
+examples leave out. Engine diversity without semantic alignment can produce
+many discrepancies that reflect adapter choices rather than flaws in the
+legal interpretation.
+
+\section{A solver can improve reasoning after a translation}
+\label{sec:languages-neurosymbolic}
+A neural-symbolic system separates tasks that language models and formal
+engines perform differently. A language model proposes a formal representation
+of prose. A symbolic engine evaluates or reasons about that representation.
+The engine can give a reproducible answer to a precise logical question and
+can expose inconsistency, unsupported syntax or a counterexample. The
+translation that supplied its premises remains a separate source of error.
+
+Logic-LM uses language-model formulation followed by an appropriate solver and
+feedback-driven refinement \citep[sec.~3 and prompt appendices]{logiclm2023}.
+LINC combines language-model formalization with first-order theorem proving
+and analyzes failures at the translation and reasoning boundary
+\citep[method and error analysis]{linc2023}. These methods support the design
+choice that a model should not be asked to simulate every logical calculation
+in prose. They do not support treating successful solver execution as evidence
+that a legal requirement was fully captured.
+
+A syntax repair illustrates the benefit and the limit. Suppose a candidate
+uses an undeclared symbol in the gift rule. The parser identifies the symbol
+and rejects the encoding. A repair prompt can ask for the missing declaration
+or corrected reference while preserving the intended interpretation. The
+repaired candidate is then validated again. This process may solve a concrete
+representation error. It does not justify adding a new legal assumption
+merely because doing so makes the formula easier to satisfy.
+
+ARc develops policy-model creation, human vetting, structured inspection and
+symbolic checking in a combined system \citep[sec.~3 and appendix A]{arc2025}.
+Its policy creation procedure divides a document into units, proposes types,
+variables and constraints, and composes them into a model. Its vetting
+mechanisms include linting, template-based English inspection and testing.
+These are relevant to our product because they make the proposed model
+available for correction before individual answers rely on it.
+
+Composition creates its own interpretation problem. Two units may use the same
+word for different legal concepts, or different words for the same concept.
+ARc uses embedding-based clustering in its variable-unification procedure.
+For our high-stakes specification, such a merge should be a proposal with
+provenance and validation. Merging ``offer discount'' with ``component
+discount'' because their descriptions are similar could remove the distinction
+that g04 was designed to test. A similarity score cannot establish identity
+of legal concepts.
+
+ARc's answer-verification procedure also uses redundant translations and
+symbolic agreement checks. Its reported finding categories distinguish
+ambiguous translation, impossible premises, invalid conclusions, entailed
+conclusions and satisfiable but unentailed claims. The distinction is useful:
+if a model permits both an outcome and its opposite under incomplete premises,
+the system can show scenarios for each rather than invent a definitive answer.
+For LegalMath, these scenarios become review questions tied to the candidate
+set and the source context.
+
+The word ``soundness'' in ARc's empirical evaluation needs careful translation
+into a product claim. The paper defines an empirical quantity based on false
+positives across requests; it is not a theorem that the English policy was
+formalized correctly. The denominator differs from precision among approvals.
+The manuscript therefore borrows the inspection and disagreement mechanisms
+without importing a claimed legal-error probability. Chapter~\ref{ch:evaluation}
+defines the denominators our own evaluation would need.
+
+The tax-reasoning work of \citet{jurayj2026} further illustrates the importance
+of task boundaries. Supplying gold rules, retrieving annotated cases and
+extracting facts are different assistance conditions from generating rules
+from a new circular. A comparison must account for those inputs and the human
+effort that produced them. A system given a reviewed rule library should not
+be presented as evidence that the same system can independently interpret
+unreviewed prose.
+
+\section{Roundtrip verification and targeted repair}
+\label{sec:languages-roundtrip}
+Roundtrip verification asks whether a formal representation survives a journey
+through another representation. In the method of \citet{roundtrip2026}, source
+English is formalized, the formula is translated back into English, and the
+reconstructed English is formalized again. A solver compares the first and
+last formulas. If they differ, diagnosis identifies a likely translation
+stage to repair, and dependent stages are regenerated.
+
+This is attractive for our user interface because the intermediate English
+can make a formal candidate easier to inspect. Suppose the original formula
+contains both product-link routes but the back-translation mentions only a
+specific product. Re-formalizing that sentence may lose the product-type
+route. The resulting counterexample exposes a defect in the explanation or
+translation chain. A reviewer should not be shown that explanation as if it
+faithfully described the formal rule.
+
+The same construction can miss a shared omission. If the first formalization
+already omits the product-type route, a faithful back-translation of that
+incorrect formula and a faithful re-formalization will agree. The roundtrip
+then passes. What survived is the first formula, including its error relative
+to the source. The paper explicitly recognizes this limit; our ensemble must
+retain a source-grounding path that does not simply inspect the same
+back-translation.
+
+Repair therefore needs a named target. If the formal rule is justified but
+the explanation drops a condition, repair the explanation and its dependent
+roundtrip outputs. If the original rule omits a source condition, create a
+new interpretation candidate and revalidate its downstream artifacts. If the
+two formulas use incompatible vocabularies, repair the mapping before claiming
+the formulas disagree about one question. A generic ``make these consistent''
+instruction does not distinguish those cases.
+
+The stopping rule is equally important. A roundtrip procedure can run for a
+bounded number of attempts and still end in disagreement. The product should
+report the original and revised formulas, the counterexample, diagnosis,
+actions attempted and the remaining issue. It should not keep repairing
+until some pair agrees and then discard the path that made the original
+source objection visible. The ensemble controller extends this principle
+from one translation chain to several methods and issue types.
+
+An explanation generated by deterministic templates provides a useful
+additional path. It is constrained by the formal syntax and can be checked
+for completeness of its displayed operands. It may be less elegant than
+free prose, but it offers a stable view of what the program actually says.
+A freely generated explanation can still help readers if it is compared
+against that view and does not replace it as the sole account of the rule.
+
+\section{Evidence spans and distant qualifications}
+\label{sec:languages-evidence}
+An answer supported by a source span is easier to review than an unsupported
+assertion, but the span itself may be insufficient. A qualification can appear
+in a footnote, definition or distant section. ContractNLI studies document
+inference with evidence annotation and highlights challenges involving
+references and exceptions \citep[task, annotation and error-analysis sections]{contractnli2021}.
+For our product, the relevant lesson is to retain the supporting and limiting
+passages needed for the inference, rather than a single convenient quotation.
+
+The distinction between ``not mentioned'' and ``false'' is particularly useful.
+If a retained source does not settle the definition of a fee refund, the
+absence should remain visible. A retrieval engine returning no matching
+paragraph does not establish that the exception excludes refunds. It may have
+searched the wrong document, missed a synonym or lacked the referenced source.
+The evidence report should distinguish unsuccessful retrieval from reviewed
+absence within a specified source set.
+
+Source spans also require stable identity. Character offsets depend on the
+extraction version, while page numbers may not survive a changed layout.
+Retain raw-byte identity, derivative identity, exact span text or hash, and
+human-readable location. A reference to paragraph 10 without a source version
+can become misleading after an amendment. A matching text hash without its
+source context may identify a sentence copied into a secondary summary.
+
+The formalization boundary should distinguish source claims from supplied
+facts. A sentence defining a gift exception is part of the normative context.
+A bank record establishing that a fee was paid is factual evidence. A
+reviewer's classification relating the record to the exception is an
+interpretive application. Combining all three into an undifferentiated
+``evidence'' list makes it harder to see where disagreement actually arises.
+
+Recent faithfulness work analyzes how language models and formal solvers can
+diverge when implicit assumptions enter formalization \citep{limits2026}.
+The retained paper also has annotation and denominator questions that prevent
+us from transferring a general accuracy figure. Its examples nevertheless
+reinforce a practical requirement: an implicit assumption that changes the
+answer should become an explicit, challengeable premise. The system must
+show where a model supplied information that the source packet did not.
+
+\section{Testing paths, dates and inconsistent constraints}
+\label{sec:languages-analysis}
+Other methods contribute different checks once a formal model exists.
+CUTECat uses concolic execution to explore paths in Catala programs
+\citep[secs.~2--5]{cutecat2025}. Concolic execution combines a concrete run
+with symbolic constraints describing the path taken. By changing a path
+condition, the tool seeks an input that exercises another branch. For our
+gift example, this is analogous to moving from a named-product case to the
+case where only the product-type route can determine the answer.
+
+Path-directed generation can expose an exception branch that ordinary
+examples never visit. It cannot visit a branch that the formal program
+omitted entirely. Independent source-derived cases remain necessary. The
+reported costs on larger legal examples also show why a prototype needs
+explicit resource limits; small-program speed should not be treated as a
+promise that every circular can be exhaustively explored.
+
+Date arithmetic is another place where a precise program can embody a wrong
+choice. Adding a month to a date near the end of a month may require a
+rounding convention. The choice can affect deadlines. \citet{dates2024}
+formalize date arithmetic and analyze ambiguity in legal applications. The
+transfer to this project is to make calendar rules, boundary conventions and
+their source basis explicit. A verified date library does not decide which
+rounding convention a particular provision requires.
+
+ContractCheck analyzes consistency and executability of structured contract
+models \citep[secs.~3--8]{contractcheck2025}. A satisfying assignment shows
+that a modeled set of conditions can jointly hold. An unsatisfiable set can
+help locate conflicting clauses or assumptions. Neither result proves that
+the original legal document has been translated faithfully. The study's
+manual translation is an important part of its task boundary.
+
+An unsatisfiable core is a useful diagnostic: a subset of constraints that
+already suffices for inconsistency. It is not necessarily the smallest such
+subset unless a minimization procedure establishes that property. For a
+reviewer, a small and source-linked explanation is valuable, but the product
+should label a returned core accurately. It must also distinguish an
+encoding inconsistency from legitimate defeasible conflict that the chosen
+logic was intended to resolve.
+
+These analyses fit into the ensemble as specialized questions. Does this
+representation have a hidden path? Does a date convention alter a boundary
+case? Are the supplied assumptions jointly possible? Does a revised rule
+preserve the reviewed behavior? Their evidence can challenge a candidate
+without claiming to replace the source interpretation process.
+
+\section{A synthesis for the first implementation}
+\label{sec:languages-synthesis}
+The immediate product should keep a small executable core whose semantics are
+fully specified. Around it, the interpretation record should be richer than
+the executable language: it needs alternative readings, source versions,
+definitions, unresolved qualitative judgments and supporting arguments.
+Controlled templates give reviewers a readable view of formal structure.
+Specialized analyses can then inspect declared fragments through adapters.
+
+This choice avoids forcing every legal question into the first compiler.
+A paragraph requiring judgment can become a reviewed assessment input or
+manual procedure, with explicit evidence and responsibility. A temporal duty
+can use an event profile whose limits are stated. A disputed definition can
+remain in the interpretation set until review resolves it. The system can
+still generate Java for a reviewed subset while keeping the broader
+assessment visibly incomplete.
+
+Every adapter needs a semantic contract. It declares supported constructs,
+result categories, unknown and conflict behavior, vocabulary mapping,
+resource bounds and how a returned witness is replayed. A paper's name or
+a repository's existence does not supply that contract. A failed or
+unsupported analysis is reported as such and cannot be counted as an
+additional agreeing ensemble member.
+
+The literature thus supplies complementary mechanisms: source-linked
+authoring, precise exceptions, contextual alternatives, normative state,
+symbolic consequence, path-directed testing and translation repair. The
+new contribution proposed here is the controller that combines these
+mechanisms without allowing one successful check to conceal another
+unresolved question. Before specifying that controller, we need to explain
+how competing interpretations are generated and defended. That is the task
+of the next chapter.

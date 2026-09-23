@@ -1,0 +1,920 @@
+                                               Faithful Autoformalization via Roundtrip Verification and Repair
+
+                                             Daneshvar Amrollahi† *                         Jerry Lopez                       Clark Barrett†
+
+
+                                                                                    † Stanford University, USA
+
+
+
+
+                                                              Abstract                               ground-truth formalizations. The key idea is simple
+                                                                                                     (Figure 1): given a natural-language specification
+                                            When an LLM formalizes natural language,
+arXiv:2604.25031v2 [cs.CL] 9 May 2026
+
+
+
+
+                                                                                                     x, we formalize it (T1 ), translate the result back
+                                            how do we know the output is faithful? We pro-
+                                                                                                     to natural language (T2 ), and then re-formalize the
+                                            pose a roundtrip verification approach which
+                                            does not require ground-truth annotations: for-          result (T3 ). We call each of these translation steps
+                                            malize a statement, translate the result back to         a stage. If the pipeline preserves meaning, the
+                                            natural language, re-formalize, and use a for-           initial and final formalizations should be semanti-
+                                            mal tool to check logical equivalence. When              cally equivalent. When they disagree, the point of
+                                            the two formalizations agree, this provides              divergence localizes the error to a specific stage,
+                                            evidence of a faithful formalization. When               enabling both valuable diagnostic information as
+                                            they disagree, a stage-level diagnosis localizes         well as the possibility of scoped repair: attempting
+                                            the error to a specific translation step, and a
+                                                                                                     to correct only the faulty component rather than re-
+                                            scoped repair operator attempts to correct that
+                                            step. We evaluate the framework on two statu-            generating everything. The framework is agnostic
+                                            tory domains (the Texas Transportation Code              to the choice of the formalism: it applies whenever
+                                            and the Texas Parks and Wildlife Code) us-               a target formalism admits an equivalence check,
+                                            ing two LLMs (Claude Opus 4.6 and GPT-5.2)               e.g., automated reasoning tools for logical formu-
+                                            with three repair baselines. Diagnosis-guided            las, type-checkers for proof assistants, test suites
+                                            scoped repair is the most effective method, with         for code, etc.
+                                            effectiveness contingent on the reliability of the
+                                                                                                        We evaluate the framework on two statutory
+                                            diagnosis function. Across both domains and
+                                            both models, under our full repair system, rules         domains: 150 rules from the Texas Transporta-
+                                            that fail the equivalence check show 1.4×-2.5×           tion Code and 77 rules from the Texas Parks and
+                                            more NLI drift than rules that pass it.                  Wildlife Code. We use two LLMs, Claude Opus 4.6
+                                                                                                     (Anthropic) and GPT-5.2 (OpenAI). The target for-
+                                        1    Introduction                                            malism is based on many-sorted first-order logic,
+                                                                                                     with equivalence checked by an SMT solver (Bar-
+                                        Autoformalization, the translation of natural-
+                                                                                                     rett et al., 2021). We compare our diagnosis-guided
+                                        language statements into formal, machine-
+                                                                                                     scoped repair against three baselines: no repair, re-
+                                        checkable representations, is a rapidly growing
+                                                                                                     pair with random stage selection, and full-pipeline
+                                        area of NLP research (Wu et al., 2022). Yet a
+                                                                                                     regeneration. The results yield two principal find-
+                                        fundamental question remains largely unaddressed:
+                                                                                                     ings:
+                                        when an LLM produces a formalization, how do
+                                        we know it faithfully captures the meaning of                  1. Formal equivalence predicts semantic faith-
+                                        the original text? Existing evaluations rely on                   fulness. Across both domains and both mod-
+                                        syntactic validity or downstream task success,                    els, under our full repair system, rules that fail
+                                        neither of which directly tests semantic fidelity.                the equivalence check show 1.4×-2.5× more
+                                        Furthermore, when errors are found, repair                        NLI drift than rules that pass it.
+                                        is limited to end-to-end regeneration with no
+                                                                                                       2. Diagnosis-guided scoped repair achieves
+                                        diagnosis of where meaning was lost (§2).
+                                                                                                          the highest verified-equivalence rate at the
+                                           We propose a framework that addresses both
+                                                                                                          lowest cost when the diagnosis step is reli-
+                                        problems (verification and repair) without requiring
+                                                                                                          able. With Claude performing the pipeline,
+                                            * Correspondence: daneshvar@cs.stanford.edu.                  repair, and diagnosis, scoped repair leads on
+
+                                                                                                 1
+                          T1
+                                                               tual consistency among LLM-generated code, doc-
+          x                                y orig              strings, and formal annotations via a Dafny verifier
+                                                               (Sun et al., 2023), but it assumes the existence of
+                                                               the formalization from the start. ProofBridge itera-
+                      ≡Σ ?                    T2
+                                                               tively repairs Lean proofs from type-checker feed-
+                                                               back (Jana et al., 2025). DeepSeek-Prover-V1.5
+         y rt                               x′
+                                                               uses RL with proof-assistant rewards (Xin et al.,
+                          T3                                   2024). Self-debugging repairs code from execution
+                                                               results (Chen et al., 2023). These systems treat
+Figure 1: Roundtrip loop. An input x is formalized             verifier feedback as a binary accept/reject signal,
+(T1 ), reconstructed back to natural language (T2 ), and       but they do not diagnose which stage of a multi-
+re-formalized (T3 ). The diagonal compares y orig and
+                                                               step pipeline introduced the error. A parallel self-
+y rt for semantic equivalence under Σ.
+                                                               refinement line (Madaan et al., 2023; Shinn et al.,
+                                                               2023; Pan et al., 2024) forgoes external verifica-
+     both domains. With GPT in those roles, di-                tion entirely and uses the LLM as its own feedback
+     agnosis is unreliable, causing scoped repair              source.
+     to lose its lead. Replacing only the diagno-
+                                                               Faithfulness without ground truth. Faithful-
+     sis step with Claude (keeping GPT for the
+                                                               ness in generated text is widely studied in NLG
+     pipeline and repair) restores scoped repair to
+                                                               (Maynez et al., 2020; Manakul et al., 2023; Min
+     a clear lead at lower cost on both domains.
+                                                               et al., 2023) but typically over natural-language text
+   Our contributions are: (i) A roundtrip verifica-            without a formal target. Round-trip correctness has
+tion framework that signals faithfulness of autofor-           been used as an evaluation signal in code gener-
+malization without requiring ground-truth formal-              ation when checking equivalence via test suites
+izations, instantiated with SMT in our experiments             (Allamanis et al., 2024). In autoformalization, re-
+and applicable in principle to any target formalism            cent work uses re-informalization combined with
+with an equivalence check. (ii) A stage-level diag-            consistency checks: Li et al. (2024) rank candi-
+nosis and scoped repair procedure that localizes er-           dates using a mix of symbolic equivalence and em-
+rors to individual translation steps. Repair is driven         bedding similarity over re-informalized text, while
+by formal equivalence alone. A bidirectional NLI               Chen et al. (2026) train a model to self-evaluate
+signal serves as an independent post-hoc semantic              semantic fidelity and iteratively self-correct. These
+check. (iii) An empirical study across two statutory           approaches target mathematics, where the target
+domains and two model families that identifies the             formalism provides a natural oracle (a stated the-
+diagnosis step (not the pipeline or repair operators)          orem can be type-checked against its proof). Reg-
+as the bottleneck for scoped repair, and shows that            ulatory text offers no such oracle, motivating our
+replacing only the diagnoser with a different model            use of formal SMT equivalence over the round-trip
+can restore scoped repair to a clear lead at lower             artifacts together with stage-level diagnosis and
+cost.                                                          scoped repair, rather than candidate selection or
+                                                               single-pass self-correction.
+2   Related Work
+                                                               3   Roundtrip Autoformalization
+Autoformalization (Wu et al., 2022) has produced                   Framework
+NL-formal benchmarks for proof assistants (Zheng
+et al., 2022; Azerbayev et al., 2023; Ying et al.,             Target formalism and notation. Let X denote
+2024; Gao et al., 2024; Jiang et al., 2023a) and               the set of natural-language strings. We use Σ to
+methods that use prover or compiler feedback to im-            represent the target formalism. The framework
+prove formalization quality (Jiang et al., 2023b; Lu           is agnostic to the specific choice of Σ: all that is
+et al., 2024; Yang et al., 2023; Murphy et al., 2024).         required is for there to be a notion of well-formed
+Concurrent work formalizes non-mathematical text               expressions and a notion of formal equivalence. Let
+(Manas et al., 2024).                                          YΣ denote the set of well-formed Σ−expressions.
+                                                               We write ya ≡Σ yb when two formulas ya , yb ∈ YΣ
+Verification-integrated repair. Several systems                are equivalent according to Σ. For example, Σ
+couple verification with repair: Clover checks mu-             could be first-order logic with the standard notion
+
+                                                           2
+of logical equivalence, or it could be a formalism               and produce a scoped explanation for repair (§4).
+based on dependent type theory such as that used by              Note that if the roundtrip is consistent with the
+the Lean 4 theorem prover (de Moura and Ullrich,                 original (i.e., y orig ≡Σ y rt ), correctness is still not
+2021).                                                           guaranteed: the pipeline may stabilize at a seman-
+                                                                 tically different fixed point where both formaliza-
+Three translation stages. We model roundtrip
+                                                                 tions agree yet neither faithfully represents x. We
+autoformalization as a composition of three trans-
+                                                                 therefore treat formal consistency as necessary but
+lation functions:
+                                                                 not sufficient. In §5, we discuss how to supplement
+                       T1 : X → YΣ                    (1)        roundtrip verification with an additional NLI-based
+                                                                 check.
+                       T2 : YΣ → X                    (2)
+                       T3 : X → YΣ                    (3)        Syntactic well-formedness as prerequisite. Be-
+                                                                 fore semantic equivalence can be checked, each
+where T1 performs autoformalization, T2 performs                 formula must be syntactically valid according to
+back-translation, and T3 performs re-formalization.              Σ. LLM-generated formulas occasionally violate
+All three stages operate under the same fixed target             grammar or type constraints. We allow up to five
+formalism Σ. Each Ti is assumed to be stateless:                 LLM-based correction attempts per formula, which
+successive calls are mutually independent, with                  in our experience suffices to ensure that at least one
+no shared memory or parameter updates between                    parsable encoding is produced.
+stages. The framework is agnostic to how each Ti
+is realized (e.g., an LLM, a rule-based translator,              4     Stage-Based Diagnosis and Iterative
+or a human annotator). Note that T1 and T3 share                       Repair
+the same type: both translate from natural language
+                                                                 When y orig ̸≡Σ y rt , the roundtrip instance is for-
+strings to well-formed Σ expressions. We consider
+                                                                 mally inconsistent, implying that at least one of the
+them distinct to maintain generality and also so that
+                                                                 translation stages introduced semantic drift. How-
+stage-level diagnosis and scoped repair can refer
+                                                                 ever, the equivalence test alone does not identify
+unambiguously to the pipeline stage at which an
+                                                                 which stage is responsible. We therefore introduce
+error originates.
+                                                                 a stage-based diagnosis and repair procedure that
+Roundtrip instance. Consider again Figure 1.                     localizes the failure and applies a targeted repair
+Given an input x ∈ X , the roundtrip pipeline pro-               operator (Figure 2).
+duces:
+                                                                 4.1    First-Failure Diagnosis
+                    orig
+                y          = T1 (x) ∈ YΣ              (4)        First-failed stage. We view the pipeline as an
+                       ′         orig                            ordered sequence of stages T1 ≺ T2 ≺ T3 . In-
+                     x = T2 (y          )∈X           (5)
+                      rt         ′
+                    y = T3 (x ) ∈ YΣ .                (6)        tuitively, an error introduced earlier may propa-
+                                                                 gate downstream, so we aim to identify the earli-
+We refer to y orig as the original formalization and             est stage at which the pipeline ceases to preserve
+to y rt as the roundtrip formalization.                          semantics. Formally specifying natural-language
+                                                                 semantics is beyond the scope of this work. Instead,
+Why roundtrip? The roundtrip construction                        diagnosis operates over the observable artifacts
+yields a verification signal without requiring                   (x, y orig , x′ , y rt ) and returns an index in {1, 2, 3}.
+ground-truth formalizations. If T1 faithfully cap-
+tures the meaning of x, then back-translating and                Diagnosis function.       Let
+re-formalizing should recover the same formal se-
+mantics. When the two formalizations disagree,                       D : X × YΣ × X × YΣ → {1, 2, 3} × E                (7)
+the point of divergence localizes the error.
+                                                                 be a diagnosis procedure which, given the roundtrip
+Formal equivalence. The primary verification                     artifacts, predicts the first failed stage and produces
+question is whether y orig ≡Σ y rt . If not, at                  an explanation e ∈ E, where E is the set of possible
+least one translation stage has introduced or lost               explanations. In our system, D is implemented as
+meaning, triggering a diagnosis step in which an                 a constrained LLM-based judge and E is simply
+LLM judge examines all four pipeline artifacts                   X , the set of natural language strings. We enforce
+(x, y orig , x′ , y rt ) to identify the responsible stage       a sequential checking protocol: D must examine
+
+                                                             3
+stages strictly in order (first comparing x with y orig       Algorithm 1 Roundtrip Verification and Stage-
+for Stage 1, then y orig with x′ for Stage 2, and             Based Repair
+finally x′ with y rt for Stage 3), halting at the first       Require: Natural-language input x ∈ X , formal-
+detected inconsistency.                                           ism Σ, max iterations K
+                                                               1: y orig ← T1 (x)
+Scoped diagnostic reasoning. Critically, the ex-
+                                                               2: x′ ← T2 (y orig )
+planation e returned by D is constrained to refer-
+                                                               3: y rt ← T3 (x′ )
+ence only the artifacts relevant to the diagnosed
+                                                               4: for k = 1 to K do
+stage. For instance, if Stage 2 is diagnosed as
+                                                               5:     if y orig ≡Σ y rt then
+faulty, the explanation must describe the mismatch
+                                                               6:        Return SUCCESS, (y orig , x′ , y rt )
+between y orig and x′ without mentioning x or y rt .
+                                                               7:        return
+This scoping ensures that the diagnostic feedback
+                                                               8:     end if
+can be directly incorporated into the correspond-
+                                                               9:     i ← D(x, y orig , x′ , y rt ) {first-failed stage}
+ing repair prompt without introducing confounding
+                                                              10:     if i = 1 then
+information from other pipeline stages.
+                                                              11:        y orig ← R1 (x, y orig )
+4.2   Targeted Repair Operators                               12:        x′ ← T2 (y orig )
+                                                              13:        y rt ← T3 (x′ )
+Repair operators. A key design principle is that
+                                                              14:     else if i = 2 then
+repairing stage i invalidates all downstream arti-
+                                                              15:        x′ ← R2 (y orig , x′ )
+facts produced by later stages; after repair, we
+                                                              16:        y rt ← T3 (x′ )
+therefore regenerate all subsequent stages to main-
+                                                              17:     else if i = 3 then
+tain a coherent pipeline state. Each repair operator
+                                                              18:        y rt ← R3 (x′ , y rt )
+receives the relevant artifacts together with the di-
+                                                              19:     end if
+agnostic explanation e produced by D:
+                                                              20: end for
+                                                              21: Return FAILURE, (y orig , x′ , y rt )
+             R1 : X × YΣ × E → YΣ                  (8)
+             R2 : YΣ × X × E → X                   (9)
+             R3 : X × YΣ × E → YΣ                 (10)        equivalence is achieved (success) or after a fixed
+                                                              maximum number of iterations (failure). We reit-
+where R1 repairs the original formalization, R2               erate that when the procedure reports success, this
+repairs the reconstructed NL, and R3 repairs the              does not guarantee correctness with respect to the
+roundtrip formalization. Each Ri is instantiated as           original natural-language intent, but it does provide
+an LLM call operating under the same target for-              a measure of reassurance and confidence.
+malism Σ. The diagnostic explanation e is injected
+into the repair prompt, instructing the model to ad-          5   Auxiliary Semantic Signal
+dress the specific issues identified during diagnosis
+rather than regenerating blindly. This feedback-              Bidirectional NLI as a semantic proxy. We
+driven design enables targeted corrections: the re-           use natural language inference (NLI) to compare
+pair prompt explicitly states what semantic mis-              the original rule x with the reconstructed natural-
+match was detected, and the LLM is required to                language description x′ = T2 (y orig ). NLI has
+resolve that mismatch while preserving other as-              been used as a faithfulness proxy across NLG tasks
+pects of the encoding.                                        (Falke et al., 2019; Honovich et al., 2022; Laban
+                                                              et al., 2022). If the roundtrip preserves semantics,
+4.3   Iterative Repair Loop                                   x and x′ should be mutually entailing: x entails x′
+                                                              (nothing lost) and x′ entails x (nothing spuriously
+Iterative procedure. We combine verification,
+                                                              added). We operationalize this using a BART-large
+diagnosis, and repair into an iterative loop that at-
+                                                              model fine-tuned on MultiNLI (Lewis et al., 2020;
+tempts to reach formal self-consistency within a
+                                                              Williams et al., 2018), computing entailment prob-
+bounded budget. Starting from (x, y orig , x′ , y rt ),
+                                                              abilities in both directions:
+we repeatedly: (i) check whether y orig ≡Σ y rt ,
+(ii) if not, diagnose the first-failed stage, apply
+                                                                          E→ = P (entailment | x, x′ )            (11)
+the corresponding repair operator, and regenerate                                                     ′
+downstream artifacts. The loop terminates when                            E← = P (entailment | x , x)             (12)
+
+
+                                                          4
+          A. Roundtrip autoformalization                                             B. Diagnosis and scoped repair
+                                                                                  x, y orig , x′ , y rt
+
+
+                       T1                T2                T3
+              x               y orig              x′               y rt
+           NL input           Formal            NL recon        Formal
+                                                                                                  Diagnosis D (LLM judge)
+
+                                                                                        if i=1               if i=2           if i=3
+
+                                   SMT solver                   SAT
+                                                                                        R1                     R2               R3
+                                 y orig ≡Σ y rt ?                                   x, y orig , e         y orig , x′ , e   x′ , y rt , e
+                                                                                    → new y orig           → new x′         → new y rt
+                                              UNSAT
+
+                        ✓ Success: self-consistent
+
+
+                        rerun downstream Ti , and then SMT check
+
+
+Figure 2: The roundtrip autoformalization framework. (A) The pipeline produces two formal encodings of x and an
+SMT solver checks them for equivalence. (B) On disagreement, diagnosis D localizes the failed stage and repair
+operator Ri corrects it before re-checking.
+
+
+                                yes                                           Diagnostic, not supervisory. NLI scores are
+               Cmax ≥ 0.6              Contradiction
+                  no
+                                                                              used only for post-hoc analysis, not as optimiza-
+       Emin ≥ 0.7 ∧ Cmax < 0.2
+                                          yes
+                                                Equivalent
+                                                                              tion targets. The repair loop (§4) operates solely on
+                  no                                                          formal equivalence. NLI serves as an independent
+                                        yes
+         E→ ≥ 0.6 ∧ E← < 0.4                  Strengthened                    diagnostic lens, allowing us to ask: when formal
+                  no                                                          self-consistency is achieved, does semantic fidelity
+                                        yes
+         E← ≥ 0.6 ∧ E→ < 0.4                  Weakened                        follow? This separation avoids optimizing for a
+                  no                                                          noisy proxy while still providing a meaningful sig-
+                                          yes
+       Emin ≥ 0.3 ∧ Cmax < 0.3                  Related                       nal. In §7, we cross-tabulate formal equivalence
+                  no                                                          with NLI categories to reveal where formal consis-
+                  Unrelated                                                   tency diverges from semantic alignment.
+Figure 3: NLI diagnostic decision tree (first match wins).
+                                                                              6     Experimental Setup
+Thresholds are conservative. Equivalent demands strong
+bidirectional entailment (≥ 0.7) with near-zero contra-                       6.1     Domains and Datasets
+diction (≤ 0.2), while Contradiction requires high con-
+flict (≥ 0.6). Because these categories serve as a post-                      From law to logic. We instantiate the framework
+hoc diagnostic rubric rather than an optimization target,                     on statutory regulation, which combines natural-
+the exact thresholds affect only the granularity of the                       language ambiguity with precise operational re-
+analysis, not the behavior of the system.                                     quirements. We evaluate on two corpora: traffic
+                                                                              law and wildlife regulation. Any statutory domain
+                                                                              admitting a formal equivalence check could serve
+along with contradiction probabilities C→ and C← .                            equally well (§3).
+
+                                                                              Traffic corpus. We evaluate on 150 rules drawn
+Diagnostic categories. We derive Emin =                                       from the Texas Transportation Code. These rules
+min(E→ , E← ) for mutual entailment and Cmax =                                govern vehicle behavior on roadways, covering
+max(C→ , C← ) for contradiction. Each rule pair is                            lane positioning, passing maneuvers, signaling re-
+classified into one of six categories via the decision                        quirements, speed limits, and interactions with spe-
+tree in Figure 3 (first match wins). The six cate-                            cial vehicles (e.g., streetcars, school buses, emer-
+gories (Contradiction, Equivalent, Strengthened,                              gency vehicles).
+Weakened, Related, Unrelated) capture not only
+whether meaning is preserved but how it drifts, a                             Wildlife corpus. We evaluate on 77 rules drawn
+distinction that a binary test would obscure.                                 from the Texas Parks and Wildlife Code, a second
+
+                                                                          5
+statutory domain. These rules cover hunting and              Compute. Claude Opus 4.6 and GPT-5.2 are
+fishing licensing, season and bag-limit restrictions,        commercial APIs whose parameter counts are not
+equipment and method restrictions, and protected-            publicly disclosed. NLI inference uses BART-large
+species rules.                                               (approximately 0.4B parameters) on a single laptop.
+                                                             Per-repair LLM call counts, the dominant cost, are
+6.2   Models and Configuration                               reported in Table 1.
+Formalism. A Satisfiability Modulo Theories
+                                                             6.3    Ablation Conditions
+(SMT) solver is a tool that can formally deter-
+mine whether a set of first-order formulas is satis-         We compare four approaches:
+fiable (i.e., whether there exists an interpretation
+that makes all of the formulas true) with respect to             1. No Repair (Baseline 0): The roundtrip
+some background theory T (Barrett et al., 2010).                    pipeline runs without any repair loop. The
+An SMT solver returns one of two verdicts: SAT                      initial equivalence check result is final.
+(a satisfying interpretation exists) or UNSAT (no
+such interpretation exists). SMT solvers can check               2. Random Stage (Baseline 1): When the equiv-
+whether two formulas φ and ψ are logically equiv-                   alence check fails, select a stage i ∈ {1, 2, 3}
+alent (with respect to a theory T ), by checking the                uniformly at random, repair it, and regenerate
+satisfiability of ¬(φ = ψ). If the result is UNSAT,                 downstream stages. Repeat up to K=3 times,
+no interpretation can distinguish the two formu-                    stopping as soon as equivalence holds. No
+las, certifying equivalence. If SAT, the solver can                 diagnosis is performed.
+return a counterexample demonstrating the differ-
+ence. We construct a domain schema for each cor-                 3. Regenerate (Baseline 2): When the equiv-
+pus, a set of SMT declarations and definitions that                 alence check fails, regenerate the entire
+provide a fixed vocabulary for that domain’s con-                   pipeline from the original input x and check
+cepts. Schemas are produced semi-automatically:                     again. Repeat up to K=3 times, stopping as
+we draft a sketch by hand, scale it up with an LLM,                 soon as equivalence holds. No diagnosis is
+and curate the result against a list of design prin-                performed.
+ciples to avoid common smells (Appendix B). We
+                                                                 4. Full (Ours): We use the complete pipeline
+use the Z3 SMT solver (de Moura and Bjørner,
+                                                                    with diagnosis (§4.1) followed by targeted re-
+2008) (version 4.15.3) to check equivalence, and
+                                                                    pair of the diagnosed stage. This is the system
+all queries resolve in under one second.
+                                                                    described in Algorithm 1.
+Language models and repair. To assess frame-
+work generalizability across model families, we run          All four approaches share the same initial roundtrip
+the full pipeline with two frontier LLMs: Claude             pass (identical y orig , x′ , y rt ). They differ only in
+Opus 4.6 (Anthropic) and GPT-5.2 (OpenAI).                   the repair strategy applied to rules where the initial
+Both use temperature 0.3. Each translation stage             equivalence check returns SAT.
+(T1 , T2 , T3 ) and repair operator (R1 , R2 , R3 ) is          The two new baselines isolate two design
+realized as a single stateless LLM call. The do-             choices in Full. Random Stage controls for the
+main schema is injected into every prompt, and no            value of diagnosis (which stage is selected for re-
+context is carried between calls. All stages and             pair). Regenerate controls for the value of scoping
+operators use the same prompts for both models.              (re-running only the diagnosed stage rather than
+The iterative repair loop (§4) runs for at most K=3          the whole pipeline).
+iterations per rule. Each result is from a single
+run. The directional patterns reported in §7 hold            7     Results and Analysis
+consistently across all four domain-model cells.             7.1    Roundtrip Equivalence and Repair
+NLI model. For semantic comparison between                   Table 1 reports final equivalence outcomes across
+original and reconstructed natural language,                 the four domain-model cells. Without repair, equiv-
+we use BART-large fine-tuned on MultiNLI                     alence ranges from 44.7 % (Traffic / Claude) to
+(facebook/bart-large-mnli). Inference is per-                66.2 % (Wildlife / GPT). Each repair method sub-
+formed bidirectionally as described in §5.                   stantially raises equivalence in every cell.
+
+                                                         6
+Method comparison. The most effective repair                 drift 2.03 times more often than UNSAT rules. The
+method depends on the model, and the same pat-               same pattern holds when baselines are included:
+tern holds across both domains. For Claude, Full             pooled across all 14 method-cell combinations in
+leads on both UNSAT count and cost-per-repair.               Table 2, SAT rules still drift 1.74 times more often
+For GPT with same-model diagnosis, Regenerate                than UNSAT rules. The pattern is consistent across
+matches or surpasses Full on count, and Full is the          both model families and both statutory domains.
+most expensive of the three methods. This split              Formal equivalence does not guarantee semantic
+reflects the diagnosis distribution: GPT repeatedly          fidelity, but it predicts it.
+diagnoses T1 , which forces regenerating T2 and T3
+downstream on every iteration (§7.2). The third              7.4   Residual Failure Analysis
+row of each GPT block reports the cross-model                A rule is residual if none of Random, Regenerate,
+intervention, where Claude performs only the diag-           or Full repairs it within K=3 iterations. 26 unique
+nosis step. We analyze this fix in §7.5.                     rules are residual across the four cells. Manual
+                                                             inspection identifies four recurring patterns of in-
+7.2   Stage Diagnosis Distribution                           trinsic rule difficulty: schema vocabulary gaps
+The two models diagnose pipeline failures very dif-          (the schema lacks a needed predicate, so T1 and
+ferently, and the pattern is consistent across both          T3 approximate with different substitutes), com-
+domains (Table 3, Appendix C). Claude distributes            pound conditions (disjunctive or nested premises
+its diagnoses across all three stages. GPT col-              where T1 and T3 encode the AND/OR structure
+lapses almost all of its diagnoses onto T1 . The Ran-        differently), exception clauses (rules that suspend
+dom baseline distributes approximately uniformly             an obligation under a condition, where T2 back-
+across stages in every cell, so the concentration is         translates the exception as a positive restatement
+a property of the diagnosis function, not the data.          and T3 then encodes the inverted meaning), and
+   Repairing T1 cascades: it forces a fresh T2 and a         conditional thresholds (numeric thresholds that
+fresh T3 on every iteration, while repairing T3 does         depend on another variable, where the pipeline of-
+not. GPT’s T1 -heavy diagnosis therefore behaves             ten drops the dependency). The bottleneck is in-
+like full-pipeline regeneration plus a diagnosis call,       trinsic rule structure, not iteration budget. Schema
+which explains Full’s higher cost than Regenerate            expressiveness and compositional handling are the
+for GPT (Table 1). §7.5 tests whether this T1 con-           most actionable follow-up directions (§8).
+centration is a property of the protocol or of the
+                                                             7.5   Why does GPT’s diagnosis collapse?
+model.
+                                                             The GPT/Full underperformance we report in §7.2
+7.3   Formal vs. Semantic Alignment                          stems from a single design point: the diagnosis
+                                                             function. GPT selects the first translation step T1 in
+We examined the rate of every NLI category in
+                                                             83 % of iterations on Traffic and 97 % on Wildlife,
+each pool (Appendix D, Table 4). Related and
+                                                             regardless of where the actual error occurs (Ta-
+Weakened distribute similarly between UNSAT and
+                                                             ble 3). Two hypotheses are compatible with this:
+SAT. Strengthened concentrates in UNSAT. This
+                                                             the prompt’s sequential checking protocol biases
+reflects an artifact of the back-translation: the re-
+                                                             GPT toward the first stage examined, or GPT has
+constructed NL tends to use the schema’s predicate
+                                                             an intrinsic preference for blaming initial formal-
+names verbatim, which produces wordier text than
+                                                             ization. We test both directly.
+the original lawyer-written rule. NLI interprets the
+wordier reconstruction as a stricter version of the          Non-sequential prompt. We rewrite the diagno-
+original, so NLI-Strengthened arises even when the           sis prompt to drop the “examine T1 first, then T2 ,
+formalization is faithful. Only Unrelated and Con-           then T3 , halt at first failure” instruction and ask
+tradiction discriminate cleanly between UNSAT                the judge to consider all three stages together. Re-
+and SAT, motivating their use as our Drift measure.          running diagnosis on the existing GPT SAT pools,
+                                                             T1 selection drops from 85 % to 9 % on Traffic
+Formal equivalence predicts semantic faithful-
+                                                             and from 96 % to 16 % on Wildlife. The protocol
+ness. Figure 4 shows that under Full repair, SAT
+                                                             explains most of the collapse.
+rules drift 1.45×-2.53× more often than UNSAT
+rules across the four domain-model cells. Pooled             Cross-model diagnosis. We rerun the Full repair
+across these four Full configurations, SAT rules             loop on the existing GPT pipeline outputs but use
+
+                                                         7
+                                                                                   Final UNSAT count (%)                           LLM calls / repair
+   Domain                                    Model     Diagnoser         None         Random         Regen          Full       Random Regen           Full
+                                             Claude Claude           67 (44.7) 100 (66.7) 97 (64.7) 128 (85.3)                   12.27        19.90    7.21
+   Traffic (N =150)                          GPT    GPT              92 (61.3) 118 (78.7) 127 (84.7) 124 (82.7)                  9.77         10.54   14.56
+                                             GPT    Claude              —         —          —       136 (90.7)                   —            —      7.86
+                     Claude Claude                                   48 (62.3)        60 (77.9)     63 (81.8)     66 (85.7)      11.67        12.20    9.50
+   Wildlife (N =77)† GPT    GPT                                      51 (66.2)        59 (76.6)     65 (84.4)     60 (77.9)      12.75        11.57   26.44
+                     GPT    Claude                                      —                —             —          72 (94.7)       —            —      6.05
+
+Table 1: Roundtrip equivalence outcomes across two domains and four repair conditions. The Model column
+performs pipeline and repair. The Diagnoser performs diagnosis. Bold marks the per-row best. † One Wildlife rule
+was skipped at baseline and is excluded from post-repair counts.
+
+
+                                                     1.45×                  2.52×                    1.88×                  1.88×
+                                        50
+                                                                                                          45.5%
+                       Drift rate (%)
+
+
+
+
+                                        40
+                                                                                                                                 37.5%
+                                                                                   34.6%
+                                        30
+                                                                                                  24.2%
+                                        20                                                                             20.0%
+                                                          13.6%          13.7%                                  UNSAT (formally equivalent)
+                                        10      9.4%
+                                                                                                                SAT (not equivalent)
+                                        0
+                                                     Traffic                Traffic                  Wildlife               Wildlife
+                                                     Claude                  GPT                     Claude                  GPT
+
+
+Figure 4: NLI drift rate among UNSAT (formally equivalent) and SAT (not equivalent) post-repair rules under Full
+repair, one bar per domain-model cell. SAT rules drift more than UNSAT rules in every cell. The annotation above
+each pair is the SAT-to-UNSAT drift ratio.
+
+
+    Domain / Model Method                               UNSAT      SAT     Ratio             repair exceeds Claude/Full on UNSAT count and
+                                 Random                  14.0%    20.0%    1.43              matches or beats it on cost. The cross-model in-
+    Traffic / Claude             Regenerate              12.4%    21.2%    1.71
+                                 Full                     9.4%    13.6%    1.45              tervention preserves the faithfulness signal: UN-
+                                 Random                  15.3%    28.1%    1.84              SAT drift is 12.5 % (Traffic) and 19.4 % (Wildlife),
+                                 Regenerate              15.0%    26.1%    1.74
+    Traffic / GPT
+                                 Full                    13.7%    34.6%    2.53              comparable to the same-model rates of 13.7 % and
+                                 Full (Claude dx)∗       12.5%    35.7%    2.86              20.0 % (Table 2, last row of each GPT block).
+                      Random                             25.0%    35.3%    1.41
+    Wildlife / Claude Regenerate                         25.4%    28.6%    1.13
+                                                                                                The diagnosis function was the bottleneck. The
+                      Full                               24.2%    45.5%    1.88              pipeline and the repair operators were not.
+                                 Random                  18.6%     28.6% 1.54
+                                 Regenerate              20.0%     55.6% 2.78
+    Wildlife / GPT
+                                 Full                    20.0%     37.5% 1.88                8     Conclusion
+                                 Full (Claude dx)∗       19.4%    66.7%‡ 3.43‡
+    Pooled                                               16.2%    28.1%    1.74
+                                                                                             We evaluated a roundtrip verification and scoped
+                                                                                             repair framework on two statutory domains and
+Table 2: Post-repair drift rate (share of rules NLI-
+classified as Unrelated or Contradiction), split by SMT                                      two model families. Two findings stand out. First,
+verdict. Ratio is SAT drift divided by UNSAT drift,                                          formal equivalence is a useful predictor of semantic
+greater than 1 in every row. ∗ Cross-model: GPT                                              faithfulness: across the four Full configurations
+pipeline + Claude diagnosis (§7.5). ‡ Wildlife / Claude-                                     spanning both domains and both models, SAT rules
+dx SAT pool has only 3 rules; the rate is noisy.                                             show 1.4×-2.5× more NLI drift than UNSAT rules.
+                                                                                             Second, diagnosis-guided scoped repair achieves
+                                                                                             the highest verified-equivalence rate at the lowest
+Claude as the diagnosis judge while GPT still per-                                           cost when the diagnosis function is reliable. On
+forms the actual repair. Final UNSAT rises from                                              Claude pipelines, same-model scoped repair wins
+124 to 136 on Traffic and from 60 to 72 on Wildlife.                                         on both domains. On GPT pipelines, the diagnosis
+Cost-per-repair drops from 14.56 to 7.86 and from                                            step is the bottleneck for scoped repair (not the
+26.44 to 6.05 (Table 1, last two rows). On both                                              pipeline or repair operators): replacing only the
+domains, GPT-pipeline + Claude-diagnose + GPT-                                               diagnoser with a different model restores scoped
+
+                                                                                         8
+repair’s lead at lower cost (§7.5).                         formal methods expert. Regarding environmen-
+   About 16 % of formally equivalent rules still            tal impact, the pipeline relies on API-based LLM
+drift, motivating schema enrichment and integra-            inference and a locally-run SMT solver. We did
+tion of semantic checks into the repair loop as fu-         not train or fine-tune any models, so the compute
+ture work.                                                  footprint is bounded by inference calls.
+
+Limitations                                                 Use of AI Assistants
+Domain scope. Both corpora are English statu-               Claude Code was carefully used to assist with code
+tory text from Texas. Mathematical autoformal-              implementation, LATEX formatting, and paraphras-
+ization benchmarks typically operate one theorem            ing during paper writing. All scientific content,
+at a time, where a human author can read the for-           experimental design, analysis, and claims are en-
+mal statement and verify it against the informal            tirely the authors’ own.
+one. Statutory text involves a large domain schema
+(close to 200 predicates) and operational ambigu-
+ity, so hand verification at scale is impractical and       References
+a ground-truth-free faithfulness signal is most di-         Miltiadis Allamanis, Sheena Panthaplackel, and
+rectly motivated by this setting. We do not claim             Pengcheng Yin. 2024. Unsupervised evaluation of
+the framework transfers to other genres such as               code LLMs with round-trip correctness. Preprint,
+code or scientific text without further evaluation.           arXiv:2402.08699.
+
+Verification is heuristic, not a proof. The                 Zhangir Azerbayev, Bartosz Piotrowski, Hailey
+                                                              Schoelkopf, Edward W. Ayers, Dragomir Radev, and
+roundtrip check detects when T1 (x) and                       Jeremy Avigad. 2023. Proofnet: Autoformalizing
+T3 (T2 (T1 (x))) disagree, but it cannot detect               and formally proving undergraduate-level mathemat-
+errors that affect both stages in the same way.               ics. ArXiv:2302.12433.
+For example, if T1 silently drops a conjunct of x
+                                                            Clark Barrett, Roberto Sebastiani, Sanjit Seshia, and Ce-
+and T3 reproduces the same omission from the                  sare Tinelli. 2021. Satisfiability modulo theories. In
+back-translation, the equivalence check passes                Armin Biere, Marijn J. H. Heule, Hans van Maaren,
+despite both being wrong. The NLI cross-check                 and Toby Walsh, editors, Handbook of Satisfiability,
+(§5) is a partial mitigation, but it relies on a              Second Edition, volume 336 of Frontiers in Artifi-
+                                                              cial Intelligence and Applications, chapter 33, pages
+general-purpose model with known lexical-overlap              825–885. IOS Press.
+biases (McCoy et al., 2019) on legal text, so its
+drift signal is itself noisy.                               Clark Barrett, Aaron Stump, and Cesare Tinelli. 2010.
+                                                              The SMT-LIB standard: Version 2.0. In Proceedings
+Rules are formalized in isolation. Statutory text             of the 8th International Workshop on Satisfiability
+can be heavily cross-referenced. A rule may incor-            Modulo Theories.
+porate definitions from another section, suspend            Guoxin Chen, Jing Wu, Xinjie Chen, Wayne Xin Zhao,
+obligations stated elsewhere, or impose conditions            Ruihua Song, Chengxi Li, Kai Fan, Dayiheng Liu,
+on rules outside its own clause. Our pipeline for-            and Minpeng Liao. 2026. ReForm: Reflective aut-
+malizes one rule at a time and treats each rule as            oformalization with prospective bounded sequence
+                                                              optimization. In International Conference on Learn-
+self-contained. Faithful formalization of densely             ing Representations (ICLR).
+cross-referenced rules likely requires presenting
+the connected cluster of rules together as input,           Xinyun Chen, Maxwell Lin, Nathanael Schärli, and
+rather than a single rule node. We leave this to              Denny Zhou. 2023. Teaching large language models
+                                                              to self-debug. arXiv preprint arXiv:2304.05128.
+future work.
+                                                            Leonardo de Moura and Nikolaj Bjørner. 2008. Z3:
+Risks                                                         An efficient SMT solver. In Proceedings of the In-
+                                                              ternational Conference on Tools and Algorithms for
+Autoformalization outputs generated by this sys-              the Construction and Analysis of Systems (TACAS),
+tem, including those that pass roundtrip verifica-            pages 337–340.
+tion, should not be used in safety-critical appli-
+                                                            Leonardo de Moura and Sebastian Ullrich. 2021. The
+cations, including but not limited to autonomous              Lean 4 theorem prover and programming language.
+systems, medical devices, or safety case documen-             In Automated Deduction – CADE 28, pages 625–635.
+tation, without independent review by a qualified             Springer.
+
+
+                                                        9
+Tobias Falke, Leonardo F. R. Ribeiro, Prasetya Ajie             Aman Madaan, Niket Tandon, Prakhar Gupta, Skyler
+  Utama, Ido Dagan, and Iryna Gurevych. 2019. Rank-              Hallinan, Luyu Gao, Sarah Wiegreffe, Uri Alon,
+  ing generated summaries by correctness: An interest-           Nouha Dziri, Shrimai Prabhumoye, Yiming Yang,
+  ing but challenging application for natural language           Shashank Gupta, Bodhisattwa Prasad Majumder,
+  inference. In Proceedings of the 57th Annual Meet-             Katherine Hermann, Sean Welleck, Amir Yazdan-
+  ing of the Association for Computational Linguistics,          bakhsh, and Peter Clark. 2023. Self-refine: iterative
+  pages 2214–2220, Florence, Italy. Association for              refinement with self-feedback. In Proceedings of the
+  Computational Linguistics.                                     37th International Conference on Neural Information
+                                                                 Processing Systems, NIPS ’23, Red Hook, NY, USA.
+Guoxiong Gao, Yutong Wang, Jiedong Jiang, Qi Gao,                Curran Associates Inc.
+  Zihan Qin, Tianyi Xu, and Bin Dong. 2024. Herald:
+  A natural language annotated lean 4 dataset. arXiv            Potsawee Manakul, Adian Liusie, and Mark J. F. Gales.
+  preprint arXiv:2410.10878.                                      2023. Selfcheckgpt: Zero-resource black-box hal-
+                                                                  lucination detection for generative large language
+Or Honovich, Roee Aharoni, Jonathan Herzig, Hagai                 models. Preprint, arXiv:2303.08896.
+  Taitelbaum, Doron Kukliansy, Vered Cohen, Thomas
+  Scialom, Idan Szpektor, Avinatan Hassidim, and                Kumar Manas, Stefan Zwicklbauer, and Adrian Paschke.
+  Yossi Matias. 2022. TRUE: Re-evaluating factual                 2024. TR2MTL: LLM based framework for met-
+  consistency evaluation. In Proceedings of the 2022              ric temporal logic formalization of traffic rules.
+  Conference of the North American Chapter of the                 ArXiv:2406.05709.
+  Association for Computational Linguistics: Human
+  Language Technologies, pages 3905–3920, Seattle,              Joshua Maynez, Shashi Narayan, Bernd Bohnet, and
+  United States. Association for Computational Lin-               Ryan McDonald. 2020. On faithfulness and fac-
+  guistics.                                                       tuality in abstractive summarization. Preprint,
+Prithwish Jana, Kaan Kale, Ahmet Ege Tanriverdi,                  arXiv:2005.00661.
+   Cruise Song, Sriram Vishwanath, and Vijay Ganesh.
+   2025. ProofBridge: Auto-formalization of natural             Tom McCoy, Ellie Pavlick, and Tal Linzen. 2019. Right
+   language proofs in Lean via joint embeddings. arXiv            for the wrong reasons: Diagnosing syntactic heuris-
+   preprint arXiv:2510.15681.                                     tics in natural language inference. In Proceedings
+                                                                  of the 57th Annual Meeting of the Association for
+Albert Q. Jiang, Wenda Li, and Mateja Jamnik.                     Computational Linguistics (ACL), pages 3428–3448.
+  2023a. Multilingual mathematical autoformalization.
+  ArXiv:2311.03755.                                             Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis,
+                                                                  Wen-tau Yih, Pang Koh, Mohit Iyyer, Luke Zettle-
+Albert Q. Jiang, Sean Welleck, Jin Peng Zhou,                     moyer, and Hannaneh Hajishirzi. 2023. FActScore:
+  Wenda Li, Jiacheng Liu, Mateja Jamnik, Timo-                    Fine-grained atomic evaluation of factual precision
+  thée Lacroix, Yuhuai Wu, and Guillaume Lample.                  in long form text generation. In Proceedings of the
+  2023b. Draft, sketch, and prove: Guiding formal                 2023 Conference on Empirical Methods in Natural
+  theorem provers with informal proofs. In Inter-                 Language Processing, pages 12076–12100, Singa-
+  national Conference on Learning Representations                 pore. Association for Computational Linguistics.
+  (ICLR). ArXiv:2210.12283.
+                                                                Logan Murphy, Kaiyu Yang, Jialiang Sun, Zhaoyu Li,
+Philippe Laban, Tobias Schnabel, Paul N. Bennett, and             Anima Anandkumar, and Xujie Si. 2024. Autofor-
+  Marti A. Hearst. 2022. SummaC: Re-visiting NLI-                 malizing Euclidean geometry. In International Con-
+  based models for inconsistency detection in summa-              ference on Machine Learning (ICML).
+  rization. Transactions of the Association for Compu-
+  tational Linguistics, 10:163–177.                             Liangming Pan, Michael Saxon, Wenda Xu, Deepak
+Mike Lewis, Yinhan Liu, Naman Goyal, Marjan                       Nathani, Xinyi Wang, and William Yang Wang. 2024.
+  Ghazvininejad, Abdelrahman Mohamed, Omer Levy,                  Automatically correcting large language models: Sur-
+  Veselin Stoyanov, and Luke Zettlemoyer. 2020.                   veying the landscape of diverse automated correction
+  BART: Denoising sequence-to-sequence pre-training               strategies. Transactions of the Association for Com-
+  for natural language generation, translation, and com-          putational Linguistics, 12:484–506.
+  prehension. In ACL.
+                                                                Noah Shinn, Federico Cassano, Ashwin Gopinath,
+Zenan Li, Yifan Wu, Zhaoyu Li, Xinming Wei, Xian                  Karthik Narasimhan, and Shunyu Yao. 2023. Re-
+  Zhang, Fan Yang, and Xiaoxing Ma. 2024. Autofor-                flexion: language agents with verbal reinforcement
+  malize mathematical statements by symbolic equiv-               learning. In Proceedings of the 37th International
+  alence and semantic consistency. In Advances in                 Conference on Neural Information Processing Sys-
+  Neural Information Processing Systems (NeurIPS).                tems, NIPS ’23, Red Hook, NY, USA. Curran Asso-
+                                                                  ciates Inc.
+Jianqiao Lu, Zhengying Liu, Yingjia Wan, Yinya Huang,
+   Haiming Wang, Zhicheng Yang, Jing Tang, and Zhi-             Chuyue Sun, Ying Sheng, Oded Padon, and Clark Bar-
+   jiang Guo. 2024. Process-driven autoformalization              rett. 2023. Clover: Closed-loop verifiable code gen-
+   in Lean 4. ArXiv:2406.01940.                                   eration. arXiv preprint arXiv:2310.17807.
+
+
+                                                           10
+Adina Williams, Nikita Nangia, and Samuel R. Bow-                  report Arrow 2.
+  man. 2018. A broad-coverage challenge corpus                  3. Else report Arrow 3.
+
+  for sentence understanding through inference. In              ARTIFACTS:
+  NAACL.                                                          Original NL:        {original_nl}
+                                                                  Phase 1 SMT:        {phase1_smt}
+                                                                  Reconstructed NL:   {reconstructed_nl}
+Yuhuai Wu, Albert Q. Jiang, Wenda Li, Markus N.                   Phase 3 SMT:        {phase3_smt}
+  Rabe, Charles Staats, Mateja Jamnik, and Christian
+  Szegedy. 2022. Autoformalization with large lan-              Respond in this format:
+                                                                  FIRST_FAILED_ARROW: [1, 2, or 3]
+  guage models. In Advances in Neural Information                 REASONING: [a short paragraph; reference
+  Processing Systems (NeurIPS). ArXiv:2205.12615.                   only the artifacts adjacent to the
+                                                                    diagnosed arrow]
+Huajian Xin, Z.Z. Ren, Junxiao Song, Zhihong Shao,
+  Wanjia Zhao, Haocheng Wang, Bo Liu, Liyue Zhang,               The repair prompts inject the diagnostic reason-
+  Xuan Lu, Qiushi Du, and 1 others. 2024. DeepSeek-            ing as a DIAGNOSTIC FEEDBACK field and instruct
+  Prover-V1.5: Harnessing proof assistant feedback for         the model to change only what is necessary to ad-
+  reinforcement learning and Monte-Carlo tree search.          dress the identified problem.
+  arXiv preprint arXiv:2408.08152.
+
+Kaiyu Yang, Aidan M. Swope, Alex Gu, Rahul Chala-              B   Schemas
+  mala, Peiyang Song, Shixing Yu, Saad Godil, Ryan
+  Prenger, and Anima Anandkumar. 2023. LeanDojo:
+                                                               Construction process. Each domain schema is
+  Theorem proving with retrieval-augmented language            produced semi-automatically. We hand-draft an ini-
+  models. In Advances in Neural Information Process-           tial schema sketch on a small set of pilot rules, then
+  ing Systems (NeurIPS), Datasets and Benchmarks               ask an LLM to extend the sketch with the additional
+  Track. ArXiv:2306.15626.
+                                                               sorts, predicates, and enumerated types needed to
+Huaiyuan Ying, Zijian Wu, Yihan Geng, Jiayu Wang,              encode the full corpus. We iterate (proposing, re-
+  Dahua Lin, and Kai Chen. 2024. Lean workbook: A              viewing, refining) until coverage is satisfactory. At
+  large-scale lean problem set formalized from natural         each round we curate the result against the design
+  language math problems. ArXiv:2406.03847.
+                                                               principles described below, removing or rewriting
+Kunhao Zheng, Jesse Michael Han, and Stanislas Polu.           predicates that violate them.
+  2022. MiniF2F: a cross-system benchmark for for-
+  mal Olympiad-level mathematics. In International             Design principles. We curate each schema
+  Conference on Learning Representations (ICLR).               against several principles to keep predicates
+  ArXiv:2109.00110.                                            reusable across rules and to avoid common smells.
+                                                               Each predicate should encode a single concept
+A    Prompt Templates
+                                                               rather than a multi-clause sentence. Action verbs
+The pipeline uses prompts for each pipeline com-               and qualifiers compose separately rather than fus-
+ponent: the three translation stages T1 , T2 , T3 , the        ing into one predicate. Anchor predicates such as
+diagnosis function D, and the three stage-specific             kind, used-device, or behavior tags are designed
+repair operators R1 , R2 , R3 . All prompts share              to fire in many rules. Discrimination among re-
+a common structure: a system role description,                 lated entities uses one sort with a kind enumeration
+the domain schema injected verbatim, the relevant              rather than multiple sorts. Numeric thresholds are
+pipeline artifacts, and explicit output-format con-            exposed as Real-valued functions rather than baked
+straints. Below is the diagnosis prompt in abridged            into predicate names. Opaque named enumera-
+form.                                                          tions (for example, long lists of protected species)
+                                                               collapse into a single black-box predicate. Time-
+       Listing 1: Diagnosis prompt (abridged).                 varying predicates take an integer time argument in
+ You are analyzing a 3-arrow translation
+ pipeline that converts natural language
+                                                               the last position; time-independent predicates omit
+ into SMT-LIB encodings:                                       it.
+   ARROW 1: Original NL -> Phase 1 SMT
+   ARROW 2: Phase 1 SMT -> Reconstructed NL
+   ARROW 3: Reconstructed NL -> Phase 3 SMT                    Excerpts. Short illustrative excerpts of both
+ Z3 returned SAT, so Phase 1 and Phase 3
+                                                               schemas are shown below.
+ encodings differ. Identify the FIRST arrow
+ that introduced the divergence.                                         Listing 2: Traffic schema (excerpt).
+ Procedure:                                                     ; Sorts
+ 1. Check Arrow 1. If Phase 1 SMT does not                      (declare-sort Vehicle 0)
+    match Original NL semantics, stop and                       (declare-sort Roadway 0)
+    report Arrow 1.
+ 2. Else check Arrow 2. If Reconstructed NL                     ; Static properties
+    does not describe Phase 1 SMT, stop and                     (declare-fun kind (Vehicle) VehicleKind)
+
+
+
+                                                          11
+ Domain Model / Method                    T1        T2   T3        NLI category    UNSAT pool    SAT pool    SAT − UNSAT
+                                                                                    (N =1275)    (N =303)        (pp)
+            Claude / Full               25% 21% 55%
+            Claude / Random             34% 35% 32%                Equivalent        42.4%         38.3%          −4.1
+            GPT / Full (sequential)     83% 3% 14%                 Related            9.0%          7.9%          −1.1
+ Traffic
+            GPT / Random                32% 30% 38%                Strengthened      21.7%         15.8%          −5.9
+            GPT / Full (non-sequential) 9% 17% 74%                 Weakened          10.7%          9.9%          −0.8
+            GPT / Full (Claude judge) 48% 12% 39%                  Unrelated         10.0%         15.5%          +5.5
+                                                                   Contradiction      6.1%         12.5%          +6.4
+          Claude / Full               32% 8% 60%
+          Claude / Random             35% 27% 38%
+          GPT / Full (sequential)     97% 3% 0%                    Table 4: Per-category NLI rates in the UNSAT and SAT
+ Wildlife
+          GPT / Random                30% 19% 51%                  pools, pooled across all 14 method-cell combinations
+          GPT / Full (non-sequential) 16% 20% 64%                  in Table 2 (3 repair methods × 4 cells, plus 2 cross-
+          GPT / Full (Claude judge) 45% 12% 43%
+                                                                   model variants). Negative values in the rightmost col-
+                                                                   umn mean the category is more frequent in UNSAT than
+Table 3: Stage selection distribution under the diagno-            in SAT. Only Unrelated and Contradiction concentrate
+sis function (Full) and the random baseline (Random).              in SAT. Strengthened concentrates in UNSAT, reflecting
+On both domains, Claude’s diagnosis distributes across             verbose legal back-translations of correctly formalized
+stages with a T3 concentration, and GPT’s diagnosis col-           rules. The other categories distribute approximately
+lapses onto T1 under the sequential checking protocol.             evenly.
+Random selection is approximately uniform. Two in-
+terventions un-collapse the GPT distribution: rewriting
+the prompt to drop sequential ordering (non-sequential,            E    Data Availability
+§7.5, Experiment A), or replacing GPT with Claude as
+the judge (Claude judge, §7.5, Experiment C).                      We evaluate on two public statutory corpora, both
+                                                                   in English. The traffic corpus consists of 150 rules
+                                                                   derived from the Texas Transportation Code, a
+ (declare-fun roadway_kind (Roadway) RoadwayKind)
+                                                                   public-domain statutory text published by the Texas
+ ; Time-varying predicates (Int = time)                            Legislature.1 The wildlife corpus consists of 77
+ (declare-fun on_roadway (Vehicle Roadway Int) Bool)
+ (declare-fun speed (Vehicle Int) Real)                            rules derived from the Texas Parks and Wildlife
+                                                                   Code, also published by the Texas Legislature.2
+           Listing 3: Wildlife schema (excerpt).                   As U.S. state-government-authored statutes, both
+ ; Sorts                                                           source texts are not subject to copyright. The
+ (declare-sort Person 0)                                           source corpora contain no personally identifiable
+ (declare-sort Animal 0)
+ (declare-sort Device 0)                                           information or offensive content, as they are statu-
+ ; Static properties                                               tory text describing legal subjects in the abstract.
+ (declare-fun is_kind (Animal AnimalKind) Bool)                       Code, data, prompts, and domain schemas will
+ (declare-fun protected_by_code (Animal) Bool)
+                                                                   be released upon publication under the MIT license.
+ ; Time-varying predicates (Int = time)
+ (declare-fun in_captivity (Animal Int) Bool)                      External artifacts (Z3, BART, MultiNLI) are used
+ (declare-fun hunts (Person Animal Int) Bool)
+                                                                   under their respective open-source licenses. An
+                                                                   anonymized repository link will be provided for
+C    Stage Diagnosis Details                                       the camera-ready version.
+
+Table 3 provides the per-domain stage selection
+breakdown. The Claude T3 concentration on Traf-
+fic intensifies across iterations: 41 % at iteration 1,
+67 % at iteration 2, and 71 % at iteration 3 (Fig-
+ure 5). GPT’s T1 concentration on Traffic stays
+high throughout (84 %, 85 %, 79 %). On Wildlife,
+GPT diagnoses T1 in nearly every iteration.
+
+D    NLI Category Detail
+Table 4 reports the rate of each NLI category in
+the UNSAT and SAT pools, pooled across all 14                         1
+                                                                        https://statutes.capitol.texas.gov/Docs/TN/
+method-cell combinations in Table 2. Table 5 gives                 htm/TN.545.htm
+                                                                      2
+the full per-cell, per-method breakdown.                                https://statutes.capitol.texas.gov/?link=PW
+
+
+                                                              12
+                                                         T1            T2       T3
+
+                                     Traffic / Claude                                Traffic / GPT
+                           100
+     Stage selection (%)
+
+
+
+
+                           80
+
+                           60
+
+                           40
+
+                           20
+
+                            0
+                                 1          2                 3             1              2          3
+                                         Iteration                                      Iteration
+
+                                     Wildlife / Claude                               Wildlife / GPT
+                           100
+     Stage selection (%)
+
+
+
+
+                           80
+
+                           60
+
+                           40
+
+                           20
+
+                            0
+                                 1          2                 3             1              2          3
+                                         Iteration                                      Iteration
+
+Figure 5: Per-iteration stage selection (Full condition) for each domain-model cell. Claude shifts toward T3 in later
+iterations on both domains. GPT diagnoses T1 at every iteration on both domains.
+
+
+
+
+                                                                  13
+                    Domain / Model Method / Verdict         Eq Re St Wk Un Co Total
+                                       Random / UNSAT       55    7 18     6    10   4   100
+                                       Random / SAT         21    5 8      6    5    5   50
+                                       Regenerate / UNSAT   56    7 17     5    9    3    97
+                    Traffic / Claude
+                                       Regenerate / SAT     27    1 9      4    4    7   52
+                                       Full / UNSAT         73   13 24     6    4    8   128
+                                       Full / SAT           13    1 4      1    1    2   22
+                                       Random / UNSAT       62   12   12   14   9    9   118
+                                       Random / SAT         12    3    4   4    6    3   32
+                                       Regenerate / UNSAT   67   13   14   14   12   7   127
+                                       Regenerate / SAT     10    1    1   5    1    5   23
+                    Traffic / GPT
+                                       Full / UNSAT         66   12   14   15   9    8   124
+                                       Full / SAT           10    2    4   1    5    4   26
+                                       Full (Cdx) / UNSAT   74   16   13   16   8    9   136
+                                       Full (Cdx) / SAT      2    1    3   3    2    3   14
+                                      Random / UNSAT        12   6    20   7    12   3   60
+                                      Random / SAT          6    2     2   1    5    1   17
+                                      Regenerate / UNSAT    13   5    24   5    12   4   63
+                    Wildlife / Claude
+                                      Regenerate / SAT      4    2     2   2    2    2   14
+                                      Full / UNSAT          16   7    21   6    14   2   66
+                                      Full / SAT            2    0     2   2    3    2   11
+                                       Random / UNSAT       10   3    24   11   6    5   59
+                                       Random / SAT         4    2     3   1    2    2   14
+                                       Regenerate / UNSAT   13   4    25   10   7    6   65
+                                       Regenerate / SAT     3    1     0   0    5    0    9
+                    Wildlife / GPT
+                                       Full / UNSAT         11   3    24   10   7    5   60
+                                       Full / SAT           2    3     5   0    4    2   16
+                                       Full (Cdx) / UNSAT   13   7    27   11   9    5   72
+                                       Full (Cdx) / SAT     0    0     1   0    2    0     3
+
+Table 5: Full 6-category NLI cross-tabulations partitioned by SMT verdict, for all 14 method-cell combinations in
+Table 2 (3 repair methods × 4 cells, plus 2 cross-model variants on the GPT cells). Eq = Equivalent, Re = Related,
+St = Strengthened, Wk = Weakened, Un = Unrelated, Co = Contradiction. In UNSAT rows, shading indicates
+semantic quality: faithful , partial drift , unrelated , contradiction . SAT rows are uncolored.
+
+
+
+
+                                                       14
+

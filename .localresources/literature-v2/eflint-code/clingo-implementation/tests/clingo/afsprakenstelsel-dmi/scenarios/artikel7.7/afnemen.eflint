@@ -1,0 +1,66 @@
+// AFNEMEN.eflint
+//   by Lut99
+//
+// Created:
+//   28 Jun 2024, 11:10:48
+// Last edited:
+//   22 Aug 2024, 11:13:48
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Scenario dat een paar voorbeelden toont voor
+//   `afnemen` uit artikel 7.7.
+//
+
+#require "../../artikel7/artikel7.7.eflint".
+
+
+///// SCENARIO /////
+// Er is een huidig jaar
+{
+    +huidig-jaar(2023).
+    +jaarlijkse-commons-waarde(2500, 2023).
+}
+
+// Er is een beheerder
++beheerder(Ecoraad).
+
+// Er zijn twee partijen
++deelnemer(Amy).
++deelnemer(Bob).
+
+// Beide bieden iets aan als Commons
++dienst-waarde(Appel, 1000).
++aanbod(0, Amy, Appel, 2023).
++aanbod-als-commons(aanbod(0, Amy, Appel, 2023)).
+
++dienst-waarde(Banaan, 500).
++aanbod(1, Bob, Banaan, 2023).
++aanbod-als-commons(aanbod(1, Bob, Banaan, 2023)).
+
+
+
+// Amy mag iets van Bob afnemen, want het is het goede jaar
++overeenkomst(aanbod(1, Bob, Banaan, 2023), Amy).
+afnemen(Amy, Bob, overeenkomst(aanbod(1, Bob, Banaan, 2023), Amy)).           // Geen violation
+//#violated not afnemen(deelnemer(Amy), deelnemer(Bob), overeenkomst(aanbod(id(1), deelnemer(Bob), dienst(Banaan), jaar(2023)), deelnemer(Amy))).
+
+// We gaan naar het volgende jaar in.
+// We maken snel nog wat aanbiedingen aan om ervoor te zorgen dat er geen violations getriggered worden over minimaal zoveel aanbieden.
++dienst-waarde(Citroen, 1500).
++dienst-waarde(Dadel, 2000).
++aanbod(2, Amy, Citroen, 2023). +aanbod-als-commons(aanbod(2, Amy, Citroen, 2023)).
++aanbod(3, Bob, Dadel, 2023). +aanbod-als-commons(aanbod(3, Bob, Dadel, 2023)).
+{
+    +huidig-jaar(2024).
+    +jaarlijkse-commons-waarde(2500, 2024).
+    // We stellen ook dat Amy en Bob brave kinderen zijn en genoeg hebben bijgedragen, omdat we niet Artikel 7.2 testen
+    +commons-waarde-aangeboden(Amy, 2500, 2023).
+    +commons-waarde-aangeboden(Bob, 2500, 2023).
+}
+
+// Bob, echter, is te laat
++overeenkomst(aanbod(0, Amy, Appel, 2023), Bob).
+afnemen(Bob, Amy, overeenkomst(aanbod(0, Amy, Appel, 2023), Bob)).            // Violation
+//#violated afnemen(deelnemer(Bob), deelnemer(Amy), overeenkomst(aanbod(id(0), deelnemer(Amy), dienst(Appel), jaar(2023)), deelnemer(Bob))).

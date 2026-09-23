@@ -1,0 +1,96 @@
+// ARTIKEL 7.1.eflint
+//   by Lut99
+//
+// Created:
+//   06 May 2024, 14:18:23
+// Last edited:
+//   20 Aug 2024, 11:26:15
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.1 van het Afsprakenstelsel.
+//
+//   In dit artikel wordt gespecificeerd dat diensten die grotendeels
+//   gefinancieerd zijn met publieke middelen gratis moeten worden aangeboden,
+//   en niet als Commons mogen worden aangeboden.
+//   
+//   Ook staat er dat eventuele kosten als gevolg van gebruik van de Commons
+//   wél mogen worden doorgerekend aan de afnemer.
+//   
+//   Zie `artikel7.1.md` voor meer informatie.
+//
+
+
+#require "../begrippen/aanbod.eflint".
+#require "../begrippen/beheerder.eflint".
+
+
+///// INPUT /////
+/// Specificeert of een dienst grotendeels gefinancieerd is met publieke middelen.
+/// 
+/// Wat "grotendeels" überhaupt betekent is bewust open gelaten om ingevuld te worden door de
+/// Enforcement Orchestrator.
+Fact dienst-grotendeels-gefinancieerd-met-publieke-middelen Identified by dienst.
+Extend Fact dienst
+    Derived from (Foreach dienst-grotendeels-gefinancieerd-met-publieke-middelen : dienst-grotendeels-gefinancieerd-met-publieke-middelen.dienst).
+
+
+
+
+
+///// REGELS /////
+/// Representatie van:
+/// > Producten, diensten en data binnen het DMI-ecosysteem die grotendeels zijn gefinancierd met
+/// > publieke middelen, [...] zijn geen Commons.
+/// 
+/// Geïnterpreteerd als:
+/// > Als een dienst grotendeels gefinancieerd is met publieke middelen, mag dit geen Commons zijn.
+/// 
+/// Deze Duty geldt voor alle aanbieders, en is naar elke (andere) Deelnemer.
+Duty publieke-diensten-geen-commons
+    Holder aanbieder
+    Claimant beheerder
+    Related to aanbod
+    // De Duty geldt voor elke aanbieder die een dienst aanbiedt die grotendeels gefinancieerd is
+    // met publieke middelen
+    Derived from (Foreach aanbieder, beheerder, aanbod :
+        publieke-diensten-geen-commons(aanbieder, beheerder, aanbod)
+        When (
+            aanbod.aanbieder == aanbieder
+            && dienst-grotendeels-gefinancieerd-met-publieke-middelen(aanbod.dienst)
+        )
+    )
+    // De Duty wordt geschonden wanneer de aangeboden dienst grotendeels door publieke middelen is
+    // gefinancieerd _en_ aangeboden als Commons.
+    Violated when (Exists aanbod-als-commons :
+        aanbod-als-commons(aanbod)
+        && dienst-grotendeels-gefinancieerd-met-publieke-middelen(aanbod.dienst)
+    ).
+
+/// Representatie van:
+/// > Producten, diensten en data binnen het DMI-ecosysteem die grotendeels zijn gefinancierd met
+/// > publieke middelen, dienen om niet beschikbaar te zijn voor Deelnemers.
+/// 
+/// Geïnterpreteerd als:
+/// > Als een dienst grotendeels gefinancieerd is met publieke middelen, mag dit geen kosten hebben
+/// > voor de afnemer.
+/// 
+/// Deze Duty geldt voor alle aanbieders, en is naar elke van hun afnemers.
+Duty publieke-diensten-geen-kosten
+    Holder aanbieder
+    Claimant beheerder
+    Related to aanbod
+    // De Duty geldt voor elke aanbieder die een dienst aanbiedt die grotendeels gefinancieerd is
+    // met publieke middelen
+    Derived from (Foreach aanbieder, beheerder, aanbod :
+        publieke-diensten-geen-kosten(aanbieder, beheerder, aanbod)
+        When (
+            aanbod.aanbieder == aanbieder
+            && dienst-grotendeels-gefinancieerd-met-publieke-middelen(aanbod.dienst)
+        )
+    )
+    // De Duty wordt geschonden wanneer het aanbod een kosten heeft die groter zijn dan 0.
+    Violated when (Exists aanbod-kosten :
+        aanbod-kosten.aanbod == aanbod && aanbod-kosten.waarde > 0
+    ).

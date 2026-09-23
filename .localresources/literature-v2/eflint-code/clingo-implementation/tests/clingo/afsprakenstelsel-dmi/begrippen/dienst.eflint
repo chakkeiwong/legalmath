@@ -1,0 +1,49 @@
+// dienst.eflint
+//   by Lut99
+//
+// Created:
+//   24 May 2024, 10:31:27
+// Last edited:
+//   08 Aug 2024, 14:54:58
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Specificeert concrete dingen die gebruikers kunnen aanbieden.
+//
+
+#require "waarde.eflint".
+
+
+///// LIBRARY /////
+// Specificeert zowel aangeboden producten, diensten als data.
+Fact dienst Identified by String.
+
+/// Specificeert de waarde van een product, dienst of dataset.
+Fact dienst-waarde Identified by dienst * waarde.
+Extend Fact dienst
+    Derived from (Foreach dienst-waarde : dienst-waarde.dienst).
+Extend Fact waarde
+    Derived from (Foreach dienst-waarde : dienst-waarde.waarde).
+
+/// Specificeert dat sommige diensten data zijn.
+Fact data Identified by dienst.
+Extend Fact dienst
+    Derived from (Foreach data : data.dienst).
+
+
+
+
+
+///// ASSERTIONS /////
+/// Maximaal één `dienst-waarde` mag worden gegeven per dienst, omdat
+///   a) we niet willen sommeren als we niet hoeven; en
+///   b) er geen duplicate waardes in hetzelfde jaar kunnen worden weergeven (eFLINT voegt beide
+///      instanties samen tot één).
+Invariant maximaal-een-dienst-waarde
+    When (Forall dienst :
+        Count(Foreach waarde :
+            dienst-waarde(dienst, waarde)
+            When Holds(dienst-waarde(dienst, waarde))
+        ) <= 1
+    ).

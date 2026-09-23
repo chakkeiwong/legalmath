@@ -1,0 +1,111 @@
+// COMMONS WAARDE.eflint
+//   by Lut99
+//
+// Created:
+//   08 Aug 2024, 15:25:00
+// Last edited:
+//   07 May 2025, 16:28:16
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Specificeert input die beschrijft wat Deelnemers al hebben aangeboden-
+//   en afgenomen aan Commons waarde.
+//
+
+#require "deelnemer.eflint".
+#require "tijd.eflint".
+#require "waarde.eflint".
+
+
+///// LIBRARY /////
+/// Specificeert wat de waarde is die Deelnemers moeten bijdragen/mogen afnemen in een bepaald jaar.
+Fact jaarlijkse-commons-waarde Identified by waarde * jaar.
+Extend Fact waarde
+    Derived from (Foreach jaarlijkse-commons-waarde : jaarlijkse-commons-waarde.waarde).
+Extend Fact jaar
+    Derived from (Foreach jaarlijkse-commons-waarde : jaarlijkse-commons-waarde.jaar).
+
+
+
+/// Specificeert de aangeboden waarde van alle Commons diensten van een Deelnemer.
+/// 
+/// Dit feit kan of direct worden gegeven door de Enforcement Orchestrator, of berekent met de
+/// optionele 'utils/totale-commons-waarde-aangeboden-van-aanbod.eflint' extensies.
+Fact commons-waarde-aangeboden Identified by aanbieder * waarde * jaar
+    Derived from (Foreach deelnemer, jaar:
+        commons-waarde-aangeboden(deelnemer, 0, jaar)
+        When Not(Exists commons-waarde-aangeboden:
+            commons-waarde-aangeboden.aanbieder == deelnemer
+            && commons-waarde-aangeboden.jaar == jaar
+        )
+    ).
+Extend Fact deelnemer
+    Derived from (Foreach commons-waarde-aangeboden : commons-waarde-aangeboden.aanbieder).
+Extend Fact waarde
+    Derived from (Foreach commons-waarde-aangeboden : commons-waarde-aangeboden.waarde).
+Extend Fact jaar
+    Derived from (Foreach commons-waarde-aangeboden : commons-waarde-aangeboden.jaar).
+
+/// Specificeert hoeveel een Deelnemer al heeft aangenomen bij een andere Deelnemer aan Commons in een jaar.
+/// 
+/// Dit feit kan of direct worden gegeven door de Enforcement Orchestrator, of berekent door
+/// handmatig `afnemen` te triggeren.
+Fact commons-waarde-afgenomen Identified by afnemer * aanbieder * waarde * jaar
+    Derived from (Foreach deelnemer1, deelnemer2, jaar:
+        commons-waarde-afgenomen(deelnemer1, deelnemer2, 0, jaar)
+        When (
+            deelnemer1 != deelnemer2
+            && Not(Exists commons-waarde-afgenomen:
+                commons-waarde-afgenomen.afnemer == deelnemer1
+                && commons-waarde-afgenomen.aanbieder == deelnemer2
+                && commons-waarde-afgenomen.jaar == jaar
+            )
+        )
+    ).
+Extend Fact deelnemer
+    Derived from (Foreach commons-waarde-afgenomen : commons-waarde-afgenomen.afnemer).
+Extend Fact deelnemer
+    Derived from (Foreach commons-waarde-afgenomen : commons-waarde-afgenomen.aanbieder).
+Extend Fact waarde
+    Derived from (Foreach commons-waarde-afgenomen : commons-waarde-afgenomen.waarde).
+Extend Fact jaar
+    Derived from (Foreach commons-waarde-afgenomen : commons-waarde-afgenomen.jaar).
+
+
+
+
+
+///// ASSERTIONS /////
+/// Er moet altijd exact één vastgestelde jaarlijkse-commons-waarde per jaar zijn.
+Invariant exact-een-jaarlijkse-commons-waarde
+    When (Forall jaar:
+        Count(Foreach waarde :
+            1 When Holds(jaarlijkse-commons-waarde(waarde, jaar))
+        ) == 1
+    ).
+
+
+
+/// Er mag maar één `commons-waarde-aangeboden` worden gegeven per aanbieder/afnemer paar, omdat we
+///   a) niet willen sommeren als we niet hoeven; en
+///   b) er geen duplicate waardes in hetzelfde jaar kunnen worden weergeven (eFLINT voegt beide
+///      instanties samen tot één).
+Invariant exact-een-commons-waarde-aangeboden
+    When (Forall aanbieder, jaar :
+        Count(Foreach waarde :
+            1 When Holds(commons-waarde-aangeboden(aanbieder, waarde, jaar))
+        ) == 1
+    ).
+
+/// Er mag maar één `commons-waarde-afgenomen` worden gegeven per afnemer/aanbieder paar, omdat we
+///   a) niet willen sommeren als we niet hoeven; en
+///   b) er geen duplicate waardes in hetzelfde jaar kunnen worden weergeven (eFLINT voegt beide
+///      instanties samen tot één).
+Invariant exact-een-commons-waarde-afgenomen
+    When (Forall afnemer, aanbieder, jaar :
+        Count(Foreach waarde :
+            1 When Holds(commons-waarde-afgenomen(afnemer, aanbieder, waarde, jaar))
+        ) == 1
+        && aanbieder != afnemer
+    ).

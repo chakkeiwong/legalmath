@@ -1,0 +1,861 @@
+  eFLINT: a Domain-Specific Language for Executable
+                Norm Specifications
+                L. Thomas van Binsbergen                                                               Lu-Chi Liu
+                 Centrum Wiskunde & Informatica                                                University of Amsterdam
+                   Amsterdam, The Netherlands                                                 Amsterdam, The Netherlands
+                    ltvanbinsbergen@acm.org                                                          l.liu@uva.nl
+
+                      Robert van Doesburg                                                         Tom van Engers
+      Leibniz Institute, University of Amsterdam / TNO                            Leibniz Institute, University of Amsterdam / TNO
+                Amsterdam, The Netherlands                                                  Amsterdam, The Netherlands
+                 robertvandoesburg@uva.nl                                                         vanengers@uva.nl
+ABSTRACT                                                                          CCS CONCEPTS
+Software systems that share potentially sensitive data are                        • Software and its engineering → Domain specific lan-
+subjected to laws, regulations, policies and/or contracts. The                    guages; • Computing methodologies → Reasoning about
+monitoring, control and enforcement processes applied to                          belief and knowledge; • Security and privacy → Privacy-
+these systems are currently to a large extent manual, which                       preserving protocols.
+we rather automate by embedding the processes as dedi-
+cated and adaptable software services in order to improve                         KEYWORDS
+efficiency and effectiveness. This approach requires such                         normative modeling, domain-specific language, policy en-
+regulatory services to be closely aligned with a formal de-                       forcement, GDPR, executable specifications
+scription of the relevant norms.
+   This paper presents eflint, a domain-specific language                         ACM Reference Format:
+developed for formalizing norms. The theoretical founda-                          L. Thomas van Binsbergen, Lu-Chi Liu, Robert van Doesburg, and Tom
+                                                                                  van Engers. 2020. eFLINT: a Domain-Specific Language for Exe-
+tions of the language are found in transition systems and in
+                                                                                  cutable Norm Specifications. In Proceedings of the 19th ACM SIG-
+Hohfeld’s framework of legal fundamental conceptions. The                         PLAN International Conference on Generative Programming: Con-
+language can be used to formalize norms from a large variety                      cepts and Experiences (GPCE ’20), November 16–17, 2020, Virtual,
+of sources. The resulting specifications are executable and                       USA. ACM, New York, NY, USA, 13 pages. https://doi.org/10.1145/
+support several forms of reasoning such as automatic case                         3425898.3426958
+assessment, manual exploration and simulation. Moreover,
+the specifications can be used to develop regulatory services                     1   MOTIVATION
+for several types of monitoring, control and enforcement.
+The language is evaluated through a case study formalizing                        Governmental institutions provide services to citizens and
+articles 6(1)(a) and 16 of the General Data Protection Reg-                       companies that are primarily defined in laws and regula-
+ulation (GDPR). A prototype implementation of eflint is                           tions. However, in practice there is often no clear connec-
+discussed and is available online.                                                tion between the software systems that support or provide
+                                                                                  these services and the laws and regulations that govern them.
+                                                                                  Similarly, business processes are subjected to laws and (in-
+                                                                                  ter)national regulations as well as internal policies, branch-
+Permission to make digital or hard copies of all or part of this work for         wide codes and contracts. In both government and business,
+personal or classroom use is granted without fee provided that copies are not
+made or distributed for profit or commercial advantage and that copies bear       a direct connection between a software’s implementation
+this notice and the full citation on the first page. Copyrights for components    and the norms that govern the software’s operations is highly
+of this work owned by others than ACM must be honored. Abstracting with           desirable. A direct connection makes the software easier to
+credit is permitted. To copy otherwise, or republish, to post on servers or to    validate and increases the software’s maintainability with re-
+redistribute to lists, requires prior specific permission and/or a fee. Request   spect to following changes in regulations and policies. More-
+permissions from permissions@acm.org.
+GPCE, Generatic Programming: Concepts & Experiences, 2020
+                                                                                  over, with a direct connection it is possible to explain the
+© 2020 Association for Computing Machinery.                                       actions taken within a software system to stakeholders in
+ACM ISBN 978-1-4503-8174-1/20/11. . . $15.00                                      terms of the relevant norms. Our approach is to automate
+https://doi.org/10.1145/3425898.3426958                                           the required monitoring, control and enforcement processes,
+GPCE, Generatic Programming: Concepts & Experiences, 2020      L. Thomas van Binsbergen, Lu-Chi Liu, Robert van Doesburg, and Tom van Engers
+
+
+that currently are predominantly manual processes, as dedi-             physical reality                     institutional reality
+cated and adaptable regulatory services. To improve trust,
+the regulatory services are based on formal specifications of
+the relevant norms that can be verified in isolation.                          sources                            understanding
+   This paper presents eflint, a domain-specific language                      of norms            interpretation of norms
+(DSL) for formalizing norms as executable specifications.
+Compared to existing languages, eflint is novel in several                                                                      assessment
+respects and is most similar to languages based on the event
+                                                                               actions,            qualification
+calculus such as Symboleo [28] and InstAL [20]. A significant                                                         narrative/
+                                                                               events,
+body of work exists concerning the formalization, analysis                                                            scenario
+                                                                               and objects
+and enforcement of specific kinds of norms [14] such as poli-
+cies for access control [29], network policies [1] (e.g. firewall
+configurations) and contracts [27, 28]. Instead, eflint is de-
+signed for describing a wide variety of normative sources              Figure 1: Schematic overview of the processes of inter-
+such as laws, regulations, policies and contracts. Other for-          pretation, qualification and assessment.
+mal languages for expressing norms are based on deontic
+logics [12], action logic [15] and defeasible logic [10, 18].
+                                                                       the institutional reality of Searle’s social theory [26] (right-
+Some of these languages are not suited to capture some im-
+                                                                       hand side) as the reality in which actors interact physically
+portant aspects of norms such as the actors bound by the
+                                                                       with objects and each other on the one hand, and certain
+norms and the activities regulated by these norms. An im-
+                                                                       abstractions over that physical reality on the other hand.
+portant aspect of eflint is that the language is action-based
+                                                                       The institutional abstractions are twofold: a general under-
+and that the normative positions of actors are derived from
+                                                                       standing of the norms relevant to a case (top right) and the
+the actions they can perform (permissions) or are expected
+                                                                       understanding of the case itself as a narrative (bottom right,
+to perform (duties) at a given moment in time. Moreover,
+                                                                       henceforth called scenario): a series of actions, events and
+the language supports the legal concept of power – the abil-
+                                                                       observations that may or may not be compliant.
+ity to grant or remove permissions or duties to/of actors.
+                                                                          The process of assessment determines whether a partic-
+The benefit of the action-based approach is that checking
+                                                                       ular scenario is compliant with a particular understanding
+the compliance of a scenario or software implementation is
+                                                                       of the norms. In order to assess a scenario, it is first neces-
+simplified because scenarios and software implementations
+                                                                       sary to interpret the sources of norms one deems relevant to
+are inherently action-based. Together, these features enable
+                                                                       the case (top left), such as legal documents, regulations and
+eflint for various types of applications requiring online or
+                                                                       policy descriptions. The process of qualification attributes
+offline compliance-checking, monitoring, traceability and
+                                                                       institutional meaning to certain actions performed by actors,
+explainability.
+                                                                       events and objects (bottom left). Such qualification is always
+   This paper contributes by presenting eflint, discussing
+                                                                       context-bound which makes the qualification process a sub-
+its use in a variety of applications, reflecting on its design
+                                                                       tle interplay between the observations and the interpreted
+and placing it in a wider context. The language is introduced
+                                                                       norms applicable to those observations. For example, the ac-
+through an example in Section 3. In section 4 we explain how
+                                                                       tion of raising one’s arm is typically qualified as “requesting
+eflint is used for offline and online compliance checking.
+                                                                       permission to ask a question” in a classroom but as “placing
+Section 5 formalizes the parts of articles 6 and 16 of the
+                                                                       a bid” during an auction.
+GDPR (General Data Protection Regulation) that relate to
+                                                                          The normative aspect of eflint is based on the legal1
+‘consent’ and the ‘right to rectification’ as a case study. After
+                                                                       framework constructed by Hohfeld for analyzing courthouse
+a reflection on the features and design of the language, the
+                                                                       activities [13]. The first core aspect of Hohfeld’s framework is
+language is compared to relevant alternatives in Section 6.
+                                                                       the observation that the ‘normative position’ of an individual,
+                                                                       such as the individual being deemed to having a ‘duty’ or
+                                                                       ‘power’, is always with respect to another individual. For
+2    LEGAL FOUNDATIONS                                                 example, if person X has the duty to do A, then there is a
+                                                                       person Y having a ‘claim’ to A being done (and benefiting
+In this section we summarize the normative theory that un-
+derpins eflint. The theory is explained in reference to legal          1 Although Hohfeld developed the framework for the analysis of courthouse
+case analysis, involving the processes of interpretation, qual-        activities, we apply its concepts more generally and speak of “normative
+ification and assessment, visualized in Figure 1. The diagram          positions” rather than “legal positions” and “normative relations” rather
+distinguishes between physical reality (left-hand side) and            than “legal relations” in this paper.
+eFLINT: a Domain-Specific Language for Executable Norm Specifications                        GPCE, Generatic Programming: Concepts & Experiences, 2020
+
+
+from A). In this example, X and Y are said to be in a duty-                            x∈      type_ids                ::=    ...
+claim relation with respect to action A. The second core                               s∈      strings                 ::=    ...
+aspect of Hohfeld’s framework is the explicit consideration of                         z∈      Z                       ::=    {0, 1, . . . , −1, −2, . . .}
+change caused by an actor exercising a ‘power’ (performing                             i∈      instance_exprs          ::=    ...
+a certain action), possibly having an impact on the actor with                         b∈      boolean_exprs           ::=    ...
+the correlative ‘liability’ position. For example, if X and Y
+are in a power-liability relation with respect to A, then X has                       δ ∈     domains                  ::=    strings
+the power to do A and Y is liable to – in the sense of ‘being                                                            |    string_set(s 1 , . . . , sn )
+bound to’ – the effects of A.                                                                                            |    Z
+   eflint sets itself apart from other formal languages for                                                              |    int_set(z 1 , . . . , zn )
+norm specifications by integrating both core aspects of Ho-                                                              |    product(x 1 , . . . , x n )
+hfeld’s framework, i.e. describing ‘normative relations’ rather                                                          |    ...
+than individual positions and allowing normative relations                         fdc ∈      fact_decls               ::=    fdecl(x, δ, b0? )
+to change over time by the effects of actions and events.                          adc ∈      act_decls                ::=    adecl(x 0 , x 1 , x 2 , x ∗ , c ∗ , b0? )
+                                                                                   edc ∈      event_decls              ::=    edecl(x 0 , x ∗ , c ∗ , b0? )
+3    LANGUAGE OVERVIEW                                                             ddc ∈      duty_decls               ::=    ddecl(x 0 , x 1 , x 2 , x ∗ , b ∗ , b0? )
+                                                                                     c∈       post_conditions          ::=    create(i) | terminate(i)
+The dual nature of institutional reality is reflected in the
+                                                                                    dc ∈      decls                    ::=    fdc | adc | edc | ddc | . . .
+design of eflint. An interpretation2 is formalized as a collec-
+                                                                                              specifications           ::=    dc ∗
+tion of type declarations. A scenario is formalized as a series
+of statements. The statements describe a trace in the tran-
+sition system induced by the declarations of act-types and                          Figure 2: Abstract syntax of eflint specifications.
+event-types. Figure 2 gives the (simplified) abstract syntax of
+eflint specifications as sequences of type declarations. The                                elems          ::= s | z | tuple(v1 , . . . , vn ) | . . .
+operators that form Boolean expressions and instance expres-                       v∈       instances       = elems × type_ids
+sions3 have been omitted; they will be introduced alongside                        σ ∈      configs         = P(instances)
+the case study in Section 5. An example specification is given                     t∈       stmts          ::= create(i) | terminate(i) | trigger(i)
+by the listings in Figure 4. Both this example and the GDPR                        q∈       queries        ::= query(b)
+specification of Section 5 are available and can be tested in                               scripts        ::= ( t | q )∗
+the web-interface for eFLINT [32]. The example captures the
+norm that a child has the power to ask a legal parent (i.e. a
+                                                                                       Figure 3: Abstract syntax of eflint scenarios.
+natural or adoptive parent) for help with their homework,
+resulting in a duty for the parent to help. Types can be re-
+defined by subsequent type declarations. This is convenient                       example, many scenarios can start from the same initial state.
+from a perspective of reuse: a generic interpretation can
+be used by several applications by letting each application                          The declaration of a type determines the set of values (in-
+specialize certain types to the domain of the application.                        stances) of that type, inherited either from an atomic type
+   Figure 3 gives the abstract syntax of scripts as sequences                     (e.g. strings or integers) or a composite record-type (repre-
+of statements and queries. An example script is given by                          sented as tuples in the abstract syntax). Record-types define
+the listings of Figure 5. In the example scenario, Alice is                       relations over concepts (when they have two or more fields,
+a natural parent of Bob, Bob asks Alice for help, but Alice                       e.g. natural-parent) or establish predicates over a concept
+only helps when the homework is already due, causing the                          (when they have one field, e.g. homework-due). An institutional
+help-with-homework duty to be violated. For automatic case                        model of the physical world at a particular moment in time
+assessment, it is convenient to use four input files: a file                      is represented by the values, referred to as a facts, deemed
+containing the type-declarations of a generic model, a file                       to hold true at that moment4 . Sets of facts are the configura-
+re-declaring types according to a concrete or specialized                         tions in the transition system induced by the specification. If
+domain, a file containing initialization statements and a file                    a record of type homework-due is in configuration σ , then the
+that contains the statements of a scenario. This separation                       person at the child field of the record is deemed to having
+across files is practical as there is a conceptual one-to-many                    their homework due according to σ . The accuracy of this fact
+relation between these files (in the order listed above). For                     depends on the accuracy of the qualifications that caused it
+                                                                                  to hold, e.g. the +homework-due(Bob) statement in Figure 5.
+2 We use “interpretation” also for the result of the process of interpretation.
+3 An instance expression computes instances of declared types.                    4 The facts of eflint are the fluents of the event calculus, see Section 6.
+GPCE, Generatic Programming: Concepts & Experiences, 2020                     L. Thomas van Binsbergen, Lu-Chi Liu, Robert van Doesburg, and Tom van Engers
+
+
+Fact person Identified by String                                                         act-, event- and duty-type declarations. Act-, event- and
+Placeholder parent           For person                                               duty-types are fact-types with additional meaning. An act-
+Placeholder child            For person
+Fact natural - parent        Identified by parent * child
+                                                                                      type declaration consists of a performing actor-type (Actor), a
+Fact adoptive - parent Identified by parent * child                                   recipient actor-type (Recipient) and optional further related
+Fact legal - parent          Identified by parent * child                             types (Related to). An action6 – an instance of an act-type –
+  Holds when adoptive - parent ( parent , child )                                     is a record value with a field for each of the associated types
+            || natural - parent ( parent , child )                                    (a tuple(v 1 , . . . , vn )). An action A is said to be enabled in σ if
+Act ask - for - help
+  Actor          child
+                                                                                      A holds true according to σ , i.e. if A is a member of σ . If A is
+  Recipient parent                                                                    enabled in σ , then the performing actor X and the recipient
+  Creates        help - with - homework ( parent , child )                            actor Y are in a power-liability relation with respect to A
+  Holds when legal - parent ( parent , child )                                        in σ . The post-conditions associated with an act-type (c ∗ in
+Fact homework - due Identified by child                                               the abstract syntax) determine the effects its instances have
+Duty help - with - homework
+  Holder             parent
+                                                                                      when executed by a statement. The effects are to create or
+  Claimant           child                                                            terminate facts, thus giving rise to a new configuration (and
+  Violated when homework - due ( child )                                              possibly updated normative relations).
+Act help                                                                                 The institutional view on the world can also change by
+  Actor          parent                                                               physical actions for which there is no institutional counter-
+  Recipient child
+  Terminates help - with - homework ( parent , child )
+                                                                                      part. For example, there is no direct institutional counterpart
+  Holds when help - with - homework ( parent , child )                                to ‘changing address’ in the GDPR even though relocations
+                                                                                      influence the accuracy of personal data. Moreover, the world
+Fact person Identified by Alice , Bob , Chloe , David                                 also changes due to natural events such as earthquakes, fires
+                                                                                      and the passage of time. For these reasons, eflint distin-
+                                                                                      guishes between actions and events. An event-type declara-
+Figure 4: Type declarations capturing (normative) con-                                tion (not in the example) is essentially an act-type declaration
+cepts (top) and a domain of discourse (bottom).                                       without a performing actor or recipient actor.
+                                                                                         A duty-type declaration contains the type of the duty
++ natural - parent ( Alice , Bob ) .                                                  holder, the type of the claimant and optional further related
++ adoptive - parent ( Chloe , David ) .                                               types. A duty – an instance of a duty-type – is a record value
+                                                                                      with a field for each of the types. A duty-type declaration has
+ask - for - help ( Bob , Alice ) .                                                    zero or more violation-conditions (b ∗ in the abstract syntax).
++ homework - due ( Bob ) . // homework deadline passed
+                                                                                      If a duty holds true in configuration σ , then the holder and
+? Violated ( help - with - homework ( Alice , Bob ) ) .
+help ( Alice , Bob ) .                                                                claimant of the duty are in a duty-claim relation in σ . The
+                                                                                      holder of a duty is in violation of the duty (and the claimant
+                                                                                      has a valid claim) according to σ if the duty holds true in
+Figure 5: A script consisting of an initial state                                     σ and if one of the violation-condition holds true in σ . To
+(top) and a scenario with a query (bottom). Duty                                      avoid violating a duty, an actor must perform an action that
+help-with-homework is violated after homework is due.                                 terminates the duty (e.g. help) before one of the violation
+                                                                                      conditions holds.
+
+    Type declarations may have an optional derivation clause                             transitions and compliance. In summary, a set of facts
+(Holds when). A derivation clause is a Boolean expression5                            forms a configuration representing an institutional view on
+(b0? in the abstract syntax) that computes which instances                            the physical world at a particular moment in time. For any
+of the type hold true in a given configuration. The deriva-                           given configuration it is possible to determine the normative
+tion clause of legal-parent determines that, for every par-                           relations between actors. Actions and events change configu-
+ent P and child C, legal-parent(P,C) holds true if and only if                        rations when executed, potentially modifying the normative
+adoptive-parent(P,C) or natural-parent(P,C) holds true. A fact-                       relations between actors. Since actions and duties are also
+type is either a ‘derived fact’ or ‘postulated fact’, depending                       facts, an actor may have the power to assign duties or to
+on whether it is declared with a derivation clause. To en-                            grant powers to others. The post-conditions of action- and
+sure consistency, only postulated facts can be created or                             event-types give rise to a transition system. The execution of
+terminated by statements.                                                             an action or event triggers a transition by removing and/or
+                                                                                      6 Instances of act-types are institutional actions. There is not necessarily an
+5 This is a simplification. Derivation clauses are fully explained in Section 5.      institutional actions for every physical action or vice versa.
+eFLINT: a Domain-Specific Language for Executable Norm Specifications            GPCE, Generatic Programming: Concepts & Experiences, 2020
+
+
+inserting facts from/to the current configuration. For exam-            expressions. Alternative expression languages can thus be
+ple, the statement ask-for-help(Bob,Alice). (trigger(i) in the          used by alternative implementations, e.g. using objects rather
+abstract syntax) executes the action ask-for-help(Bob,Alice),           than records to structure data. Similarly, our implementation
+causing the creation of a duty for Alice. Individual facts can          has integers and strings as atomic values, but other types of
+also be created and terminated (create(i) and terminate(i)              atoms, such as floating points, are easily added.
+in the abstract syntax). For example, +homework-due(Bob) cre-
+                                                                           automated assessment. One of the executables of the im-
+ates the fact that Bob’s homework is due (termination is
+                                                                        plementation receives a specification and script and deter-
+written with a minus symbol). The statements of a script
+                                                                        mines whether the scenario in the script is action- and duty-
+form a trace (sequence of transitions) in the transition sys-
+                                                                        compliant and whether all the queries are successful. The
+tem. A query (e.g. ?Violated(help-with-homework(Alice,Bob)))
+                                                                        output is a sequence of violations and failed queries or a
+is a Boolean expression that is evaluated in the context of
+                                                                        JSON object that also includes the produced trace. The JSON
+the current configuration. The language also supports in-
+                                                                        output has been used to develop the aforementioned web-
+variants: queries that have to hold true in every reachable
+                                                                        interface [32]. Besides editing, the interface can be used to
+configuration. For example, the following fragment shows
+                                                                        analyze traces by inspecting the contents of, and the changes
+an invariant declaration that captures that one cannot be
+                                                                        to, configurations. The web-interface has been used in a
+their own legal parent.
+                                                                        MSc-level course on ‘Policy Making and Rule Governance’
+Invariant parentship :                                                  at the University of Amsterdam, with user-feedback feeding
+  Not ( Exists person : legal - parent ( person , person ) )            directly into the design of the language. Automatic assess-
+Invariant violations are reported as soon as they arise in order        ment is an important tool during the development of eflint
+to discover inconsistencies in (applications of) specifications.        specifications as it facilitates testing and debugging. Once
+   A trace may be action-compliant and/or duty-compliant. A             a specification has been adopted, the primary purpose of
+trace is action-compliant if every transition on the trace is           automatic assessment is to analyze concrete cases that have
+labeled with an event or action that is enabled in the source           been observed or hypothetical cases that might arise. Both
+configuration of the transition. A trace is duty-compliant              are crucial, not only in the development of the specification,
+if no duties are violated in any of its configurations. These           but also as feedback to lawmakers and policymakers. As
+notions are independent: a trace can be action-compliant,               part of future work we intend to add model checking to our
+duty-compliant, action- and duty-compliant or neither. As-              implementation, expanding the set of tools through which
+sessing a scenario is deciding whether it produces an action-           confidence in the correctness of a specification is obtained.
+and duty-compliant trace, given an initial configuration. The           As mentioned, eflint already has safety properties in the
+example scenario is action-compliant but not duty-compliant             form of invariants.
+as a violation occurs after the second statement.                          exploration. To further support the aforementioned use
+   A trace records the normative positions and relations of             cases, the eflint implementation also enables manually ex-
+all actors as they evolve over time and therefore provides              ploring the transition system induced by a specification. The
+sufficient information to determine important details about             tool can run as a Read-Eval-Print Loop (REPL) loaded with a
+violations such as when they occurred and which actors were             specification and a script producing an initial state. At the
+responsible. This a crucial aspect: by recording traces, eflint         top-level, the REPL accepts declarations, queries and state-
+makes it possible to reproduce the entire decision making               ments, which can be mixed freely and produce immediate
+process and to explain the decisions that have been made.               feedback. It is also possible to delete or re-declare types, en-
+                                                                        abling on-the-fly updates to the specifications. After every
+4    IMPLEMENTATION                                                     statement, the REPL reports violations of action- or duty-
+The previous section explained eflint informally through                compliance, changes to the current configuration and any
+an example. This section gives an overview of the different             invariants that were not upheld. The user can backtrack to
+applications supported by the eflint prototype implementa-              a previously visited configuration to explore an alternative
+tion at the time of writing. The implementation is available            scenario. An example interaction with the REPL is shown
+online [31]. A simple web-interface for automatic case as-              in Figure 6. The REPL is loaded with the specification of
+sessment is available online as well [32]. The details of the ex-       Figure 4. The interaction shows Chloe helping David in the
+pression language used by the eflint implementation have                first explored branch. After backtracking, another branch is
+been omitted in the previous section and are discussed along-           explored in which homework is due before Chloe has helped.
+side the GDPR case study in the next section. The transition               During the first interaction in Figure 6, the REPL responds
+system semantics of eflint depends only on the expression               with the information that the fact legal-parent(Chloe,David)
+language in that there are Boolean expressions and instance             has been added to the configuration. This fact is derived
+GPCE, Generatic Programming: Concepts & Experiences, 2020      L. Thomas van Binsbergen, Lu-Chi Liu, Robert van Doesburg, and Tom van Engers
+
+
+Available commands :                                                   enumerates the instances of the type that hold true in the
+   : < INT >             trigger action or event <INT >                current configuration. Note that a domain is finite if all of
+   : force <INT >        force action or event <INT >
+   : revert <INT >       revert to configuration <INT >
+                                                                       the atomic types have finite sets of instances, because then,
+   : display : d         show the current configuration                by induction, all record types are finite too.
+   : options : o         show available actions & events
+   : help : h            show these commands                              normative actors. Benefiting from the principled approach
+   : quit : q            end the exploration                           to REPLs presented in [33], the back-end of the REPL has
+  or just type a < PHRASE >                                            been reused to form the basis of a TCP server. The server
+#0 > + natural - parent ( Chloe , David )                              is loaded with a specification and waits for incoming decla-
++ legal - parent ( Chloe , David )
+                                                                       rations, statements and queries on a given port. The server
++ natural - parent ( Chloe , David )
++ ask - for - help ( David , Chloe )                                   is used to integrate eflint specifications in arbitrary soft-
+enabled actions & events :                                             ware systems. To develop and experiment with regulatory
+1. ask - for - help ( David , Chloe )                                  services for enforcement, we use the Akka framework8 for
+#1 > :1                                                                actor-oriented programming in Scala. Actor-oriented pro-
++ help ( Chloe , David )
+                                                                       gramming can be used to develop or model complex, dis-
++ help - with - homework ( Chloe , David )
+enabled actions & events :                                             tributed systems. The components of a software system are
+1. ask - for - help ( David , Chloe )                                  implemented as actors, with message-passing as the only
+2. help ( Chloe , David )                                              form of communication between them.
+#2 > :2                                                                   Central to our approach is the notion of a ‘normative actor’
+- help ( Chloe , David )
+                                                                       that administers an eflint specification. A normative actor
+- help - with - homework ( Chloe , David )
+enabled actions & events :                                             is created with one or more files containing declarations and
+1. ask - for - help ( David , Chloe )                                  statements and starts its own server instance. As the server
+#3 > ? Violated ( help - with - homework ( Chloe , David ) )           is loaded, the input files are executed in order, so that later
+query failed                                                           files may specialize types introduced by earlier files.
+#3 > : revert 2
+                                                                          A survey of various software architectures that incorpo-
+enabled actions & events :
+1. ask - for - help ( David , Chloe )                                  rate policy enforcement mechanisms [22, 23, 37, 38] has re-
+2. help ( Chloe , David )                                              vealed at least the four types of enforcement listed below.
+#2 > + homework - due ( David )                                        Our implementation of normative actors in Scala enables
+violated duty !: help - with - homework ( Chloe , David )              these four types of enforcement.
+                                                                            • Ex-ante enforcement of permissions: ensuring that an
+Figure 6: Example interaction with the eflint REPL.                           actor has permission to execute a particular action
+                                                                              before it is performed and blocking the action if there
+                                                                              is no permission
+from the fact natural-parent(Chloe,David) postulated by the                 • Ex-ante enforcement of positive duties: informing actors
+user. In order to make this derivation, the implementation                    of their duties to perform certain actions
+has enumerated all possible instances of legal-parent and                   • Ex-post enforcement of violations of prohibitions: apply-
+evaluated the derivation clause for each. Enumerating all                     ing some form of resolution to the observation that an
+instances of types is possible when working with a small7 ,                   action has been performed which was not enabled
+finite domain. However, when checking the compliance of                     • Ex-post enforcement of violated duties: applying some
+a running system, an application discussed below, an open-                    form of resolution to a violated duty
+ended domain is typically required. The ability to redefine
+and specialize types in eflint enables us to reuse specifica-             A normative actor responds to eflint statements and
+tions across applications in which some require a finite and           queries received as messages. The response to a query is sim-
+others an open-ended domain. In the example of Figure 4, an            ply whether the query holds true. Actors can send queries
+open-ended domain (the declaration of person initially does            to normative actors to let the responses guide their behav-
+not list its instances) is replaced by a finite domain. Reusing        ior. For example, an actor can ensure action-compliance by
+specifications in both types of applications is also made possi-       checking whether an action is enabled before performing it.
+ble by the pragmatic design choice to give different behavior             Receiving a statement causes the normative actor to up-
+to the enumeration operator (Foreach, introduced in the next           date its internal state (a configuration) by executing the state-
+section) depending on whether it enumerates instances of               ment. The resulting transition might impact other actors
+a finite or infinite type. In the latter case, the operator only       in the system and they will be informed by the normative
+7 In order not to suffer from combinatorial explosion.                 8 https://akka.io
+eFLINT: a Domain-Specific Language for Executable Norm Specifications            GPCE, Generatic Programming: Concepts & Experiences, 2020
+
+
+actor accordingly. If a duty is created or violated by the tran-        into the details of the language, such as its expression lan-
+sition, the holder and claimant of the duty are informed.               guage, and to demonstrate its expressivity in connection to
+Similarly, if an action is enabled by the transition, the per-          a realistic case. The presented code snippets form the GDPR
+forming and recipient actor of the action are informed. If              component of a larger case study regarding the Know Your
+the transition was triggered by a disabled action, the per-             Customer (KYC) requirements placed on financial institu-
+forming and recipient actor of the action are informed of               tions. This case study is performed in collaboration with the
+this violation. The actors receiving such messages can re-              banks ABN AMRO and ING. In order to improve the accuracy
+act in several meaningful ways. For example, the claimant               of customer risk assessment, the banks are willing to share
+of a violated duty might have the power to notify an au-                customer data under certain conditions. The banks wish to
+thority that, in turn, has the power to place a penalty on              keep certain data secret, e.g. if the data provides a compet-
+the holder of the violated duty. Another common use case                itive advantage. Moreover, the banks want to demonstrate
+is for the claimant of a new (but not yet violated) duty to             compliance with the GDPR. The goal of the wider case study
+start a timer that runs out when the claimant thinks the                is to experiment with architectures for regulated data shar-
+duty should have been fulfilled (terminated). The example               ing systems. Academically, the case study is interesting in
+of Figure 4 can be extended with a teacher that places the              that it requires reasoning about multiple norm specifications,
+complete-homework duty on children. When the timer expires,             each with their own ontologies of concepts. Moreover, satis-
+the claimant (teacher) sends a message to the normative actor           fying a duty in one policy might cause a violation in another,
+to communicate this observation (in the form of a fact, e.g.            demonstrating the need for priorities between norms.
+homework-due) possibly causing duties to be violated (e.g. the             The KYC case consists of three eflint specifications of
+duty complete-homework, but perhaps also help-with-homework).           less than a 100 lines of code for which one or more nor-
+In our experiments with GDPR, the event rectification-delay,            mative actors (see previous section) are created. Besides
+creating the fact undue-rectification-delay (both discussed in          the GDPR specification, the case involves an internal pol-
+Section 5), is an event triggered by the use of a timer.                icy specification and a sharing agreement. Every bank has
+   The actor sending a statement to a normative actor may               their own specialization of the internal policy. The eflint
+be a neutral observer and, for example, not the performer               specifications are kept small, formalizing only specific rules
+or recipient of an action. The normative actor responds to              and norms to focus on their interaction at the level of policy
+the observer with a summary of the effects of the transition,           design and the level of component behavior and implemen-
+similar to the output produced by the command-line REPL.                tation. The system consists of actors representing banks,
+Normative actors can thus be used in a variety of ways.                 employees and clients. These actors communicate with nor-
+   A system can have one or more monitoring actors mak-                 mative actors loaded with instances of the three mentioned
+ing qualifications based on the observed communication                  eflint specifications. This communication is indirect and
+between other actors. These qualifications are sent to nor-             happens via intermediate actors that convert domain knowl-
+mative actors that administer the norms considered by the               edge (about banks, employees and clients) to institutional
+monitoring actor. In this use case, the communications of               knowledge (about institutional facts, powers and duties) and
+normative actors can be restricted to monitoring actors only.           vice versa. These intermediate actors are derived from a high-
+   In a multi-agent system (MAS), normative actors can be               level specification (not shown here). An interesting aspect of
+internalized by agents, playing the role of a (moral, social, or        our approach is that normative actors are created for pairs
+legal) conscience. An agent communicates with its internal              of interacting banks and clients, with each normative actor
+normative actors to possibly update its beliefs, desires and            loaded with a version of the GDPR specification specialized
+intentions. Every normative actor of an agent embodies the              to that bank and client. This specialized variant of the GDPR
+particular interpretation of a set of norms adopted by the              specification can be seen as a contract between an individual
+agent. In this case, the communications of normative actors             bank and an individual client, which is monitored by the
+should be restricted to their encompassing agent.                       normative actor. The normative actor informs the bank and
+                                                                        the client of any duties and violations.
+
+                                                                        5.1    Concept definitions
+5    CASE STUDY: GDPR                                                   The following code fragment below captures the GDPR con-
+The eflint specification developed in this section captures             cepts ‘subject’ (a natural person) and ‘data’.
+the following aspects of the General Data Protection Regula-
+                                                                        Fact subject
+tion (GDPR) [19]: the requirement to receive a data subject’s           Fact data
+consent prior to data processing and the subject’s ‘right to            Fact subject - of       Identified by subject * data
+rectification’. The purpose of this section is to dive deeper
+GPCE, Generatic Programming: Concepts & Experiences, 2020     L. Thomas van Binsbergen, Lu-Chi Liu, Robert van Doesburg, and Tom van Engers
+
+
+  A fact-type declaration without an Identified by clause             types with finite numbers of instances. If this is the case,
+defaults to Identified by String.                                     then the binders are bound to all possible combinations of
+                                                                      instances of their types. If one or more of the types does
+  expressions. Consider the following expression.
+                                                                      not have a finite amount of instances, only the instances of
+( Exists subject : subject - of ( subject , data ) )                  these types that hold true in the current configuration are
+                                                                      enumerated instead. As mentioned in the previous section,
+   Expressions are literals, variables or operators and con-
+                                                                      this design decision has been made to simultaneously accom-
+structors applied to other expressions. Type names can occur
+                                                                      modate applications with finite and open-ended domains.
+as variables in expressions, such as subject and data above.
+                                                                         The Foreach operator is non-deterministic in that it com-
+Type names can also occur as constructors in expressions,
+                                                                      putes multiple values. However, non-deterministic expres-
+for example subject-of above. There is no ambiguity between
+                                                                      sions are only allowed in certain places, such as in the post-
+a type name occurring as a variable or as a constructor be-
+                                                                      conditions of actions and as the operand of an accumulator.
+cause only constructors are followed by (zero or more) formal
+                                                                      An accumulator is an operator that reduces a sequence of
+arguments within parentheses.
+                                                                      values to a single result (thus turning a non-deterministic
+   Constructor application can be written in two styles. The
+                                                                      expression in a deterministic one). The Or accumulator evalu-
+first style – familiar from functional and logic programming
+                                                                      ates to True if any of its inputs is True. Similarly, And evaluates
+– requires as many arguments as the number of fields of
+                                                                      to True if all its inputs are True. Occurrences of Exists and
+the constructed record and the arguments must be writ-
+                                                                      Forall desugar to an application of Foreach inside an applica-
+ten in the same order as the fields are written in the type-
+                                                                      tion of Or or And respectively. Other examples of accumulators
+declaration. An example is subject-of(subject,data). In the
+                                                                      are Count and Sum for counting instances and summing inte-
+second style, field names are explicitly mentioned. For exam-
+                                                                      gers.
+ple, in subject-of(subject=subject,data=data) the name subject
+occurs as a field name on the left-hand side of the equal sym-          derivation clauses. The example expression was taken from
+bol and as a variable on the right-hand side. In this style,          the following fact-type declaration with a derivation clause.
+formal arguments can be written in any order and can also             Fact personal - data Identified by data Holds when
+be omitted. If a formal argument for field x is omitted, then it        ( Exists subject : subject - of ( subject , data ) )
+defaults to x = x. The constructor application of this example
+can thus be written as subject-of(). If the variable subject-of      The derivation clause determines that data is personal data
+is bound to a record, then subject-of.subject evaluates to the       if it has a subject, which closely resembles the definition of
+value of the field subject of that record (projection).              “personal data” in Article 4(1) of the GDPR.
+                                                                         Derivation clauses come in two forms: a Holds when clause
+   accumulators. The example expression shows that eflint            with a Boolean expression or a Derived from clause with an in-
+is based on first-order logic with existential and universal         stance expression. The instance expression of a Derived from
+quantification via the Exists and Forall operators. The in-          clause produces all the instances of the type that are deemed
+ner expression of a quantifier, appearing behind the colon,          to hold true by the clause. Any variables not explicitly bound
+must be a Boolean expression. However, the sub-expression            by occurrences of Exists, Forall or Foreach in this instance
+subject-of(subject,data) of the example is an instance ex-           expression are implicitly bound by an outermost Foreach. A
+pression when taken out of context. The static semantics of          Holds when clause is syntactic sugar for a Derived from clause.
+eflint rewrites this expression to the Boolean expression            The above fragment is equivalent to the following:
+Holds(subject-of(subject,data)). The Holds operator checks
+whether the instance computed by its operand holds true in            Fact personal - data Identified by data Derived from
+                                                                       ( Foreach data : personal - data () When
+the current configuration.                                               ( Exists subject : subject - of ( subject , data ) ) )
+   The example is expression is equivalent to the following:
+Or ( Foreach subject : subject - of ( subject , data ) )
+                                                                      The When operator is used in non-deterministic expressions
+                                                                      to filter out unwanted results. The operator evaluates to the
+The semantics of Foreach are to evaluate its inner expression         result of its first operand, but only if its second operand
+multiple times, each time binding its binders (the comma-             evaluates to True.
+separated variables before the colon) to a different combi-              In general, a Holds when clause with Boolean expression
+nation of instances of their respective types. For example,           [t] for a fact-type [x] with fields [a], [b] and [c] desugars to
+when the above expression is evaluated, the inner expression          Derived from (Foreach [a],[b],[c]: [x]() When [t]). A Holds
+is evaluated once for every possible binding of the variable          when clause can therefore only be part of a fact-type dec-
+subject to an instance of the type subject. The behavior of           laration with a record type. The desugaring shows that the
+Foreach differs depending on whether all its binders refer to         expression of a Holds when clause is evaluated in the context
+eFLINT: a Domain-Specific Language for Executable Norm Specifications                 GPCE, Generatic Programming: Concepts & Experiences, 2020
+
+
+of a record instance to determine whether that instance holds                the constraint determines that the new data is indeed new
+true. In the example, this is the instance personal-data(data                and has the same subject as the old data. An instance con-
+= data) for every instance of data.                                          straint keeps the Foreach operator from enumerating ‘invalid’
+                                                                             instances of the declared type.
+5.2     Consent                                                                 The definition of data-change refers to multiple instances of
+This subsection formalizes Article 6(1)(b) on consent [19].                  data. To support multiple such references, variables can have
+The following fragment defines the related concepts of data                  ‘decoration’ in the form of integer numbers or prime charac-
+controller, data processor, purpose and consent.                             ters at the end of their name (e.g. data1, data2, and data'). The
+                                                                             user can also add their own variable names with a Placeholder
+Fact controller
+Fact processor
+                                                                             declaration. In the fragment above, the name new-data is in-
+Fact processes Identified by                                                 troduced as a placeholder for instances of the fact-type data.
+  processor * data * controller * purpose                                    Note that the constructor application subject-of() has data
+Fact purpose                                                                 as an implicit argument because this is the name of one of
+Fact consent Identified by                                                   its fields.
+  subject * controller * purpose
+Fact accurate - for - purpose Identified by
+                                                                                The act-type declaration of give-consent, shown below, de-
+  data * purpose                                                             scribes the power of subjects giving consent to controllers.
+                                                                             The Related to clause reflects that consent is given for a spe-
+A controller is a legal entity collecting and processing the                 cific purpose.
+data of a data subject. A processor is a legal entity storing or
+processing data on behalf of a controller. An important aspect               Act give - consent
+                                                                               Actor subject
+of the GDPR is that a controller communicates the purpose
+                                                                               Recipient controller
+for which it is collecting and processing data and that the                    Related to purpose
+subject gives explicit consent to processing9 the data for that                Creates consent ()
+purpose. If the record of type consent that contains subject                   Holds when ! consent ()
+S, controller C and purpose R holds true in a configuration,
+then this means that S has given consent to C to collect                     The derivation clauses and post-conditions of an act-type are
+and process their data for purpose R. If the record of type                  evaluated in an environment that binds the field names of the
+processes that contains processor P, controller C, data D and                type. For example, to determine the effects of the instance
+purpose R holds true in a configuration, then this means that                give-consent(Alice,Bank,KYC), the variable subject is bound to
+P processes the data D on behalf of C for the purpose R.                     Alice, the variable controller is bound to Bank and the vari-
+   The presented formulation abstracts over operations on                    able purpose is bound to KYC. These bindings are used as the
+data by capturing all changes to data as replacements. When                  (implicit) arguments to the constructor application consent().
+the postal address of a bank’s client changes, the currently                 The derivation clause of give-consent prevents repeated ex-
+held postal address is no longer accurate for the purpose of                 ecution of the same instance of give-consent (although one
+building a KYC client profile. However, there is no definition               can argue that the power to give consent is unconditioned).
+of an action for clients (subjects) to change their addresses                   The act-type collect-personal-data given below determines
+because relocation is not a GDPR notion. Instead, an instance                that consent must have been given by the subject for the
+of the data-change event, defined below, is triggered when a                 purpose for which the data is being collected and that the
+change in address is observed.                                               data must be accurate for this purpose. If, in physical real-
+                                                                             ity, multiple processors process the collected data, then the
+Event data - change
+                                                                             institutional action collect-personal-data is to be executed
+ Related to data , new - data , purpose
+  When data != new - data                                                    multiple times, with different processor arguments.
+    && subject - of () && subject - of ( data = new - data )
+                                                                             Act collect - personal - data
+ Terminates accurate - for - purpose ( data , purpose )
+                                                                               Actor controller
+ Creates      accurate - for - purpose ( new - data , purpose )
+                                                                               Recipient subject
+ Holds when accurate - for - purpose ( data , purpose )
+                                                                               Related to data , processor , purpose
+                                                                                 When subject - of ()
+Placeholder new - data For data                                                Creates processes ()
+                                                                               Holds when consent () && accurate - for - purpose ()
+The When clause introduces an instance constraint (omitted
+from the abstract syntax in Section 3), establishing a connec-
+tion between the fields of the declared type. In this example,               5.3    The right to rectification
+9 Consent is one of several grounds for lawfully processing personal data.   Article 16 of the GDPR states [19]:
+GPCE, Generatic Programming: Concepts & Experiences, 2020      L. Thomas van Binsbergen, Lu-Chi Liu, Robert van Doesburg, and Tom van Engers
+
+
+      The data subject shall have the right to obtain from             Events without an explicit derivation clause hold true by
+      the controller without undue delay the rectification             default, i.e. they have an implicit clause Holds when True. Ac-
+      of inaccurate personal data concerning him or her.               tions without a derivation clause are considered ‘postulated
+      [...]                                                            facts’, i.e. they can be created or terminate by other actions.
+The interpretation we formalize consists of:                              The application of When in the creating post-condition of
+                                                                       rectification-delay shows that post-conditions can be non-
+  (1) the power for the data subject to demand rectification
+                                                                       deterministic expressions evaluating to zero or more in-
+      when the data processed by the controller is inaccurate
+                                                                       stances. All instances computed for a creating (terminating)
+      for the purpose it is processed
+                                                                       post-condition are created (terminated). The post-condition
+  (2) a duty held by the controller to rectify the data without
+                                                                       of rectification-delay computes zero or one instances of
+      undue delay when the subject demands it
+                                                                       undue-rectification-delay() depending on whether the ex-
+  (3) the power of the controller to terminate this duty once
+                                                                       pression rectification-duty() holds true. A post-condition
+      their processors use accurate data
+                                                                       can evaluate to more than one instance by the implicit or
+  The fragment below formalizes (1) as an act-type.                    explicit use of Foreach. Any variables that are not bound in
+Act demand - rectification                                             a post-condition are bound by Foreach implicitly. Similarly,
+ Actor subject                                                         any variables not bound in derivation clauses or violation
+ Recipient controller                                                  conditions are bound by Exists implicitly. If a creating post-
+ Related to purpose
+                                                                       condition evaluates to an instance that already holds true,
+ Creates rectification - duty ()
+ Holds when ( Exists data , processor :                                then this instance is not added to the configuration a second
+  subject - of () && processes () &&                                   time (a configuration is a set). Conversely, if a terminating
+    ! accurate - for - purpose () )                                    post-condition evaluates to an instance that does not hold
+                                                                       true, then terminating this instance has no effect.
+The action demand-rectification is enabled for a subject if
+                                                                          The controller can relieve itself of the rectification-duty
+there is a processor that, on behalf of the controller, processes
+                                                                       when its processors use accurate data for the given purpose.
+inaccurate personal data of the subject. The effect of the
+action is to place the duty (point (2) above) on the controller.       Act rectified - personal - data
+  The duty is defined by the following duty-type declaration.           Actor controller
+                                                                        Recipient subject
+Duty rectification - duty
+                                                                        Related to purpose
+  Holder controller
+                                                                        Terminates rectification - duty ()
+  Claimant subject
+                                                                                  , undue - rectification - delay ()
+  Related to purpose
+                                                                        Holds when processors - accurate ()
+  Violated when undue - rectification - delay ()
+
+
+Fact undue - rectification - delay Identified by                       The predicate processors-accurate determines whether all pro-
+  controller * purpose * subject                                       cessors that process data on behalf of a controller for a spe-
+                                                                       cific subject and purpose use accurate data:
+Since accuracy depends on purpose, the duty-claim relation
+between controllers and subjects is related to a purpose.              Fact processors - accurate
+   Like the conditions of act-types, a violation condition is           Identified by controller * subject * purpose
+evaluated in an environment binding the fields of the types.            Holds when ( Forall processor , data :
+The rectification-duty is violated whenever there is undue                             accurate - for - purpose ()
+                                                                                       When processes () && subject - of () )
+delay in between the demand for rectification and the rec-
+tification taking place. The usage of the term “undue delay”
+in the article leaves room for discussion (deliberately). In
+other words, potential cases of delay are subject to quali-            5.4     Reflections
+fication. The event rectification-delay, defined below, can            The GDPR case study presented in this section demonstrates
+be triggered to indicate that the duty has been violated be-           that eflint can be used to formalize, rather concisely, norms
+cause of an undue delay. The fact undue-rectification-delay()          described in significant, real-world regulations. Although not
+is only created if the rectification duty (still) exists.              shown in this paper, the formalization can be used to assess
+Event rectification - delay                                            concrete cases and can be used to reason about the com-
+ Related to controller , purpose , subject                             pliance of running systems. The web-interface for eFLINT
+ Creates undue - rectification - delay ()                              provides an example scenario and demonstrates case assess-
+          When rectification - duty ()                                 ment with the GDPR specification [32]. In future work we
+eFLINT: a Domain-Specific Language for Executable Norm Specifications            GPCE, Generatic Programming: Concepts & Experiences, 2020
+
+
+intend to give a comprehensive account of a generic data-               6    RELATED WORK
+sharing architecture that involves normative actors for regu-           The aspects of norms automated by software are roughly
+latory services, showing in particular how multiple eflint              divided into structural aspects – such as production, instan-
+specifications co-exist and how eflint is used to enforce               tiation and publication – and dynamic aspects – such as
+compliance of software with respect to multiple regulations,            implementation, modification, termination, monitoring and
+policies and contracts.                                                 enforcement. On the structural side, standards have been
+   In the design of eflint, focus has been on the possibility           developed for the digital representation of contracts (e.g.
+to simultaneously use specifications in isolation – typically           Oasis eContracts [6]) and for referring to sources of law
+with a finite domain – as well as in in running systems –               (e.g. MetaLex, Akomo Ntoso, Juriconnect and ECLI). Type-
+typically with an open-ended domain. To this end, the lan-              declarations in eflint can easily be extended with references
+guage has a reactive, REPL-oriented design, based on [33],              to sources, e.g. using MetaLex [2], making it possible to re-
+supporting manual exploration and enabling external sys-                late components of traces in the transition system to sources,
+tems to trigger actions and events. This motivation guided              further enhancing explainability. A predecessor of eflint
+other design choices as well, such as the semantics of Foreach          demonstrated this capability and has been used to discover
+and the ability to redefine types to form specialized domains.          inconsistencies in sources of norms [34]. Natural language
+The ability to redefine types makes it possible to reuse a              processing can assist with the interpretation process, in-
+norm specification across different applications in which               troducing the necessary structure to allow contracts to be
+certain concepts, such as data of the GDPR, are concretized             analyzed by software [4, 35]. However, legal experts and pol-
+differently.                                                            icy makers are not all programmers, and certain information
+   Omitting formal arguments in constructor applications                required to compute with norms is not present in sources,
+has significantly improved the brevity of the GDPR specifi-             e.g. the structure of, and relations between, values. This ob-
+cations. Moreover, by hiding the structure of data, clauses             servation has motivated and influenced the development of
+of type declarations read almost like natural text and less             eflint.
+like programming instructions. For example, the derivation                 The computational theory underneath eflint is most sim-
+clause Holds when consent() reads more natural than Holds               ilar to event calculus [16] and its simplified variants [24]. In
+when consent(subject,controller,purpose). The downside is the           the variants of [5, 21], time is represented as a sequence
+(mental) effort required to reproduce the full constructor              of (distinct) time points. At each time point, certain flu-
+applications whenever a detailed reading of the code is nec-            ents are stated to hold true by the HoldsAt(f , t) predicate
+essary. This effort can be greatly reduced with IDE support,            (with f a fluent and t a time point). Events initiate or ter-
+e.g. by showing the declaration of a type when holding the              minate fluents at certain time points according to the predi-
+cursor over a constructor.                                              cate Initiates(e, f , t) or Terminates(e, f , t) (with e an event).
+   The distinction between derived facts and postulated facts           The judgment Happens(e, t) states that event e takes place
+is a crucial feature of eflint. Derivation clauses effectively          at time t. A collection of axioms determines that initiated
+describe logical implications of the kind that are common               fluents hold true until they are terminated, that terminated
+in logical programming. However, the consequents are not                fluents do not hold until they are initiated (again) and that
+limited to Boolean formulas. For example, in the following              the correct fluents are initiated and terminated after events
+code, the type wealth always has exactly one instance corre-            happen. The facts of eflint correspond to the fluents of
+sponding to the sum of all people’s savings.                            the event calculus and time points can be seen as identi-
+                                                                        fiers for configurations, i.e. HoldsAt(f , t) states that fact f
+Fact person
+Fact balance      Identified         by Int                             is in configuration t. The creating and terminating post-
+Fact balance - of Identified         by person * balance                conditions of actions and events in eflint correspond to
+Fact wealth       Identified         by Int Derived from                judgments involving the Initiates and Terminates predicates
+  Sum ( Foreach balance - of :       balance - of . balance )           respectively (for every possible time point). The derivation
+                                                                        clauses of fact-type declarations introduce rules of the form
+An important aspect of postulated facts is that their validity          HoldsAt(f 1 , t) ∧ ... ∧ HoldsAt(fk , t) =⇒ HoldsAt(fk +1 , t).
+is established externally. In the current implementation, facts         Expressions in eflint are thus interpreted as logical formu-
+are proactively provided by an external system. However,                lae with Forall and Exists implying the usage of first-order
+the implementation can be extended to support on-demand                 logic. Halpern and Weissman discuss the use of first-order
+requests. Determining the validity of a fact can then be del-           logic to describe and reason about policies, identifying in
+egated to a relevant authority, e.g. a health-care provider             particular a number of first-order languages with different
+confirming the validity of a receipt to support an insurance            characteristics regarding the complexity of reasoning [11].
+claim. Further reflections are in comparison to related work.
+GPCE, Generatic Programming: Concepts & Experiences, 2020      L. Thomas van Binsbergen, Lu-Chi Liu, Robert van Doesburg, and Tom van Engers
+
+
+A scenario in eflint corresponds to a set of concrete judg-            exchange at a risk low enough for all parties. With the ad-
+ments of the form Happens(e, t). However, Happens(e, t) can            vent of blockchain technology [17], smart contracts are now
+be stated for multiple instances of e and the same t, i.e. mul-        typically understood as scripts that facilitate the execution of
+tiple events can happen simultaneously, which is not true              ‘transactions’. The underlying blockchain technology forms a
+for the actions and events of eflint. Perhaps eflint can               distributed ledger establishing consensus between potential
+be extended with declarations of composite events for this             witnesses about the history of transactions. A popular smart
+purpose. The notions of action-violation and duty-violation            contract language is Solidity [7], running on the Ethereum
+used by eflint can be formulated as logical predicates. A              platform [3, 36]. The Flint language (unrelated to eflint)
+translation from eflint to answer set programming based on             offers a safer alternative to Solidity for writing smart con-
+the connection with the event calculus is being considered.            tracts running on Ethereum [25]. The Marlowe DSL is used
+   Several formal languages for norms are based on exten-              to develop smart contracts at a higher level of abstraction
+sions to the event calculus such as Symboleo [28] and In-              that run on the Cardano platform [27].
+stAL [20]. Besides the event calculus, Symboleo and eflint
+are also related in their Hohfeldian foundations. In Sym-              7    CONCLUSIONS
+boleo obligations and powers are instantiated by ‘triggers’.
+                                                                       We have presented eflint, a novel domain-specific modeling
+In eflint, derivation clauses can be used for this purpose.
+                                                                       language for formalizing norms found in laws, regulations,
+However, in eflint expressions are always evaluated in the
+                                                                       policies, contracts and (data-sharing) agreements. The action-
+current configuration, whereas Symboleo is true to the event
+                                                                       oriented nature of the language makes it possible to use the
+calculus in that expressions concern the entire timeline.
+                                                                       language in a variety of ways, including case analysis and
+   Significant work exists about the formalization, analysis
+                                                                       monitoring the compliance of a running system. Pragmatic
+and enforcement of specific kinds of policies such as policies
+                                                                       design decisions have been made to allow specifications to
+for access control and network policies [1] (e.g. firewall con-
+                                                                       be reused for both types of reasoning and across applications.
+figurations), of which a survey is given by Jabal et al [14]. The
+                                                                       In particular, the generic concepts encountered in laws and
+eflint language is instead used to describe a wide variety
+                                                                       regulations can be formalized at a high level of abstraction,
+of normative sources such as laws, regulations, policies and
+                                                                       whilst applications of these formalizations can effortlessly
+contracts. The Margrave Policy Analyzer tool10 can be used
+                                                                       redefine the concepts to match the domain of the application.
+to reason about access control and firewall configurations,
+                                                                       Our approach involves the explicit qualification of physical
+supporting several formalisms such as the widely adopted
+                                                                       reality as institutional facts, actions, events and duties. The
+XACML for access control [29]. The tool implements several
+                                                                       normative positions of actors evolve over time as actions are
+types of reasoning, including Change-Impact Analysis [8].
+                                                                       performed and events take place. The resulting traces can
+   Governatori et al. give a detailed overview on the inter-
+                                                                       be used to diagnose violations and to provide explanations
+pretation and lifecycle of contracts in [9]. In terms of the
+                                                                       about the decisions made based on the norms.
+elements described in [9], eflint is used to make interpreta-
+tions explicit, including implied terms and norms that follow
+                                                                          Acknowledgements. The authors thank colleagues and re-
+from the integration of the contract in a wider context. With
+                                                                       viewers for their comments and suggestions on earlier ver-
+the example of undue rectification delay and accuracy for
+                                                                       sions of this paper. This work is supported by the NWO
+purpose, we have shown how open-textured terms are treated
+                                                                       project (628.009.014) Secure Scalable Policy-enforced Dis-
+by explicit qualification in eflint. The automated assessment
+                                                                       tributed Data Processing (SSPDDP), part of the NWO re-
+of scenarios, explained in Section 4, can assist with dispute
+                                                                       search program Big Data: Real Time ICT for Logistics.
+resolution. Section 4 also explains how normative actors can
+be used for monitoring and enforcement. The implementation
+also enables dynamic modification of contracts by removing             REFERENCES
+and redefining (act- and duty-) types on-the-fly. Several av-           [1] E. S. Al-Shaer and H. H. Hamed. 2004. Modeling and Management of
+enues are being considered to support the implementation of                 Firewall Policies. IEEE Transactions on Network and Service Manage-
+                                                                            ment 1, 1 (2004), 2–10. https://doi.org/10.1109/TNSM.2004.4623689
+contracts formalized in eflint, including smart contracts.              [2] A. Boer, R. Hoekstra, E. De Maat, F. Vitali, M. Palmirani, and B. Ratai.
+   The idea of smart contracts was first introduced by Sz-                  2010. Metalex (Open XML Interchange Format for Legal and Legisla-
+abo [30] as software (or hardware) that facilitates the ex-                 tive Resources). Technical Report CWA, Vol. 15710:2010. European
+changes of digital items of value between two or more par-                  Committee for Standardization (CEN).
+ties, with a security mechanism in place that ensures the               [3] V. Buterin. 2018. Ethereum White Paper.
+                                                                        [4] I. Chalkidis, I. Androutsopoulos, and A. Michos. 2017. Extracting
+                                                                            Contract Elements. In Proceedings of the 16th Edition of the International
+                                                                            Conference on Articial Intelligence and Law (ICAIL 2017). ACM, 19–28.
+10 http://www.margrave-tool.org/                                            https://doi.org/10.1145/3086512.3086515
+eFLINT: a Domain-Specific Language for Executable Norm Specifications                          GPCE, Generatic Programming: Concepts & Experiences, 2020
+
+
+ [5] M. Charalambides, P. Flegkas, G. Pavlou, A. K. Bandara, E.C. Lupu,             [22] M. Ruta, F. Scioscia, S. Ieva, G. Capurso, A. Pinto, and E. Di Sciascio.
+     A. Russo, N. Dulay, M. Sloman, and J. Rubio-Loyola. 2005. Policy                    2018. A Blockchain Infrastructure for the Semantic Web of Things.
+     Conflict Analysis for Quality of Service Management. In 6th IEEE                    In Proceedings of the 26th Italian Symposium on Advanced Database
+     International Workshop on Policies for Distributed Systems and Networks             Systems (CEUR Workshop Proceedings, Vol. 2161). CEUR-WS.org.
+     (POLICY 2005), 6-8 June 2005, Stockholm, Sweden. IEEE, 99–108. https:          [23] M. Ruta, F. Scioscia, S. Ieva, G. Capurso, and E. Di Sciascio. 2017.
+     //doi.org/10.1109/POLICY.2005.23                                                    Semantic Blockchain to Improve Scalability in the Internet of Things.
+ [6] OASIS LegalXML eContracts TC. 2007. eContracts Version 1.0 Com-                     Open Journal of Internet of Things 3 (2017), 46–61.
+     mittee Specification.                                                          [24] F. Sadri and R.A. Kowalski. 1995. Variants of the Event Calculus. In
+ [7] Ethereum. 2016. Solidity Documentation Online. https://solidity.                    Logic Programming, Proceedings of the Twelfth International Conference
+     readthedocs.io. [Online, accessed 7 October 2020].                                  on Logic Programming, Tokyo, Japan, June 13-16, 1995, L. Sterling (Ed.).
+ [8] K. Fisler, S. Krishnamurthi, L.A. Meyerovich, and M.C. Tschantz. 2005.              MIT Press, 67–81.
+     Verification and Change-Impact Analysis of Access-Control Policies.            [25] F. Schrans, D. Hails, A. Harkness, S. Drossopoulou, and S. Eisenbach.
+     In Proceedings of the 27th International Conference on Software Engi-               2019. Flint for Safer Smart Contracts. https://arxiv.org/pdf/1904.06534.
+     neering (St. Louis, MO, USA) (ICSE 2005). Association for Computing                 pdf.
+     Machinery, New York, NY, USA, 196–205. https://doi.org/10.1145/                [26] J.R Searle. 1996. The construction of social reality. Penguin Books.
+     1062455.1062502                                                                [27] P.L. Seijas, A. Nemish, D. Smith, and S. Thompson. 2020. Marlowe:
+ [9] G. Governatori, F. Idelberger, Z. Milosevic, R. Riveret, G. Sartor, and             implementing and analysing financial contracts on blockchain. In
+     X. Xu. 2018. On legal contracts, imperative and declarative smart                   Workshop on Trusted Smart Contracts (Financial Cryptography 2020).
+     contracts, and blockchain systems. Artificial Intelligence and Law 26, 4       [28] S. Sharifi, A. Parvizimosaed, D. Amyot, L. Logrippo, and J. Mylopoulos.
+     (2018), 377–409. https://doi.org/10.1007/s10506-018-9223-3                          2020. Symboleo: Towards a Specification Language for Legal Contracts.
+[10] G. Governatori, M.J. Maher, G. Antoniou, and D. Billington. 2004. Argu-             In 28th IEEE Int. Requirements Engineering Conf. (RE 2020). IEEE.
+     mentation Semantics for Defeasible Logic. Journal of Logic and Compu-          [29] OASIS Standard. 2013. eXtensible Access Control Markup Language
+     tation 14, 5 (10 2004), 675–702. https://doi.org/10.1093/logcom/14.5.675            (XACML) Version 3.0. http://docs.oasis-open.org/xacml/3.0/xacml-3.0-
+[11] J.Y. Halpern and V. Weissman. 2008. Using First-Order Logic to Reason               core-spec-os-en.html.
+     about Policies. ACM Transactions on Information and System Security            [30] N. Szabo. 1997. Formalizing and Securing Relationships on Public
+     11, 4 (2008), 21:1–21:41. https://doi.org/10.1145/1380564.1380569                   Networks. First Monday 2, 9 (1997). https://doi.org/10.5210/fm.v2i9.548
+[12] H. Herrestad. 1993. Norms and Formalization. In Proceedings of the 3th         [31] L.T. van Binsbergen. 2020. Haskell prototype implementation of the
+     International Conference on Artificial Intelligence and Law (ICAIL 1993).           eFLINT language. https://gitlab.com/eflint/haskell-implementation.
+     ACM, 175–184. https://doi.org/10.1145/112646.112667                                 [Online, accessed 7 October 2020].
+[13] W.N. Hohfeld. 1913. Some Fundamental Legal Conceptions as Applied              [32] L.T. van Binsbergen and G. Sileno. 2020. Web-interface for automatic
+     in Judicial Reasoning. Yale Law Journal 23(1) (1913), 59–64.                        case assessment in eFLINT. http://ltvanbinsbergen.nl/publications/
+[14] A.A. Jabal, M. Davari, E. Bertino, C. Makaya, S. Calo, D. Verma, A.                 eflint/online/gpce2020/. [Online, accessed 8 October 2020].
+     Russo, and C. Williams. 2019. Methods and Tools for Policy Analysis.           [33] L. T. van Binsbergen, M. Verano Merino, P. Jeanjean, T. van der Storm, B.
+     Comput. Surveys 51, 6, Article 121 (2019). https://doi.org/10.1145/                 Combemale, and O. Barais. 2020. A principled approach to REPL inter-
+     3295749                                                                             preters. In Proceedings of the 2020 ACM SIGPLAN International Sympo-
+[15] A.J.I. Jones and M. Sergot. 1996. A Formal Characterisation of Insti-               sium on New Ideas, New Paradigms, and Reflections on Programming and
+     tutionalised Power. Logic Journal of the IGPL 4, 3 (06 1996), 427–443.              Software (GPCE 2020). ACM. https://doi.org/10.1145/3426428.3426917
+     https://doi.org/10.1093/jigpal/4.3.427                                         [34] R. van Doesburg, T. van der Storm, and T. van Engers. 2016. CALCULE-
+[16] R.A. Kowalski and M.J. Sergot. 1986. A Logic-based Calculus of Events.              MUS: Towards a Formal Language for the Interpretation of Normative
+     New Generation Computing 4, 1 (1986), 67–95. https://doi.org/10.1007/               Systems. In AI4J Workshop at ECAI 2016 (AI4J 2016). 73–77.
+     BF03037383                                                                     [35] T. van Engers and R. van Doesburg. 2015. At Your Service, On the
+[17] S. Nakamoto. 2008. Bitcoin: A peer-to-peer electronic cash system.                  Definition of Services from Sources of Law. In Proceedings of the 15th
+     (2008).                                                                             International Conference on Artificial Intelligence and Law (ICAIL 2015).
+[18] D. Nute. 2003. Defeasible Logic. In Web Knowledge Management and De-                ACM, 221–0225. https://doi.org/10.1145/2746090.2746115
+     cision Support, O. Bartenstein, U. Geske, M. Hannebauer, and O. Yoshie         [36] D.D. Wood. 2014. Ethereum: a secure decentralised generalised trans-
+     (Eds.). Springer Berlin Heidelberg, Berlin, Heidelberg, 151–169.                    action ledger.
+[19] Council of the EU. 2016. General Data Protection Regulation.                   [37] H. Zhou, X. Ouyang, J. Su, C. de Laat, and Z. Zhao. 2019. Enforcing
+[20] J. Padget, E. Elakehal, T. Li, and M. De Vos. 2016. InstAL: An Institutional        trustworthy cloud SLA with witnesses: A game theory-based model
+     Action Language. Law, Governance and Technology Series, Vol. 30.                    using smart contracts. Concurrency and Computation: Practice and
+     Springer Verlag, 101.                                                               Experience (2019), e5511. https://doi.org/10.1002/cpe.5511
+[21] A. Russo, R. Miller, B. Nuseibeh, and J. Kramer. 2002. An Abductive            [38] M. Zichichi, M. Contu, S. Ferretti, and V. Rodríguez-Doncel. 2020.
+     Approach for Analysing Event-Based Requirements Specifications. In                  Ensuring Personal Data Anonymity in Data Marketplaces through
+     Logic Programming, 18th International Conference, ICLP 2002, Copen-                 Sensing-as-a-Service and Distributed Ledger. In Proceedings of the 3rd
+     hagen, Denmark, July 29 - August 1, 2002, Proceedings (LNCS, Vol. 2401),            Distributed Ledger Technology Workshop Co-located with ITASEC (CEUR
+     P.J. Stuckey (Ed.). Springer, 22–37. https://doi.org/10.1007/3-540-                 Workshop Proceedings, Vol. 2580), F. Chiaraluce and L. Mostarda (Eds.).
+     45619-8_3                                                                           CEUR-WS.org.
+

@@ -1,0 +1,2160 @@
+    LINC: A Neurosymbolic Approach for Logical Reasoning by Combining
+             Language Models with First-Order Logic Provers
+        Theo X. Olausson*1 Alex Gu*1 Benjamin Lipkin*2 Cedegao E. Zhang*2
+             Armando Solar-Lezama1 Joshua B. Tenenbaum1,2 Roger Levy2
+                       {theoxo, gua, lipkinb, cedzhang}@mit.edu
+                                 1
+                                   MIT CSAIL 2 MIT BCS
+                                    ∗
+                                     Equal contribution.
+
+                        Abstract                                1   Introduction
+
+    Logical reasoning, i.e., deductively inferring              Widespread adoption of large language models
+    the truth value of a conclusion from a set of               (LLMs) such as GPT-3 (Brown et al., 2020), GPT-
+    premises, is an important task for artificial in-           4 (OpenAI, 2023), and PaLM (Chowdhery et al.,
+    telligence with wide potential impacts on sci-              2022) have led to a series of remarkable successes
+    ence, mathematics, and society. While many                  in tasks ranging from text summarization to pro-
+    prompting-based strategies have been proposed               gram synthesis. Some of these successes have en-
+    to enable Large Language Models (LLMs) to                   couraged the hypothesis that such models are able
+    do such reasoning more effectively, they still
+                                                                to flexibly and systematically reason (Huang and
+    appear unsatisfactory, often failing in subtle
+    and unpredictable ways. In this work, we                    Chang, 2022), especially when using prompting
+    investigate the validity of instead reformulat-             strategies that explicitly encourage verbalizing in-
+    ing such tasks as modular neurosymbolic pro-                termediate reasoning steps before generating the
+    gramming, which we call LINC: Logical In-                   final answer (Nye et al., 2021; Wei et al., 2022;
+    ference via Neurosymbolic Computation. In                   Kojima et al., 2022; Wang et al., 2023b). However,
+    LINC, the LLM acts as a semantic parser, trans-             this reasoning ability appears to be unreliable for
+    lating premises and conclusions from natural
+                                                                tasks that require reasoning out of domain (Liang
+    language to expressions in first-order logic.
+    These expressions are then offloaded to an ex-              et al., 2022; Saparov et al., 2023), understanding
+    ternal theorem prover, which symbolically per-              negation (Anil et al., 2022), and following long
+    forms deductive inference. Leveraging this ap-              reasoning chains (Dziri et al., 2023). Furthermore,
+    proach, we observe significant performance                  while the standard approach of “scaling up” seems
+    gains on FOLIO and a balanced subset of                     to improve performance across some reasoning do-
+    ProofWriter for three different models in nearly            mains, other domains, e.g., reasoning involving use
+    all experimental conditions we evaluate. On                 of Modus Tollens, show no such improvements
+    ProofWriter, augmenting the comparatively
+                                                                (McKenzie et al., 2022). These findings suggest
+    small open-source StarCoder+ (15.5B parame-
+    ters) with LINC even outperforms GPT-3.5 and                that such models may be relying on approximate
+    GPT-4 with Chain-of-Thought (CoT) prompt-                   heuristics based on surface-level statistical patterns
+    ing by an absolute 38% and 10%, respec-                     in reasoning tasks, rather than consistent, gener-
+    tively. When used with GPT-4, LINC scores                   alizable representations and strategies (Srivastava
+    26% higher than CoT on ProofWriter while                    et al., 2023; Creswell et al., 2023).
+    performing comparatively on FOLIO. Further
+    analysis reveals that although both methods on                At the same time, the ability to accurately and
+    average succeed roughly equally often on this               soundly perform logical reasoning is important for
+    dataset, they exhibit distinct and complemen-               AI and NLP due to its impact on downstream tasks.
+    tary failure modes. We thus provide promising               For example: retrieval-augmented chatbots may
+    evidence for how logical reasoning over natural             become more truthful if it can be verified that their
+    language can be tackled through jointly lever-              answers logically follow from the retrieved facts;
+    aging LLMs alongside symbolic provers. All                  data-driven models capable of logical reasoning
+    corresponding code is publicly available.1
+                                                                may speed up progress across mathematics and
+    ∗                                                           the sciences through automated theorem proving
+       Author order randomized; all reserve the right to list
+their name first.                                               and knowledge discovery; and AI tutoring systems
+    1
+       https://github.com/benlipkin/linc                        which ensure internal logical consistency might
+                                                            5153
+        Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing, pages 5153–5176
+                           December 6-10, 2023 ©2023 Association for Computational Linguistics
+                                                                                                Input
+ Step 1:                                    Premise:            All rectangles have four sides.                                   Output
+ Semantic                                   Premise:            All four-sided things are shapes.
+                                                                                                                                 True
+ Parser                                     Conclusion:         Are all rectangles shapes?
+
+
+
+                                                                              Sample 1                          Sample 1
+           <PREMISE> all x. (rectangle(x) -> foursides(x)) </PREMISE>
+           <PREMISE> all x. (foursides(x) -> isshape(x)) </PREMISE>
+           <CONCLUSION> all x. (rectangle(x) -> isshape(x)) </CONCLUSION>                      Step 2:            True
+                                                                                                                               Step 3:
+                                                                                                 Logic
+                                                                                                                                 K-Maj
+                                                                              Sample 2         Theorem          Sample 2
+           <PREMISE> all x. (rectangle(x) -> foursides(x)) </PREMISE>                                                           Voting
+           <PREMISE> all x. (foursides(x) -> isshape(x))) </PREMISE>
+           <CONCLUSION> all x. (rectangle(x) -> isshape(x)) </CONCLUSION>
+                                                                                                Prover           Error
+
+
+                                                                              Sample 3                          Sample 3
+           <PREMISE> all x. (rectangle(x) -> foursidedthings(x)) </PREMISE>
+           <PREMISE> all x. (foursidedthings(x) -> isshape(x)) </PREMISE>
+           <CONCLUSION> all x. (rectangle(x) -> isshape(x)) </CONCLUSION>
+                                                                                                                  True
+
+
+                                                                              Sample N                          Sample N
+           <PREMISE> all x. (rectangle(x) -> foursides(x)) </PREMISE>
+           <PREMISE> all x. (foursidedthings(x) -> isshape(x)) </PREMISE>
+           <CONCLUSION> all x. (rectangle(x) -> isshape(x)) </CONCLUSION>
+                                                                                                                Unknown
+
+
+Figure 1: This figure showcases the essence of our approach. Starting from a problem in natural language, in
+Step 1, the LLM semantic parser samples logic formulas expressing estimates of the semantics. It is possible that
+some of these might contain errors, e.g., the second example shows a syntax error involving an extra parenthesis,
+whereas the fourth example highlights a semantic error caused by mismatched predicates. In Step 2, these are then
+each offloaded to an automated theorem prover, filtering out syntax errors, and producing labels for the remaining
+samples. In Step 3, the remaining candidate outputs are passed through a majority-vote sieve to arrive at the best
+estimate for a single output label.
+
+
+make for better educational platforms, teaching                                    the solver astray, leading to an incorrect conclusion.
+students to think more clearly and rigorously. The                                 As it is not clear whether the task of formalization
+question of how to enable state-of-the-art LLMs to                                 is more or less difficult than that of end-to-end nat-
+become more reliable logical reasoners is thus one                                 ural language reasoning, our core interest in this
+of great importance, with far-reaching implications.                               work is to compare and contrast our neurosym-
+   In this work, we analyze LINC: Logical                                          bolic approach to existing reasoning strategies like
+Inference via Neurosymbolic Computation (Fig. 1).                                  Chain-of-Thought. Our contributions are thus
+In LINC, logical reasoning is tackled through a                                    three-fold:
+modular, two-step neurosymbolic process. First,                                          • First, we propose LINC, a two-stage neurosym-
+the language model converts the natural language                                           bolic approach for logical reasoning tasks
+premises and desired conclusion into first-order                                           (Sec. 2).
+logic (FOL) expressions (Enderton, 2001; Barker-
+                                                                                         • Second, we compare LINC to three baseline
+Plummer et al., 2011). Second, a symbolic FOL
+                                                                                           LLM strategies (Fig. 2), across three mod-
+theorem prover algorithmically determines the
+                                                                                           els (StarCoder+, GPT-3.5, GPT-4) and two
+truth value of the conclusion given the formalized
+                                                                                           datasets (FOLIO and ProofWriter) (Sec. 4).
+premises. In practice, we also incorporate a third
+                                                                                           We find that LINC significantly improves per-
+majority voting step, which is shown to improve
+                                                                                           formance over every baseline in all experimen-
+performance. LINC is a natural extension of recent
+                                                                                           tal conditions except for GPT-4 on FOLIO.
+work augmenting lanugage models with symbolic
+tools such as calculators or interpreters (Schick                                        • Third, we provide a thorough error analysis of
+et al., 2023).                                                                             both LINC and Chain-of-Thought, identify-
+   LINC has a key advantage: the language model                                            ing three high-level failure modes of each. We
+itself no longer needs to perform any deductive rea-                                       discover that these failure modes are distinct,
+soning, which is offloaded to the theorem prover.                                          highlighting the potential for a synergy of the
+However, there are also clear drawbacks: the for-                                          two methods (Sec. 5).
+malization from natural language to first-order                                    Overall, we present strong evidence for the po-
+logic must perfectly capture all relevant informa-                                 tential of future neurosymbolic logical reasoning
+tion contained in the premises, and any loss of in-                                systems based on integrating language models and
+formation in the formalization procedure may lead                                  theorem provers.
+                                                                              5154
+2   LINC: Logical Inference via                          3   Experiments
+    Neurosymbolic Computation
+                                                         In this section, we present our experimental setup,
+                                                         the models we use, and the three baselines to which
+Our neurosymbolic approach to end-to-end logical         we compare LINC.
+reasoning consists of two stages. In the first stage,
+                                                            Datasets: Our experiments use tasks from two
+the LLM acts as a semantic parser, translating NL
+                                                         existing datasets: FOLIO (Han et al., 2022) and
+statements into FOL expressions in our supported
+                                                         ProofWriter (Tafjord et al., 2021), both of which
+logic language. In the second stage, these expres-
+                                                         have been shown to be challenging for off-the-shelf
+sions are parsed from the text generated by the
+                                                         LLMs (Han et al., 2022; Creswell et al., 2023). FO-
+LLM and then get passed to an automated theo-
+                                                         LIO is an expert-written, open-domain, logically
+rem prover; we use Prover9, a high-performance
+                                                         complex and diverse dataset for natural language
+prover widely used in the logic community (Mc-
+                                                         reasoning with first-order logic. We use its val-
+Cune, 2005–2010). The external solver then ex-
+                                                         idation set for our evaluation. However, of the
+ecutes a symbolic deduction algorithm, which ei-
+                                                         204 samples in the validation set, we discover that
+ther returns a value from the set {True, False,
+                                                         22 have errors (details in Appendix C), leaving us
+Uncertain} or raises an exception due to improper
+                                                         with 182 examples for our evaluation. ProofWriter,
+FOL syntax (e.g., if the model fails to balance
+                                                         meanwhile, is a synthetically generated dataset for
+parantheses in the formulae).
+                                                         logical reasoning over natural language. For our
+   At its core, the strength of this approach lies in    evaluation, we use the OWA (Open-World Assump-
+the reformulation of the problem space. End-to-          tion) portion of ProofWriter, since this setting best
+end NL-based reasoning allows for operation over         matches that of FOLIO. Since we are running a
+a highly flexible expression space, but leaves the       large number of experiments, we randomly select
+LLM with the difficult task of performing explicit       360 data points to evaluate on in order to reduce
+deductive inference over expressions in this space.      costs. We sample these in such a way that the re-
+Using LINC, we instead trade off the flexible ex-        sulting data set is balanced across both the number
+pression space of NL for syntactically strict logic      of reasoning steps in the shortest ground truth proof
+formulas, allowing us to leverage symbolic algo-         (depth 0-5; 50 samples each) and across the three
+rithms with provable guarantees that the deductive       labels (True/False/Uncertain; 120 samples each;
+chains will be correct with respect to the semantics     20 each per depth).
+of the intermediate representation. Making effec-           In-context learning examples: We hand-pick
+tive use of this reformulation thus requires the logic   eight diverse samples from the FOLIO training
+expressions generated by the LLM to be 1) syntac-        set to be used as few-shot in-context examples.
+tically valid, such that they are accepted by the        Because ProofWriter does not come with ground
+prover, and 2) semantically valid, such that their       truth FOL statements, we use these eight samples
+evaluation results in the correct conclusion. In our     for both evaluations. Compared to FOLIO, ques-
+experiments, we mitigate these risks by using a K-       tions in ProofWriter generally have more premises
+way majority voting procedure, which is discussed        per question (in our validation sets: an average
+further in Sec. 3.                                       of 5.3 in FOLIO vs. 18.8 in ProofWriter). Thus,
+   The significance of this problem space refor-         our evaluation on FOLIO is an in-distribution task,
+mulation can—beyond the numerical increases in           whereas ProofWriter requires generalizing out-of-
+performance observed across our experiments—             distribution to reasoning over considerably larger
+perhaps best be seen through an in-depth compari-        sets of premises than are given in the prompt.
+son of how LINC and traditional end-to-end LLM              Majority voting: K-way majority voting, in
+reasoning approaches such as Chain-of-Thought            which K samples are taken i.i.d. from the model
+(CoT) fail. To foreshadow our latter analysis, we        and the mode is used as the final prediction, has
+find that compared to CoT, LINC has worse recall         previously been shown to improve the performance
+but better precision on True/False predictions. We       of prompting-based strategies in logical reasoning
+discuss this further in Sec. 5 and highlight that this   tasks (Wang et al., 2023b). We implement such
+suggests that LINC, as well as neurosymbolic com-        a strategy in our work, with reported accuracies
+putation more generally, has the potential to reduce     reflecting K=10-way majority voting, unless oth-
+LLM overconfidence and hallucination.                    erwise stated. In the case of ties between two la-
+                                                     5155
+                                             All rectangles have four sides.
+                                             All four-sided things are shapes.
+                                             Are all rectangles shapes?                                            * N ICL
+                                                                                                                   Examples
+
+                                                                      ⧺
+            Naïve   <EVALUATE>                      Scratchpad                                CoT                                       LINC
+                                                                 <EVALUATE>                         <EVALUATE>
+                    NL:   All rectangles have four sides.
+                                                                 Since all rectangles have four     NL:   All rectangles have four sides.
+                    FOL: all x. (rectangle(x) -> foursides(x))
+ <EVALUATE>                                                      sides, and all four-sided things   FOL: all x. (rectangle(x) -> foursides(x))
+                    NL:   All four-sided things are shapes.
+                                                                                                    NL:   All four-sided things are shapes.
+ ANSWER: True       FOL: all x. (foursides(x) -> isshape(x))     are shapes, then all rectangles    FOL: all x. (foursides(x) -> isshape(x))
+ </EVALUATE>        NL:   Are all rectangles shapes?             must be shapes, so True!           NL:   Are all rectangles shapes?
+                    FOL: all x. (rectangle(x) -> isshape(x))
+                                                                 ANSWER: True                       FOL: all x. (rectangle(x) -> isshape(x))
+                    ANSWER: True
+                                                                 </EVALUATE>                        </EVALUATE>
+                    </EVALUATE>
+
+
+
+                                                                      ⧺
+
+                                             All dogs are mammals.                                      ⧺ = string concatenation
+                                             Harry is a dog.
+                                             Is Harry a mammal?
+                                             <EVALUATE>
+                                             …
+
+
+Figure 2: This figure outlines the string concatenation workflow for each of our conditions. We start with the
+original problem, provide ICL examples through an intermediate markup language, and finally append the problem
+to evaluate. At this stage, we allow the model to autoregressively sample until producing a stop token.
+
+
+bels, we arbitrarily select the first of the two to                       In the Scratchpad baseline (Nye et al., 2021), the
+have been generated. We report the effect of K                            model is asked to first generate FOL expressions
+on performance across our conditions and briefly                          corresponding to the premises, and then generate
+discuss trends in Appendix H.                                             the label. This baseline is thus an ablation of LINC,
+    Models: We use three models pre-trained on                            where we use the LLM instead of Prover9 as the
+both natural language and code: GPT-3.5 (Ouyang                           logic solver. Finally, in the CoT baseline, we use the
+et al., 2022), GPT-42 (OpenAI, 2023), and Star-                           standard technique of CoT prompting (Wei et al.,
+Coder+3 (Li et al., 2023) with a decoding temper-                         2022; Kojima et al., 2022; Wang et al., 2023b),
+ature of T = 0.8 for all experiments. We defer                            where the model is asked to generate step-by-step
+model, hyperparameter, and hardware details to Ap-                        natural language reasoning to arrive at the conclu-
+pendix B. We opt for StarCoder+ for three reasons:                        sion. The prompts we use for all approaches can
+firstly, unlike the other models we consider, it is a                     be found in Appendix D.
+free, open-access model. Secondly, it has a dataset
+search functionality4 , with which we verify that                         4     Results & Discussion
+FOLIO and ProofWriter are not in StarCoder+’s                             Our main results are shown in Figure 3. Each bar
+training set, giving further assurance in the validity                    represents either LINC or one of the three baselines,
+of our findings. Thirdly, with its 15.5B parameters                       while each group of bars indicates the language
+it is likely considerably smaller than GPT-3.5 and                        model used (in {StarCoder+, GPT-3.5, GPT-4}).
+GPT-45 , allowing us to compare performance at                               We note first that in the FOLIO domain (Figure
+different model scales.                                                   3a), StarCoder+—the smallest model we experi-
+    Controlled baselines: We compare LINC to                              ment with—benefits the most from LINC, achiev-
+three baselines, which we call Naïve, Scratchpad,                         ing a mean accuracy that is 14.2 points higher than
+and Chain-of-Thought (CoT), as illustrated in                             the closest controlled baseline (56.0% vs. 41.8%
+Fig. 2. In the Naïve baseline, the model is given                         with CoT). We find that Scratchpad, where the
+the natural language premises and is asked to di-                         intermediate logical formulae are still generated
+rectly generate the label (True/False/Uncertain).                         but the call to the symbolic solver is ablated and
+   2
+                                                                          replaced by the model’s own prediction, does not
+     We use gpt-3.5-turbo-16k-0613 and gpt-4-0613.
+   3                                                                      appear to benefit performance; for StarCoder+, nei-
+     https://huggingface.co/bigcode/starcoderplus
+   4
+     See     https://huggingface.co/spaces/bigcode/                       ther Scratchpad nor the Naïve baseline perform
+in-the-stack and https://huggingface.co/spaces/                           better than simply deterministically predicting the
+bigcode/search.                                                           most common label (“Uncertain”). For GPT-3.5,
+   5
+     Although the exact size of these models has not been
+made public, their common predecessor GPT-3 was known to                  the trend is similar, although the gap between LINC
+have 175B parameters; see Brown et al. (2020).                            and the closest baseline shrinks (62.6% vs. 54.9%
+                                                                    5156
+100%       Naive                        Chain-of-Thought
+                                                                                                             100%      Naive                Chain-of-Thought              96.4%                   98.3%
+           Scratchpad                   LINC (ours)                                                                    Scratchpad           LINC (ours)
+ 80%                                                                    69.8% 68.7%
+                                                                                      75.3%
+                                                                                              72.5%           80%                         82.5%
+                                                                                                                                                                                                  72.2%
+
+                                                                62.6%
+
+ 60%                            56.0%
+                                          48.4% 47.8%
+                                                        54.9%
+                                                                                                              60%                                                                 53.1%
+                                                                                                                                                                                          55.8%
+
+
+                        41.8%                                                                                                                                     43.6%
+                                                                                                                    37.8% 38.1% 38.6%
+ 40%    34.6%
+                32.4%                                                                                         40%                                 36.4%
+                                                                                                                                                          33.1%
+
+
+
+ 20%                                                                                                          20%
+
+        StarCoder+                           GPT-3.5                         GPT-4                                  StarCoder+                       GPT-3.5                              GPT-4
+                                        (a) FOLIO.                                                                                      (b) ProofWriter.
+
+Figure 3: Results of each model on the FOLIO and ProofWriter datasets. Accuracies are for bootstrapped 10-way
+majority vote for all models. Error bars are ±1 bootstrapped standard deviation. Dotted, black line is the accuracy
+obtained by always guessing the most common label in the dataset.
+
+
+average accuracies). For GPT-4, the trend reverses:                                                      tion of the necessary proof depth in Figure 4. We
+LINC underperforms CoT. However, we perform                                                              note first that StarCoder+’s performance remains
+a McNemar’s test (McNemar, 1947) to get the p-                                                           flat and close to chance with all three baseline meth-
+value on this GPT-4 LINC vs. CoT comparison,                                                             ods (Figure 4a). Meanwhile, with LINC the perfor-
+and we find that the difference is not significant                                                       mance remains far above chance, although it drops
+(p = 0.58). Meanwhile, for our balanced subset of                                                        somewhat as necessary proof depth increases; this
+ProofWriter, we see significant performance gains                                                        performance drop suggests that StarCoder+ strug-
+across the board (Figure 3b); particularly so for                                                        gles somewhat with the NL-to-FOL translation task
+GPT-3.5 and GPT-4, which achieve mean accura-                                                            as the problem at hand gets larger. For GPT-3.5,
+cies of 96.4% and 98.3% when paired with LINC.                                                           all baselines perform above chance at proof depth
+   In light of the high accuracies obtained with                                                         0 (i.e., where the conclusion can immediately be
+LINC on ProofWriter, we offer two plausible rea-                                                         reached from the premises), but then quickly drop
+sons why LINC is particularly favorable on this                                                          back down (Figure 4b). While Chain-of-Thought
+dataset. Firstly, ProofWriter is—unlike FOLIO—                                                           prompting allows the model to complete some
+completely synthetically generated, with relatively                                                      depth-1 tasks, even this strategy then performs
+short sentences, perhaps lending itself particularly                                                     equivalently to chance (within 1 standard deviation)
+well to being formalized in FOL. However, it is                                                          for higher depths. When augmented with LINC,
+noteworthy that the Scratchpad mode does not                                                             however, GPT-3.5 is able to achieve near-perfect
+seem to improve performance over the Naïve base-                                                         performance across all proof depths, providing evi-
+line, indicating that even if the NL-to-FOL task                                                         dence for the scalability of this approach to longer
+were particularly easy in this domain, this is not                                                       deductive chains. Finally, for GPT-4 we observe
+something that the model is itself capable of lever-                                                     much stronger performance from the baselines; in
+aging to improve its predictions. The second reason                                                      particular, CoT performs above chance for all proof
+might be that the baseline strategies struggle in this                                                   depths, and all baselines perform well for shallow
+out-of-distribution setting, in which the model must                                                     proofs (Figure 4c). However, even with GPT-4 the
+generalize to a larger set of premises (with poten-                                                      performance drops as the necessary proof depth
+tially longer deductive chains) than those found in                                                      increases with every configuration except for LINC,
+the prompt. This distribution shift makes it harder                                                      which performs near or at ceiling through the max-
+for the model to ignore irrelevant premises in the                                                       imum proof depth available in the dataset.
+question and carry out all deductive chains cor-
+rectly. Meanwhile, with LINC, the symbolic solver                                                        5   Error Analysis
+robustly handles irrelevant premises and long de-
+ductive chains, since the LLM only needs to trans-                                                       Having established that LINC can improve perfor-
+late each sentence into FOL.                                                                             mance in many settings, we now move on to our
+   To test this last explanation further, we plot each                                                   final research question: How do the failure modes
+model’s performance across ProofWriter as a func-                                                        of LINC compare to those of in-context reasoning
+                                                                                                      5157
+       1.0                                                     1.0                                                    1.0
+       0.8                                                     0.8                                                    0.8
+Accuracy
+
+
+
+
+                                                        Accuracy
+
+
+
+
+                                                                                                               Accuracy
+       0.6                                                     0.6                                                    0.6
+       0.4                                                     0.4                                                    0.4
+       0.2 Chance    Scratchpad           LINC (ours)
+                                                               0.2 Chance     Scratchpad         LINC (ours)
+                                                                                                                      0.2 Chance    Scratchpad         LINC (ours)
+            Naive    Chain-of-Thought                               Naive     Chain-of-Thought                             Naive    Chain-of-Thought
+       0.0 0 1        2 3 4                        5           0.0 0 1        2 3 4                       5           0.0 0 1        2 3 4                      5
+                    Proof Depth                                             Proof Depth                                            Proof Depth
+               (a) StarCoder+.                                          (b) GPT-3.5.                                           (c) GPT-4.
+
+  Figure 4: Accuracy per necessary proof depth in ProofWriter. Accuracies reported are for bootstrapped 10-way
+  majority vote, and shaded areas cover ±1 bootstrapped standard deviation. Black, dotted lines reflect the expected
+  success rate of guessing a random label, which is 1/3 in all subsets per our experiment design.
+
+
+  methods? We focus on comparing GPT-4+CoT vs.                                      one symbol NaziGermanPolitician, causing the
+  GPT-4+LINC on FOLIO, since their overall perfor-                                  information that he was independently Nazi, Ger-
+  mance is very similar (75.3% vs. 72.5% average                                    man, or a politician to be lost. As a result, LINC
+  accuracy). We leave an analysis of StarCoder+’s                                   predicted Uncertain instead of the ground truth
+  predictions on FOLIO to Appendix G.                                               label True.
+
+  5.1 Qualitative Analysis                                                               Premise: Heinrich Scmidt was a Nazi German
+                                                                                         politician.
+  Qualitatively, we find that LINC and CoT have com-
+  pletely different failure modes. We give a high-                                       FOL: NaziGermanPolitician (HeinrichSchmidt)
+  level overview and abbreviated examples of each                                        Conclusion (Prover9: Uncertain): Heinrich Schmidt was
+                                                                                         German.
+  failure mode here, leaving full detailed examples
+  to Appendix E.                                                                         FOL: German(HeinrichSchmidt)
+     First, we detail the failure modes for LINC:
+     L1: FOL fails to capture implicit informa-                                        L3: FOL contains syntax errors. Across all
+  tion not mentioned in the premises. Often, there                                  generations, we find that the FOL expressions
+  is obvious information not explicitly listed in the                               sometimes contain syntax errors: 38% for Star-
+  premises that is necessary to explicitly encode in                                CoderPlus, 24% for GPT-3.5, and 13% for GPT-4.
+  FOL in order to successfully make a desired deduc-                                The most common error is that the same symbol
+  tion. For example, in the snippet below one must                                  is used with multiple arities. As an example, if
+  encode in FOL the implicit assumption that Harry                                  Summer(July4) and Loves(Alex, Summer) were
+  is a person (Person(Harry)).                                                      both present in a FOL translation, Summer would
+                                                                                    have a multiple arity violation.
+       Premise 1: When a person reads a book, that person
+       gains knowledge.                                                                Next, we detail three failure modes for CoT:
+       FOL: all x. all y. (Person(x) & Reads(x, y) &                                   C1: CoT concludes something different than
+       Book(y) -> Gains(x, Knowledge))                                              it suggests. One common mistake we often see
+       Premise 2: Harry read the book "Walden" by Henry                             with the CoT approach is that it generates a chain of
+       Thoreau.                                                                     reasoning indicating uncertainty, but then asserts
+       FOL: Reads(Harry, Walden)                                                    that the conclusion is false. An example of this is
+       Conclusion (Prover9:             Uncertain):          Harry    gains         shown below, where GPT-4 suggests there is “no
+       knowledge.                                                                   evidence” for the conclusion but then deduces it
+       FOL: Gains(Harry, Knowledge)                                                 false.
+     L2: FOL fails to capture information explic-                                        (GPT-4 Incorrect CoT): Let’s think step by step. We want
+  itly mentioned in the premises due to the choice                                       to evaluate if platypus are reptiles. We know from the
+                                                                                         premises that platypus are mammals and that they have no
+  of representation. Even when information is ex-                                        teeth. The fact that some mammals have teeth does not
+  plicitly written in the premises, the choice of how                                    contradict the fact that platypus, although mammals, do not
+  the NL is represented in FOL can lead to lost infor-                                   have teeth. Moreover, the statement about humans having
+                                                                                         teeth is unrelated to the classification of platypus. There’s
+  mation. In the example below, the fact that Hein-                                      no evidence in the premises that would suggest platypus are
+  rich was a Nazi German politician is captured by                                       reptiles. Therefore, the statement is false.
+
+                                                                            5158
+                                                                                100                                                                            100
+                   Tr
+
+
+
+
+                                                                                                             Tr
+                            39          4           1                0                                                50         1           7         0
+                    ue
+
+
+
+
+                                                                                                              ue
+                                                                                80                                                                             80
+Predicted Label
+
+
+
+
+                                                                                          Predicted Label
+                  Fa
+
+
+
+
+                                                                                                             Fa
+                            0           31          0                0                                                   3      38           9         0
+                     ls
+
+
+
+
+                                                                                                                ls
+                                                                                60                                                                             60
+                       e
+
+
+
+
+                                                                                                               e
+            Un
+
+
+
+
+                                                                                                      Un
+                  ce
+
+
+
+
+                                                                                                            ce
+                   rta
+
+
+
+
+                                                                                                             rta
+                            23          18         62                0          40                                    10        15         49          0       40
+                    in
+
+
+
+
+                                                                                                               in
+                                                                                20                                                                             20
+                  Er
+
+
+
+
+                                                                                                             Er
+                            1           1           2                0                                                   0       0           0         0
+                   ror
+
+
+
+
+                                                                                                              ror
+                                                                                0                                                                              0
+                           ue
+
+
+                                       e
+
+                                                 in
+
+                                                            ror
+
+
+
+
+                                                                                                                     ue
+
+
+                                                                                                                               e
+
+                                                                                                                                           in
+
+                                                                                                                                                  ror
+                                     ls
+
+
+
+
+                                                                                                                                ls
+                                                rta
+
+
+
+
+                                                                                                                                        rta
+                         Tr
+
+
+
+
+                                                                                                                   Tr
+                                  Fa
+
+
+
+
+                                                                                                                             Fa
+                                                           Er
+
+
+
+
+                                                                                                                                                  Er
+                                              ce
+
+
+
+
+                                                                                                                                      ce
+                                          Un
+
+
+
+
+                                                                                                                                     Un
+                                      Reference Label                                                                         Reference Label
+                           (a) Confusion matrix for LINC.                                                     (b) Confusion matrix for Chain-of-Thought.
+                                                                                100                                                                            1.0
+
+
+
+
+                                                                                                            LIN
+                                                                                                                      1
+                  Co
+
+
+
+
+                                                                                                              C
+                                                                                80
+                  rre
+
+
+
+
+                                 108                       29                                                                                                  0.8
+                      ct
+CoT Outcome
+
+
+
+
+                                                                                                             Co
+                                                                                60                                   0.22       1
+
+                                                                                                              T
+                                                                                             Sc
+                                                                                                     rat
+                                                                                                            ch                                                 0.6
+                                                                                40
+             Inc
+
+
+
+
+                                                                                                                     0.21      0.54          1
+                                                                                                             adp
+                  orr
+
+
+
+
+                                 24                        21                                                                                                  0.4
+                   ec
+
+
+
+
+                                                                                20
+                     t
+
+
+
+
+                                                                                                            Na
+
+
+                                                                                                                     0.14      0.52        0.56        1
+                                                                                                             ive
+
+
+                                                                                                                                                               0.2
+                                                                                0
+                                 t
+
+
+
+
+                                                        t
+
+
+
+
+                                                                                                                     C
+
+
+                                                                                                                              T
+
+                                                                                                                                          ad
+
+                                                                                                                                                  ive
+                                c
+
+
+
+
+                                                      ec
+                            rre
+
+
+
+
+                                                                                                                             Co
+                                                                                                                   LIN
+                                                   orr
+
+
+
+
+                                                                                                                                         p
+
+                                                                                                                                                  Na
+                                                                                                                                      ch
+                           Co
+
+
+
+
+                                                 Inc
+
+
+
+
+                                       LINC Outcome                                                                                  rat
+                                                                                                                                Sc
+
+   (c) Comparing the                         consistency        of       LINC       vs.      (d) Similarity between incorrect predictions of each method,
+   Chain-of-Thought.                                                                         i.e., (A wrong == B wrong) / (A wrong or B wrong).
+
+                           Figure 5: Analyzing and comparing the mistakes made by GPT-4 on the FOLIO dataset.
+
+
+     C2: CoT makes incorrect logical deductions.                                                      (GPT-4 Incorrect CoT): Let’s think step by step. We want
+  While there are many instances where CoT makes                                                      to evaluate if Mike has an F1 visa. From the premises, we
+                                                                                                      know that Mike is an international student and needs to
+  incorrect logical deductions, one common deduc-                                                     apply for CPT if he wants to work in the US. We also know
+  tion mistake is the structure “if B is true and                                                     that an international student in the US with an F1 visa needs
+  A → B, then A is true”. In the example shown                                                        to apply for CPT or OPT if the student wants to work in the
+                                                                                                      US. So, it is clear that Mike has an F1 visa since he fits the
+  below, we see this incorrect deduction where A is                                                   criteria. Therefore, the conclusion is true.
+  “Mike has an F1 visa” and B is “Mike needs to ap-
+  ply for CPT or OPT if he wants to work in the US”.                                           C3: CoT fails to find complex paths of reason-
+  We note that making this type of logical mistake                                          ing. We find that with all three models, CoT fails
+  is often called the fallacy of the converse, and that                                     when the path of reasoning necessary to make the
+  humans are not immune to it, either.                                                      deduction is complex. Sometimes, CoT has diffi-
+                                                                                            culty getting started, and other times, it gets stuck
+             Premise 1: International students in US have either an F1
+             visa or a J1 visa.
+                                                                                            in the middle of a reasoning chain.
+             Premise 2: An international student in US with an F1 visa                       5.2             Quantitative Analysis
+             needs to apply for CPT or OPT if the student wants to work
+             in the US.                                                                     1. Compared to CoT, LINC has worse recall but
+             Premise 3: Mike is an international student.                                   better precision on True/False predictions. To
+             Premise 4: Mike needs to apply for CPT if he wants to work
+                                                                                            see this, we plotted the confusion matrices in Fig-
+             in the US.                                                                     ure 5b (CoT) and Figure 5a (LINC). Looking just
+             Conclusion (Ground Truth: Uncertain): Mike has an F1                           at the distributions of predicted labels of the two
+             visa.                                                                          methods, we see that CoT predicts 32% True, 27%
+                                                                                      5159
+False, and 41% Uncertain, while LINC predicts            vs. the number of instances where at least one of
+24% True, 17% False, and 57% Uncertain (with             them is wrong.
+2% of predictions throwing an error). Notably, we           Figure 5d shows the pairwise similarity between
+observe that LINC predicts Uncertain much more           our four methods, highlighting that the similar-
+frequently than CoT (57% vs. 41%). To under-             ity between LINC’s mispredictions and the other
+stand why, note that the translation from natural        methods’ mispredictions (0.14, 0.21, 0.22) is much
+language to FOL is a lossy process: recall that in       lower than the similarity between any pair of the
+L1 and L2, we saw that the information conveyed          in-context reasoning methods (0.52, 0.54, 0.56).
+through the FOL is sometimes a subset of the infor-      These results suggest that for GPT-4 on FOLIO,
+mation in the original premises. Removing pieces         LINC is the only method we evaluate which signifi-
+of crucial information that were on the critical path    cantly alters the ways in which the model fails to
+to deducing True/False may then leave an uncer-          reason.
+tain conclusion. At the same time, while the FOL
+translations sometimes do not retain all of the infor-   6   Related Work
+mation in the NL, they rarely contain false informa-
+tion that was not provided in the original premises.     Reasoning in LLMs: Our work contributes to
+Therefore, LINC’s precision when predicting True         the wider literature on eliciting natural language
+or False is very high (93%) compared to that of          reasoning capabilities in models. Although we
+CoT (81%), but this comes at the cost of lower re-       have focused here on comparing a neurosymbolic
+call on True/False predictions (60% for LINC vs.         approach to Scratchpad (Nye et al., 2021) and
+75% for CoT).                                            Chain-of-Thought prompting (Wei et al., 2022;
+   2. LINC and CoT mispredict on different ex-           Kojima et al., 2022; Wang et al., 2023b), many
+amples. Earlier in Sec. 5.1, we saw that LINC and        other similar or related techniques have been de-
+CoT exhibit different failure modes, which suggests      veloped in recent years; these include least-to-most
+they should fail on different examples. Indeed, we       prompting (Zhou et al., 2023), selection-inference
+find that this is the case in our experiments on FO-     (Creswell et al., 2023), backward chaining (Tafjord
+LIO: Figure 5c shows a 2 × 2 confusion matrix            et al., 2022; Kazemi et al., 2023), and self-taught
+which compares whether or not each method’s pre-         reasoning (Zelikman et al., 2022). Some of these
+diction was correct. We observe that out of the          techniques have been formalized under the lan-
+24 + 29 + 21 = 74 samples where at least one             guage model cascades framework (Dohan et al.,
+method makes an incorrect prediction, only 21 are        2022).
+shared. On a closer examination of these 21 sam-            Semantic parsing: The notion of a semantic
+ples, we find that 16 are ambiguous or incorrect in      parser rests on a long tradition of research (Kamath
+their specification (details in Appendix E.4), so the    and Das, 2019) whose aim is to map fragments of
+two methods only agree on 5 well-formed samples.         natural language into useful, symbolic meaning rep-
+This suggests that LINC and CoT are complementary        resentations (Zelle and Mooney, 1996; Zettlemoyer
+methods which fail under distinct circumstances.         and Collins, 2005; Berant et al., 2013; Liang et al.,
+   3. Mispredictions of in-context reasoning             2013; Wong et al., 2023). Unlike earlier works in
+baselines are more similar to each other than            this tradition, we use a language model to generate
+they are with mispredictions of LINC. As an ex-          the semantic parse, which is a method under active
+tension of the previous analysis, we next investigate    investigation in recent years (Shin and Van Durme,
+the correlation between the mispredictions of each       2022; Drozdov et al., 2022; Lu et al., 2022; Wang
+pair of methods. To do so, we define a similarity        et al., 2023a).
+score between two methods A and B as follows:               Neurosymbolic approaches for reasoning:
+Given a dataset D with N rows and ground truth           Methods which combine neural networks with sym-
+labels {Ai }Ni=1 and {Bi }i=1 from two methods A
+                            N                            bolic techniques have seen broad uptake in domains
+and B, we define                                         adjacent to logical reasoning, such as generating
+                        PN                               outputs consistent with a pre-existing symbolic
+                              1 [Ai = Bi ̸= Ri ]
+  simD (A, B) ≜ PN i=1                                   knowledge base (Marra et al., 2019; Manhaeve
+                       i=1 1 [Ai ̸= Ri or Bi ̸= Ri ]     et al., 2018; Zhang et al., 2023a) and performing
+In words, simD (A, B) measures the number of in-         algorithmic reasoning over symbolically grounded
+stances where A and B are wrong in identical ways        inputs (Ebrahimi et al., 2021; Ibarz et al., 2022;
+                                                     5160
+Veličković et al., 2022). As for logical reasoning     the model does not need to learn how or where to
+with LLMs in particular, there have been a few dif-      invoke the tool: instead, the tool is predefined and
+ferent proposals for when and how to best combine        is applied after the generation step finishes. For
+the LLM with a symbolic component. Zhang et al.          example, Gao et al. (2023) and Drori et al. (2022)
+(2022) finetune a language model to synthesize po-       solve mathematical reasoning tasks by generating
+tential facts paired with likelihoods and then use       Python programs and using the Python interpreter
+a handwritten differentiable symbolic reasoner in        as the tool, Liu et al. (2023) approach physical
+order to deduce other facts. Weir and Van Durme          reasoning tasks with a physical simulator as the
+(2022) relax the solver by instead training neural       tool, and Wong et al. (2023) tackle cognitively-
+“entailment” models to decide if and how a given in-     inspired probabilistic reasoning tasks with Church
+ference rule applies at each stage. Concurrently to      (a probabilistic programming language) as the tool.
+this work, Logic-LM (Pan et al., 2023) and S AT LM       In the second class, the model must learn to in-
+(Ye et al., 2023) propose neurosymbolic approaches       voke the tool by itself, meaning that the model
+which have much in common with LINC. However,            must generate explicit API calls to the tool which
+other than the models and datasets considered, their     are then executed when those calls are decoded
+contributions have a few key differences to ours.        (Schick et al., 2023; Thoppilan et al., 2022; Yao
+First, we place particular emphasis on establishing      et al., 2022; Cheng et al., 2023). Our work belongs
+an in-depth understanding of the relative benefits       to the former class, with the task at hand being
+and drawbacks of a neurosymbolic approach to             logical reasoning and the tool available for use be-
+reasoning when compared to traditional in-context        ing a FOL solver (Prover9). We refer the reader to
+reasoning strategies like Chain-of-Thought. Sec-         Mialon et al. (2023) for a more thorough survey of
+ond, Logic-LM employs a self-refinement strat-           recent work in the tool-usage literature.
+egy, which has shown promise across code gen-
+eration and NLP tasks (Zhang et al., 2023b; Chen         7   Conclusion
+et al., 2023a; Peng et al., 2023; Madaan et al., 2023;
+                                                         In this work, we present LINC: Logical Inference
+Olausson et al., 2023) but which we do not consider
+                                                         via Neurosymbolic Computation, a neurosymbolic
+here. Third, S AT LM studies arithmetic reasoning
+                                                         approach for scalable logical reasoning with large
+in addition to logical reasoning, showcasing the
+                                                         language models. Our experiments show that LINC
+versatility of the neurosymbolic approach. Fourth,
+                                                         leads to significant performance gains in nearly ev-
+and finally, we use an FOL representation that we
+                                                         ery setting we consider, and that it supports gener-
+believe is easier for humans to read and models to
+                                                         alization to settings where the model has to reason
+learn. We highly encourage interested readers to
+                                                         about a much larger set of premises than it is shown
+study these two contemporary works in detail.
+                                                         in the in-context learning examples. Furthermore,
+   Autoformalization: The idea of automatically          carrying out a quantitative and qualitative analysis
+translating natural language into structured sym-        of the mistakes made by LINC, we find evidence
+bolic representations that programs can reason           that it may complement purely in-context reasoning
+about has gained popularity in the domain of formal      strategies such as Chain-of-Thought prompting,
+mathematics, leading to autoformalization systems        since they differ greatly in the types and frequen-
+for several theorem provers including Mizar (Wang        cies of mistakes made. This work thus supports the
+et al., 2018, 2020), Lean 3 (Azerbayev et al., 2023),    efficacy of neurosymbolic approaches to natural
+and Isabelle (Wu et al., 2022). Outside formal math-     language reasoning, setting the stage for continued
+ematics, autoformalization has also been applied to      advances in combining large language models and
+translating natural language into system specifica-      symbolic reasoning engines; we discuss several
+tion languages such as temporal logic (Hahn et al.,      promising future directions in Appendix A.
+2022; Cosler et al., 2023; Chen et al., 2023b).
+                                                         8   Limitations
+   Tool usage: Our work is heavily inspired by re-
+cent work on tool usage. The central idea in this        Narrow scope of logical reasoning task consid-
+line of research is to augment language models with      ered: In this work, we focus exclusively on one as-
+external tools such as calculators, code interpreters    pect of logical reasoning: predicting the truth value
+and information retrieval systems. We further di-        of a conclusion given a set of natural language
+vide these works into two classes. In the first class,   premises. Here, we consider a setting where the
+                                                     5161
+premises and conclusion are expressed in relatively         dle problems requiring higher-order logics (Miller
+short statements, which makes the formalization             and Nadathur, 1986; Higginbotham, 1998). Also,
+task tractable. In particular, ProofWriter’s natural        in many settings it is desirable to work with non-
+language statements are synthetically generated,            classical logics (Priest, 2008; Burgess, 2009). Al-
+so they can be easily and accurately parsed into            ternative theorem provers would be needed for such
+FOL. FOLIO reflects a more naturalistic dataset,            problems. A method like LINC can be naturally ex-
+so we see a higher failure rate in LINC’s semantic          tended to those settings, but exactly how well it
+parsing step. However, the formalization task be-           works there requires further investigations.
+comes more difficult if the premises are in longer             Computational costs: Implementing our ap-
+paragraph form, such as in question answering or            proach with both GPT models and the StarCoder+
+contradiction detection from context passages. This         model requires non-trivial resources. The former
+is because the same piece of information can be             requires reliance on costly API requests and the
+formalized in a variety of ways, and there is a lot         latter dedicated GPUs for inference. Especially as
+of information that must be pragmatically inferred          we use majority voting, many generations must be
+to arrive at the proper conclusion.                         made for each query, increasing the computational
+   Generalizability of qualitative evaluation:              requirements.
+While we find that LINC and CoT produce com-
+plementary mistakes for our natural language rea-           9   Acknowledgements
+soning task, it is unclear if this result also holds true
+                                                            T.X. Olausson is supported by the Defense Ad-
+in similar scenarios, such as the ones considered
+                                                            vanced Research Projects Agency (DARPA) under
+in PAL (Gao et al., 2023), Logic-LM, and S AT LM.
+                                                            the ASKEM program, award HR00112220042. A.
+This is due to the difference in intermediate lan-
+                                                            Gu is supported by the National Science Founda-
+guage and overall logical reasoning task. However,
+                                                            tion (NSF) Graduate Research Fellowship under
+we hypothesize that it will and encourage future
+                                                            Grant No. 2141064. B. Lipkin and C.E. Zhang
+investigation in this direction.
+                                                            are supported by MIT Presidential Fellowships. A.
+   More sophisticated reasoning techniques: Re-             Solar-Lezama is supported by the National Science
+cent work has proposed more sophisticated tech-             Foundation (NSF) and Intel Corporation through
+niques beyond chain-of-thought, such as tree of             NSF Grant CCF:2217064. J.B. Tenenbaum is sup-
+thoughts (Yao et al., 2023), program of thoughts,           ported by AFOSR Grant #FA9550-22-1-0387 and
+(Chen et al., 2022), or using retrieval in chain-of-        the MIT-IBM Watson AI Lab. R.P. Levy is sup-
+thought prompting (Yasunaga et al., 2023). These            ported by a grant from the Simons Foundation to
+have potential to improve and eliminate some of             the Simons Center for the Social Brain at MIT.
+the failure modes of the traditional CoT method. In            We thank our anonymous reviewers for their in-
+addition, ideas such as self-repair may also serve          sightful feedback and recommendations. We thank
+to improve these failure modes. It remains future           the members of the Computer Aided Programming,
+work to do a more thorough investigation of the             Computational Psycholinguistics, and Computa-
+efficacy of these techniques, though there is also          tional Cognitive Science groups for constructive
+preliminary evidence that they still lack reasoning         commentary at various stages of this project. We
+capabilities (Huang et al., 2023).                          thank Yoon Kim for helpful suggestions and com-
+   Scalability: It is unclear how well LINC will            ments on pieces of the initial project proposal. In
+perform as the number of premises scales. First,            addition, we thank Zhaofeng Wu and Simeng Han
+one mistake in formalization can lead to an incor-          for discussions regarding the FOLIO dataset.
+rect deduction, and more premises lead to a higher
+probability of errors. Second, in the deduction
+stage, while many fast algorithms (e.g., forward-           References
+and backward-chaining) exist for logical deduction,         Cem Anil, Yuhuai Wu, Anders Andreassen, Aitor
+the general problem is still NP-hard. Therefore, the          Lewkowycz, Vedant Misra, Vinay Ramasesh, Am-
+theorem prover may take a long time in practice.              brose Slone, Guy Gur-Ari, Ethan Dyer, and Behnam
+                                                              Neyshabur. 2022. Exploring length generalization
+  Other logics beyond first-order logic: In this              in large language models. In Advances in Neural
+work, we exclusively focus on first-order logic.              Information Processing Systems, volume 35, pages
+However, FOL is not expressive enough to han-                 38546–38556. (Cited on pg. 1)
+
+                                                        5162
+Zhangir Azerbayev, Bartosz Piotrowski, Hailey                language modeling with pathways. arXiv preprint
+  Schoelkopf, Edward W Ayers, Dragomir Radev, and            arXiv:2204.02311. (Cited on pg. 1)
+  Jeremy Avigad. 2023. ProofNet: Autoformalizing
+  and formally proving undergraduate-level mathemat-      Matthias Cosler, Christopher Hahn, Daniel Men-
+  ics. arXiv preprint arXiv:2302.12433. (Cited on pg.      doza, Frederik Schmitt, and Caroline Trippel. 2023.
+  9)                                                       nl2spec: Interactively translating unstructured natu-
+                                                           ral language to temporal logics with large language
+David Barker-Plummer, Jon Barwise, and John                models. In Computer Aided Verification, pages 383–
+  Etchemendy. 2011. Language, proof, and logic, 2          396, Cham. Springer Nature Switzerland. (Cited on
+  edition. Center for the Study of Language and Infor-     pg. 9)
+  mation. (Cited on pg. 2)
+Mohammad Bavarian, Heewoo Jun, Nikolas Tezak,             Antonia Creswell, Murray Shanahan, and Irina Higgins.
+ John Schulman, Christine McLeavey, Jerry Tworek,           2023. Selection-inference: Exploiting large language
+ and Mark Chen. 2022. Efficient training of lan-            models for interpretable logical reasoning. In The
+ guage models to fill in the middle. arXiv preprint         Eleventh International Conference on Learning Rep-
+ arXiv:2207.14255. (Cited on pg. 15)                        resentations. (Cited on pg. 1, 3, 8)
+
+Jonathan Berant, Andrew Chou, Roy Frostig, and Percy      David Dohan, Winnie Xu, Aitor Lewkowycz, Ja-
+  Liang. 2013. Semantic parsing on Freebase from            cob Austin, David Bieber, Raphael Gontijo Lopes,
+  question-answer pairs. In Proceedings of the 2013         Yuhuai Wu, Henryk Michalewski, Rif A Saurous,
+  Conference on Empirical Methods in Natural Lan-           Jascha Sohl-Dickstein, et al. 2022. Language model
+  guage Processing, pages 1533–1544, Seattle, Wash-         cascades. arXiv preprint arXiv:2207.10342. (Cited
+  ington, USA. Association for Computational Linguis-       on pg. 8)
+  tics. (Cited on pg. 8)
+                                                          Iddo Drori, Sarah Zhang, Reece Shuttleworth, Leonard
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie               Tang, Albert Lu, Elizabeth Ke, Kevin Liu, Linda
+  Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind         Chen, Sunny Tran, Newman Cheng, et al. 2022. A
+  Neelakantan, Pranav Shyam, Girish Sastry, Amanda           neural network solves, explains, and generates uni-
+  Askell, et al. 2020. Language models are few-shot         versity math problems by program synthesis and few-
+  learners. In Advances in neural information process-       shot learning at human level. Proceedings of the Na-
+  ing systems, volume 33, pages 1877–1901. (Cited on         tional Academy of Sciences, 119(32):e2123433119.
+  pg. 1, 4)                                                 (Cited on pg. 9)
+John P Burgess. 2009. Philosophical logic. Princeton
+                                                          Andrew Drozdov, Nathanael Schärli, Ekin Akyürek,
+  University Press. (Cited on pg. 10)
+                                                            Nathan Scales, Xinying Song, Xinyun Chen, Olivier
+Wenhu Chen, Xueguang Ma, Xinyi Wang, and                    Bousquet, and Denny Zhou. 2022. Compositional
+ William W Cohen. 2022. Program of thoughts                 semantic parsing with large language models. arXiv
+ prompting: Disentangling computation from reason-          preprint arXiv:2209.15003. (Cited on pg. 8)
+ ing for numerical reasoning tasks. arXiv preprint
+ arXiv:2211.12588. (Cited on pg. 10)                      Nouha Dziri, Ximing Lu, Melanie Sclar, Xiang Lorraine
+                                                            Li, Liwei Jian, Bill Yuchen Lin, Peter West, Chan-
+Xinyun Chen, Maxwell Lin, Nathanael Schärli, and            dra Bhagavatula, Ronan Le Bras, Jena D Hwang,
+  Denny Zhou. 2023a. Teaching large language mod-           et al. 2023. Faith and fate: Limits of transformers on
+  els to self-debug. arXiv preprint arXiv:2304.05128.       compositionality. arXiv preprint arXiv:2305.18654.
+  (Cited on pg. 9)                                          (Cited on pg. 1)
+Yongchao Chen, Rujul Gandhi, Yang Zhang, and              Monireh Ebrahimi, Aaron Eberhart, Federico Bianchi,
+  Chuchu Fan. 2023b. NL2TL: Transforming natu-             and Pascal Hitzler. 2021. Towards bridging the neuro-
+  ral languages to temporal logics using large language    symbolic gap: Deep deductive reasoners. Applied
+  models. arXiv preprint arXiv:2305.07766. (Cited on       Intelligence, 51:6326–6348. (Cited on pg. 8)
+  pg. 9)
+Zhoujun Cheng, Tianbao Xie, Peng Shi, Chengzu             Herbert B Enderton. 2001. A mathematical introduction
+  Li, Rahul Nadkarni, Yushi Hu, Caiming Xiong,              to logic. Elsevier. (Cited on pg. 2)
+  Dragomir Radev, Mari Ostendorf, Luke Zettlemoyer,
+  Noah A. Smith, and Tao Yu. 2023. Binding language       Luyu Gao, Aman Madaan, Shuyan Zhou, Uri Alon,
+  models in symbolic languages. In The Eleventh In-         Pengfei Liu, Yiming Yang, Jamie Callan, and Gra-
+  ternational Conference on Learning Representations.       ham Neubig. 2023. PAL: Program-aided language
+  (Cited on pg. 9)                                          models. In International Conference on Machine
+                                                            Learning, pages 10764–10799. PMLR. (Cited on pg.
+Aakanksha Chowdhery, Sharan Narang, Jacob Devlin,           9, 10)
+  Maarten Bosma, Gaurav Mishra, Adam Roberts,
+  Paul Barham, Hyung Won Chung, Charles Sutton,           Herbert P Grice. 1975. Logic and conversation. In
+  Sebastian Gehrmann, et al. 2022. Palm: Scaling            Speech acts, pages 41–58. Brill. (Cited on pg. 15)
+
+                                                      5163
+Christopher Hahn, Frederik Schmitt, Julia J Tillman,       Percy Liang, Rishi Bommasani, Tony Lee, Dimitris
+  Niklas Metzger, Julian Siber, and Bernd Finkbeiner.        Tsipras, Dilara Soylu, Michihiro Yasunaga, Yian
+  2022. Formal specifications from natural language.         Zhang, Deepak Narayanan, Yuhuai Wu, Ananya Ku-
+  arXiv preprint arXiv:2206.01962. (Cited on pg. 9)          mar, et al. 2022. Holistic evaluation of language
+                                                             models. arXiv preprint arXiv:2211.09110. (Cited on
+Simeng Han, Hailey Schoelkopf, Yilun Zhao, Zhenting          pg. 1)
+  Qi, Martin Riddell, Luke Benson, Lucy Sun, Eka-
+  terina Zubova, Yujie Qiao, Matthew Burtell, et al.       Percy Liang, Michael I Jordan, and Dan Klein. 2013.
+  2022. Folio: Natural language reasoning with first-        Learning dependency-based compositional seman-
+  order logic. arXiv preprint arXiv:2209.00840. (Cited       tics. Computational Linguistics, 39(2):389–446.
+  on pg. 3)                                                  (Cited on pg. 8)
+                                                           Ruibo Liu, Jason Wei, Shixiang Shane Gu, Te-Yen Wu,
+James Higginbotham. 1998. On higher-order logic              Soroush Vosoughi, Claire Cui, Denny Zhou, and An-
+  and natural language. In Proceedings of the British        drew M. Dai. 2023. Mind’s eye: Grounded language
+  Academy, volume 95, pages 1–27. (Cited on pg. 10)          model reasoning through simulation. In The Eleventh
+                                                             International Conference on Learning Representa-
+Jie Huang and Kevin Chen-Chuan Chang. 2022. To-              tions. (Cited on pg. 9)
+   wards reasoning in large language models: A survey.
+   arXiv preprint arXiv:2212.10403. (Cited on pg. 1)       Xuantao Lu, Jingping Liu, Zhouhong Gu, Hanwen Tong,
+                                                             Chenhao Xie, Junyang Huang, Yanghua Xiao, and
+Jie Huang, Xinyun Chen, Swaroop Mishra,                      Wenguang Wang. 2022. Parsing natural language
+   Huaixiu Steven Zheng, Adams Wei Yu, Xiny-                 into propositional and first-order logic with dual re-
+   ing Song, and Denny Zhou. 2023. Large language            inforcement learning. In Proceedings of the 29th
+   models cannot self-correct reasoning yet. arXiv           International Conference on Computational Linguis-
+   preprint arXiv:2310.01798. (Cited on pg. 10)              tics, pages 5419–5431. (Cited on pg. 8)
+
+Borja Ibarz, Vitaly Kurin, George Papamakarios, Kyr-       Aman Madaan, Niket Tandon, Prakhar Gupta, Skyler
+  iacos Nikiforou, Mehdi Bennani, Róbert Csordás,           Hallinan, Luyu Gao, Sarah Wiegreffe, Uri Alon,
+  Andrew Joseph Dudzik, Matko Bošnjak, Alex Vitvit-         Nouha Dziri, Shrimai Prabhumoye, Yiming Yang,
+  skyi, Yulia Rubanova, et al. 2022. A generalist neural    et al. 2023. Self-refine: Iterative refinement with self-
+  algorithmic learner. In Learning on Graphs Confer-        feedback. arXiv preprint arXiv:2303.17651. (Cited
+  ence, pages 2–1. PMLR. (Cited on pg. 8)                   on pg. 9)
+                                                           Robin Manhaeve, Sebastijan Dumancic, Angelika Kim-
+Aishwarya Kamath and Rajarshi Das. 2019. A survey
+                                                             mig, Thomas Demeester, and Luc De Raedt. 2018.
+  on semantic parsing. In Automated Knowledge Base
+                                                             DeepProbLog: Neural probabilistic logic program-
+  Construction (AKBC). (Cited on pg. 8)
+                                                             ming. In Advances in neural information processing
+                                                             systems, volume 31. (Cited on pg. 8)
+Mehran Kazemi, Najoung Kim, Deepti Bhatia, Xin
+ Xu, and Deepak Ramachandran. 2023. LAMBADA:               Giuseppe Marra, Francesco Giannini, Michelangelo
+ Backward chaining for automated reasoning in nat-           Diligenti, and Marco Gori. 2019. Integrating learn-
+ ural language. In Proceedings of the 61st Annual            ing and reasoning with deep logic models. In Joint
+ Meeting of the Association for Computational Lin-           European Conference on Machine Learning and
+ guistics (Volume 1: Long Papers), pages 6547–6568,          Knowledge Discovery in Databases, pages 517–532.
+ Toronto, Canada. Association for Computational Lin-         Springer. (Cited on pg. 8)
+ guistics. (Cited on pg. 8)
+                                                           W. McCune. 2005–2010.        Prover9 and mace4.
+Denis Kocetkov, Raymond Li, Loubna Ben Allal, Jia Li,        |http://www.cs.unm.edu/ mccune/prover9/|. (Cited
+  Chenghao Mou, Carlos Muñoz Ferrandis, Yacine Jer-          on pg. 3)
+  nite, Margaret Mitchell, Sean Hughes, Thomas Wolf,
+  et al. 2022. The Stack: 3 TB of permissively licensed    Ian McKenzie, Alexander Lyzhov, Alicia Parrish,
+  source code. arXiv preprint arXiv:2211.15533.               Ameya Prabhu, Aaron Mueller, Najoung Kim, Sam
+  (Cited on pg. 15)                                           Bowman, and Ethan Perez. 2022. The inverse scaling
+                                                              prize. (Cited on pg. 1)
+Takeshi Kojima, Shixiang Shane Gu, Machel Reid, Yu-        Quinn McNemar. 1947. Note on the sampling error
+  taka Matsuo, and Yusuke Iwasawa. 2022. Large lan-          of the difference between correlated proportions or
+  guage models are zero-shot reasoners. In Advances          percentages. Psychometrika, 12(2):153–157. (Cited
+  in neural information processing systems, volume 35,       on pg. 5)
+  pages 22199–22213. (Cited on pg. 1, 4, 8)
+                                                           Grégoire Mialon, Roberto Dessì, Maria Lomeli, Christo-
+Raymond Li, Loubna Ben Allal, Yangtian Zi, Niklas            foros Nalmpantis, Ram Pasunuru, Roberta Raileanu,
+  Muennighoff, Denis Kocetkov, Chenghao Mou, Marc            Baptiste Rozière, Timo Schick, Jane Dwivedi-Yu,
+  Marone, Christopher Akiki, Jia Li, Jenny Chim, et al.      Asli Celikyilmaz, et al. 2023. Augmented language
+  2023. Starcoder: may the source be with you! arXiv         models: a survey. arXiv preprint arXiv:2302.07842.
+  preprint arXiv:2305.06161. (Cited on pg. 4, 15)            (Cited on pg. 9)
+
+                                                       5164
+Dale A. Miller and Gopalan Nadathur. 1986. Some uses       Abulhair Saparov, Richard Yuanzhe Pang, Vishakh
+  of higher-order logic in computational linguistics. In     Padmakumar, Nitish Joshi, Seyed Mehran Kazemi,
+  Proceedings of the 24th Annual Meeting on Associ-          Najoung Kim, and He He. 2023. Testing the
+  ation for Computational Linguistics, page 247–256,         general deductive reasoning capacity of large lan-
+  New York, USA. Association for Computational Lin-          guage models using ood examples. arXiv preprint
+  guistics. (Cited on pg. 10)                                arXiv:2305.15269. (Cited on pg. 1)
+
+Maxwell Nye, Anders Johan Andreassen, Guy Gur-Ari,         Timo Schick, Jane Dwivedi-Yu, Roberto Dessì, Roberta
+ Henryk Michalewski, Jacob Austin, David Bieber,             Raileanu, Maria Lomeli, Luke Zettlemoyer, Nicola
+ David Dohan, Aitor Lewkowycz, Maarten Bosma,                Cancedda, and Thomas Scialom. 2023. Toolformer:
+ David Luan, et al. 2021. Show your work: Scratch-           Language models can teach themselves to use tools.
+ pads for intermediate computation with language             arXiv preprint arXiv:2302.04761. (Cited on pg. 2, 9)
+ models. arXiv preprint arXiv:2112.00114. (Cited on
+                                                           Noam Shazeer. 2019. Fast transformer decoding:
+ pg. 1, 4, 8)
+                                                             One write-head is all you need. arXiv preprint
+Theo X Olausson, Jeevana Priya Inala, Chenglong              arXiv:1911.02150. (Cited on pg. 15)
+  Wang, Jianfeng Gao, and Armando Solar-Lezama.            Richard Shin and Benjamin Van Durme. 2022. Few-
+  2023. Is self-repair a silver bullet for code genera-      shot semantic parsing with language models trained
+  tion? arXiv preprint arXiv:2306.09896. (Cited on           on code. In Proceedings of the 2022 Conference of
+  pg. 9)                                                     the North American Chapter of the Association for
+                                                             Computational Linguistics: Human Language Tech-
+OpenAI. 2023. GPT-4 technical report. (Cited on pg. 1,       nologies, pages 5417–5425, Seattle, United States.
+  4, 15)                                                     Association for Computational Linguistics. (Cited
+                                                             on pg. 8)
+Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo Almeida,
+  Carroll Wainwright, Pamela Mishkin, Chong Zhang,         Aarohi Srivastava, Abhinav Rastogi, Abhishek Rao,
+  Sandhini Agarwal, Katarina Slama, Alex Ray, et al.         Abu Awal Md Shoeb, Abubakar Abid, Adam Fisch,
+  2022. Training language models to follow instruc-          Adam R Brown, Adam Santoro, Aditya Gupta, Adrià
+  tions with human feedback. In Advances in Neural           Garriga-Alonso, et al. 2023. Beyond the imitation
+  Information Processing Systems, volume 35, pages           game: Quantifying and extrapolating the capabili-
+  27730–27744. (Cited on pg. 4, 15)                          ties of language models. Transactions on Machine
+                                                             Learning Research. (Cited on pg. 1)
+Liangming Pan, Alon Albalak, Xinyi Wang, and
+  William Yang Wang. 2023. Logic-lm: Empower-              Robert Stalnaker. 2002. Common ground. Linguistics
+  ing large language models with symbolic solvers            and philosophy, 25(5/6):701–721. (Cited on pg. 15)
+  for faithful logical reasoning.    arXiv preprint
+  arXiv:2305.12295. (Cited on pg. 9)                       Oyvind Tafjord, Bhavana Dalvi, and Peter Clark. 2021.
+                                                             ProofWriter: Generating implications, proofs, and
+Guilherme Penedo, Quentin Malartic, Daniel Hesslow,          abductive statements over natural language. In Find-
+  Ruxandra Cojocaru, Alessandro Cappelli, Hamza              ings of the Association for Computational Linguistics:
+  Alobeidli, Baptiste Pannier, Ebtesam Almazrouei,           ACL-IJCNLP 2021, pages 3621–3634, Online. Asso-
+  and Julien Launay. 2023. The RefinedWeb dataset            ciation for Computational Linguistics. (Cited on pg.
+  for Falcon LLM: outperforming curated corpora              3)
+  with web data, and web data only. arXiv preprint         Oyvind Tafjord, Bhavana Dalvi Mishra, and Peter Clark.
+  arXiv:2306.01116. (Cited on pg. 15)                        2022. Entailer: Answering questions with faithful
+                                                             and truthful chains of reasoning. In Proceedings of
+Baolin Peng, Michel Galley, Pengcheng He, Hao Cheng,         the 2022 Conference on Empirical Methods in Nat-
+  Yujia Xie, Yu Hu, Qiuyuan Huang, Lars Liden, Zhou          ural Language Processing, pages 2078–2093, Abu
+  Yu, Weizhu Chen, and Jianfeng Gao. 2023. Check             Dhabi, United Arab Emirates. Association for Com-
+  your facts and try again: Improving large language         putational Linguistics. (Cited on pg. 8)
+  models with external knowledge and automated feed-
+  back. arXiv preprint arXiv:2302.12813. (Cited on         Romal Thoppilan, Daniel De Freitas, Jamie Hall, Noam
+  pg. 9)                                                     Shazeer, Apoorv Kulshreshtha, Heng-Tze Cheng,
+                                                             Alicia Jin, Taylor Bos, Leslie Baker, Yu Du, et al.
+Gabriel Poesia, Alex Polozov, Vu Le, Ashish Tiwari,          2022. LaMDA: Language models for dialog applica-
+  Gustavo Soares, Christopher Meek, and Sumit Gul-           tions. arXiv preprint arXiv:2201.08239. (Cited on
+  wani. 2022. Synchromesh: Reliable code generation          pg. 9)
+  from pre-trained language models. In International
+  Conference on Learning Representations. (Cited on        Petar Veličković, Adrià Puigdomènech Badia, David
+  pg. 15)                                                    Budden, Razvan Pascanu, Andrea Banino, Misha Da-
+                                                             shevskiy, Raia Hadsell, and Charles Blundell. 2022.
+Graham Priest. 2008. An introduction to non-classical        The clrs algorithmic reasoning benchmark. In In-
+  logic: From if to is. Cambridge University Press.          ternational Conference on Machine Learning, pages
+  (Cited on pg. 10)                                          22084–22102. PMLR. (Cited on pg. 9)
+
+                                                       5165
+Bailin Wang, Zi Wang, Xuezhi Wang, Yuan Cao, Rif A        Michihiro Yasunaga, Xinyun Chen, Yujia Li, Panupong
+  Saurous, and Yoon Kim. 2023a. Grammar prompting           Pasupat, Jure Leskovec, Percy Liang, Ed H Chi, and
+  for domain-specific language generation with large        Denny Zhou. 2023. Large language models as ana-
+  language models. arXiv preprint arXiv:2305.19234.         logical reasoners. arXiv preprint arXiv:2310.01714.
+  (Cited on pg. 8)                                          (Cited on pg. 10)
+
+Qingxiang Wang, Chad Brown, Cezary Kaliszyk, and          Xi Ye, Qiaochu Chen, Isil Dillig, and Greg Durrett. 2023.
+  Josef Urban. 2020. Exploration of neural machine           Satisfiability-aided language models using declara-
+  translation in autoformalization of mathematics in         tive prompting. arXiv preprint arXiv:2305.09656.
+  mizar. In Proceedings of the 9th ACM SIGPLAN              (Cited on pg. 9)
+  International Conference on Certified Programs and
+  Proofs, pages 85–98. (Cited on pg. 9)                   Eric Zelikman, Yuhuai Wu, Jesse Mu, and Noah Good-
+                                                             man. 2022. STaR: Bootstrapping reasoning with
+Qingxiang Wang, Cezary Kaliszyk, and Josef Urban.            reasoning. In Advances in Neural Information Pro-
+  2018. First experiments with neural translation of         cessing Systems, volume 35, pages 15476–15488.
+  informal to formal mathematics. In Intelligent Com-       (Cited on pg. 8)
+  puter Mathematics: 11th International Conference,
+  CICM 2018, Hagenberg, Austria, August 13-17, 2018,      John M Zelle and Raymond J Mooney. 1996. Learn-
+  Proceedings 11, pages 255–270. Springer. (Cited on        ing to parse database queries using inductive logic
+  pg. 9)                                                    programming. In Proceedings of the National Con-
+                                                            ference on Artificial Intelligence, pages 1050–1055.
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V Le,         (Cited on pg. 8)
+  Ed H Chi, Sharan Narang, Aakanksha Chowdhery,
+  and Denny Zhou. 2023b. Self-consistency improves        Luke S Zettlemoyer and Michael Collins. 2005. Learn-
+  chain of thought reasoning in language models. In         ing to map sentences to logical form: Structured
+  The Eleventh International Conference on Learning         classification with probabilistic categorial grammars.
+  Representations. (Cited on pg. 1, 3, 4, 8, 23)            In Proceedings of the Twenty-First Conference on
+                                                            Uncertainty in Artificial Intelligence, UAI’05, page
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten            658–666, Arlington, Virginia, USA. AUAI Press.
+   Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou,           (Cited on pg. 8)
+   et al. 2022. Chain-of-thought prompting elicits rea-
+   soning in large language models. In Advances in        Hanlin Zhang, Ziyang Li, Jiani Huang, Mayur Naik,
+   Neural Information Processing Systems, volume 35,        and Eric Xing. 2022. Improved logical reasoning
+   pages 24824–24837. (Cited on pg. 1, 4, 8)                of language models via differentiable symbolic pro-
+                                                            gramming. In First Workshop on Pre-training: Per-
+Nathaniel Weir and Benjamin Van Durme. 2022. Dy-            spectives, Pitfalls, and Paths Forward at ICML 2022.
+  namic generation of interpretable inference rules in      (Cited on pg. 9)
+  a neuro-symbolic expert system. arXiv preprint
+                                                          Honghua Zhang, Meihua Dang, Nanyun Peng, and Guy
+  arXiv:2209.07662. (Cited on pg. 9)
+                                                            Van den Broeck. 2023a. Tractable control for autore-
+Lionel Wong, Gabriel Grand, Alexander K Lew, Noah D         gressive language generation. In International Con-
+  Goodman, Vikash K Mansinghka, Jacob Andreas,              ference on Machine Learning, pages 40932–40945.
+  and Joshua B Tenenbaum. 2023. From word mod-              PMLR. (Cited on pg. 8)
+  els to world models: Translating from natural lan-
+                                                          Kechi Zhang, Zhuo Li, Jia Li, Ge Li, and Zhi Jin.
+  guage to the probabilistic language of thought. arXiv
+                                                            2023b. Self-edit: Fault-aware code editor for code
+  preprint arXiv:2306.12672. (Cited on pg. 8, 9)
+                                                            generation. In Proceedings of the 61st Annual Meet-
+Yuhuai Wu, Albert Qiaochu Jiang, Wenda Li, Markus           ing of the Association for Computational Linguistics
+  Rabe, Charles Staats, Mateja Jamnik, and Christian        (Volume 1: Long Papers), pages 769–787, Toronto,
+  Szegedy. 2022. Autoformalization with large lan-          Canada. Association for Computational Linguistics.
+  guage models. In Advances in Neural Information           (Cited on pg. 9)
+  Processing Systems, volume 35, pages 32353–32368.       Denny Zhou, Nathanael Schärli, Le Hou, Jason Wei,
+  (Cited on pg. 9)                                          Nathan Scales, Xuezhi Wang, Dale Schuurmans,
+                                                            Claire Cui, Olivier Bousquet, Quoc V Le, and Ed H
+Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran,
+                                                            Chi. 2023. Least-to-most prompting enables com-
+  Thomas L Griffiths, Yuan Cao, and Karthik
+                                                            plex reasoning in large language models. In The
+  Narasimhan. 2023. Tree of thoughts: Deliberate
+                                                            Eleventh International Conference on Learning Rep-
+  problem solving with large language models. arXiv
+                                                            resentations. (Cited on pg. 8)
+  preprint arXiv:2305.10601. (Cited on pg. 10)
+
+Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+  Shafran, Karthik Narasimhan, and Yuan Cao. 2022.
+  React: Synergizing reasoning and acting in language
+  models. arXiv preprint arXiv:2210.03629. (Cited on
+  pg. 9)
+
+                                                      5166
+A    Future Directions                                   date for the previously mentioned larger number of
+                                                         premises involved in a typical question). For the
+Of the error types we catalog in our analysis
+                                                         StarCoder+ model, we allow generation up until
+of LINC, the key opportunity for improvement is
+                                                         the 8192 context window length, since this model
+more elegant handling of naturalistic language use.
+                                                         is run locally. In either case, decoding is halted
+While the errors observed with CoT result from
+                                                         early whenever the stop token </EVALUATE> is pro-
+faulty deductive inferences, in the case of LINC,
+                                                         duced. All local experiments were executed on a
+all errors have been localized to the semantic pars-
+                                                         cluster equipped with NVIDIA A100 GPUs.
+ing procedure. This process flows primarily unim-
+                                                            GPT Models: We use the gpt-3.5-turbo-16k-
+peded in the evaluation of the synthetic ProofWriter
+                                                         0613 and gpt-4-0613 checkpoints of the GPT-3.5
+dataset, yet leaves room for improvement with the
+                                                         (Ouyang et al., 2022) and GPT-4 (OpenAI, 2023)
+naturalistic FOLIO. In follow-up work, we hope
+                                                         models, respectively, invoking both models via the
+to deeply explore naturalistic evaluation settings,
+                                                         OpenAI API.
+as when data get the most messy is also where im-
+                                                            StarCoder+: StarCoder+ (15.5B)6 is a version
+provements become the most valuable. Here, we
+                                                         of StarCoderBase (Li et al., 2023) which has been
+propose three strategies for further improvement
+                                                         finetuned on 600B tokens from a combination of (1)
+on naturalistic settings.
+                                                         Falcon RefinedWeb (Penedo et al., 2023) (filtered
+   First, in naturalistic communication, “obvious”
+                                                         version of CommonCrawl), (2) The Stack v1.2 (Ko-
+information is often left out of explicit productions,
+                                                         cetkov et al., 2022), and (3) a Wikipedia dataset.
+left to be inferred in the “common ground” of the
+                                                         Its base model, StarCoderBase, is an open-access
+communicative act (Grice, 1975; Stalnaker, 2002).
+                                                         model with a GPT-2 architecture using multi-query
+Implicit premise rediscovery through controlled
+                                                         attention (Shazeer, 2019) and fill-in-the-middle ob-
+exploration on the logical neighborhood of the ex-
+                                                         jective (Bavarian et al., 2022). StarCoderBase has
+isting explicit premises promises to be a powerful
+                                                         a 8192 context window and is trained on 1T code
+strategy for improving performance in underspeci-
+                                                         tokens of permissively licensed text from GitHub
+fied settings.
+                                                         across 80 programming languages (Li et al., 2023).
+   Second, while a number of samples are lost to
+                                                         We use StarCoder+ instead of StarCoderBase be-
+syntax errors, recent work has proposed restricting
+                                                         cause it is finetuned on natural language, which
+the sampling space of an LLM to that which is
+                                                         should improve the performance on our task. We
+consistent with term expansions in a context-free-
+                                                         run StarCoder+ with bf16 precision to reduce its
+grammar (CFG) (Poesia et al., 2022). Doing so in
+                                                         memory footprint.
+this setting would eliminate all syntax errors.
+   Third, sometimes, the translation process to          C       FOLIO Dataset Preprocessing
+FOL is lossy, throwing away valuable information
+present in the original sentence. We propose im-         We use the publicly available FOLIO dataset on
+proving the faithfulness of FOL translations by ask-     https://github.com/Yale-LILY/FOLIO. We
+ing the LLM to translate the FOL back to natural         choose representative samples from the training
+language and comparing with the original. Forward        split of the dataset to be our few-shot examples and
+translations that rank highly when back-translated       use the validation split of the dataset in our eval-
+would be those which have effectively captured the       uation. The testing split is not publicly available.
+intricacies of a particular sentence’s semantics.        The original dataset has 204 validation examples.
+   Overall, we believe that shifting to evalua-          However, we discovered that there are errors in 22
+tions on more naturalistic datasets, and incorpo-        of the samples. We remove these samples for our
+rating strategies such as those presented here, will     evaluation and use the remaining 182 examples.
+help pave the path forward for neurosymbolic ap-         The errors as follows:
+proaches to formal reasoning.                                • In 4 samples, one or more of the ground truth
+                                                               FOL expressions have unbalanced parenthe-
+B    Model Details and Parameters
+                                                               ses (samples 3, 109, 110, 111).
+We use a decoding temperature T = 0.8 for all
+models. For GPT-3.5 and GPT-4, we limit the max-             • In 8 samples, the label obtained by executing
+imum number of tokens to generate to 1024 for                  the ground-truth FOL expressions does not
+FOLIO and 4096 for ProofWriter (to accommo-                  6
+                                                                 https://huggingface.co/bigcode/starcoderplus
+
+                                                     5167
+     match the provided ground truth label. We        main/data/v0.0/folio-train.jsonl. We do
+     double-checked this, first by executing the      not optimize for the choice of few-shot examples,
+     FOL expressions through Prover9 and second       and this is the only set of examples we evaluated
+     by checking it manually. (samples 6, 28, 30,     with, so it is likely that there exist better choices
+     48, 113, 115, 139, 140).                         for few-shot examples that would lead to improved
+                                                      performance across the board.
+    • In 10 samples, the number of premises does
+      not match the number of FOL expressions         D.1   FOLIO, 1-shot (baseline)
+      (samples 10, 11, 12, 88, 106, 107, 108, 174,
+                                                      The following is a first-order logic (FOL)
+      175, 176).                                          ,→ problem.
+                                                      The problem is to determine whether the
+The sample numbers above refer to the                     ,→ conclusion follows from the premises.
+                                                      The premises are given in the form of a set of
+line index in the validation file located at              ,→ first-order logic sentences.
+https://github.com/Yale-LILY/FOLIO/blob/              The conclusion is given in the form of a single
+main/data/v0.0/folio-validation.jsonl.                    ,→ first-order logic sentence.
+                                                      The task is to evaluate the conclusion as 'True',
+                                                          ,→ 'False', or 'Uncertain' given the
+D    FOLIO Few-Shot Prompts                               ,→ premises.
+
+The methodologies we investigate do not re-
+quire any finetuning on domain-specific data. In-     <PREMISES>
+                                                      All dispensable things are environment-friendly.
+stead, we use in-context learning (ICL) with pre-     All woodware is dispensable.
+trained models. We prompt the model with              All paper is woodware.
+a set of instructions and 1-8 ICL examples,           No good things are bad.
+                                                      All environment-friendly things are good.
+which adhere to a structured text format de-          A worksheet is either paper or is environment-
+signed to scaffold generations and ease post-             ,→ friendly.
+processing. In particular, we begin each ICL exam-    </PREMISES>
+                                                      <CONCLUSION>
+ple with each of the NL premises wrapped in an        A worksheet is not dispensable.
+HTML-style tag <PREMISES>. . . </PREMISES>            </CONCLUSION>
+followed by the NL conclusion wrapped in              <EVALUATE>
+                                                      Uncertain
+<CONCLUSION>. . . </CONCLUSION>. The requi-           </EVALUATE>
+site evaluation steps for each evaluation paradigm
+                                                      <PREMISES>
+are then outlined in a subsequent section wrapped     ...premises for sample here, one premise per
+<EVALUATE>. . . </EVALUATE>. Following the in-            ,→ line
+clusion of ICL examples, a test example is added,     </PREMISES>
+                                                      <CONCLUSION>
+with the <PREMISES> and <CONCLUSION> sections.        ...conclusion for sample here
+Then, the <EVALUATE> tag is opened, and the LM        </CONCLUSION>
+is allowed to proceed with causal generation un-      <EVALUATE>
+til the </EVALUATE> tag is generated. Upon gen-                          Listing 1: todo
+eration of this stop token, the <EVALUATE> block
+is segmented for post-processing according to the
+                                                      D.2   FOLIO, 1-shot (scratchpad)
+method being evaluated ({naïve, scratchpad,
+chain-of-thought, neuro-symbolic}).                   The following is a first-order logic (FOL)
+   For the few-shot examples, we use samples from         ,→ problem.
+                                                      The problem is to determine whether the
+the publicly available FOLIO training set. We             ,→ conclusion follows from the premises.
+select a set of diverse samples that are balanced     The premises are given in the form of a set of
+                                                          ,→ first-order logic sentences.
+across labels. Since the FOLIO training set does      The conclusion is given in the form of a single
+not come with FOL expressions for the conclusions         ,→ first-order logic sentence.
+or chain of thought prompts, we manually add          The task is to translate each of the premises
+                                                          ,→ and conclusions into FOL expressions, and
+both for each sample. For the k-shot setting (k<8),       ,→ then to evaluate the conclusion as 'True
+we use the first k samples from the following list        ,→ ', 'False', or 'Uncertain' given the
+of sample indices: 126, 24, 61, 276, 149, 262,            ,→ premises.
+264, 684. Here, sample i refers to the ith line in
+https://github.com/Yale-LILY/FOLIO/blob/              <PREMISES>
+
+                                                  5168
+All dispensable things are environment-friendly.      <EVALUATE>
+All woodware is dispensable.                          Let's think step by step. We want to evaluate if
+All paper is woodware.                                    ,→ a worksheet is not dispensable. From
+No good things are bad.                                   ,→ premise 6, we know that a worksheet is
+All environment-friendly things are good.                 ,→ either paper or is environment-friendly.
+A worksheet is either paper or is environment-            ,→ If it is paper, then from premise 3, a
+    ,→ friendly.                                          ,→ worksheet is woodware, and from premise
+</PREMISES>                                               ,→ 2, a worksheet is dispensable. If it is
+<CONCLUSION>                                              ,→ environment-friendly, we know it is good
+A worksheet is not dispensable.                           ,→ from premise 5, but we know nothing about
+</CONCLUSION>                                             ,→ whether it is dispensable. Therefore, we
+<EVALUATE>                                                ,→ don't know if a worksheet is dispensible
+TEXT: All dispensable things are environment-             ,→ or not, so the statement is uncertain.
+    ,→ friendly.                                      ANSWER: Uncertain
+FOL: all x. (Dispensable(x) ->                        </EVALUATE>
+    ,→ EnvironmentFriendly(x))
+TEXT: All woodware is dispensable.                    <PREMISES>
+FOL: all x. (Woodware(x) -> Dispensable(x))           ...premises for sample here, one premise per
+TEXT: All paper is woodware.                              ,→ line
+FOL: all x. (Paper(x) -> Woodware(x))                 </PREMISES>
+TEXT: No good things are bad.                         <CONCLUSION>
+FOL: all x. (Good(x) -> -Bad(x))                      ...conclusion for sample here
+TEXT: All environment-friendly things are good.       </CONCLUSION>
+FOL: all x. (EnvironmentFriendly(x) -> Good(x))       <EVALUATE>
+TEXT: A worksheet is either paper or is
+    ,→ environment-friendly.
+FOL: ((Paper(Worksheet) & -EnvironmentFriendly(       D.4   FOLIO, 1-shot (neurosymbolic)
+    ,→ Worksheet)) | (-Paper(Worksheet) &
+    ,→ EnvironmentFriendly(Worksheet)))               The following is a first-order logic (FOL)
+TEXT: A worksheet is not dispensable.                     ,→ problem.
+FOL: -Dispensable(Worksheet)                          The problem is to determine whether the
+ANSWER: Uncertain                                         ,→ conclusion follows from the premises.
+</EVALUATE>                                           The premises are given in the form of a set of
+                                                          ,→ first-order logic sentences.
+<PREMISES>                                            The conclusion is given in the form of a single
+...premises for sample here, one premise per              ,→ first-order logic sentence.
+    ,→ line                                           The task is to translate each of the premises
+</PREMISES>                                               ,→ and conclusions into FOL expressions, so
+<CONCLUSION>                                              ,→ that the expressions can be evaluated by
+...conclusion for sample here                             ,→ a theorem solver to determine whether the
+</CONCLUSION>                                             ,→ conclusion follows from the premises.
+<EVALUATE>                                            Expressions should be adhere to the format of
+                                                          ,→ the Python NLTK package logic module.
+
+D.3 FOLIO, 1-shot (chain of thought)
+                                                      <PREMISES>
+The following is a first-order logic (FOL)            All dispensable things are environment-friendly.
+    ,→ problem.                                       All woodware is dispensable.
+The problem is to determine whether the               All paper is woodware.
+    ,→ conclusion follows from the premises.          No good things are bad.
+The premises are given in the form of a set of        All environment-friendly things are good.
+    ,→ first-order logic sentences.                   A worksheet is either paper or is environment-
+The conclusion is given in the form of a single           ,→ friendly.
+    ,→ first-order logic sentence.                    </PREMISES>
+The task is to translate each of the premises         <CONCLUSION>
+    ,→ and conclusions into FOL expressions,          A worksheet is not dispensable.
+                                                      </CONCLUSION>
+                                                      <EVALUATE>
+<PREMISES>                                            TEXT: All dispensable things are environment-
+All dispensable things are environment-friendly.          ,→ friendly.
+All woodware is dispensable.                          FOL: all x. (Dispensable(x) ->
+All paper is woodware.                                    ,→ EnvironmentFriendly(x))
+No good things are bad.                               TEXT: All woodware is dispensable.
+All environment-friendly things are good.             FOL: all x. (Woodware(x) -> Dispensable(x))
+A worksheet is either paper or is environment-        TEXT: All paper is woodware.
+    ,→ friendly.                                      FOL: all x. (Paper(x) -> Woodware(x))
+</PREMISES>                                           TEXT: No good things are bad.
+<CONCLUSION>                                          FOL: all x. (Good(x) -> -Bad(x))
+A worksheet is not dispensable.                       TEXT: All environment-friendly things are good.
+</CONCLUSION>                                         FOL: all x. (EnvironmentFriendly(x) -> Good(x))
+
+                                                   5169
+TEXT: A worksheet is either paper or is              (Incorrect) Translation 2 (StarCoderPlus): ((
+    ,→ environment-friendly.                             ,→ Rabbit(Animal) & -Squirrel(Animal)) | (-
+FOL: ((Paper(Worksheet) & -EnvironmentFriendly(          ,→ Rabbit(Animal) & Squirrel(Animal)))
+    ,→ Worksheet)) | (-Paper(Worksheet) &            (Incorrect) Translation 3 (GPT-4): all x. ((
+    ,→ EnvironmentFriendly(Worksheet)))                  ,→ Animal(x) & Rabbit(x)) | (Animal(x) &
+TEXT: A worksheet is not dispensable.                    ,→ Squirrel(x)))
+FOL: -Dispensable(Worksheet)
+</EVALUATE>                                          Premise: a person either studys or teaches
+                                                     (Ground Truth) Translation: all x. (Study(x) |
+<PREMISES>                                               ,→ Teaches(x))
+...premises for sample here, one premise per         (Incorrect) Translation 1 (StarCoderPlus):
+    ,→ line                                              ,→ Studys(Person) | Teaches(Person)
+</PREMISES>                                          (Incorrect) Translation 2 (StarCoderPlus): ((
+<CONCLUSION>                                             ,→ Study(Person) & -Teach(Person)) | (-Study
+...conclusion for sample here                            ,→ (Person) & Teach(Person)))
+</CONCLUSION>                                        (Correct) Translation 3 (GPT-4): all x. (Studies
+<EVALUATE>                                               ,→ (x) | Teaches(x))
+
+                                                     Premise: A man is either kind or evil.
+E     FOLIO Error Analysis                           (Ground Truth) Translation: all x. (Kind(x) & -
+                                                         ,→ Evil(x)) | (-Kind(x) & Evil(x))
+E.1    Ambiguity of “Either” statements              (Incorrect) Translation 1 (GPT-3.5): ((Man(x) & -
+                                                         ,→ Kind(x)) | (-Man(x) & Evil(x)))
+Depending on the context, the phrase “either x or    (Incorrect) Translation 2 (StarCoderPlus): Kind(
+y” could mean x XOR y, x OR y, or be ambiguous.          ,→ AMan) | Evil(AMan)
+                                                     (Incorrect) Translation 3 (StarCoderPlus): (Kind
+Throughout our experiments, we found that models         ,→ (x) | Evil(x))
+had many creatively incorrect ways of translating
+                                                     Premise: Ben is either from The Simpsons or
+these statements. One reoccurring error was that         ,→ funny.
+statements that clearly intended x XOR y (such as,   (Ground Truth) Translation: (Simpsons(Ben) & -
+“an animal is either a rabbit or a squirrel”) were       ,→ Funny(Ben)) | (-Simpsons(Ben) & Funny(Ben
+                                                         ,→ ))
+translated into x OR y. We tried to account for      (Correct) Translation 1 (StarCoderPlus): ((
+this into account by including multiple samples          ,→ Simpsons(Ben) & -Funny(Ben)) | (-Simpsons
+with this construct in the few shot examples (see        ,→ (Ben) & Funny(Ben)))
+                                                     (Incorrect) Translation 2 (GPT-3.5): (
+Sec. D.4). However, the models still handle this         ,→ FromTheSimpsons(Ben) | Funny(Ben))
+construct inconsistently and incorrectly.            (Incorrect) Translation 3 (GPT-4):
+   In addition, we find that throughout the FOLIO        ,→ FromTheSimpsons(Ben) | Funny(Ben)
+dataset, by matching the natural language premises
+to the FOL premises, we find no consistent or pre-   E.2   GPT-4 LINC Failure Modes
+dictable pattern as to how “either x or y” state-
+                                                     L1: FOL fails to capture implicit information
+ments are translated. For example, “an animal is
+                                                     not mentioned in the premises. Three examples
+either a rabbi or a squirrel” is translated as all
+                                                     of errors from the FOLIO validation set are shown
+x. Rabbit(x) | Squirrel(x), while we believe
+                                                     below. The first two occurring in both GPT-3.5 and
+this instance should clearly be XOR. Therefore, we
+                                                     GPT-4, and the latter only occurs in GPT-3.5 and
+believe that some of these samples are inherently
+                                                     interestingly, is correct in GPT-4. In Example 1,
+ambiguous or malformed.
+                                                     to make the correct conclusion, we must encode in
+   To highlight model behavior on these exam-
+                                                     FOL that Harry is a person (Person(Harry)) and
+ples, four representative examples from the FO-
+                                                     that Walden is a book (Book("Walden")). Harry
+LIO validation set are shown below; examples
+                                                     being a person is implicit, but “Walden” being a
+have multiple translations because we used tem-
+                                                     book is explicitly mentioned in premise 4 but fails
+perature T = 0.8. Here, Correct/Incorrect indicate
+                                                     to be explicitly encoded by the model. In Exam-
+whether the translations match the ground truth
+                                                     ple 2, we must encode that KiKi is an animal to
+(which doesn’t necessarily match how we would
+                                                     make the correct deduction. One can argue that
+translate it).
+                                                     this example is ambiguous, but from the context,
+Premise: an animal is either a rabbit or a
+                                                     most would make this inference. In Example 3, we
+    ,→ squirrel
+(Ground Truth) Translation: all x. (Rabbit(x) |      need a clause that says LGA and LGA are the same
+    ,→ Squirrel(x))                                  airport (SameAirport(LGA, LGA)).
+(Correct) Translation 1 (GPT-3.5): all x. (
+    ,→ Animal(x) -> (Rabbit(x) | Squirrel(x)))       Example 1 (GPT-4)
+
+                                                  5170
+Premises:                                             choice of representation. We show four illus-
+Books contain tons of knowledge.                      trative examples: the first two examples occur
+When a person reads a book, that person gains
+    ,→ knowledge.                                     in both GPT-3.5 and GPT-4, while the last two
+If a person gains knowledge, they become smarter.     examples only occur in GPT-3.5 and are correct
+    ,→                                                when using GPT-4. The first example is described
+Harry read the book "Walden" by Henry Thoreau.
+                                                      in the main text. In example 2, we know that
+Conclusion (Ground Truth: True)                       Barutin Cove is a cove, but this lost information
+Harry is smarter than before.
+                                                      is not encoded in the FOL, so we cannot conclude
+FOLs:                                                 Cove(BarutinCove), although this is crucial in-
+all x. (Book(x) -> Contains(x, Knowledge))            formation for making the deduction. In Example 3,
+all x. all y. (Person(x) & Reads(x, y) & Book(y)
+    ,→ -> Gains(x, Knowledge))                        we must deduce that Tom’s license plate is a license
+all x. (Gains(x, Knowledge) -> Smarter(x))            plate (FromIstanbul(TomPlate)), which is obvi-
+Reads(Harry, Walden)                                  ous but is not encoded by the model. In the final
+Conclusion (Prover9 Deduction: Uncertain)             example, the idea that an object has four sides is ex-
+Smarter(Harry)                                        pressed both as FourSided(x) and FourSides(x),
+                                                      so the model is unable to make the correct deduc-
+Example 2 (GPT-4)
+Premises:                                             tion.
+If an animal barks, then Jane does not like it.
+All dogs are animals that bark.                       Example 1 (GPT-4)
+If an animal jumps, then Jane likes it.               Premises:
+If an animal has legs, then it jumps.                 Heinrich Scmidt was a Nazi German politician.
+If an animal is terricolous, then it has legs.        Heeinrich Scmidt was also a member of the
+If KiKi neither jumps nor has legs, then KiKi is          ,→ Prussian State Parliament and the Nazi
+    ,→ terricolous or has legs.                           ,→ Reichstag.
+
+Conclusion (Ground Truth: True)                       Conclusion (Ground Truth: True):
+KiKi neither barks nor is a dog.                      Heinrich Schmidt was either German or Russian.
+
+FOLs:                                                 FOLs:
+all x. (Animal(x) & Barks(x) -> NotLike(Jane, x)      GermanPolitician(HeinrichSchmidt) & Nazi(
+    ,→ )                                                  ,→ HeinrichSchmidt)
+all x. (Dog(x) -> Animal(x) & Barks(x))               MemberPrussianStateParliament(HeinrichSchmidt) &
+all x. (Animal(x) & Jumps(x) -> Like(Jane, x))            ,→ MemberNaziReichstag(HeinrichSchmidt)
+all x. (Animal(x) & HasLegs(x) -> Jumps(x))
+all x. (Animal(x) & Terricolous(x) -> HasLegs(x)      Conclusion (Prover9 Deduction: Uncertain):
+    ,→ )                                              German(HeinrichSchmidt) | Russian(
+(-Jumps(KiKi) & -HasLegs(KiKi)) -> (Terricolous(          ,→ HeinrichSchmidt)
+    ,→ KiKi) | HasLegs(KiKi))
+                                                      Example 2 (GPT-4)
+Conclusion (Prover9 Deduction: Uncertain)             Premises:
+-Barks(KiKi) & -Dog(KiKi)                             Barutin Cove is named after the Bulgarian
+                                                          ,→ settlement of Barutin.
+Example 3 (GPT-3.5):                                  Barutin Cove is on the southwest coast of Snow
+Premises:                                                 ,→ Island.
+Susan flies to LGA airport.                           The South Shetland Islands include Snow Island,
+The departure and arrival can not be the same             ,→ Greenwich Island, and Deception Island.
+    ,→ airport.                                       The South Shetland Islands are considered part
+John flies from LGA airport.                              ,→ of Antarctica.
+                                                      If A is located in B and B is located in C, then
+Conclusion (Ground Truth: False)                          ,→ A is located in C.
+Susan flies from LGA airport.
+                                                      Conclusion (Ground Truth: True)
+FOLs:                                                 There is at least one cove in Antarctica named
+Flies(Susan, LGA)                                         ,→ after a place in Bulgaria.
+all x. all y. (Departure(x) & Arrival(y) & -
+    ,→ SameAirport(x, y))                             FOLs:
+Flies(John, LGA)                                      NamedAfter(BarutinCove, Barutin) & In(Barutin,
+                                                          ,→ Bulgaria)
+Conclusion (Prover9 Deduction: Uncertain):            On(BarutinCove, SnowIsland)
+Flies(Susan, LGA)                                     In(SnowIsland, SouthShetlandIslands) & In(
+                                                          ,→ GreenwichIsland, SouthShetlandIslands) &
+                                                          ,→ In(DeceptionIsland, SouthShetlandIslands)
+   L2: FOL fails to capture information ex-           In(SouthShetlandIslands, Antarctica)
+plicitly mentioned in the premises due to the         all x. all y. all z. ((In(x, y) & In(y, z)) ->
+
+                                                   5171
+    ,→ In(x, z))                                        Premises:
+                                                        There are four seasons in a year: Spring, Summer,
+Conclusion (Prover9 Deduction: Uncertain)                   ,→ Fall, and Winter.
+exists x. (Cove(x) & In(x, Antarctica) & exists         All students who want to have a long vacation
+    ,→ y. (In(y, Bulgaria) & NamedAfter(x, y)))             ,→ love summer the most.
+
+Example 3 (GPT-3.5)                                     FOLs:
+Premises:                                               all x. (Year(x) -> (Spring(x) | Summer(x) | Fall
+All vehicle registration plates in Istanbul                 ,→ (x) | Winter(x)))
+    ,→ begin with the number 34.                        all x. (Student(x) & WantsLongVacation(x) ->
+Plates that do not begin with the number 34 are             ,→ Loves(x, Summer))
+    ,→ not from Istanbul.
+Joe's vehicle registration plate is from                Prover9 Error:
+    ,→ Istanbul.                                        The following symbols are used with multiple
+Tom's license plate begins with the number 35.              ,→ arities: Summer/1, Summer/0.
+If a license plate begins with the number 35,
+    ,→ then it does not begin with the number           Example 2
+    ,→ 34.                                              Premises:
+                                                        Badults is a British Sitcom series, starring
+Conclusion (Ground Truth: False):                           ,→ members of Pappy's.
+Tom's license plate is from Istanbul.                   Badults piloted in July 2013 on BBC Three.
+
+FOLs:                                                   FOLs:
+all x. (VehicleRegistrationPlate(x) ->                  exists x. (Badults(x) & BritishSitcom(x) &
+    ,→ BeginsWith(x, 34))                                   ,→ StarringMembersOf(x, Pappys))
+all x. (-BeginsWith(x, 34) -> -FromIstanbul(x))         Piloted(Badults, July2013, BBCThree)
+FromIstanbul(JoePlate)
+BeginsWith(TomPlate, 35)                                Prover9 Error:
+all x. (LicensePlate(x) & BeginsWith(x, 35) -> -        The following symbols are used with multiple
+    ,→ BeginsWith(x, 34))                                   ,→ arities: Badults/1, Badults/0.
+
+Conclusion (Prover9 Deduction: Uncertain):                 While rarer, there are also syntax errors. For
+FromIstanbul(TomPlate)
+                                                        illustration, two examples from GPT-4 are shown
+Example 4 (GPT-3.5)                                     below:
+Premises:
+                                                        Premise: Ailton Silva foes not play for a
+All squares have four sides.
+                                                            ,→ football club.
+All four-sided things are shapes.
+                                                        FOL: -Exists x. (FootballClub(x) & PlaysFor(
+                                                            ,→ AiltonSilva, x))
+Conclusion (Ground Truth: True):
+                                                        Error: Exists should not be capitalized
+All squares are shapes.
+                                                        Premise: The security deposit can be either
+FOLs:
+                                                            ,→ equal to one month's rent or more.
+all x. (Square(x) -> FourSides(x))
+                                                        FOL: all x. all y. (Rent(x, y) -> (Deposit(x) =
+all x. (FourSided(x) -> Shape(x))
+                                                            ,→ y | Deposit(x) > y))
+                                                        Error: > is not allowed in Prover9's FOL
+Conclusion (Prover9 Deduction: Uncertain)
+all x. (Square(x) -> Shape(x))
+                                                           L4: There are mistakes in the FOL trans-
+                                                        lation. For GPT-4, there are very few transla-
+   L3: FOL contains syntax errors. This is one
+                                                        tion mistakes, but we still find a couple instances
+reason that we observe majority voting helps sig-
+                                                        where GPT-3.5 fails to capture the semantic mean-
+nificantly for neurosymbolic methods, as multiple
+                                                        ing of the NL examples properly. Two examples
+generations increase the likelihood that at one least
+                                                        are shown here:
+one FOL representation successfully compiles. As
+stated in the main text, the most common error          Premise: Platypus have no teeth
+                                                        Incorrect FOL: -NoTeeth(Platypus)
+is that the same symbol is used with multiple ari-
+ties. Two examples of this are shown below: in the      Premise: Imperium doesn't have a feud with a
+first example, the primitive Summer is both used as         ,→ professional wrestling stable that
+                                                            ,→ includes Ivy Nile.
+a function representing that a year has a summer        Incorrect FOL: -all x. (Includes(x, IvyNile) -> -
+(in the first premise) and as a constant represent-         ,→ HasFeud(Imperium, x))
+ing that a student loves summer. A similar phe-
+nomenon occurs in the second example with the           E.3   GPT-4 CoT Failure Modes
+symbol Badults.
+                                                        C1: CoT concludes something different than it
+Example 1                                               suggests. We show two examples of this below
+                                                    5172
+(both of which LINC solves correctly).                    ,→ needs to apply for CPT if he wants to
+                                                          ,→ work in the US. We also know that an
+Example 1                                                 ,→ international student in the US with an
+Premises:                                                 ,→ F1 visa needs to apply for CPT or OPT if
+Plungers suck.                                            ,→ the student wants to work in the US. So,
+Vacuums suck.                                             ,→ it is clear that Mike has an F1 visa
+Vampires suck.                                            ,→ since he fits the criteria. Therefore,
+Space is a vacuum.                                        ,→ the conclusion is true.
+A duster is a household appliance that doesn't
+    ,→ suck.                                          Example 2
+                                                      Premises:
+Conclusion:                                           If people perform in school talent shows often,
+Space is a vampire.                                       ,→ then they attend and are very engaged
+                                                          ,→ with school events.
+(GPT-4 Incorrect CoT): Let's think step by step.      People either perform in school talent shows
+    ,→ We want to evaluate if Space is a                  ,→ often or are inactive and disinterested
+    ,→ vampire. We know that Space is a vacuum            ,→ members of their community.
+    ,→ and that vacuums suck. However, while it'      If people chaperone high school dances, then
+    ,→ s true that vampires also suck, this               ,→ they are not students who attend the
+    ,→ doesn't mean that everything that sucks            ,→ school.
+    ,→ is a vampire. Therefore, there is no           All people who are inactive and disinterested
+    ,→ reason to believe that Space is a vampire          ,→ members of their community chaperone high
+    ,→ based on these premises, so the                    ,→ school dances.
+    ,→ statement is false.                            All young children and teenagers who wish to
+ANSWER: False                                             ,→ further their academic careers and
+                                                          ,→ educational opportunities are students
+Example 2                                                 ,→ who attend the school.
+Premises:                                             Bonnie either both attends and is very engaged
+Some mammals have teeth.                                  ,→ with school events and is a student who
+Platypus have no teeth.                                   ,→ attends the school, or she neither
+Platypus are mammals.                                     ,→ attends and is very engaged with school
+Humans have teeth.                                        ,→ events nor is a student who attends the
+                                                          ,→ school.
+Conclusion:
+Platypus are reptiles.                                Conclusion (Ground Truth: Uncertain):
+                                                      Bonnie performs in school talent shows often.
+(GPT-4 Incorrect CoT): Let's think step by step.
+    ,→ We want to evaluate if platypus are            (GPT-4 Incorrect CoT): Let's think step by step.
+    ,→ reptiles. We know from the premises that           ,→ We want to evaluate if Bonnie performs
+    ,→ platypus are mammals and that they have            ,→ in school talent shows often. Based on
+    ,→ no teeth. The fact that some mammals have          ,→ the last premise, if Bonnie is a student
+    ,→ teeth does not contradict the fact that            ,→ who attends the school and is very
+    ,→ platypus, although mammals, do not have            ,→ engaged with school events, this is only
+    ,→ teeth. Moreover, the statement about               ,→ possible if she performs in school talent
+    ,→ humans having teeth is unrelated to the            ,→ shows often, as per the first premise.
+    ,→ classification of platypus. There's no             ,→ If she doesn't attend and is not engaged
+    ,→ evidence in the premises that would                ,→ with school events, she is an inactive
+    ,→ suggest platypus are reptiles. Therefore,          ,→ and disinterested member of her community
+    ,→ the statement is false.                            ,→ . But the fourth premise states that
+                                                          ,→ these individuals chaperone high school
+  C2: CoT makes incorrect logical deductions.             ,→ dances, meaning they cannot be students,
+                                                          ,→ which would contradict the last premise.
+Example 1                                                 ,→ Therefore, Bonnie performs in school
+Premises:                                                 ,→ talent shows often, so the statement is
+International students in US have either an F1            ,→ true.
+    ,→ visa or a J1 visa.
+An international student in US with an F1 visa
+    ,→ needs to apply for CPT or OPT if the              C3: CoT fails to find complex paths of reason-
+    ,→ student wants to work in the US.               ing. We highlight two examples below: in the first
+Mike is an international student.
+Mike needs to apply for CPT if he wants to work
+                                                      example, the ground truth is false. To make this
+    ,→ in the US.                                     deduction, one must reason that if a Greyhound is
+                                                      a Boeing 707, then it is a plane, which means it is
+Conclusion (Ground Truth: Uncertain):
+Mike has an F1 visa.                                  empty, which means it cannot transport multiple
+                                                      passengers, which means it is not an airline, which
+(GPT-4 Incorrect CoT): Let's think step by step.      means there are no Greyhound planes, which is a
+    ,→ We want to evaluate if Mike has an F1
+    ,→ visa. From the premises, we know that          contradiction. Looking at the CoT generations, the
+    ,→ Mike is an international student and           first CoT attempt gives up after failing to find any
+                                                   5173
+link between Greyhound and Boeing 707. The sec-          No young person teaches.
+ond generation attempts to make deductions from          Jerry neither teaches nor is a manager.
+                                                         Rose is young or a student.
+the premises. In this case, none of the 10 CoT rea-
+soning chains begin with the correct step of starting    Conclusion (Ground Truth: True)
+from the negation of the conclusion and deducing         Rose is a human or Jerry is a manager.
+
+it false.                                                (GPT-4 Incorrect CoT, 1): Let's think step by
+    In the second example, to make the correct de-           ,→ step. We want to evaluate if Rose is a
+                                                             ,→ human or Jerry is a manager. Let's first
+duction, we need to start from the fact that Rose is         ,→ look at Rose. From premise 6, we know
+young or a student. If Rose is young, then they do           ,→ that Rose is either young or a student.
+not teach, which means they study, which means               ,→ If Rose is a student, then from premise 1
+                                                             ,→ we know that Rose is a human. If Rose is
+they are a student, which means they are a human.            ,→ young, we don't know from the premises
+If Rose is a student, then they are humans. Neither          ,→ whether she is a human. Therefore, it is
+of the CoT generation is able to make progress on            ,→ uncertain whether Rose is a human. Now
+                                                             ,→ let's look at Jerry. From premise 5, we
+the deduction from the information that Rose is              ,→ know that Jerry is not a manager.
+young. In addition, the first CoT generation also            ,→ Therefore, Jerry is not a manager. So, it
+                                                             ,→ is uncertain whether Rose is a human,
+has a logical error at the last step, where it asserts       ,→ but we know that Jerry is not a manager,
+that “A or False” is False when the truthness of A           ,→ so the statement is false.
+is uncertain.
+                                                         (GPT-4 Incorrect CoT, 2): Let's think step by
+Example 1                                                    ,→ step. We want to evaluate if Rose is a
+Premises:                                                    ,→ human or Jerry is a manager. First, we
+If something can transport multiple passengers,              ,→ know that Jerry neither teaches nor is a
+    ,→ then they are not empty.                              ,→ manager, which means Jerry is not a
+All airlines can transport multiple passengers.              ,→ manager. Therefore, the only way for the
+All planes are empty.                                        ,→ conclusion to be true is if Rose is a
+All Boeing 707s are planes.                                  ,→ human. We know that Rose is either young
+If Greyhound is not an airline, then there are               ,→ or a student. If she's a student, since
+    ,→ no Greyhound planes.                                  ,→ all students are humans, then she is a
+                                                             ,→ human. However, if Rose is young, we don'
+Conclusion (Ground Truth: False)                             ,→ t have enough information to determine
+A Greyhound is a Boeing 707.                                 ,→ whether she's a human. Therefore, it's
+                                                             ,→ uncertain whether Rose is a human or
+(GPT-4 Incorrect CoT, 1): Let's think step by                ,→ Jerry is a manager.
+    ,→ step. We want to evaluate if a Greyhound
+    ,→ is a Boeing 707. Looking at our premises,
+    ,→ we have no direct or indirect                     E.4   Shared mistakes between GPT-4 CoT and
+    ,→ information linking Greyhounds to Boeing
+    ,→ 707s. Given the information available, we
+                                                               LINC
+    ,→ cannot make any certain conclusion about          As shown in Fig. 5c, there are 21 common errors
+    ,→ a Greyhound being a Boeing 707.
+    ,→ Therefore, it is uncertain whether a              between GPT-4 CoT and GPT-4 LINC. After an in-
+    ,→ Greyhound is a Boeing 707.                        depth analysis of the examples, we see that 16 of
+                                                         these arise due to inherent errors in the dataset:
+(GPT-4 Incorrect CoT, 2): Let's think step by
+    ,→ step. We want to evaluate if a Greyhound
+    ,→ is a Boeing 707. The first three premises            • 2 of these samples contain the sentence frag-
+    ,→ don't provide any information about                    ment “Either Zaha Hadid’s design style or
+    ,→ Greyhound or Boeing 707s. The fourth                   Kelly Wearstler’s design style.” as a premise.
+    ,→ premise tells us that all Boeing 707s are
+    ,→ planes but doesn't tell us anything                    This premise is likely intended to mean all
+    ,→ about Greyhound. The fifth premise tells               design styles are one of these two styles, but
+    ,→ us that if Greyhound is not an airline,
+    ,→ then there are no Greyhound planes, but
+                                                              this is hard for the model to grasp from just
+    ,→ this still doesn't imply that a Greyhound              the fragment (sample 41, 42).
+    ,→ is a Boeing 707. Therefore, we do not
+    ,→ have enough information to conclude                  • 2 of these samples contain the sentence frag-
+    ,→ whether a Greyhound is a Boeing 707 or
+    ,→ not. So, the statement is uncertain.                   ment “Either female tennis players at Roland
+                                                              Garros 2022 or male tennis players at Roland
+Example 2                                                     Garros 2022.” as a premise (sample 43, 45).
+Premises:
+All students are humans.
+If someone studies, then they are a student.                • 2 of these samples have an ambiguous use of
+A person either studies or teaches.                           “either”: “Ben is either from The Simpsons or
+                                                     5174
+     funny,” which in this case ambiguously means         F   Proofwriter StarCoder+ Errors
+     XOR. We believe this sentence is an unnatural
+                                                          We also analyzed, qualitatively, the errors that Star-
+     usage of “either” (sample 142, 143).
+                                                          Coder+ makes on the ProofWriter dataset. Since
+   • In 4 samples, there is a name that is implicitly     premises from the ProofWriter dataset are relatively
+     an animal, but this is not clear (sample 126,        simple and direct, lossy translation is rarer. Most er-
+     127, 128, 199). Also, in samples 126-128,            rors are due to syntax or improper representations.
+     there is a statement “If Rock is neither a fly nor   We show five representative errors below:
+     a bird, then Rock neither flies nor breathes.”       Premise: All quiet people are round.
+     that should likely say “If Rock neither flies nor    StarCoder+ FOL: all x. Quiet(x) -> Round(x)
+                                                          Ground Truth FOL: all x. (Quiet(x) -> Round(x))
+     is a bird, ...”. With the original formulation,
+     everything could be uncertain because nothing        Premise: If someone is quiet and nice then they
+     is known in the case that Rock is a fly (and             ,→ are cold.
+                                                          Starcoder+ FOL: all x. (Quiet(x) \& Nice(x)) ->
+     this is a reasonable interpretation).                    ,→ Cold(x)
+                                                          Ground Truth FOL: all x. ((Quiet(x) \& Nice(x))
+   • In 5 samples, the ground-truth FOL represen-             ,→ -> Cold(x))
+     tation of the natural language premise is incor-     Premise: If something is furry then it is quiet.
+     rect, causing the label to be incorrect (samples     Starcoder+ FOL: Furry(x) -> Quiet(x)
+     29, 79, 85, 86, 87).                                 Ground Truth FOL: all x. (Furry(x) -> Quiet(x))
+
+                                                          Premise: The cow eats the dog.
+   • There is a sample where the conclusion is            Starcoder+ FOL: Cow(Eats(Dog))
+     likely mis-worded and should be “Barutin             Ground Truth FOL: Eats(Cow, Dog)
+     Cove is not located in Antarctica.” instead          Premise: The cow is blue.
+     of “Barutin is not located in Antarctica.” This      Starcoder+ FOL: Cow(x) \& Blue(x)
+     changes the ground truth label. (sample 121).        Ground Truth FOL: Blue(Cow)
+
+
+   The remaining 5 samples are examples where
+                                                          G    StarCoderPlus FOLIO Error Analysis
+both methods fail. In all cases, CoT fails to find the
+correct reasoning chain, as the premises/reasoning        For StarCoder+, we see a slightly different trend.
+path is convoluted and complex. Meanwhile, LINC           In Fig. 6a, we see the same pattern as for GPT-4,
+fails as follows:                                         with a majority of uncertain predictions. In Fig. 6b,
+                                                          however, we see that CoT for StarCoder+ primarily
+   • In sample 104, LINC generates separate sym-          predicts true. This is likely because the model was
+     bols for NotLiveAtHome and -LiveAtHome,              trained on much more code than text, and may
+     which are semantically equivalent.                   not have picked up sophisticated textual chain-of-
+                                                          thought reasoning capabilities. In Fig. 6c, we
+   • In sample 149, LINC generates FOLs that miss         can see that the mispredictions between CoT and
+     implicit information; i.e. that people with          LINC differ much more for StarCoder+ than GPT-
+     names Rose and Jerry are humans.                     4. Finally, in Fig. 6d, we see the same trends
+                                                          as we saw with GPT-4 but more pronounced, as
+   • In samples 172 and 173, LINC does not gener-
+                                                          the similarity between mispredictions in LINC and
+     ate a single valid set of FOL premises because
+                                                          those in the baseline methods is even lower than
+     all generated expressions have a mismatched
+                                                          they were for GPT-4.
+     arity issue.
+                                                          H The effect of K-way majority voting on
+   • In sample 193, LINC fails to express the con-
+                                                            LINC and CoT
+     clusion correctly: the conclusion is “If Yuri
+     is not an American basketball player, then           In all our experiments, we use 10-way majority
+     Yuri is a basketball player.”, but the FOLs          voting, inspired by prior work which found that
+     outputted are either -American(Yuri)                 Chain-of-Thought prompting benefited therefrom
+     &               -BasketballPlayer(Yuri)              (Wang et al., 2023b). However, one might won-
+     or        -American(Yuri)                  &         der how robust the performance gains seen with
+     BasketballPlayer(Yuri)                               LINC are to the precise value of K. Figure 7 thus
+                                                      5175
+                                                                           100                                                                                                              100
+                   Tr
+
+
+
+
+                                                                                                                           Tr
+                            31          7           6           0                                                                   61             38             55         0
+                    ue
+
+
+
+
+                                                                                                                            ue
+                                                                           80                                                                                                               80
+Predicted Label
+
+
+
+
+                                                                                    Predicted Label
+                  Fa
+
+
+
+
+                                                                                                                           Fa
+                             1          16          0           0                                                                    1             12              7         0
+                     ls
+
+
+
+
+                                                                                                                              ls
+                                                                           60                                                                                                               60
+                       e
+
+
+
+
+                                                                                                                             e
+            Un
+
+
+
+
+                                                                                                      Un
+                  ce
+
+
+
+
+                                                                                                                      ce
+                   rta
+
+
+
+
+                                                                                                                           rta
+                            25          29         55           0          40                                                        1              4              3         0              40
+                    in
+
+
+
+
+                                                                                                                             in
+                                                                           20                                                                                                               20
+                  Er
+
+
+
+
+                                                                                                                           Er
+                             6          2           4           0                                                                    0              0              0         0
+                   ror
+
+
+
+
+                                                                                                                            ror
+                                                                           0                                                                                                                0
+                           ue
+
+
+                                      e
+
+                                                 in
+
+                                                           ror
+
+
+
+
+                                                                                                                                   ue
+
+
+                                                                                                                                                 e
+
+                                                                                                                                                               in
+
+                                                                                                                                                                        ror
+                                    ls
+
+
+
+
+                                                                                                                                                ls
+                                                rta
+
+
+
+
+                                                                                                                                                           rta
+                         Tr
+
+
+
+
+                                                                                                                                 Tr
+                                 Fa
+
+
+
+
+                                                                                                                                             Fa
+                                                           Er
+
+
+
+
+                                                                                                                                                                        Er
+                                              ce
+
+
+
+
+                                                                                                                                                         ce
+                                         Un
+
+
+
+
+                                                                                                                                                        Un
+                                      Reference Label                                                                                           Reference Label
+                           (a) Confusion matrix for LINC.                                                                   (b) Confusion matrix for Chain-of-Thought.
+                                                                           100                                                                                                               1.0
+
+
+
+
+                                                                                                                           LIN
+                                                                                                                                    1
+                  Co
+
+
+
+
+                                                                                                                            C
+                                                                           80                                                                                                                0.8
+                  rre
+
+
+
+
+                                 37                     39
+                      ct
+CoT Outcome
+
+
+
+
+                                                                                                                           Co
+                                                                           60                                                      0.11             1
+
+                                                                                                                            T
+                                                                                                                                                                                             0.6
+                                                                                       Sc
+                                                                                                   rat
+                                                                                                                    ch
+                                                                           40
+             Inc
+
+
+
+
+                                                                                                                                   0.1           0.62              1
+                                                                                                                       p    ad
+                                                                                                                                                                                             0.4
+                  orr
+
+
+
+
+                                 65                     41
+                   ec
+
+
+
+
+                                                                           20
+                     t
+
+
+
+
+                                                                                                                     Na
+
+
+                                                                                                                                   0.21          0.44           0.48         1               0.2
+                                                                                                                            ive
+
+
+
+                                                                           0
+                                 t
+
+
+
+
+                                                        t
+
+
+
+
+                                                                                                                                   C
+
+
+                                                                                                                                                T
+
+                                                                                                                                                              ad
+
+                                                                                                                                                                        ive
+                                c
+
+
+
+
+                                                      ec
+                            rre
+
+
+
+
+                                                                                                                                             Co
+                                                                                                                              LIN
+                                                   orr
+
+
+
+
+                                                                                                                                                             p
+
+                                                                                                                                                                        Na
+                                                                                                                                                          ch
+                           Co
+
+
+
+
+                                                Inc
+
+
+
+
+                                      LINC Outcome                                                                                                      rat
+                                                                                                                                                    Sc
+
+   (c) Comparing the                         consistency     of     LINC       vs      (d) Similarity between incorrect predictions of each method,
+   Chain-of-Thought.                                                                   i.e., (A wrong == B wrong) / (A wrong or B wrong).
+
+                         Figure 6: Analyzing and comparing the mistakes made by StarCoder+ on the FOLIO dataset.
+
+
+   shows, for each model equipped with either LINC
+   or Chain-of-Thought, how the accuracy on FO-
+   LIO varies with K ∈ {1, 2, 3, . . . , 10}. We note                                                                  1.0                StarCoder+-Chain-of-Thought   GPT-4-Chain-of-Thought
+                                                                                           Accuracy on held-out test set
+
+
+
+
+                                                                                                                                          StarCoder+-LINC (ours)        GPT-4-LINC (ours)
+   that, generally speaking, LINC makes good use of                                                                                       GPT-3.5-Chain-of-Thought      Chance
+                                                                                                                       0.8                GPT-3.5-LINC (ours)
+   increased values of K. This is especially true for
+   the weaker models; these are more prone to gener-                                                                   0.6
+   ating syntactically invalid FOL expressions, which
+   cause the solver to return an Error. Taking the ma-                                                                 0.4
+   jority vote over many samples thus lessens the risk
+   of predicting Error, which is of course always the                                                                  0.2
+   wrong label. Notably, our results do not indicate
+                                                                                                                       0.0 1        2      3     4 5 6 7 8                         9 10
+   that CoT benefits from majority voting in this do-
+                                                                                                                                               K-way majority vote
+   main. Future work is needed to establish how this
+   relates to the findings in the previously mentioned                                Figure 7: Accuracy on FOLIO per value of K (Ap-
+   prior work.                                                                        pendix H). Shaded areas are ±1 standard deviation over
+                                                                                      1000 bootstrapped samples. Note that increasing K
+                                                                                      benefits LINC (solid lines; shading in color) but not CoT
+                                                                                      (dashed lines; shading in gray) in our experiments on
+                                                                                      this dataset.
+
+
+
+
+                                                                                 5176
+

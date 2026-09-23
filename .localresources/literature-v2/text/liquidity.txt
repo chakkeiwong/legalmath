@@ -1,0 +1,1366 @@
+         Liquidity analysis in resource-aware programming
+
+                                        Cosimo Laneve
+           Department of Computer Science and Engineering, University of Bologna, Italy
+
+
+
+
+     Abstract
+     Liquidity is a liveness property of programs managing resources that pinpoints
+     those programs not freezing any resource forever. We consider a simple state-
+     ful language whose resources are assets (digital currencies, non fungible tokens,
+     etc.). Then we define a type system that tracks in a symbolic way the input-
+     output behaviour of functions with respect to assets. These types and their
+     composition, which define types of computations, allow us to design two algo-
+     rithms for liquidity that have different precisions and costs. We also demonstrate
+     the correctness of the algorithms.
+     Keywords: Resource-aware programming, assets, liquidity, type system,
+     symbolic analysis.
+
+
+     1. Introduction
+
+         The proliferation of programming languages that explicitly feature resources
+     has become more and more significant in the last decades. Cloud computing,
+     with the need of providing an elastic amount of resources, such as memories,
+5    processors, bandwidth and applications, has pushed the definition of a number
+     of formal languages with explicit primitives for acquiring and releasing them
+     (see [1] and the references therein). More recently, a number of smart contracts
+     languages have been proposed for managing and transferring resources that are
+     assets (usually, in the form of digital currencies, like Bitcoin), such as the Bitcoin
+10   Scripting [5], Solidity [9], Vyper [11] and Scilla [14]. Even new programming
+     languages are defined with (linear) types for resources, such as Rust [12].
+         In all these contexts, the efficient analysis of properties about the usage of
+     resources is central to avoid flaws and bugs of programs that may also have
+     relevant costs at runtime. In this paper, we focus on the liquidity property:
+15   a program is liquid when no resource remains frozen forever inside it, i.e. it
+     is not redeemable by any party interacting with the program. For example,
+     a program is not liquid if the body of a function does not use the resources
+     transferred during the invocation by the caller. A program is also not liquid if,
+     when it terminates, there is a resource that has not been emptied.
+20       We analyze liquidity for a simple programming language, a lightweight ver-
+     sion of Stipula, which is a domain-specific language that has been designed for
+
+
+     Preprint submitted to Elsevier                                          October 5, 2022
+     programming legal contracts [8]. In Stipula, programs are contracts that transit
+     from state to state and a control logic specifies what functionality can be invoked
+     by which caller; the set of callers is defined when the contract is instantiated.
+25   Resources are assets (digital currencies, smart keys, non-fungible tokens, etc.)
+     that may be moved with ad-hoc operators from one to another.
+         Our analyzer is built upon a type system that records the effects of func-
+     tions on assets by using symbolic names. Then a correctness property, whereby
+     the (liquidity) type of the final state of a computation is always an over-
+30   approximation of the actual state, allows us to safely reduce our analysis ar-
+     guments to verifying if liquidity types of computations have assets that are
+     empty.
+         We identify two liquidity properties. The first one is k-separate liquidity: if
+     an asset k becomes not-empty in a state then there is a continuation where k is
+35   empty in its final state. While k-separate liquidity is satisfactory in contracts
+     where assets are separated (no asset field is moved to another asset field, for
+     instance when pairwise different assets have different types), it is inadequate in
+     unrestricted contracts that move assets between asset fields. In these cases, it is
+     more reasonable the stronger property: if an asset becomes not-empty in a state
+40   then there is a continuation where all the assets are empty in its final state.
+         Finally, we design two analysis algorithms with different computational costs
+     and precision accuracies. The first one verifies two stronger properties than k-
+     separate liquidity and liquidity because it looks for functions whose liquidity
+     types empty the asset k and every asset, respectively. It turns out that the
+45   computational cost of such algorithm is quadratic with respect to the number
+     of functions. The second algorithm is more precise because, for instance, it
+     accepts contracts that empty assets by means of several function invocations.
+     However, more precision requires more complexity because one has to analyze
+     computations. The crucial issue of the analysis is therefore designing a ter-
+50   minating algorithm given that computations may be infinitely many because
+     contracts may have cycles. For this reason we restrict to computations whose
+     length is bound by a value (actually we found more reasonable computations
+     where every function can be invoked a bounded number of times). The compu-
+     tational cost of k-separate liquidity and liquidity algorithms is higher than the
+55   previous case: it is exponential with respect to the number of functions.
+         The structure of the paper is as follows. The lightweight Stipula language
+     is introduced in Section 2 and the semantics is defined in Section 3. Section 4
+     reports the theory underlying our liquidity analyzer and Section 5 illustrates the
+     algorithms for verifying k-separate liquidity and liquidity. We end our contribu-
+60   tion by discussing the related work in Section 6 and delivering our final remarks
+     in Section 7. To ease the reading, the technical material has been reported in
+     the Appendix.
+         This paper is an extended and revised version of [7] that also includes the
+     analysis of k-separate liquidity and the design of the algorithms for stronger
+65   properties than k-separate liquidity and liquidity. The paper also contains the
+     proofs of the statements.
+
+
+
+                                             2
+      Functions      F ::“     @Q A : fpyqrks t S u => @Q1
+      Prefixes       P ::“     E Ñ x | E Ñ A | c ˆ h ( h1 | c ˆ h ( A                   {{ 0 ď c ď 1
+      Statements     S ::“     - | P S | if pEq t S u else t S u S
+      Expressions    E ::“     v | X | E op E | uop E
+      Values         v ::“     c | false | true
+
+
+               Table 1: Syntax of Stipula (X are assets, fields and parameters names)
+     2. The Stipula language
+
+            We use disjoint sets of names: contract names, ranged over by C, C1 , ¨ ¨ ¨ ;
+     names referring to digital identities, called parties, ranged over by A, A1 , ¨ ¨ ¨ ;
+70   function names ranged over by f, g, ¨ ¨ ¨ ; asset names, ranged over by h, k,
+     ¨ ¨ ¨ , to be used both as contract’s assets and function’s asset parameters; non
+     asset names, ranged over by x, y, ¨ ¨ ¨ , to be used both as contract’s fields and
+     function’s non asset parameters. Assets and generic contract’s fields are syn-
+     tactically set apart since they have different semantics; similarly for functions’
+75   parameters. Names of assets, fields and parameters are generically ranged over
+     by X. Names Q, Q1 , ¨ ¨ ¨ will range over contract states. To simplify the syntax,
+     we often use the vector notation x to denote possibly empty sequences of ele-
+     ments. With an abuse of notation, in the following sections, x will also represent
+     the set containing the elements in the sequence.
+80          The code of a Stipula contract is 1
+
+          stipula C { parties A              fields x        assets h     init Q    F }
+     where C identifies the contract name; A are the parties that can invoke contract’s
+     functions, x and h are the fields and the assets, respectively, and Q is the initial
+     state. The contract body also includes the sequence F of functions, whose syntax
+85   is defined in Table 1. It is assumed that the names of parties, fields, assets and
+     functions do not contain duplicates and functions’ parameters do not clash with
+     the names of contract’s fields and assets.
+         The declaration of a function highlights the state Q when the invocation is ad-
+     mitted, who is the caller party A, and the list of parameters. Function’s param-
+90   eters are split in two lists: the formal parameters y in brackets and the asset pa-
+     rameters k in square brackets. The body { S } => @Q1 specifies the statement part
+     S and the state Q1 of the contract when the function execution terminates. We
+     write @Q A : f(y)[k] { S u => @Q1 P C when F contains @Q A : f(y)[k] { S u => @Q1
+     and we will often shorten the above predicate by writing Q A.f Q1 P C. Stipula
+95   does not admit internal nondeterminism: for every Q, A and f, there is at most
+     a Q1 such that Q A.f Q1 P C.
+         Statements S include the empty statement - and different prefixes followed
+     by a continuation. Prefixes P use the two symbols Ñ (update) and ( (move)
+     to differentiate operations on fields and assets, respectively. The prefix E Ñ x
+
+       1 Actually this is a lightweight version of the language in [8].
+
+
+
+
+                                                    3
+100   updates the field or the parameter x with the value of E – the old value of x
+      is lost – it is destroyed ; E Ñ A sends the value of E to the party A. The move
+      operations c ˆ h ( h1 and c ˆ h ( A define actions that never destroy resources.
+      In particular, c ˆ h ( h1 subtracts the value of c ˆ h to the asset h and adds
+      this value to h1 , where c is a constant between 0 and 1. Notice that, because
+105   of this constraint, c ˆ h is always smaller or equal to h – therefore assets never
+      have negative values. It is also worth to notice that, according to the syntax,
+      the right-hand side of Ñ in E Ñ x is always a field or a non-asset function
+      parameter, while the right-hand side of ( in c ˆ h ( h1 is always an asset (the
+      left-hand side is an expression that indicates part of an asset). The operation
+110   c ˆ h ( A subtracts the value of c ˆ h to the asset h and transfers it to A.
+          Statements also include conditionals if pEq t S u else t S 1 u with the stan-
+      dard semantics. In the rest of the paper we will always abbreviate 1 ˆ h ( h1
+      and 1 ˆ h ( A (which are very usual, indeed) into h ( h1 and h ( A, respec-
+      tively.
+115       Expressions E include constant values v, names X of either assets, fields or
+      parameters, and both binary and unary operations. Constant values are
+         • real numbers n, that are written as nonempty sequences of digits, possibly
+           followed by “.” and by a sequence of digits (e.g. 13 stands for 13.0).
+           The number may be prefixed by the sign + or -. Reals come with the
+120        standard set of binary arithmetic operations (+, -, ˆ) and the unary
+           division operation E{c where c ‰ 0, in order to avoid 0-division errors.
+         • boolean values false and true. The operations on booleans are conjunc-
+           tion NN, disjunction ||, and negation !.
+         • asset values that represent divisible resources (e.g. digital currencies). Di-
+125        visible asset constants are assumed to be identical to positive real numbers
+           (assets cannot have negative values).
+      Relational operations (<, >, <=, >=, ==) are available between any expression.
+           The standard definition of free names of expressions, statements and func-
+      tions is assumed and will be denoted fnpEq, fnpSq and fnpF q, respectively. A
+130   contract stipula C { parties A fields x assets h init Q F } is closed
+      if, for every F P F , fnpF q Ď A Y x Y h.
+           We illustrate relevant features of Stipula by means of few examples. Consider
+      the Fill Move contract
+                stipula Fill Move { parties Alice,Bob     assets h1,h2   init Q0
+                    @Q0 Alice: fill()[k]{     k ( h2    } => @Q1
+                    @Q1 Bob: move()[]{      h2 ( h1    } => @Q0
+                    @Q0 Bob: end()[]{    h1 ( Bob      } => @Q2
+                }
+
+135   that regulates interactions between Alice and Bob. It has two assets and three
+      states Q0, Q1 and Q2, with initial state Q0. In Q0, Alice may move part of
+      her asset by invoking fill; the asset is stored in the formal parameter k.
+      That is, the party Alice is assumed to own some asset and the invocation,
+
+
+                                               4
+      e.g. Alice.fill()[5.0], is removing 5 units from Alice’s asset and storing
+140   them in k (and then in h2). Said otherwise, the total assets of the system is
+      invariant during the invocation; similarly during the operations h ( h1 . The
+      execution of fill moves the assets in k to h2) and makes the contract transit
+      to the state Q1. In this state, the unique admitted function is move by which
+      Bob accumulates in h1 the assets sent by Alice. The contract’s state becomes
+145   Q0 again and the behaviour may cycle. Fill Move terminates when, in Q0, Bob
+      decides to grab the whole content of h1. Notice the nondeterministic behaviour
+      when Fill Move is in Q0: according to a fill or an end function is invoked,
+      the contract may transit in Q1 or Q2 (this is called external nondeterminism in
+      the literature). Notice also that Stipula overlooks the details of the interactions
+150   with the parties (usually an asset transfer between the parties and the contract
+      is mediated by a bank).
+          Fill Move has the property that assets are eventually emptied (whatever it
+      is the state of the contract – the contract is liquid ). Stipula contracts do not
+      always retain this property. For example, the following Ping Pong contract
+                  stipula Ping Pong { parties Amy,Mary    assets h,k   init Q0
+                      @Q0 Mary: ping()[u]{   h ( Mary     u ( k    } => @Q1
+155
+                      @Q1 Amy: pong()[v]{    k ( Amy     v ( h    } => @Q0
+                  }
+
+      has a cyclic behaviour where Mary and Amy exchange asset values. By invoking
+      ping, Mary moves her asset into u (and then into the asset field k) and grabs
+      the value stored in h; conversely, by invoking pong, Amy moves her asset into v
+      (and then into the asset field h) and grabs the value stored in k. (Since asset
+160   fields are initially empty, the first invocation of ping does not deliver anything
+      to Mary.) Apart the initial state, Ping Pong never reaches a state where h and k
+      are both empty at the same time (if Mary and Amy invocations carry nonempty
+      assets) – in the terminology of the next section, the contract is not liquid. States
+      have either k empty – Q0 – or h empty – Q1.
+
+
+165   3. Semantics
+
+         Let a configuration, ranged over by C, C1 , ¨ ¨ ¨ , be a tuple CpQ , ` , Σq where
+         • C is the contract name and Q is one of its states;
+         • `, called memory, is a mapping from names (parties, fields, assets and func-
+           tion’s parameters) to values. The values of parties are noted A, A1 , ¨ ¨ ¨ .
+170        These values cannot be passed as function’s parameters and cannot be
+           hard-coded into the source contracts, since they do not belong to expres-
+           sions. We write `rh ÞÑ us to specify the memory that binds h to u and is
+           equal to ` otherwise;
+         • Σ is the (possibly empty) residual of a function body, i.e. Σ is either - or
+175        a term S => @Q.
+
+
+
+                                               5
+                     [Function]
+
+                            @Q A : f(y)[k] { S u => @Q1 P C                             [State-Change]
+                         `pAq “ A      `1 “ `ry ÞÑ u, k ÞÑ vs                           CpQ , ` , - => @Q1 q ÝÑ CpQ1 , ` , -q
+                                        A:fpuqrvs         1          1
+                         CpQ , ` , -q     ÝÑ        CpQ , ` , S => @Q q
+            [Value-Send]                                                 [Asset-Send]
+
+                         JEK` “ v       `pAq “ A                              Jc ˆ hK` “ v           `pAq “ A    Jh ´ vK` “ v 1
+                                         vÑA                                                               v(A
+            CpQ , ` , E Ñ A Σq ÝÑ CpQ , ` , Σq                           CpQ , ` , c ˆ h ( A Σq ÝÑ CpQ , `rh ÞÑ v 1 s , Σq
+                                                                           [Asset-Update]
+        [Field-Update]
+                                                                              Jc ˆ hK` “ v Jh ´ vK` “ v 1 Jh1 ` vK` “ v 2
+                                  JEK` “ v                                              `1 “ `rh ÞÑ v 1 , h1 ÞÑ v 2 s
+        CpQ , ` , E Ñ x Σq ÝÑ CpQ , `rx ÞÑ vs , Σq
+                                                                                  CpQ , ` , c ˆ h ( h1 Σq ÝÑ CpQ , `1 , Σq
+           [Cond-true]                                                           [Cond-false]
+
+                                  JEK` “ true                                                            JEK` “ false
+             CpQ , ` , if pEq t S u else t S 1 u Σq                                CpQ , ` , if pEq t S u else t S 1 u Σq
+                                     ÝÑ CpQ , ` , S Σq                                                    ÝÑ CpQ , ` , S 1 Σq
+
+
+                                        Table 2: The transition relation of Stipula
+          Configurations such as CpQ , ` , -q, i.e. there is no statement to execute, are
+      called idle.
+          We will use the auxiliary evaluation function JEK` that returns the value of
+      E in the memory ` such that:
+180      • JvK` “ v for real numbers and asset values, JtrueK` “ 1.0 and JfalseK` “
+           0.0 (booleans are converted to reals); JXK` “ `pXq for names of assets,
+           fields and parameters.
+         • let uop and op be the semantic operations corresponding to uop and op,
+           then Juop EK` “ uop v, JE op E 1 K` “ v op v 1 with JEK` “ v, JE 1 K` “ v 1 . In
+185        case of boolean operations, every non-null real corresponds to true and
+           0.0 corresponds to false; the operations return the reals for true and
+           false. Because of the restrictions on the language, uop and op are always
+           defined.
+                                                                                                                        µ
+          The semantics of Stipula is defined by a transition relation, noted C ÝÑ C1 ,
+190   that is given in Table 2, where µ is either empty or A : fpuqrvs or v Ñ A or
+      v ( A. Rule [Function] defines invocations: the label specifies the party A
+      performing the invocation and the function name f with the actual parameters.
+      The transition may occur provided (i ) the contract is in the state Q that admits
+      invocations of f from A such that `pAq “ A and (ii ) the configuration is idle.
+195   Rule [State-Change] says that a contract changes state when the execution of
+      the statement in the function’s body terminates. To keep simple the operational
+      semantics of Stipula, we do not remove garbage names in the memories (the
+      formal parameters of functions once the functions have terminated). Therefore
+      memories retain such names and the formal parameters keep the value they have
+200   at the end of the function execution. These values are lost when the function
+
+
+                                                                 6
+      is called again (c.f. rule [Function]: in `1 , the assets k are updated with v). A
+      function that does not empty asset formal parameters is clearly incorrect and
+      the following analysis will catch such errors.
+          Regarding statements, we only discuss [Asset-Send] and [Asset-Update]
+205   because the other rules are standard. Rule [Asset-Send] delivers part of an
+      asset h to A. This part, named v, is removed from the asset, c.f. the memory
+      of the right-hand side state in the conclusion. In a similar way, [Asset-Update]
+      moves a part v of an asset h to an asset h1 . For this reason, the final memory
+      becomes `rh ÞÑ v 1 , h1 ÞÑ v 2 s, where v 1 “ `phq ´ v and v 2 “ `ph1 q ` v.
+          A contract stipula C { parties A fields x assets h init Q F }
+      is invoked by CpA, uq that corresponds to the initial configuration
+
+                                  CpQ , rA ÞÑ A, x ÞÑ u, h ÞÑ 0s , -q .
+
+210   We remark that no field and asset is left uninitialized, which means that no
+      undefined-value error can occur during the execution by accessing to field and
+      assets. Notice that the initial value of assets is 0. In order to keep the no-
+      tation light we always assume that parties A are always instantiated by the
+      corresponding names A written with italic fonts.
+215       For example, a sequence of transitions of the Fill Move contract is the
+      following one. Let ` “ rAlice ÞÑ Alice, Bob ÞÑ Bob, h1 ÞÑ 0, h2 ÞÑ 0s. Then
+
+       Fill MovepQ0 , ` , -q
+         Alice:fill[123]
+              ÝÑ           Fill MovepQ0 , `rk ÞÑ 123s , k ( h2 => @Q1q                     [Function]
+              ÝÑ           Fill MovepQ0 , `rk ÞÑ 0, h2 ÞÑ 123s , - => @Q1q            [Asset-Update]
+              ÝÑ           Fill MovepQ1 , `rk ÞÑ 0, h2 ÞÑ 123s , -q                   [State-Change]
+           Bob:move
+              ÝÑ           Fill MovepQ1 , `rk ÞÑ 0, h2 ÞÑ 123s , h2 ( h1 => @Q0q           [Function]
+              ÝÑ           Fill MovepQ1 , `rk ÞÑ 0, h1 ÞÑ 123, h2 ÞÑ 0s , - => @Q0q   [Asset-Update]
+              ÝÑ           Fill MovepQ0 , `rk ÞÑ 0, h1 ÞÑ 123, h2 ÞÑ 0s , -q          [State-Change]
+
+       Notice that, as discussed above, formal parameters of functions are not garbage
+      collected when the function terminates.
+          Below we use the following notation and terminology:
+                            A.fpuqrvs          A.fpuqrvs µ          µ
+220      • We write C ùñ C1 if C ÝÑ ÝÑ      1        n
+                                              ¨ ¨ ¨ ÝÑ C1 and µi are either empty
+                                  1
+           or v ( A or v Ñ A and C is idle.
+                                        A1 .f1 pu1 qrv1 s    An .fn pun qrvn s
+         • We write C ùñ C1 if C          ùñ      ¨¨¨     ùñ     C1 , for some A1 .f1 pu1 qrv1 s,
+                                            1
+           ¨ ¨ ¨ , An .fn pun qrvn s. C ùñ C will be called computation.
+          Two important properties of Stipula contracts follow. The first one guar-
+225   antees that, in closed contracts, the invocation of a function never fails. This
+      property immediately follows by the fact that, in such contracts, the evalua-
+      tion of expressions and statements can never rise an error (operations are total,
+      names are always bound to values and type errors cannot occur because values
+      are always converted to reals).
+
+
+                                                        7
+230   Theorem 1 (Progress). Let C be a closed Stipula contract with fields x, assets
+      h, parties A and @Q A:f(y)[k]{ S } => @Q1 P C. For every ` such that x, h, A Ď
+                                                 A.fpuqrvs
+      domp`q, there is `1 such that CpQ, `, -q     ùñ        CpQ1 , `1 , -q.
+
+      The second property guarantees the soundness of assets, i.e. assets always retain
+      nonnegative values if the functions’ asset parameters are nonnegative. We also
+235   remind that assets are initially zero. We say that a memory ` is sound if, for
+      every asset h1 P domp`q, `ph1 q ě 0.
+
+      Theorem 2 (Soundness of assets). Let C be a Stipula contract and @Q A:f(y)[k]{
+                                                                    A.fpuqrvs
+      S } => @Q1 P C. If ` is sound and v ě 0 and CpQ, `, -q           ùñ       CpQ1 , `1 , -q then `1 is
+      sound.
+
+240      We conclude with the definitions of separate liquidity and liquidity. We use
+      the following notation:
+         • we write `phq ą 0 if and only if there is k P h such that `pkq ą 0; similarly
+           `phq “ 0 if and only if, for every k P h, `pkq “ 0.
+
+      Definition 1 (Liquidity). A Stipula contract C with assets h and initial con-
+245   figuration C is k-separate liquid (k P h) if, for every C ùñ CpQ, `, -q, then
+        1. `ph1 q “ 0 with h1 “ domp`qzh;
+        2. if `pkq ą 0 then there is CpQ, `, -q ùñ CpQ1 , `1 , -q such that `pkq “ 0.
+      The contract is liquid if, for every computation C ùñ CpQ, `, -q, then
+        1. `ph1 q “ 0 with h1 “ domp`qzh;
+250     2. if `phq ą 0 then there is CpQ, `, -q ùñ CpQ1 , `1 , -q such that `1 phq “ 0.
+
+          Clearly k-separate liquidity is weaker than liquidity: a k-separate liquid
+      contract may be not liquid. For instance, the Ping Pong contract in Section 2
+      is both h-separate liquid and k-separate liquid but it is not liquid. (Separate
+      liquidity and liquidity coincide on contracts with only one asset.) It turns out
+255   that k-separate liquidity is sufficient when assets are separated, i.e. contracts
+      that do not move asset fields to other assets. In fact, in this case, no asset
+      remains frozen (assets are separated) and the reachability of a configuration
+      where the assets are all 0 is not relevant.
+          We notice that Progress is critical for reducing (separate) liquidity to some
+260   form of reachability analysis (otherwise we should also deal with function invo-
+      cations that terminate into a stuck state because of an error). In the following
+      sections, using a symbolic technique, we define two algorithms for assessing
+      separate liquidity and liquidity and demonstrate their correctness.
+
+
+
+
+                                                 8
+      4. The theory of liquidity
+
+265       We begin with the definition of the liquidity type system that returns an
+      abstraction of the input-output behaviour of functions with respect to assets.
+      These abstractions record whether an asset is zero – notation 0 – or not –
+      notation 1. The values 0 and 1 are called liquidity values and we use the
+      following notation:
+         • liquidity expressions e are defined as follows, where ξ, ξ 1 , ¨ ¨ ¨ range over
+           (symbolic) liquidity names:
+
+                           e ::“ 0     | 1 |       ξ   |   e\e   |   e[e.
+
+270        They are ordered as 0 ď e and e ď 1; the operations \ and [ respectively
+           return the maximum and the minimum value of the two arguments; they
+           are monotone with respect to ď (that is e1 ď e11 and e2 ď e12 imply
+           e1 \ e2 ď e11 \ e12 and e1 [ e2 ď e11 [ e12 ). A liquidity expression that does
+           not contain liquidity names is called ground. Two tuples are ordered ď if
+275        they are element-wise ordered by ď.
+         • environments Ξ map contract’s assets and asset parameters to liquidity ex-
+           pressions. Environments that map names to ground liquidity expressions
+           are called ground environments.
+
+         • liquidity function types Q A.f Q1 : Ξ Ñ Ξ1 where Ξ Ñ Ξ1 records the liquid-
+280        ity effects of fully executing the body of Q A.f Q1 .
+         • judgments Ξ $X S : Ξ1 for statements and Ξ $X @Q A :fp x qr h1 s t S u ñ
+           @Q1 : L for function definitions, where L is a liquidity function type. The
+           set X contains party and field names.
+
+          The liquidity type system is defined in Table 3; below we discuss the most
+285   relevant rules. Asset movements have four rules – [l-asend], [l-expasend] [l-
+      aupdate] and [l-expaupd] – according to whether the constant factor is 0 or not
+      and whether the asset is moved to an asset or a party. According to [l-aupdate],
+      the final asset environment of h ( h1 (which is an abbreviation for 1 ˆ h ( h1 )
+      has h that is emptied and h1 that gathers the value of h, henceforth the liquidity
+290   expression Ξphq \ Ξph1 q. Notice that, when both h and h1 are 0, the overall
+      result is 0. In the rule [l-expaupd], the asset h is decreased by an amount that
+      is moved to h1 . Since c ‰ 1, the static analysis (which is independent of the
+      runtime value of h) can only safely assume that the asset h is not emptied by
+      this operation (if it was not empty before). Therefore, after the withdraw, the
+295   liquidity value of h has not changed. On the other hand, the asset h1 is increased
+      of some amount if both c and h have a non zero liquidity value, henceforth the
+      expression Ξphq \ Ξph1 q. In particular, as before, when both Ξphq and Ξph1 q are
+      0, the overall result is 0.
+          The rule for conditionals is [l-cond], where the operation \ on environments
+300   is defined pointwise by pΞ1 \ Ξ2 qphq “ Ξ1 phq \ Ξ2 phq. That is, the liquidity
+
+
+                                               9
+                                [l-send]                                [l-update]
+                                 A, fnpEq Ď X Y dompΞq                   x, fnpEq Ď X Y dompΞq
+                                         Ξ $X E Ñ A : Ξ                         Ξ $X E Ñ x : Ξ
+                            [l-asend]                               [l-expasend]
+
+                               h P dompΞq          APX                 h P dompΞq            c‰1     APX
+                            Ξ $X h ( A : Ξrh ÞÑ 0s                             Ξ $X c ˆ h ( A : Ξ
+        [l-aupdate]                                              [l-expaupd]
+
+        h, h1 P dompΞq               e “ Ξphq \ Ξph1 q              h, h1 P dompΞq            c‰1    e “ Ξphq \ Ξph1 q
+           Ξ $ h ( h1 : Ξrh ÞÑ 0, h1 ÞÑ es                                      Ξ $ c ˆ h ( h1 : Ξrh1 ÞÑ es
+                                                                               [l-cond]
+
+                               [l-seq]                                                      fnpEq Ď X Y dompΞq
+        [l-zero]
+                                     Ξ $X P : Ξ1    Ξ1 $X S : Ξ2                          Ξ $X S : Ξ1 Ξ $X S 1 : Ξ2
+        Ξ $X - : Ξ                                                                           Ξ1 \ Ξ2 $X S 2 : Ξ3
+                                           Ξ $X P S : Ξ 2
+                                                                               Ξ $X if pEq t S u else t S 1 u S 2 : Ξ3
+                       [l-function]
+
+                                A, fnpSq Ď X Y y           ξ 1 fresh       Ξrk ÞÑ ξ 1 s $XYy S : Ξ1
+
+                       Ξ $X @Q A : fp y qr k st S u ñ @Q1 : Q A.f Q1 : Ξrk ÞÑ 1s Ñ Ξ1 t1 {ξ1 u
+                      [l-contract]
+                                                        ´                     ¯F PF
+                                              ξ fresh    rh ÞÑ ξs $AYx F : LF
+                                                                                                      Ť
+                      $ stipula C tparties A fields x assets h init Q F u :                            F PF
+                                                                                                              LF
+
+
+                                        Table 3: The Liquidity type system of Stipula
+      analyzer over-approximates the final environments of if pEq t S u else t S 1 u by
+      taking the maximum values between the results of parsing S (that corresponds
+      to a true value of E) and those of S 1 (that corresponds to a false value of E).
+      Regarding E, the analyzer only verifies that its names are bound in the contract.
+305       The rule for Stipula contracts is [l-contract]; it collects the liquidity labels
+      Li that describe the liquidity effects of each contract’s function; each function
+      assumes injective environments that respectively associate contract’s assets with
+      fresh symbolic names. In turn, the type produced by [l-function] says that
+      the complete execution of Q A.f Q1 has liquidity effects Ξrh1 ÞÑ 1s Ñ Ξ1 t1 {ξ1 u,
+310   assuming that the body S of the function is typed as Ξrh1 ÞÑ ξ 1 s $ S : Ξ1 .
+      That is, in the conclusion of [l-function] we replace the symbolic values of the
+      liquidity names representing formal parameters with 1, because they may be
+      any value when the function will be called.
+      Example 1. The set L of the Fill Move contract contains the following liquid-
+315   ity types:
+
+        Q0 Alice.fill Q1 :                 rh1 ÞÑ ξ1 , h2 ÞÑ ξ2 , k ÞÑ 1s Ñ rh1 ÞÑ ξ1 , h2 ÞÑ ξ2 \ 1, k ÞÑ 0s
+          Q1 Bob.move Q0 :                 rh1 ÞÑ ξ1 , h2 ÞÑ ξ2 s Ñ rh1 ÞÑ ξ1 \ ξ2 , h2 ÞÑ 0s
+           Q0 Bob.end Q2 :                 rh1 ÞÑ ξ1 , h2 ÞÑ ξ2 s Ñ rh1 ÞÑ 0, h2 ÞÑ ξ2 s
+
+         In the following we will always shorten $ stipula C tparties A fields x
+
+
+                                                               10
+      assets h init Q F u : L into $ C : L. A first property of the liquidity type
+      system is that typed contracts are closed.
+
+      Proposition 1. If $ C : L then C is closed.
+
+320   Therefore typed contracts own the progress property (Theorem 1). The cor-
+      rectness of the system in Table 3 requires the following notions:
+         • A (liquidity) substitution is a map from liquidity names to liquidity expres-
+           sions (that may contain names, as well). Substitutions will be noted either
+           σ, σ 1 , ¨ ¨ ¨ or te {χ u. A substitution is ground when it maps liquidity names
+325        to ground liquidity expressions. For example t0,1 {χ,ξ u and t0\1,1[0 {χ,ξ u
+                                                 1
+           are ground substitutions, t0\χ {χ u is not.
+           We let σpΞq be the environment where σpΞqpxq “ σpΞpxqq.
+         • Let JeK be the partial evaluation of e by applying the commutativity ax-
+           ioms of \ and [ and the axioms 0 \ e “ e, 0 [ e “ 0, 1 \ e “ 1, 1 [ e “ e.
+           More precisely
+                   $
+                   ’
+                   ’  e           if e “ 0 or e “ 1 or e “ ξ
+                        1
+                                  if pe “ e1 \ e2 or e “ e2 \ e1 q and Je2 K “ 0
+                   ’
+                   ’
+                   ’
+                   ’  Je  K
+                   & 1
+                      Je K        if pe “ e1 [ e2 or e “ e2 [ e1 q and Je2 K “ 1
+             JeK “
+                   ’
+                   ’  0           if e “ e1 [ e2 and either Je1 K “ 0 or Je2 K “ 0
+                      1           if e “ e1 \ e2 and either Je1 K “ 1 or Je2 K “ 1
+                   ’
+                   ’
+                   ’
+                   ’
+                   % 1       2
+                      Je K#Je K otherwise p# is either \ or [q
+
+           Notice that if e is ground then JeK is either 0 or 1.
+
+         • When Ξ and Ξ1 are ground, we write Ξ ď Ξ1 if and only if, for every
+330        h P dompΞq, JΞphqK ď JΞ1 phqK. Observe that this implies that dompΞq Ď
+           dompΞ1 q.
+         • Ξ|h is the environment Ξ restricted to the names h, defined as follows
+                                       "
+                                          Ξpkq          if k P h
+                             Ξ|h pkq “
+                                          undefined     otherwise
+
+         • let ` “ rA ÞÑ A, x1 ÞÑ u, h1 ÞÑ vs be a memory, where x1 are contract’s
+           fields and non-asset parameters, while h1 are contract’s assets and the asset
+           parameters. We let Ep`q be the ground environment defined as follows:
+                                  $
+                                  & 0               if k P h1 and `pkq “ 0
+                     Ep`qpkq “       1              if k P h1 and `pkq ‰ 0
+                                     undefined      otherwise
+                                  %
+
+
+         Liquidity types are correct, as stated by the following theorem.
+
+
+
+                                              11
+      Theorem 3 (Correctness of liquidity labels). Let $ C : L and h be the
+      assets of C and @Q A : f(y)[k] { S u => @Q1 P C and Q A.f Q1 : Ξ Ñ Ξ1 in L. If
+                                          A.fpuqrvs
+335   h Ď domp`q and CpQ , ` , -q           ùñ        CpQ1 , `1 , -q then there are X and Ξ2 such
+      that:
+         1. Ep`ry ÞÑ u, k ÞÑ vsq $X S : Ξ2 ;
+         2. Ep`ry ÞÑ u, k ÞÑ vsq|dompΞq ď σpΞq and Ξ2 |dompΞq ď σpΞ1 q, for a ground
+            substitution σ;
+340      3. Ep`1 q|dompΞq ď Ξ2 .
+
+      For example, consider the transition
+                                                 Bob.movepqrs
+                         Fill MovepQ1 , ` , -q        ÝÑ        Fill MovepQ0 , `1 , -q
+
+      of Fill Move where ` “ rh1 ÞÑ 25.0, h2 ÞÑ 5.0s and `1 “ rh1 ÞÑ 30.0, h2 ÞÑ 0.0s.
+      By definition, Ep`q “ rh1 ÞÑ 1, h2 ÞÑ 1s. Letting X “ tAlice, Bobu, by the
+      liquidity type system we obtain Ep`q $X h2 ( h1 : Ξ2 , Ξ2 “ rh1 ÞÑ 1 \ 1, h2 ÞÑ
+      0s. Since Q1 Bob.move Q0 : rh1 ÞÑ ξ1 , h2 ÞÑ ξ2 s Ñ rh1 ÞÑ ξ1 \ ξ2 , h2 ÞÑ 0s
+345   (see Example 1), the ground substitution σ that satisfies Theorem 3.2 is rξ1 ÞÑ
+      1, ξ2 ÞÑ 1s (actually, in this case, the “ď” are equalities). Regarding the last
+      item, Ep`1 q “ rh1 ÞÑ 1, h2 ÞÑ 0s and Ep`1 q ď Ξ2 follows by definition.
+          A basic notion of our theory is the one of abstract computation and its
+      liquidity type.
+
+350   Definition 2. An abstract computation of a Stipula contract, ranged over by
+      ϕ, ϕ1 , ¨ ¨ ¨ , is a finite sequence Q1 A1 .f1 Q2 ; ¨ ¨ ¨ ; Qn An .fn Qn`1 of contract’s
+                                                                                                 ϕ
+      functions, shortened into t Qi Ai .fi Qi`1 uiP1..n . We use the notation Q ñ Q1 to
+                                                                                          iP1..n
+      highlight the initial and final states of ϕ and we let t Qi Ai .fi Qi`1 u                    be the
+                                     `             Ai :fi pui qrvi s                   ˘iP1..n
+      abstract computation of CpQi , `i , -q            ùñ           CpQi`1 , `i`1 , -q        .
+355       An abstract computation ϕ is κ-canonical if functions occur at most κ-times
+      in ϕ.
+
+      We notice that abstract computations do not mind of memories. Regarding
+      canonical computations, every prefix of a κ-canonical computation is κ-canonical
+      as well, including the empty computation.
+
+      Definition 3 (Liquidity type of an abstract computation). Let $ C : L
+      and h be the assets of C. Let also Qi Ai .fi Qi`1 : Ξi Ñ Ξ1i P L for every i P 1..n.
+                                                                           pbq       peq
+      The liquidity type of ϕ “ t Qi Ai .fi Qi`1 uiP1..n , noted Lϕ , is Ξ1 |h Ñ Ξn |h
+              pbq       peq
+      where Ξ1 and Ξn (“b” stays for begin, “e” stays for end) are defined as
+      follows
+                   pbq              pbq               peq             peq           pbq
+                 Ξ1 “ Ξ1           Ξi`1 “ Ξi`1 tΞi phq {ξ u          Ξi     “ Ξ1i tΞi phq {ξ u .
+
+360   Notice that, by definition, the initial environment of the i-th type is updated so
+      that it maps assets to the values computed at the end of the (i´1)-th transition.
+
+
+                                                       12
+      These values are also propagated to the final environment of the i-th transitions
+      by substituting the occurrence of a liquidity name with the computed value of
+                                                                                    pbq
+      the corresponding asset. Notice also that the domains of the environments Ξi ,
+365   1 ď i ď n, are in general different because they are also defined on the asset
+      parameters of the corresponding function. However, formal parameters are not
+      relevant because they are always replaced by 1 and are therefore dropped in the
+      liquidity types of computations.
+          For example, consider the computation of the Fill Move contract
+
+                    ϕ “ Q0 Alice.fill Q1 ; Q1 Bob.move Q0 ; Q0 Bob.end Q2
+      (we refer to Example 1 for the types of the contract). Let H “ th1, h2u and
+                                                        pbq     peq
+      Ξ “ rh1 ÞÑ ξ1 , h2 ÞÑ ξ2 s. ϕ has liquidity type Ξ1 |H Ñ Ξ3 |H where:
+        pbq                                           peq
+       Ξ1     “   Ξrk ÞÑ 1s                        Ξ1       “   Ξrh2 ÞÑ ξ2 \ 1, k ÞÑ 0s
+        pbq                                           peq
+       Ξ2     “   Ξtξ2 \1 {ξ2 u                    Ξ2       “   rh1 ÞÑ ξ1 \ ξ2 , h2 ÞÑ 0stξ2 \1 {ξ2 u
+              “   Ξrh2 ÞÑ ξ2 \ 1s                           “   rh1 ÞÑ ξ1 \ ξ2 \ 1, h2 ÞÑ 0s
+        pbq                                           peq
+       Ξ3     “   Ξtξ1 \ξ2 \1,0 {ξ1 ,ξ2 u          Ξ3       “   rh1 ÞÑ 0, h2 ÞÑ ξ2 stξ1 \ξ2 \1,0 {ξ1 ,ξ2 u
+              “   rh1 ÞÑ ξ1 \ ξ2 \ 1, h2 ÞÑ 0s              “   rh1 ÞÑ 0, h2 ÞÑ 0s
+
+       Therefore Lϕ “ Ξ Ñ rh1 ÞÑ 0, h2 ÞÑ 0s. That is, whatever they are the initial
+370   values of h1 and h2, which are represented in Ξ by the liquidity names ξ1 and
+      ξ2 , respectively, their liquidity values after the computation ϕ are 0 (henceforth
+      they are 0 by the following Theorem 4). Notice also the differences between Lϕ
+      and Ξ Ñ rh1 ÞÑ 0, h2 ÞÑ ξ2 s, which is the type of Bob.end: from this last type
+      we may derive that h1 is 0 in the final environment, while the value of h2 is the
+375   same of the initial environment (in fact, Bob.end only empties h1 and does not
+      access to h2).
+           We recall that the operational semantics of Stipula in Table 2 does not remove
+      garbage names in the memories (the formal parameters of functions once the
+      functions have terminated, see Section 3). However, these names do not exist in
+380   environments of the liquidity types of abstract computations. For this reason,
+      in the following statement, we restrict the inequalities to the names of the
+      contract’s assets.
+
+      Theorem 4 (Correctness of an abstract computation). Let $ C : L and
+      `                Ai :fi pui qrvi s                    ˘iP1..n
+        CpQi , `i , -q      ùñ           CpQi`1 , `i`1 , -q         with domp`1 q containing the
+385   assets h of C. Let also ϕ “ t Qi Ai .fi Qi`1 uiP1..n have liquidity type Lϕ “ Ξ Ñ Ξ1 .
+          Then there is a substitution σ such that Ep`1 q|h ď σpΞq and Ep`n`1 q|h ď
+      σpΞ1 q.
+
+      5. The algorithms for separate liquidity and liquidity
+
+          Analyzing the liquidity of a Stipula contract amounts to verifying the two
+390   constraints of Definition 1. In both cases, checking constraint 1 is not difficult:
+      for every transition Q A.f Q1 of the contract with assets h, we consider its liquidity
+      type Ξ Ñ Ξ1 and verify whether, for every parameter k R h, JΞ1 pkqK “ 0. Since
+
+
+                                                 13
+      there are finitely many transitions, this analysis is exhaustive. The correctness
+      is the following: if k R h implies JΞ1 pkqK “ 0 then, for every substitution σ,
+395   JσpΞ1 qKpkq “ 0. Specifically for the substitution σ 1 such that Ep`1 q ď Jσ 1 pΞ1 qK,
+      which is guaranteed by Theorem 3.
+          On the contrary, verifying the constraints 2 of Definition 1 is harder because
+      the transition system of a Stipula contract may be complex (cycles, absence
+      of final states, nondeterminism). We design two algorithms (for both separate
+400   liquidity and liquidity) that have different precisions and different computational
+      costs.
+          We first define the notions of reachable function and reachable state of a
+      Stipula contract C. Let $ C : L; QQ is the least set such that
+         1. if Q A.f Q1 : Ξ Ñ Ξ1 P L then Q A.f Q1 : Ξ Ñ Ξ1 P QQ ;
+405      2. if Q1 B.g Q2 : Ξ Ñ Ξ1 P QQ and Q2 B1 .g1 Q3 : Ξ2 Ñ Ξ3 P L then Q2 B1 .g1 Q3 :
+            Ξ2 Ñ Ξ3 P QQ .
+      That is QQ contains all the liquidity function types of functions whose initial
+      state is reachable through computations starting at Q. In short, when Q1 B.g Q2 :
+      Ξ Ñ Ξ1 P QQ , we say that both Q1 and Q2 are reachable from Q. For example, in
+410   the Fill Move contract, the set QQ0 contains the liquidity function types listed
+      in Example 1, while QQ2 “ H.
+          Notice that, (i ) QQ is finite, (ii ) if Q1 is reachable from Q, then QQ1 Ď QQ , (iii )
+      if no function starts at Q then QQ “ H and (iv ) if Q is the initial state and every
+      state is reachable, then QQ contains all the functions of the contract.
+415       Below, without loss of generality, we assume that every state in the contract
+      is reachable from the initial state. A straightforward optimization allows us to
+      reduce to this case. We also assume that our contracts satisfy item 1 of separate
+      liquidity and liquidity. Therefore we focus on item 2.
+
+      5.1. The efficient algorithms
+420       Our first two algorithms verify a stronger property than separate liquidity
+      and liquidity. We use the following terminology:
+         • A function Q A.f Q1 P C empties k if, for every memory ` and every CpQ, `, -q
+            A.f puqrvs
+              ùñ         CpQ1 , `1 , -q, we have `1 pkq “ 0.
+
+      Definition 4. A Stipula contract C with assets h and initial configuration C is
+425   k-separate liquid+: if, for every C ùñ CpQ, `, -q with `pkq ą 0, there are
+           CpQ, `, -q ùñ CpQ1 , `1 , -q and Q1 A.f Q2 P C such that Q1 A.f Q2 empties k.
+
+      liquid+: if, for every C ùñ CpQ, `, -q with `phq ą 0, there are CpQ, `, -q ùñ
+           CpQ1 , `1 , -q and Q1 A.f Q2 P C such that Q1 A.f Q2 empties h.
+
+      k-separate liquidity+ and liquidity+ require that the properties hold for every
+430   memory, while the corresponding k-separate liquidity and liquidity require the
+      properties hold for at least one memory. (The former properties are stronger
+      than the latter ones, respectively.)
+
+
+                                                      14
+      Let Q be the initial state of C whose assets are h:
+
+      step 1. Compute QQ1 for every Q1 reachable from Q; set Z “ H.
+
+      step 2. For every Q1 A.f Q2 : Ξ Ñ Ξ1 P QQ and k P h such that
+           (a) JΞ1 pkqK ‰ 0 and JΞ1 pkqK ‰ JΞpkqK
+           (b) pQ2 , kq R Z (respectively, pQ2 , hq R Z):
+
+             2.1 if there is no Q1 A.f Q2 : Ξ Ñ Ξ1 P QQ and k then exit: the contract is
+                 k-separate liquid+ (respectively, the contract is liquid+);
+             2.2 otherwise, verify whether there is Q1 B.g Q2 : Ξ1 Ñ Ξ2 P QQ2 such
+                 that JΞ2 pkqK “ 0 (respectively, JΞ2 phqK “ 0). If this is the case,
+                 add pQ2 , kq (respectively, add pQ2 , hq) to Z and reiterate step 2,
+                 otherwise exit: the contract is not k-separate liquid+ (respectively,
+                 the contract is not liquid+).
+
+
+
+      Table 4: The efficient algorithms – Z contains pairs pQ, kq for k-separate liquidity+ and pairs
+      pQ, hq for liquidity+
+
+
+      Proposition 2. Let $ C : L:
+                                                                                           A:fpuqrvs
+         1. if Q A.f Q1 : Ξ Ñ Ξ1 P L and Ξ1 pkq ď 0 then, for every CpQ, `, -q ùñ
+435         CpQ1 , `1 , -q, `1 pkq “ 0;
+         2. if C is k-separate liquid+ then it is k-separate liquid; if C is liquid+ then it
+            is liquid.
+           Table 4 reports the algorithms for k-separate liquidity+ and liquidity+. We
+      comment the k-separate liquidity+ algorithm, the other one is similar. In this
+440   case, the set Z contains all the verifications that have been already done; that
+      is if pQ, kq P Z then it has been verified that there is a function type in QQ such
+      that k is 0 in its final environment. The analysis ends when Z does not increase
+      anymore.
+           In the step 2(a), the algorithm verifies JΞ1 pkqK ‰ 0 and JΞ1 pkqK ‰ JΞpkqK to
+445   check whether a function Q1 A.f Q2 updates the value of an asset (with a value
+      different from 0), while the definition of separate liquidity+ looks for assets’
+      values greater than 0. We explain the mismatch with an example: consider
+      the liquidity type of Bob.end in Example 1. Since the liquidity type Ξ Ñ Ξ1 of
+      Bob.end is such that Ξph2q “ Ξ1 ph2q “ ξ2 then this function does not modify h2
+450   (this is a property of the system in Table 3). Therefore, regarding h2, Bob.end
+      does not play any role: if some function updates h2 then we must look elsewhere
+      for a function turning h2 to 0. Notice also that Ξph2q and Ξ1 ph2q are both
+      different from 0. Finally we remark that the algorithm takes JΞ1 phqK instead of
+      Ξ1 phq in order to discard ground expressions that are syntactically different but
+455   semantically equivalent to 0.
+
+
+                                                    15
+           Once a state Q2 is found where k has been updated and the pair pQ2 , kq
+      does not belong to Z, k-separate liquidity+ amounts to looking for a function
+      in QQ2 that empties k. This is what is specified in 2.2. For example, consider
+      the liquidity types of the Fill Move contract in Example 1. There are two
+460   problematic types Q0 Alice.fill Q1 : Ξ1 Ñ Ξ2 and Q1 Bob.move Q0 : Ξ11 Ñ
+      Ξ12 . In particular, Ξ2 ph2q ‰ Ξ1 ph2q and Ξ12 ph1q ‰ Ξ11 ph1q (all the values are
+      not-0). In these cases, the algorithm finds two liquidity function types, one
+      that is reachable from Q1 and one that is reachable from Q0 that empty the
+      corresponding assets. The reader is invited to verify that these are the types of
+465   Q1 Bob.move Q0 and Q0 Bob.end Q2, respectively.
+
+      Proposition 3. Let $ C : L. If the algorithm of Table 4 returns that C is k-
+      separate liquid+ (respectively, liquid+) then it is k-separate liquid+ (respectively,
+      liquid+). Additionally, the algorithms always terminate.
+
+          Since k-separate liquidity+ and liquidity+ have been advocated for the effi-
+470   ciency of the analysis, we conclude by computing their cost. Let n be the size
+      of the Stipula contract (the number of instructions of the contract), m be the
+      number of states and m1 be the number of functions. Then
+         • the cost of the inference of liquidity types is linear with respect to the size
+           of the contract, i.e. Opnq;
+475      • the cost of computing QQ , for every Q is Opm ˆ m1 q (with a straightforward
+           fixpoint technique);
+         • the cost for verifying step 2 of the algorithm is Opm1 ˆ m1 q because, for
+           every function of step 2 it looks for another function satisfying 2.2.
+      Therefore the overall cost of the weak algorithm is Opn ` pm ` m1 q ˆ m1 q, which
+                       2
+480   means it is Opm1 q, assuming that m and m1 are in linear relation.
+
+      5.2. The costly algorithms
+          Verifying k-separate liquidity and liquidity is more complex because a single
+      asset or a tuple of assets may become 0 during a computation, rather than just
+      one transition. Let us discuss the case of liquidity with an example. Consider
+485   the Ugly contract with assets w1 and w2 and functions:
+                      @Q0 Mark: get()[u]{ u ( w2 } => @Q1
+                      @Q1 Sam: shift()[]{ w1 ( Sam w2 ( w1                   } => @Q1
+                      @Q1 Sam: end()[]{ } => @Q2
+
+      Ugly has no function that, for every memory `, empties both w1 and w2. In
+      fact, the contract is not liquid+ (this contract is not w1-separate liquid+, as
+      well. However there is a liquid computation (a computation that empties all
+490   the assets), which is the one invoking shift two times: Q1 Sam.shift Q1 ;
+      Q1 Sam.shift Q1. In particular, we have
+              Q1 Sam.shift Q1 : rw1 ÞÑ ξ1 , w2 ÞÑ ξ2 s Ñ rw1 ÞÑ 0 \ ξ2 , w2 ÞÑ 0s
+              Q1 Sam.shift Q1 ; Q1 Sam.shift Q1 : rw1 ÞÑ ξ1 , w2 ÞÑ ξ2 s Ñ rw1 ÞÑ 0, w2 ÞÑ 0s
+
+
+                                                     16
+      Let Q be the initial state of C whose assets are h.
+
+      step 1. Compute TκQ1 for every Q1 reachable from Q; let Z “ H.
+                                      ϕ
+      step 2. For every Q1 and Q1 ñ Q2 : Ξ Ñ Ξ1 P TκQ1 and H Ĺ k Ď h such that
+           (a) for every k1 P k, JΞ1 pk1 qK ‰ 0 and JΞ1 pk1 qK ‰ JΞpk1 qK
+           (b) for every k2 P hzk, JΞ1 pk2 qK “ JΞpk2 qK
+           (c) pQ2 , kq R Z:
+
+                                          ϕ
+            2.1 If there is no Q1 , Q1 ñ Q2 : Ξ Ñ Ξ1 and k then exit: the contract is
+                liquid.
+                                                             ϕ1
+            2.2 otherwise verify whether there is Q2 ñ Q3 : Ξ2 Ñ Ξ3 P TκQ2 such
+                that JΞ3 pkqK “ 0 and, for every k1 P hzk, either JΞ3 pk1 qK “ 0 or
+                JΞ3 pk1 qK “ JΞ2 pk1 qK. If this is the case, add pQ2 , kq to Z and reiterate
+                step 2, otherwise exit: the contract is not liquid.
+
+
+
+                Table 5: The costly algorithm for liquidity – Z contains pairs pQ, kq
+
+
+
+       (we have simplified the final environment). That is, in this case, liquidity
+      requires the analysis of 2-canonical computations to be assessed. (When the
+      contract has no cycle, 1-canonical computations are sufficient to verify liquidity.)
+495   Since we have to consider cycles, in order to force termination, we restrict our
+      analysis to κ-canonical abstract computations (with a finite value of κ).
+                                            ϕ
+          Let TκQ be the set of elements Q ñ Q1 : Lϕ where ϕ is a κ-canonical computa-
+      tion starting at Q in the contract (the contract is left implicit). The algorithm
+      uses the set TκQ1 , for every state Q1 of the contract that is reachable from Q –
+500   see step 1 of Table 5. We only comment the algorithm for liquidity in this
+      section; to avoid repetition, the algorithm of separate liquidity is reported in
+      the Appendix. Step 2 identifies the “critical pairs” pQ2 , kq such that there is
+      a computation updating the assets k and terminating in the state Q2 . Assume
+                                                      ϕ1
+      that pQ2 , kq R Z. Then we must find Q2 ñ Q3 : Ξ2 Ñ Ξ3 in TκQ2 such that
+505   Ξ3 pkq “ 0 and the other assets in hzk are either 0 or equal to the corresponding
+      value in Ξ2 . That is, as for the efficient algorithms, assets hzk have not been
+      modified by ϕ1 and may be overlooked. Notice that these checks are exactly
+                                                               ϕ1
+      those defined in step 2.2. If no liquidity type Q2 ñ Q3 : Ξ2 Ñ Ξ3 is found in
+      TκQ2 such that Ξ3 pkq “ 0, the liquidity cannot be guaranteed and the algorithm
+510   exits stating that the contract is not liquid (which might be a false negative
+      because the liquidity type might exist in Tκ`1
+                                                  Q2 ).
+          For example, in case of the Fill Move contract, the liquidity algorithm spots
+          Alice.fill
+      Q0     ñ       Q1 : Ξ Ñ Ξ1 because JΞ1 ph1qK ‰ JΞph1qK. Therefore it parses the
+                                                       ϕ1
+      liquidity types in T1Q1 and finds the type Q1 ñ Q2 : rh1 ÞÑ ξ1 , h2 ÞÑ ξ2 s Ñ rh1 ÞÑ
+
+
+                                                 17
+515   0, h2 ÞÑ 0s, where ϕ1 “ Q1 Bob.move Q0 ; Q0 Bob.end Q2. Henceforth pQ1, h1q
+                                                                   Bob.move
+      is added to Z. There is also another problematic type: Q1 ñ Q0 : Ξ2 Ñ Ξ3 ,
+      because JΞ3 ph1qK ‰ JΞ2 ph1qK. In this case, the liquidity type of the abstract
+      computation Q0 Bob.end Q2 (still in T1Q0 ) satisfies the liquidity constraint. We
+      leave this check to the reader.
+520       The correctness of the costly algorithm follows from Theorem 4. For ex-
+                                                ϕ
+      ample, assume that step 2.2 returns Q ñ Q1 : Ξ Ñ Ξ1 where Ξ1 pkq “ 0 and
+      Ξ1 phzkq “ Ξphzkq. Then, for every initial memory `, the concrete computation
+      corresponding to ϕ ends in a memory `1 such that Ep`1 q|k ď JσpΞ1 |k qK “ Jσprk ÞÑ
+      0sqK “ rk ÞÑ 0s (for every σ) and Ep`1 q|hzk ď JσpΞ1 |hzk qK “ Jσprhzk ÞÑ ξsqK “
+525   rk ÞÑ 1s, by taking a σ “ rξ ÞÑ 1s. As regards termination, the set Z increases
+      at every iteration. When no other pair can be added to Z (and we have not
+      already exited) the algorithm terminates by declaring the contract as liquid.
+
+      Proposition 4. Let $ C : L. If the algorithm of Table 5 returns that C is liquid
+      then it is liquid. Additionally, the algorithm always terminates.
+
+530      The computational cost of liquidity (and k-separate liquidity) is way larger
+      than the algorithm in Table 4. Let n be the size of the Stipula contract (the
+      number of functions, prefixes and conditionals in the code), h be the number of
+      assets, m be the number of states and m1 be the number of functions. Then
+         • the cost of the inference of liquidity types is linear with respect to the size
+535        of the contract, i.e. Opnq;
+         • the length of κ-canonical traces starting in a state                  1
+                                                            ř is less than κ ˆ m ;
+                                         κ
+           therefore the cardinality of TQ is bounded by 0ďiďκˆm1 i!. The cost
+           of computing TκQ , for every Q, and the liquidity types of the elements
+           therein is proportional
+                      ř            to the number of κ-canonical traces, which are
+540        N “ m ˆ p 0ďiďκˆm1 i!q;
+
+         • the cost for verifying steps 2 and 3 of the algorithm is OpN ˆ N ˆ 2h q
+           because, for every κ-canonical trace and every subset of h, we must look
+           for a κ-canonical trace satisfying step 3.
+      Therefore the overall cost of the costly algorithm is Opn ` N ` N 2 ˆ 2h q, which
+545   means it is OpN 2 q, i.e. exponential with respect to m1 , assuming the other values
+      are in linear relation with m1 .
+
+      6. Related works
+
+          Liquidity properties have been put forward by Tsankov et al. in [15] as
+      the property of a smart contract to always admit a trace where its balance
+550   is decreased (so, the funds stored within the contract do not remain frozen).
+      Later, Bartoletti and Zunino in [3] discussed and extended this notion to a
+      general setting – the Bitcoin language – that takes into account the strategy
+      that a participant (which is possibly an adversary) follows to perform contract
+
+
+                                              18
+      actions. More precisely, they observe that there are many possible flavours of
+555   liquidity, depending on which participants are assumed to be honest and on what
+      are the strategies. In the taxonomy of [3, 2], the notion of liquidity that we study
+      in this work is the so-called multiparty strategyless liquidity, which assumes that
+      all the contract’s parties cooperate by actually calling the functions provided by
+      the contract. We notice that, without cooperation, there is no guarantee that a
+560   party that has the permission to call a function will actually call it.
+          Both [15] and [3, 2] adopt a model checking technique to verify properties of
+      contracts. However, while [15] uses finite state models and the Uppaal model
+      checker to verify the properties, [3, 2] targets infinite state system and reduces
+      them to finite state models that are consistent and complete with respect to
+565   liquidity. This mean that the technique of [3, 2] is close to ours (we also target
+      infinite state models and reduce to finite sets of abstract computations that
+      over-approximate the real ones), even if we stick to a symbolic approach. Last,
+      the above contributions and the ones we are aware of in the literature always
+      address programs with one asset only (the contract balance). In this work
+570   we have understood that analyzing liquidity in programs with several different
+      assets is way more complex than the case with a single asset.
+          A number of research projects are currently investigating the subject of
+      resource-aware programming, as the prototype languages Obsidian [6] Nomos [10,
+      4], Marlowe [13] and Scilla [14]. As discussed in the empirical study [6], pro-
+575   gramming with linear types, ownership and assets is difficult and the presence
+      of strong type systems can be an effective advantage. In fact, the above lan-
+      guages provide type systems that guarantee that assets are not accidentally lost,
+      even if none of them address liquidity. More precisely, Obsidian uses types to
+      ensure that owning references to assets cannot be lost unless they are explicitly
+580   disowned by the programmer. Nomos uses a linear type system to prevent the
+      duplication or deletion of assets and amortized resource analysis to statically
+      infer the resource cost of transactions. Marlowe [13], being a language for fi-
+      nancial contracts, does not admit that money be locked forever in a contract.
+      In particular, Marlowe’s contracts have a finite lifetime and, at the end of the
+585   lifetime, any remaining money is returned to the participants. In other terms,
+      all contracts are liquid by construction. In the extension of Stipula with events,
+      the finite lifetime constraint can be explicitly programmed: a contract issues an
+      event at the beginning so that at the timeout all the contract’s assets are sent
+      to the parties. Finally, Scilla is an intermediate-level language for safe smart
+590   contracts that is based on System F and targets a blockchain. It is unquestion-
+      able that a blockchain implementation of Stipula would bring in the advantages
+      of a public and decentralised platform, such as traceability and the enforce-
+      ment of contractual conditions. Being Scilla a minimalistic language with a
+      formal semantics and a powerful type system, it seems an excellent candidate
+595   for implementing Stipula.
+
+
+
+
+                                              19
+      7. Conclusions
+
+          We have studied liquidity, a property of programs managing resources that
+      pinpoints those programs not freezing any resource forever. In particular we
+      have designed and demonstrated the correctness of two algorithms that verify
+600   two different liquidity properties.
+          We are currently prototyping the two algorithms. In case of liquidity, our
+      prototype takes in input an integer value κ and verifies liquidity by sticking
+      to types in TκQ . This allows us to tune the precision of the analysis according
+      to the contract to verify. We are also considering optimisations that improve
+605   both the precision of the algorithms and the performance. For example, the
+      precision of the checks JΞ1 pkqK ‰ 0 and JΞ1 pkqK ‰ JΞpkqK may be improved by
+      noticing that the algebra of liquidity expressions is a distributive lattice with
+      min (0) and max (1). This algebra has a complete axiomatization that we may
+      implement (for simplicity sake, in this paper we have only used min-max rules
+610   – see definition of JeK). Other optimizations we are studying allow us to reduce
+      the number of canonical computations to verify (such as avoiding repetition of
+      cycles that modify only one asset).
+          Another research objective addresses the liquidity analysis in languages fea-
+      turing conditional transitions and events, such as the full Stipula [8]. These prim-
+615   itives introduce internal nondeterminism, which may undermine state reacha-
+      bility and, for this reason, they have been dropped in this paper. In particular,
+      our analysis might synthesize a computation containing a function whose execu-
+      tion depends on values of fields that never hold. Therefore the computation will
+      never be executed (it is a false positive) and must be discarded (and the contract
+620   might be not liquid). To overcome these problems, we will try to complement
+      our analysis with an (off-the-shelf) constraint solver technique that guarantees
+      the reachability of states of the computations synthesized by our algorithms.
+
+      Acknowledgments.. I thank Silvia Crafa that co-authored the extended abstract
+      for the discussions about liquidity. I also thank the FACS 2022 referees for their
+625   careful reading and the many constructive suggestions on the submitted paper.
+
+      Bibliography
+
+       [1] Elvira Albert, Frank S. de Boer, Reiner Hähnle, Einar Broch Johnsen,
+           and Cosimo Laneve. Engineering virtualized services. In NordiCloud ’13,
+           volume 826 of ACM International Conference Proceeding Series, pages 59–
+630        63. ACM, 2013.
+       [2] Massimo Bartoletti, Stefano Lande, Maurizio Murgia, and Roberto Zunino.
+           Verifying liquidity of recursive bitcoin contracts. Log. Methods Comput.
+           Sci., 18(1), 2022.
+       [3] Massimo Bartoletti and Roberto Zunino. Verifying liquidity of Bitcoin
+635        contracts. In Principles of Security and Trust, pages 222–247. Springer
+           International Publishing, 2019.
+
+
+                                              20
+       [4] Sam Blackshear, David L. Dill, Shaz Qadeer, Clark W. Barrett, John C.
+           Mitchell, Oded Padon, and Yoni Zohar. Resources: A safe language ab-
+           straction for money. CoRR, 2020. arXiv:2004.05106.
+640    [5] Harris Brakmić. Bitcoin Script, pages 201–224. Apress, Berkeley, CA, 2019.
+
+       [6] Michael J. Coblenz, Jonathan Aldrich, Brad A. Myers, and Joshua Sun-
+           shine. Can advanced type systems be usable? An empirical study of own-
+           ership, assets, and typestate in Obsidian. Proc. ACM Program. Lang.,
+           4(OOPSLA):132:1–132:28, 2020.
+645    [7] Silvia Crafa and Cosimo Laneve. Liquidity analysis in resource aware pro-
+           gramming. In Proceeding of 18th Int. Conf. on Formal Aspects of Compo-
+           nent Software FACS 2022, 2020.
+       [8] Silvia Crafa, Cosimo Laneve, and Giovanni Sartor. Pacta sunt servanda:
+           legal contracts in Stipula. Technical report, arXiv:2110.11069, 10 2021.
+650    [9] Chris Dannen. Introducing Ethereum and Solidity: Foundations of Cryp-
+           tocurrency and Blockchain Programming for Beginners. Apress, Berkely,
+           USA, 2017.
+      [10] A. Das, S. Balzer, J. Hoffmann, F. Pfenning, and I. Santurkar. Resource-
+           aware session types for digital contracts. In IEEE 34th CSF, pages 111–126.
+655        IEEE Computer Society, 2021.
+
+      [11] Mudabbir Kaleem, Anastasia Mavridou, and Aron Laszka. Vyper: A secu-
+           rity comparison with Solidity based on common vulnerabilities. In BRAINS
+           2020, pages 107–111. IEEE, 2020.
+      [12] Steve Klabnik and Carol Nichols. The RUST programming language. No
+660        Starch Press, 2019.
+
+      [13] Pablo Lamela Seijas, Alexander Nemish, David Smith, and Simon J.
+           Thompson. Marlowe: Implementing and analysing financial contracts on
+           blockchain. In Financial Cryptography and Data Security, volume 12063 of
+           LNCS, pages 496–511. Springer, 2020.
+
+665   [14] Ilya Sergey, Vaivaswatha Nagaraj, Jacob Johannsen, Amrit Kumar, Anton
+           Trunov, and Ken Chan Guan Hao. Safer smart contract programming with
+           scilla. Proc. ACM Program. Lang., 3(OOPSLA):185:1–185:30, 2019.
+      [15] Petar Tsankov, Andrei Marian Dan, Dana Drachsler-Cohen, Arthur Ger-
+           vais, Florian Bünzli, and Martin T. Vechev. Securify: Practical Security
+670        Analysis of Smart Contracts. In Proc. ACM SIGSAC Conference on Com-
+           puter and Communications Security, pages 67–82. ACM, 2018.
+
+
+
+
+                                            21
+      Appendix A. Progress and soundness of assets
+
+      Theorem 1 (Progress). Let C be a closed Stipula contract with fields x, assets
+      h, parties A and @Q A:f(y)[k]{ S } => @Q1 P C. For every ` such that x, h, A Ď
+                                                         A.fpuqrvs
+675   domp`q, there is `1 such that CpQ, `, -q             ùñ        CpQ1 , `1 , -q.
+
+      Proof. In the thesis we are assuming `pAq “ A. Because of the thesis and
+      [Function] we have
+
+                                     A.fpuqrvs
+                        CpQ, `, -q        ÝÑ     CpQ, `ry ÞÑ u, k ÞÑ vs, S => Q1 q
+
+      therefore we are reduced to show the existence of
+                                                     µ
+                                                     1        n µ
+                                CpQ, `2 , S => Q1 q ÝÑ ¨ ¨ ¨ ÝÑ CpQ1 , `1 , -q
+
+      when y, k, x, h, A Ď domp`2 q. We reason by induction on S. The base case is
+      S “ -, which is immediate by [State-Change]. The inductive cases are (i )
+      S “ P S 1 and (ii ) S “ if pEq t S 1 u else t S 2 u S 3 . We only discuss (i ), in
+      particular when P “ E Ñ x and P “ c ˆ h ( A. When P “ E Ñ x, since
+      C is closed, then fv pEq, x Ď fv p`2 q. In order to apply [Field-Update] we need
+      to verify the existence of v such that JEK`2 “ v. This follows by the fact that
+      every operation in E is total and returns a real number and because names in
+      E are bound in `2 . Hence
+
+                     CpQ, `2 , E Ñ x S => Q1 q ÝÑ CpQ, `2 rx ÞÑ vs, , S => Q1 q
+
+      by [Field-Update]. The thesis follows by induction since domp`2 q “ domp`2 rx ÞÑ
+      vsq. When P “ c ˆ h ( A, we notice that h, A P domp`2 q because C is closed and
+      h is either an asset or an asset parameter. Additionally, since c is a constant,
+      there is v such that Jc ˆ hK`2 “ v and v 1 such that Jh ´ vK`2 “ v 1 . Therefore
+
+                                                     v 1 (A
+                  CpQ, `2 , c ˆ h ( A S => Q1 q ÝÑ CpQ, `2 rh ÞÑ v 1 s, , S => Q1 q
+
+      by [Asset-Send]. The thesis follows by induction since domp`2 q “ domp`2 rx ÞÑ
+      vsq.
+
+      Theorem 2 (Soundness of assets). Let C be a Stipula contract and @Q A:f(y)[k]{
+                                                                            A.fpuqrvs
+      S } => @Q1 P C. If ` is sound and v ě 0 and CpQ, `, -q                   ùñ       CpQ1 , `1 , -q then `1 is
+680   sound.
+
+      Proof. The computation in the hypothesis is actually
+                             A.fpuqrvs
+                CpQ, `, -q     ÝÑ        CpQ, `ry ÞÑ u, k ÞÑ vs, S => Q1 q ùñ CpQ1 , `1 , -q
+
+      and, by hypothesis, `ry ÞÑ u, k ÞÑ vs is sound. We demonstrate that every
+      memory `2 in the computation CpQ, `ry ÞÑ u, k ÞÑ vs, S => Q1 q ùñ CpQ1 , `1 , -q is
+
+
+                                                         22
+      sound. We do a case analysis on the transitions. In particular, those that modify
+      assets are the instances of [Asset-Send] and [Asset-Update]. Let
+                                                        v(A
+                       CpQ, `1 , c ˆ h ( A S 1 => Q1 q ÝÑ CpQ1 , `2 , S 1 => Q1 q
+
+      one of the transitions and assume that `1 is sound. Then, by [Asset-Send],
+      h P domp`1 q (otherwise Jc ˆ hK`1 should be undefined) and A P domp`1 q by the
+      hypothesis of the rule. Since 0 ď c ď 1, we obtain that 0 ď Jc ˆ hK`1 ď JhK`1 .
+      Let v be the corresponding value; we derive Jh ´ vK`1 “ v 1 ě 0. Therefore
+      `2 “ `1 rh ÞÑ v 1 s is sound as well. The arguments demonstrating that `2 is sound
+      provided that `1 is and
+
+                       CpQ, `1 , c ˆ h ( h1 S 1 => Q1 q ÝÑ CpQ1 , `2 , S 1 => Q1 q
+
+      are similar to the foregoing ones. Notice that, in this case Jc ˆ hK`1 “ v ě 0 and
+      Jh ´ vK`1 ě 0 and Jh1 ` vK`1 ě 0.
+
+      Appendix B. The theory of liquidity: technical material
+
+      Lemma 1. The following properties hold true:
+685   (Weakening ) Let Ξ $X S : Ξ1 and Ξw be such that Ξw |dompΞq “ Ξ. Then there
+          exists Ξ1w such that Ξw $X S : Ξ1w and Ξ1w |dompΞ1 q “ Ξ1 .
+
+      (Substitution) Let σ be a substitution mapping liquidity names to liquidity
+           expressions. If Ξ $X S : Ξ1 then σpΞq $X S : σpΞ1 q.
+
+      (Monotonicity ) Let Ξ, Ξ2 be ground environments such that Ξ ď Ξ2 . If Ξ $X
+690       S : Ξ1 then there is Ξ3 such that Ξ2 $X S : Ξ3 and Ξ1 ď Ξ3 .
+
+      Proof. The proofs of Weakening and Substitution are standard and therefore
+      omitted; we discuss the Monotonicity. The proof is by induction on the structure
+      of S. The basic case, i.e. S “ -, is immediate. The inductive cases are P S
+      and if pEq t St u else t Se u S, assuming the Monotonicity holds on S, St and
+695   Se . Regarding P S, the interesting cases are when P is (i ) c ˆ h ( h1 , or (ii )
+      c ˆ h ( A, or (iii ) h ( h1 .
+           In case (i ), monotony must be proved for Ξ $X c ˆ h Ñ h1 S : Ξ1 , given
+      Ξ ď Ξ2 . By [L-seq], we have Ξ $X c ˆ h Ñ h1 : Ξ1 and Ξ1 $X S : Ξ1 . By
+      [L-expaupd], Ξ1 “ Ξrh1 ÞÑ es, where e “ Ξphq \ Ξph1 q. Taking an environment
+700   Ξ2 such that Ξ ď Ξ2 and applying [L-expaupd], we obtain Ξ2 $X c ˆ h Ñ h1 : Ξ11
+      such that Ξ11 “ Ξ2 rh1 ÞÑ e1 s, where e1 “ Ξ2 phq \ Ξ2 ph1 q. Therefore, by monotony
+      of \, Ξ1 ď Ξ11 . The thesis follows by inductive hypotheses on S. Cases (ii ) and
+      (iii ) are similar.
+           When the statement is if pEq t St u else t Se u S we use [l-cond]. To this
+705   aim, we observe that fnpEq Ď X Y dompΞ2 q follows by fnpEq Ď X Y dompΞq and
+      Ξ ď Ξ2 . In this case the thesis is a straightforward application of the inductive
+      hypothesis.
+
+
+                                                   23
+      Theorem 3 (Correctness of liquidity labels). Let $ C : L and h be the
+      assets of C and @Q A : f(y)[k] { S u => @Q1 P C and Q A.f Q1 : Ξ Ñ Ξ1 in L. If
+                                      A.fpuqrvs
+710   h Ď domp`q and CpQ , ` , -q       ùñ        CpQ1 , `1 , -q then there are X and Ξ2 such
+      that:
+         1. Ep`ry ÞÑ u, k ÞÑ vsq $X S : Ξ2 ;
+         2. Ep`ry ÞÑ u, k ÞÑ vsq|dompΞq ď σpΞq and Ξ2 |dompΞq ď σpΞ1 q, for a ground
+            substitution σ;
+715      3. Ep`1 q|dompΞq ď Ξ2 .
+
+      Proof. Regarding item 1, by Q A.f Q1 : Ξ Ñ Ξ1 P L and [l-function], we
+      have that Ξ “ Ξ0 rk ÞÑ 1s, Ξ1 “ Ξ1 t1 {ξ1 u and Ξ0 rk ÞÑ ξ 1 s $XYy S : Ξ1 where
+      Ξ0 “ rh ÞÑ ξs (ξ and ξ 1 are tuples of fresh liquidity names). We first no-
+      tice that dompΞq “ dompΞ0 rk ÞÑ ξ 1 sq “ h Y k Ď dompEp`ry ÞÑ u, k ÞÑ vsqq
+      because of the hypothesis h Ď domp`q. The containment may be strict be-
+      cause dompEp`ry ÞÑ u, k ÞÑ vsqq may have asset names that do not occur in
+      dompΞ0 rk ÞÑ ξ 1 sq (these names are the formal parameters of previous invo-
+      cations, which have not been garbage-collected by the semantics). By definition
+      of Ξ0 rk ÞÑ ξ 1 s, there exists a ground substitution σ such that
+
+                         Ep`ry ÞÑ u, k ÞÑ vsq|dompΞq “ σpΞ0 rk ÞÑ ξ 1 sq .
+
+      Therefore, by Lemma 1 (Substitution) applied to Ξ0 rk ÞÑ ξ 1 s $XYy S : Ξ1 , we
+      have
+
+                           Ep`ry ÞÑ u, k ÞÑ vsq|dompΞq $XYy S : σpΞ1 q                   (B.1)
+
+      Item 1 follows by applying Lemma 1 (Weakening) to (B.1). The environment
+      Ξ2 of the thesis is σpΞ1 q after the weakening, i.e. Ξ2 |dompΞq “ σpΞ1 q.
+
+720       We demonstrate 2. Observe that Ξ “ Ξ0 rk ÞÑ ξ 1 st1 {ξ1 u. Therefore, by
+      Ξ0 rk ÞÑ ξ 1 s $XYy S : Ξ1 and Lemma 1 (Substitution), we obtain
+
+                                 σ 1 pΞ0 rk ÞÑ ξ 1 sq $XYy S : σ 1 pΞ1 q                 (B.2)
+
+      where σ 1 “ t1 {ξ1 u. Next observe that σ 1 pΞ0 rk ÞÑ ξ 1 sq “ Ξ and σ 1 pΞ1 q “ Ξ; hence
+      we rewrite (B.2) as
+
+                                           Ξ $XYy S : Ξ1                                 (B.3)
+
+      Finally, notice that, using the substitution σ of (B.1) we have
+
+                       Ep`ry ÞÑ u, k ÞÑ vsq|dompΞq        “     σpΞ0 rk ÞÑ ξ 1 sq
+                                                          ď     σ|h pΞ0 rk ÞÑ 1sq
+                                                          “     σ|h pΞq
+
+      where σ|h is the substitution σ that is only defined on ξ; the “ď” follows by
+725   the fact that, in Ep`q|dompΞq , some asset parameter in k might be 0, while
+
+
+                                                   24
+      these parameters are all 1 in Ξ. We conclude by Monotonicity applied to (B.3)
+      obtaining Ξ2 |dompΞq ď σ|h pΞ1 q.
+         To demonstrate 3, we proceed by induction on the length of the computation
+      CpQ , `ry ÞÑ u, k ÞÑ vs , S => @Q1 q ùñ CpQ1 , `1 , -q. The base case is immediate.
+      Assuming the property holds for computations of length n, we demonstrate the
+      case of computations of length n ` 1 by reasoning on the first transition and
+      applying inductive hypotheses to the continuation. We discuss the case when
+      the first transition is an instance of [asset-update] with c ‰ 1. Let
+
+          CpQ , ` , c ˆ h ( h1 S => @Q1 q            ÝÑ         CpQ , `rh ÞÑ v 1 , h1 ÞÑ v 2 s , S => @Q1 q
+                                                     ùñ         CpQ , `1 , - => @Q1 q
+
+      where Jc ˆ hK` “ v and v 1 “ Jh ´ vK` and v 2 “ Jh1 ` vK` . By Ep`q $X c ˆ h (
+      h1 S : Ξ2 and by [L-Seq] and [L-Update], we obtain
+
+                  Ep`q $X c ˆ h ( h1 : Ep`qrh1 ÞÑ es                     pe “ Ep`qphq \ Ep`qph1 qq (B.4)
+                  Ep`qrh1 ÞÑ es $X S : Ξ2                                                                   (B.5)
+
+730   By definition of v 1 , v 2 and e, we derive Ep`rh ÞÑ v 1 , h1 ÞÑ v 2 sq ď Ep`qrh1 ÞÑ es.
+      Next, if Ep`rh ÞÑ v 1 , h1 ÞÑ v 2 sq $X S : Ξ1 then, by Lemma 1 (Monotony), Ξ1 ď Ξ2 .
+      We conclude by inductive hypothesis that give Ep`1 q ď Ξ1 .
+
+      Theorem 4 (Correctness of an abstract computation). Let $ C : L and
+      `                Ai :fi pui qrvi s                    ˘iP1..n
+        CpQi , `i , -q      ùñ           CpQi`1 , `i`1 , -q         with domp`1 q containing the
+735   assets h of C. Let also ϕ “ t Qi Ai .fi Qi`1 uiP1..n have liquidity type Lϕ “ Ξ Ñ Ξ1 .
+          Then there is a substitution σ such that Ep`1 q|h ď σpΞq and Ep`n`1 q|h ď
+      σpΞ1 q.
+
+      Proof. Let ϕ “ tQi Ai .fi Qi`1 uiP1..n and, for every i, Qi Ai .fi Qi`1 : Ξi Ñ Ξ1i P
+                        pbq      peq
+      L. Let also Lϕ “ Ξ1 |h Ñ Ξn |h such that
+                                                          peq                                   pbq
+                  pbq                  pbq                                    peq
+                Ξ1 “ Ξ1            Ξi`1 “ Ξi`1 tΞi phq {ξ u                  Ξi     “ Ξ1i tΞi phq {ξ u .
+
+      By definition we have
+                                                                       pbq                            peq
+                                                    peq
+            Ξi |h “ rh ÞÑ ξs           and         Ξi`1 “ Ξ1i`1 tΞi`1 phq {ξ u “ Ξ1i`1 tΞi phq {ξ u
+
+                 pbq             peq
+      because Ξi`1 phq “ Ξi phq. Next, by Qi Ai .fi Qi`1 : Ξi Ñ Ξ1i P L and [l-
+      function], we derive
+
+                        Ξi rki ÞÑ ξi s $XYyi Si : Ξ2i             where       Ξ1i “ Ξ2i t1 {ξi u
+
+                                                                                          peq
+      for every i P 1..n. Therefore, Lemma 1 (Substitution) (Ξ0 phq “ ξ):
+                                             peq                                    peq
+                           Ξi rki ÞÑ ξi stΞi´1 phq {ξ u $XYyi Si : Ξ2i tΞi´1 phq {ξ u
+
+
+                                                           25
+      and applying the substitution t1 {ξi u we also have
+                                     peq                                   peq
+                    Ξi rki ÞÑ ξi stΞi´1 phq,1 {ξ,ξi u $XYyi Si : Ξ2i tΞi´1 phq,1 {ξ,ξi u    (B.6)
+
+                                      pbq                  peq                                   pbq
+      Notice that B.6 is exactly Ξi $XYyi Si : Ξi ; therefore, letting h1i “ dompΞi q,
+                                                                       pbq
+740   if there is a ground substitution σi such that Ep`1i q|h1 ď σi pΞi q then, by Theo-
+                                                                       i
+                                    peq
+      rem 3.2, Ep`i`1 q|h1 ď σi pΞi q. In the following we demonstrate that the σi do
+                         i
+      exist and are all equal for every i.
+                           pbq                     pbq
+          Let h1 “ dompΞ1 q. By definition of Ξ1 , there is σ such that
+                                                                 pbq
+                                            Ep`1 q|h1 ď σpΞ1 q                              (B.7)
+
+      From this we derive:
+                                                peq
+                              Ep`2 q|h1 ď σpΞ1 q                  (by Theorem 3.2)          (B.8)
+                                           pbq
+                 hence       Ep`1 q|h ď σpΞ1 q|h                  pby (B.7) and h Ď h1 q    (B.9)
+                                           peq
+                 hence       Ep`2 q|h ď σpΞ1 q|h                  pby (B.8) and h Ď h1 q   (B.10)
+                                                                                 pbq
+745      By definition, `12 “ `2 ry2 ÞÑ u2 , k2 ÞÑ v2 s. Let dompΞ2 q “ h2 “ h Y k2 .
+                                                   peq
+      Then Ep`12 q|h2 ď Ep`2 q|h rk2 ÞÑ 1s ď σpΞ1 q|h rk2 ÞÑ 1s (because of (B.10)).
+                                                pbq         peq                            pbq
+      We conclude by observing that Ξ2 “ Ξ1 |h rk2 ÞÑ 1s and that σpΞ2 q “
+          peq                 peq
+      σpΞ1 |h rk2 ÞÑ 1sq “ σpΞ1 q|h rk2 ÞÑ 1s.
+         The theorem follows by repeating the arguments on every function in the
+750   abstract computation.
+
+
+      Appendix C. Correctness of k-separate liquidity+ and of liquidity+
+
+          Proposition 3. If the algorithm of Table 4 returns that a Stipula contract
+      is k-separate liquid+ (respectively, liquid+) then it is k-separate liquid+ (respec-
+      tively, liquid+). Additionally, the algorithms always terminate.
+
+755   Proof. The set QQ is a closure that contains functions Q1 A.f Q2 . By Theorem 1,
+      for every Q1 A.f Q2 , it is possible to synthesize a computation starting at the initial
+      state Q and ending at Q1 . Now, if the function has liquidity type Ξ Ñ Ξ1 and
+      JΞ1 pkqK ‰ 0 and JΞ1 pkqK ‰ JΞpkqK (hypothesis (a) of step 2) then the function
+      might update the asset k. In this case the algorithm looks for a function in QQ2 ,
+760   let it be Q1 B.g Q2 with a liquidity type Ξ1 Ñ Ξ2 such that JΞ2 pkqK “ 0 (step 3).
+      If this is the case then, by Theorem 3, Q1 B.g Q2 empties k and, by Theorem 1 it
+      is possible to synthesize a computation starting at Q1 , with initial transition the
+      invocation of A.f and B.g the last function invocation (therefore ending at Q2.
+          The set Z allows us to avoid repetitions. It also guarantees termination
+765   because Z may contain a finite number of pairs pQ, kq and every QQ is finite.
+          The proof for liquidity+ is similar.
+
+
+                                                      26
+      Let Q be the initial state of C whose assets are h.
+
+      step 1. Compute TκQ1 for every Q1 reachable from Q; let Z “ H.
+                                      ϕ
+      step 2. For every Q1 and Q1 ñ Q2 : Ξ Ñ Ξ1 P TκQ1 such that
+           (a) JΞ1 pkqK ‰ 0 and JΞ1 pkqK ‰ JΞpkqK
+           (b) pQ2 , kq R Z:
+
+                                               ϕ
+            2.1 If there is no Q1 and Q1 ñ Q2 : Ξ Ñ Ξ1 then exit: the contract is
+                k-separate liquid.
+                                                           ϕ1
+            2.2 otherwise verify whether there is Q2 ñ Q3 : Ξ2 Ñ Ξ3 P TκQ2 such that
+                JΞ3 pkqK “ 0. If this is the case, add pQ2 , kq to Z and reiterate step
+                2, otherwise exit: the contract is not k-separate liquid.
+
+
+
+          Table D.6: The costly algorithm for k-separate liquidity – Z contains pairs pQ, kq
+
+
+
+      Appendix D. The costly algorithm for k-separate liquidity
+
+         The costly algorithm for k-separate liquidity is reported in Table D.6.
+      Proposition 5. If the algorithm of Table D.6 returns that a Stipula contract is
+770   k-separate liquid then it is k-separate liquid. Additionally, the algorithm always
+      terminates.
+         The proof of Proposition 5 is omitted because it is similar to Proposition 3.
+      (Similarly for the correctness of the algorithm in Table 5).
+
+
+
+
+                                                   27
+

@@ -1,0 +1,602 @@
+\chapter{From an accepted interpretation to verified Java behavior}
+\label{ch:verification}
+
+\section{The specification becomes the comparison target}
+
+Once reviewers accept a particular interpretation, a different verification
+problem begins. The source question was whether the rule expresses the relevant
+regulatory requirement. The implementation question is whether the deployed
+program preserves that accepted rule for the inputs and histories it supports.
+Keeping these questions separate allows strong engineering evidence without
+misrepresenting it as legal proof.
+
+The accepted object is larger than a Boolean formula. It includes the source
+versions, activity profile, factual definitions, subject identity, time policy,
+unknown and conflict semantics, exception structure, result interpretation and
+coverage limits. If any of these is omitted, two implementations can agree on a
+formula while giving different advice in practice. A Java adapter that labels
+all rebates as discounts has changed the rule's application even if its Boolean
+operator code is flawless.
+
+The verification target must therefore name the complete bundle and its
+permitted input domain. The bundle is immutable and content-addressed. The
+comparison includes the decision, missing and blocking facts, errors, source
+references and execution trace. Different backends have different execution
+identities, so equality of their entire serialized result hashes is not the
+right criterion. Compare the specified semantic fields and independently verify
+each backend's own result identity.
+
+The existing workbench already provides a finite RuleIR interpreter, a Java
+runtime, generated policy classes and a release workflow. The ensemble proposed
+in Chapter~\ref{ch:ensemble} is an extension before that delivery path. It should
+produce reviewed candidates that the existing validator can accept, rather than
+silently expanding the runtime language whenever a model proposes a new legal
+construct. Unsupported meaning remains an explicit engineering and review issue.
+
+\section{Facts are evidence-bearing values}
+
+A production fact is not simply a field such as \texttt{gift=true}. It has a type,
+value or uncertainty status, evidence references, validity interval and recording
+time. The validity interval says when the evidence applies to the underlying
+situation. The recording time says when the system knew it. These times answer
+different questions and both are needed for historical reconstruction.
+
+Suppose the bank learns on 10 October that a fee record effective on 1 October
+was incorrect. A decision replay asking what the system knew on 5 October should
+not use the later correction. A corrected assessment made on 10 October may use
+it to reassess the earlier event. The two assessments should coexist. Replacing
+the old record would erase the evidence needed to explain the original decision.
+
+The existing normalization boundary selects records valid at \texttt{valid\_at}
+and recorded no later than \texttt{known\_at}. A correction names the evidence it
+supersedes. Two admissible, non-superseded records with different values create a
+conflict. Arrival order is not a source-priority rule. If both records agree,
+their evidence may be combined without inventing a conflict.
+
+Intervals are half-open: $[a,b)$ includes the start and excludes the end. If a
+record is valid until midnight, it is not valid at that midnight. This convention
+avoids overlapping adjacent intervals when one record ends exactly as another
+begins. Tests must exercise equality at both endpoints, not merely dates well
+inside an interval. All assessment timestamps use the canonical UTC format with
+six fractional digits; legal calendar dates are separate values.
+
+Unknown facts have reasons. Missing evidence, stale evidence, an unreviewed
+classification and unresolved event order can all lead to unknown, but they call
+for different remedies. A host should not display the same uninformative message
+for every case. Conflict similarly preserves the competing evidence identifiers.
+The evaluator does not decide which source is legally superior without a
+reviewed normalization rule.
+
+This design puts factual interpretation where it belongs: at a visible boundary.
+For the circular, classifying a benefit as a gift or fee discount is an evidenced
+assessment. The decision engine consumes that assessment under its approved
+definition. If the ensemble has not resolved the definition, the adapter cannot
+supply a known value merely to satisfy a required input field.
+
+\section{Exact arithmetic prevents a second kind of ambiguity}
+
+The existing scalar types are Boolean, integer, Hong Kong dollar money in cents,
+and Gregorian date. Integer and money values use canonical decimal strings and
+arbitrary-precision arithmetic. A monetary value of HK\$100 is represented as
+\texttt{"10000"}. The string representation avoids a transport layer converting
+the value through a floating-point number before the exact arithmetic begins.
+
+Units are part of the contract. A number expressed in dollars and the same number
+expressed in cents differ by a factor of one hundred. A compiler cannot infer
+which was intended from the digits alone. The host mapping must identify the
+source unit, conversion and evidence. Declaration-specific bounds can reject
+implausible inputs, but a plausibility check is not a substitute for a reviewed
+unit mapping.
+
+Consider proportional ownership of a monetary amount. If the accepted operation
+is exact scaling by a rational fraction $n/d$, the runtime computes the product
+and quotient using integers. Let $x$ be cents. It checks
+\begin{equation}
+ nx=dq+r,\qquad 0\leq r<d
+ \label{eq:exact-scale}
+\end{equation}
+for nonnegative $nx$; for signed values the implementation's quotient and
+remainder convention must still make zero remainder the exactness test. A
+nonzero remainder means that the result is not an integer number of cents. The
+current contract returns \texttt{E\_INEXACT\_SCALE}; it does not choose a rounding
+policy on the user's behalf.
+
+If a bank requires rounding, that is a substantive extension. The rule must state
+which quantity is rounded, at what stage, in which direction and under whose
+policy. Rounding each component before summation can differ from rounding the
+sum. Two correct implementations of different policies can therefore disagree.
+The ensemble should recognize this as a specification issue rather than treating
+one result as a numerical accident.
+
+Foreign-currency conversion is outside RuleIR 0.1. A reviewed adapter supplies an
+HKD amount with rate, valuation instant and rounding evidence. A missing rate
+creates unknown evidence. It must not trigger a guessed conversion or reuse an
+unboundedly old rate. The bank's data owner is responsible for the freshness and
+valuation policy, while engineering verifies that the adapter implements it.
+
+Dates require similar precision. A date is not a timestamp, and an obligation
+measured in business days needs a calendar policy. The current expression
+language compares validated dates but leaves date arithmetic to reviewed event
+scheduling. This restricted design prevents a generic arithmetic library from
+silently deciding whether a public holiday counts toward a regulatory deadline.
+The appropriate calendar must be versioned with the assessment.
+
+\section{Unknown, conflict and scope have an order}
+
+The three-valued Boolean rules in Chapter~\ref{ch:proof} govern unknown values,
+but they are not the entire runtime semantics. Before evaluating the requested
+rule, the existing implementation checks conflicting evidence in its static
+transitive dependency closure. That closure includes scope, body, exceptions and
+branches that might later be skipped. A conflict in the closure returns conflict
+even if another route could determine the Boolean result.
+
+This is a conservative evidence policy. For example, an actor may appear outside
+the selected scope, but a conflicting fact in the rule's static closure still
+produces conflict before scope evaluation. The second-circular case that exercises
+this behavior is deliberately different from ordinary short-circuit intuition.
+The specification must teach it because an engineer using conventional Java
+\texttt{\&\&} or \texttt{||} could otherwise implement a different result.
+
+After conflict checking, scope is evaluated. False scope returns
+\texttt{OUT\_OF\_SCOPE}; unknown scope returns \texttt{UNKNOWN} with a scope reason;
+true scope permits evaluation of the body. A body that would be false does not
+turn unknown scope into a known result. The system is answering a scoped
+condition, and the applicability question remains unresolved.
+
+Within the body, conjunction and disjunction evaluate all operands in declared
+order. This eager behavior retains complete evaluated evidence and exposes errors
+or conflicts even if an earlier operand would determine an ordinary Boolean
+answer. Missing inputs can appear in a known result, while blocking inputs are
+empty when the unknowns do not prevent that result. The distinction is useful:
+the bank may know the condition is false while still needing to repair a stale
+input feed.
+
+A conditional expression behaves differently. It evaluates the condition and
+only the selected branch. An unknown condition returns unknown without evaluating
+either branch, even when the branches appear equal. Skipped branches remain type
+checked and part of the static dependency closure. Their trace roots are marked
+skipped so that the explanation does not invent an evaluation that never occurred.
+
+Defaults add another layer. All exception guards are evaluated first. Two true
+guards produce conflict even if their values would agree. An unknown guard can
+prevent selection of another true guard because the unknown might become a
+competing exception. One true guard with all others false selects its value; all
+false guards select the base. Priority is expressed only by explicit nesting with
+a reviewed interpretation. Array order is not hidden legal priority.
+
+These rules are not universal truths about law or logic. They are the existing
+workbench's specified execution choices. The ensemble may identify a regulation
+that needs different semantics. The correct response is to propose and review an
+extension or keep the case outside the supported fragment, not to reinterpret
+the current operators ad hoc.
+
+\section{Validation failures are part of observable behavior}
+
+A verifier must compare invalid-input behavior as well as successful decisions.
+Malformed JSON, duplicate keys, noncanonical numbers or unpaired Unicode
+surrogates can fail at the transport boundary before a semantic result can be
+hashed. Valid JSON with an invalid bundle or snapshot can instead produce a
+structured semantic error. These outcomes have different evidence and should
+not be conflated.
+
+The current validation order is schema, references and duplicates, types, cycles,
+time, static-closure conflicts and evaluation. A deterministic order makes error
+reports reproducible when an input has several defects. It also prevents a
+runtime from accessing an invalid reference before discovering that the bundle
+should have been rejected. Fixed error codes and pointers are compared across
+backends; dependency-library exception text is not the public contract.
+
+Resource limits are explicit. The present canonical JSON boundary is bounded in
+size and depth, and the rule graph has node and expanded-call-depth limits. An
+oversized acyclic expression is a resource error; a cycle is a cycle error. An
+implementation must not catch either and continue with a truncated rule. The
+same principle applies to the new ensemble's graph and report limits.
+
+Tests should combine defects when precedence matters. A snapshot can contain a
+conflict and an expired validity interval. A bundle can contain a type error in a
+branch that would otherwise be skipped. A default can have two applicable guards
+whose values contain errors that should never be evaluated. Isolated operator
+tests cannot establish the behavior of these combinations.
+
+A useful specification test states both the expected result and why a tempting
+implementation would differ. For example, a short-circuit implementation might
+return false before encountering an error in the second operand. The accepted
+eager semantics requires the error. This counterexample teaches the contract and
+makes the test more durable than an assertion copied from the current function's
+output.
+
+\section{Independent oracles and their limits}
+
+An oracle is a source of expected behavior against which an implementation is
+compared. Independence has several meanings. A separately written evaluator can
+be independent of the production code while relying on the same mistaken
+interpretation. A human reference can be independent of the model's answer while
+sharing the same incomplete source packet. The verification report must specify
+which independence it has actually achieved.
+
+The retained 22-case oracle was frozen before the candidate bundle, which protects
+against some forms of adapting expected outputs to the implementation. It was
+nevertheless prepared by the same author. The 729-case enumeration gives complete
+coverage of six ternary abstract inputs for the selected formula. Neither fact
+establishes independent legal interpretation or whole-document coverage.
+
+A stronger reference process begins with independent source reading and scenario
+judgment. Reviewers state the expected result, assumptions, supporting passage
+and unresolved questions before seeing the candidate output. Disagreements are
+adjudicated with reasons or retained as alternative acceptable outcomes. The
+reference then has a defined relationship to the evidence rather than being a
+single unexplained label.
+
+For engineering checks, a small executable oracle can be valuable when its method
+is genuinely different. The second-circular body has a read-once unate structure,
+which permits its Boolean-completion check to agree with the specified
+three-valued result. The general expression $p\lor\neg p$ shows why that argument
+cannot be extended to every RuleIR expression: under the specified semantics,
+unknown $p$ yields unknown, while every classical completion yields true.
+An oracle based on the wrong generalization would reject correct implementations
+or bless incorrect ones.
+
+The oracle itself therefore needs a stated domain and a small set of discriminating
+examples. The workbench should retain oracle author, method, source versions,
+review status and any shared components. A generated oracle that imports the same
+evaluator under a different function name supplies little independent evidence.
+A reference that is changed during repair remains useful only when the change is
+separately justified and versioned.
+
+\section{Mutation tests measure what the checks can notice}
+
+A mutation deliberately changes a candidate or implementation in a way that
+represents a plausible error. If the verification process rejects it for the
+intended reason, the test demonstrates sensitivity to that error. It does not
+estimate the frequency of that error in real use, and a high mutation score does
+not prove complete correctness.
+
+The second-circular exercise used four meaningful mutations: remove the discount
+exception, omit product-type linkage, assume gift classification and ignore scope.
+The retained named cases detect all four after compilation. This is more
+informative than mutating arbitrary characters because each change corresponds
+to a failure a reviewer or programmer could plausibly make.
+
+The ensemble extension should add source and process mutations. Remove a footnote
+from one extraction; supply a stale dependency to one member; label a speculative
+classification as established; suppress a minority candidate in the report; reset
+an issue counter after a revision; or reuse an approval after a source change.
+Each mutation targets a distinct assurance boundary. Passing only formula
+mutations would leave the new controller largely untested.
+
+Some mutations are equivalent under the selected domain. Changing an expression
+may not change any supported outcome, and failure to detect that mutation is not
+necessarily a defect. The mutation report must distinguish equivalent mutations,
+invalid encodings and live semantic defects. Counting all undetected mutations as
+failures, or silently excluding inconvenient ones, would distort the result.
+
+A mutation is killed when a required property changes and the check catches it.
+A compiler crash is not always the intended detection: if the task is to test
+whether the oracle notices an omitted exception, a syntax-invalid mutant does not
+answer the question. Mutation construction should preserve validity where the
+research question concerns semantic sensitivity. Invalid-input tests remain a
+separate and necessary category.
+
+\section{Symbolic comparison requires a feasible domain}
+
+For supported expressions, symbolic comparison can search for inputs on which two
+candidates differ. The domain records admissible values, knownness conditions and
+relationships among facts. Before asking whether the outputs differ, the solver
+must establish that the domain has at least one model. Otherwise an inconsistent
+domain makes every equivalence query vacuously true.
+
+Suppose one domain constraint says that a payment exceeds the fee and another
+says that it cannot exceed the same fee. A query finding no differing outcome
+under both constraints has taught us nothing about the real candidates. The
+workbench returns an inconsistent-domain result. The domain must be repaired or
+reviewed before any equivalence claim is made.
+
+A satisfiable difference query returns a witness. The witness must be decoded to
+a concrete fact snapshot and replayed in both the reference evaluator and Java.
+This replay checks that the symbolic encoding corresponds to executable semantics.
+A solver result alone can be wrong relative to the claimed runtime if the
+encoding mishandles unknown values, scope or arithmetic. The witness and both
+results belong in the report.
+
+An unsatisfiable difference query establishes no differing result within the
+checked fragment and domain, subject to the solver and encoding assumptions. It
+does not establish that the candidates use the same legal definition, cover the
+same source material or behave identically outside the domain. The result label
+must therefore include the domain and comparison projection.
+
+The current comparison fragment supports documented Boolean and exact
+integer/money reasoning with explicit knownness. It rejects unsupported date,
+scale, default and event constructs. The two solver checks share a bounded time
+budget, with a separate worker deadline. Unknown, timeout, missing Java replay or
+unsupported constructs never become equivalence. The ensemble may schedule
+another permitted check, but cannot relabel the incomplete result as a pass.
+
+Counterexample-guided refinement is useful when a witness exposes an imprecise
+abstraction. The engineer identifies why the witness is infeasible or why the
+encoding omitted a required condition, changes the abstraction with a documented
+reason, and reruns the query. The discipline matters: excluding a witness because
+it is inconvenient is not refinement. The revised domain must correspond to a
+reviewed fact about the application.
+
+\section{Property tests should follow the semantics}
+
+Property-based tests generate many inputs and check a relation that should hold.
+They can explore combinations that named examples miss, but the property must
+be valid for the specified semantics. Classical Boolean identities cannot all be
+transferred to unknown or conflict behavior. Likewise, reordering operands may
+preserve a value while changing the required trace or error precedence.
+
+Useful properties include deterministic evaluation for identical canonical
+requests, rejection of undeclared facts where the schema requires it, exact
+integer arithmetic, preservation of known values under irrelevant evidence
+additions, and stable source references under deterministic rendering. Each
+property needs a precise precondition. Adding a conflicting record in the static
+dependency closure is not an irrelevant addition.
+
+Metamorphic tests compare related inputs when a direct oracle is difficult. If a
+known amount increases while all other facts remain fixed, a simple lower-bound
+threshold condition should not change from true to false. This monotonicity
+applies only to the stated threshold fragment. It need not hold for a default
+with an upper-bound exception or for a scope condition that changes at the same
+time. The test generator should derive its applicable domain from the property,
+not assume the property is universal.
+
+For evidence time, a carefully limited relation is useful: replaying an earlier
+\texttt{known\_at} should exclude records first recorded later. Increasing
+\texttt{known\_at} does not necessarily preserve the decision, because a correction
+or conflict may become visible. A test that demands decision monotonicity in
+knowledge time would impose a false property. The intended invariant concerns
+which records are admissible, not whether later knowledge always makes the same
+answer more certain.
+
+Fuzzing transport boundaries is a different activity. It tests duplicate keys,
+size limits, malformed timestamps, unusual Unicode and nesting limits. Its
+success criterion is controlled rejection or valid deterministic behavior, not
+legal interpretation. These tests protect the integrity of the evidence and
+execution chain and should be included in the engineering report under that role.
+
+\section{The actual generated Java interface}
+
+The current emitter validates the bundle, canonicalizes it and embeds its exact
+bytes in a generated class. The class name is
+\texttt{hk.legalmath.Policy\_} followed by the first twenty hexadecimal digits of
+the bundle hash. The class exposes the full bundle hash and delegates evaluation
+to the Java semantic runtime. This is a generated, immutable policy binding; it
+is not the older proposal's imagined record-based API or a proof that each legal
+rule has been translated to hand-optimized Java control flow.
+
+The two current entry points are:
+\begin{lstlisting}[language=Java,caption={Implemented generated-policy API.}]
+public static String evaluate(
+    String snapshotJson,
+    String ruleId,
+    String validAt,
+    String knownAt,
+    String mode);
+
+public static Map<String,Object> evaluate(
+    Map<String,Object> snapshot,
+    String ruleId,
+    String validAt,
+    String knownAt,
+    String mode);
+\end{lstlisting}
+
+The string overload returns strict JSON. The map overload returns a deeply
+immutable result. The generated policy and Java runtime operate without Python,
+a language model, a solver or network retrieval. This property is important for
+a bank integration: the interpretation workbench prepares and verifies a package,
+while production decision execution can remain local and deterministic.
+
+A concrete host compiles against the actual generated class name from the build
+manifest. It supplies a validated snapshot, exact rule identifier, both assessment
+times and the requested mode. The mode does not grant authority. A caller cannot
+turn a draft into an approved control by passing the word ``production.'' The
+release service and host must establish approval and applicability separately.
+
+The conceptual integration looks as follows. The symbolic class name in the
+listing is replaced by the actual generated name when the integration fixture is
+built; the release lookup and transaction methods are host responsibilities.
+\begin{lstlisting}[language=Java,caption={Host responsibilities around deterministic evaluation.}]
+ApprovedRelease release = releases.resolve(profile, validAt, knownAt);
+release.verifyAuthorityAndDigests();
+ConsistentSnapshot s = adapter.readSnapshotWithVersions(subject, order);
+String resultJson = Policy_HASH.evaluate(
+    s.strictJson(), release.ruleId(), validAt, knownAt, "production");
+Decision decision = decoder.decodeStrictly(resultJson);
+HostDisposition disposition = hostPolicy.map(decision);
+transactions.commitIfVersionsUnchanged(
+    s.versions(), order.id(), order.payloadHash(),
+    release.identity(), decision, disposition);
+\end{lstlisting}
+
+\texttt{ApprovedRelease}, \texttt{ConsistentSnapshot} and the host transaction
+interfaces in this illustration are proposed integration concepts, not classes
+already supplied by the generated SDK. Their responsibilities must be implemented
+in the bank's environment. The example makes the boundary explicit so an agent
+does not mistake illustrative types for an existing dependency.
+
+The host must handle every tagged result. A true selected prohibition condition
+may require stopping the relevant offer; false permits only progression to other
+controls under the host policy. Unknown, conflict, out-of-scope and error each
+have explicit dispositions. No result string should be cast to a Boolean by a
+language's truthiness rules. The decoder rejects unknown status tags so that a
+future runtime extension cannot silently take an old default branch.
+
+\section{Traces are part of the delivered meaning}
+
+A decision without an explanation is difficult to investigate. The runtime trace
+records node identifiers, operators, children, type, value or status, evidence
+references and source spans. Shared rule evaluations are memoized, and skipped
+branches have explicit markers. The trace is deterministic under the request and
+engine version, making it suitable for replay and comparison.
+
+Trace fidelity is a separate verification obligation. Two programs may return
+true while one omits the evidence for the exception or incorrectly claims to have
+evaluated a skipped branch. A regulator-facing explanation assembled from that
+trace could be misleading even though the Boolean result matches. The comparison
+therefore includes trace structure and evidence, not just the top-level status.
+
+Natural-language explanations are generated from the verified trace and approved
+source mappings. A language model may help render a readable summary, but it
+cannot alter the computed result or invent a justification. If a summary mentions
+a source that the trace and bundle do not contain, validation should reject or
+flag it. The authoritative explanation remains reconstructible without the
+summary model.
+
+The current source-span policy associates trace nodes with the owning rule's
+explicit citations and retains exception citations in the bundle. That is a
+coarser mapping than a separate legal proof for every arithmetic operation. The
+report should describe the granularity honestly. A future refinement may attach
+more precise spans, but a dense set of citations should not be mistaken for a
+formal demonstration that each mapping is legally correct.
+
+Execution hashes identify the canonical request and result under a particular
+backend version. They help detect altered bytes and reproduce behavior. They do
+not authenticate a reviewer or prove that a document came from the regulator.
+Authentication, source acquisition and approval are separate controls. Confusing
+these roles is a common source of overclaiming in systems described as auditable.
+
+\section{Event histories add obligations that a snapshot cannot express}
+
+Some requirements concern sequences: obtain consent before an action, honor a
+withdrawal, provide a document within a period, or preserve a breach after late
+performance. A current Boolean snapshot cannot express all of these relationships.
+The existing event component replays finite attributed histories using a separately
+versioned Java entry point, \texttt{EventReplay.replay(Map<String,Object>)}.
+
+A stream header binds subject, category, actor, action, profile and inception.
+Events belong to that header; an API path cannot redirect their meaning to a
+different subject. Duplicate identical events are idempotent, while conflicting
+payloads or sequence reuse are errors. Ordering authority is explicit. If event
+order is unresolved, the system must not invent a sequence based solely on arrival.
+
+Consent illustrates why completeness matters. Absence of a grant in an incomplete
+history does not establish that no grant occurred. A completeness watermark or a
+reviewed initial state supplies the relevant observation boundary. A watermark
+cannot cover a time later than the recording instant of its assertion. A
+withdrawal ends the applicable consent generation, and a later regrant uses a new
+evidence identity rather than resurrecting a previously withdrawn record.
+
+For an achievement obligation, activation opens a duty with a deadline. The
+selected contract uses the interval from activation up to, but excluding, the
+deadline for timely performance. Performance exactly at the excluded endpoint is
+therefore late under that contract. This is an engineering convention that must
+match the reviewed legal timing rule; a different legal rule requires a different
+specified boundary, not a casual adjustment in the host.
+
+Late performance does not erase the historical breach. The system can record both
+that a duty was breached and that it was later fulfilled. Similarly, an observed
+action is retained even if an advisory control would have prohibited it. Deleting
+inconvenient observations would make replay describe an idealized compliant world
+rather than the bank's actual history.
+
+Each opened duty binds the source bundle that created it. A later amendment does
+not automatically migrate existing duties. Migration may be appropriate, but it
+requires an explicit legal and operational policy about which obligations change,
+which dates apply and how historical findings are retained. The current MVP has
+no automatic migration implementation. The ensemble can identify the question
+and prepare alternatives; it cannot assume the answer from the new publication
+date alone.
+
+\section{Build, verification and approval form an acyclic chain}
+
+A build manifest records the bundle, generated source, runtime source, toolchain,
+Java target, dependencies and JAR digest. A verification report then names the
+build and exact JAR it tested. A release manifest names that build and verification
+report, together with applicability and effective-time information. Approval
+binds the final release manifest and bundle.
+
+The direction matters. Embedding a manifest that contains the JAR's own digest
+inside that JAR creates a circular identity problem. The current design keeps
+these records external and acyclic. A reviewer approves the exact tested bytes
+through the final manifest, rather than approving a mutable directory or a
+human-readable version label.
+
+Candidate compilation occurs before legal approval, because reviewers need a
+concrete package and verification evidence to inspect. Compilation does not grant
+deployment authority. Export into a controlled release route occurs only after
+the required approvals and checks. This distinction lets engineers do useful
+reversible work without repeatedly asking for permission, while preserving the
+human decision at the point where it matters.
+
+Reproducible builds strengthen the identity chain. Under the same declared
+toolchain and inputs, build in separate directories with fixed archive-entry
+timestamps and compare emitted source and binary hashes. A mismatch should be
+investigated and recorded. Reproducibility does not prove semantic correctness,
+but it reduces uncertainty about which bytes correspond to the reviewed source.
+
+The local MVP uses synthetic identities and unsigned historical archives to
+exercise workflow. A bank deployment needs enterprise identity, role separation,
+key management and independently verified release signatures or equivalent
+controls. A hash proves equality of bytes under its cryptographic assumption;
+it does not prove who authorized those bytes. The manuscript's implementation
+plan keeps that integration distinct from the local demonstration.
+
+\section{A correct decision can still race with the transaction}
+
+Suppose a control depends on consent and exposure. The host reads both, evaluates
+an order and then commits it. Between the read and commit, consent may be
+withdrawn or another order may consume the available limit. The decision was
+correct for its snapshot but is no longer valid for the transaction being
+committed. This is a concurrency problem outside the pure rule evaluator.
+
+The host should read a consistent snapshot with version identifiers, evaluate
+exposure including the proposed order, and atomically validate the versions while
+reserving the exposure and recording the decision. If the versions changed, it
+rereads and reevaluates under a bounded transaction retry policy. That policy is
+separate from interpretation-resolution retries and must not share an ambiguous
+counter called simply ``attempts.''
+
+Idempotency protects against duplicate submissions. Repeating the same order
+identifier and payload should recover the same committed result or reservation.
+Using the same identifier with a different payload is a conflict. The identity
+must include the legally relevant order content, not merely a user-interface
+request number. Otherwise a retry can accidentally authorize a changed transaction.
+
+Release selection has a similar race. The host records the release identity used
+for the decision and verifies that the applicable release policy permits it at
+commit. Whether an in-flight transaction can finish under a prior release is a
+bank policy requiring explicit treatment. The rule engine cannot resolve that
+question by consulting its process clock or loading whatever JAR is newest.
+
+A rollback also has legal meaning. Restoring a previous software build can repair
+an implementation defect if that build still expresses the applicable rule.
+Restoring a superseded legal regime is different. The incident procedure must
+separate software rollback, operational suspension and legal-rule selection.
+Historical packages remain available for replay even when they cannot be used for
+new decisions.
+
+\section{A verification dossier that supports a release decision}
+
+The final technical dossier links the accepted interpretation to its implementation
+through several kinds of evidence. Named scenarios demonstrate reviewed boundary
+behavior. Exhaustive finite checks cover declared small domains. Property and
+mutation tests examine broader classes of implementation mistakes. Symbolic
+comparison supplies domain-qualified results and replayed witnesses. Differential
+execution compares Python and Java semantics. Build records identify exact bytes.
+Host tests exercise concurrency, idempotency and release selection.
+
+These methods overlap but are not interchangeable. A compiler proof could cover
+an unbounded class of accepted expressions under stated semantics, while still
+assuming that the factual adapter and source interpretation are correct. A test
+suite can catch a concrete adapter error that lies outside that proof. An
+independent legal review can reject a perfectly verified expression because it
+misreads an exception. The dossier should state the role of each result so that
+one strong component does not hide a missing one.
+
+For the current project, the retained engineering evidence includes the local
+MVP test suite and the separate second-circular exercise. The new ensemble is not
+yet an implemented live-model product. The appropriate next engineering step is
+to implement its controller and contracts, then run deterministic acceptance
+scenarios, then evaluate interpretation performance with independent reference
+judgments. Declaring the entire product ready because the Java path works would
+skip the central problem this book is designed to address.
+
+A release reviewer should be able to answer four concrete questions from the
+package: what rule is being enforced; what evidence makes its inputs meaningful;
+what demonstrates that these exact bytes preserve the rule; and what happens when
+an assumption or input is uncertain. If any answer requires guessing from a model
+confidence score, the dossier is incomplete. Chapter~\ref{ch:implementation} turns
+these requirements into service records, operations and ordered implementation
+tasks.

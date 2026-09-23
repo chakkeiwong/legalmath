@@ -1,0 +1,100 @@
+// ARTIKEL 7.3.eflint
+//   by Lut99
+//
+// Created:
+//   11 Jun 2024, 10:12:31
+// Last edited:
+//   09 Aug 2024, 15:17:42
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.3 van het Afsprakenstelsel.
+//
+//   In dit artikel wordt gespecificeerd wat de jaarlijkse waarde is die
+//   Deelnemers moeten aanbieden en mogen afnemen.
+//   
+//   Ook wordt gespecificeerd dat de Eurowaarde van als Commons aangeboden
+//   producten, diensten en/of data direct afleidbaar moet zijn van de
+//   commerciële waarde van dat product, dienst en/of data.
+//   
+//   Zie `artikel7.3.md` voor meer informatie.
+//
+
+#require "../begrippen/beheerder.eflint".
+#require "../begrippen/commons-waarde.eflint".
+
+
+///// INPUT /////
+/// Stelt dat de totale aangeboden waarde herleidbaar is tot de waarde van commerciele producten.
+Fact aangeboden-waarde-herleidbaar-tot-commerciele-waarde Identified by commons-waarde-aangeboden.
+
+/// Stelt dat de totale afgenomen waarde herleidbaar is tot de waarde van commerciele producten.
+Fact afgenomen-waarde-herleidbaar-tot-commerciele-waarde Identified by commons-waarde-afgenomen.
+
+
+
+
+
+///// REGELS /////
+/// Benoemt de waarde die Deelnemers moeten bijdragen / mogen afnemen als Commons in 2023.
+/// 
+/// Van:
+/// > Voor 2023 bedraagt de vastgestelde Eurowaarde voor de Commons per Deelnemer Euro 2.500,--
+//  > (inclusief BTW) op jaarbasis.
+Extend Fact jaarlijkse-commons-waarde
+    Derived from jaarlijkse-commons-waarde(2500, 2023).
+
+
+
+/// Stelt dat áls de `commons-waarde-aangeboden` is gegeven, deze waarde direct herleidbaar
+/// moet zijn tot de waarde van een dienst's commerciële waarde
+/// (`aangeboden-waarde-herleidbaar-tot-commerciele-waarde`).
+/// 
+/// Afsprakenstelsel:
+/// > Deze Eurowaarde moet direct herleidbaar zijn tot de commerciële waarde van de als Commons
+/// > aangeboden producten, diensten en/of data(gebruik) in de Producten en Diensten Catalogus.
+Duty commons-waarde-aangeboden-moet-herleidbaar-zijn-tot-commerciele-waarde
+    Holder aanbieder
+    Claimant beheerder
+    Related to commons-waarde-aangeboden
+    // De Duty geldt voor elke aanbieder met aangeboden waarde.
+    Derived from (Foreach commons-waarde-aangeboden, beheerder :
+        commons-waarde-aangeboden-moet-herleidbaar-zijn-tot-commerciele-waarde(
+            commons-waarde-aangeboden.aanbieder,
+            beheerder,
+            commons-waarde-aangeboden
+        )
+        When commons-waarde-aangeboden.waarde > 0
+    )
+    // De Duty is geschonden als er niet genoemt is dat de waarde herleidbaar is tot deze
+    // Deelnemer's aangeboden producten.
+    Violated when Not(
+        Holds(aangeboden-waarde-herleidbaar-tot-commerciele-waarde(commons-waarde-aangeboden))
+    ).
+
+/// Stelt dat áls de `commons-waarde-afgenomen` is gegeven, deze waarde direct herleidbaar
+/// moet zijn tot de waarde van een dienst's commerciële waarde
+/// (`afgenomen-waarde-herleidbaar-tot-commerciele-waarde`).
+/// 
+/// Afsprakenstelsel:
+/// > Deze Eurowaarde moet direct herleidbaar zijn tot de commerciële waarde van de als Commons
+/// > aangeboden producten, diensten en/of data(gebruik) in de Producten en Diensten Catalogus.
+Duty commons-waarde-afgenomen-moet-herleidbaar-zijn-tot-commerciele-waarde
+    Holder afnemer
+    Claimant beheerder
+    Related to commons-waarde-afgenomen
+    // De Duty geldt voor elke aanbieder met afgenomen waarde.
+    Derived from (Foreach commons-waarde-afgenomen, beheerder :
+        commons-waarde-afgenomen-moet-herleidbaar-zijn-tot-commerciele-waarde(
+            commons-waarde-afgenomen.afnemer,
+            beheerder,
+            commons-waarde-afgenomen
+        )
+        When commons-waarde-afgenomen.waarde > 0
+    )
+    // De Duty is geschonden als er niet genoemt is dat de waarde herleidbaar is tot deze
+    // Deelnemer's afgenomen producten.
+    Violated when Not(
+        Holds(afgenomen-waarde-herleidbaar-tot-commerciele-waarde(commons-waarde-afgenomen))
+    ).

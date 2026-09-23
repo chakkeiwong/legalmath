@@ -1,0 +1,276 @@
+{
+  "consensus_abstract": null,
+  "consensus_authors": [
+    "College London,",
+    "Andes, Venezuela.",
+    "Keywords: Logical",
+    "English, Prolog,",
+    "Law, Education",
+    "Ordinary English:"
+  ],
+  "consensus_section_headings": [],
+  "consensus_title": "Logical English for Law and Education Robert Kowalski1, Jacinto D\u00e1vila2, Galileo Sator3 and Miguel Calejo4 Logical English for Law and Education",
+  "disagreements": [],
+  "parse_confidence": "low",
+  "parser_agreement": {
+    "author_votes": {
+      "Andes, Venezuela.": 1,
+      "College London,": 1,
+      "English, Prolog,": 1,
+      "Keywords: Logical": 1,
+      "Law, Education": 1,
+      "Ordinary English:": 1
+    },
+    "ok_parsers": 1,
+    "section_heading_votes": {
+      "introduction": 1,
+      "references": 1
+    },
+    "title_votes": {
+      "Logical English for Law and Education": 1
+    }
+  },
+  "parser_outputs": [
+    {
+      "abstract": "",
+      "authors": [
+        "College London,",
+        "Andes, Venezuela.",
+        "Keywords: Logical",
+        "English, Prolog,",
+        "Law, Education",
+        "Ordinary English:"
+      ],
+      "body_markdown": "",
+      "body_text": "Logical English for Law and Education\nRobert Kowalski1, Jacinto D\u00e1vila2, Galileo Sator3 and Miguel Calejo4\n1 Imperial College London, 2 Universidad de Los Andes, Venezuela.\n3 University of Turin, 4 logicalcontracts.com, Lisbon\n\nAbstract. In this paper we present the key features of Logical English as syntactic sugar for logic programming languages such as pure Prolog, ASP and\ns(CASP); and we highlight two application areas, coding legal rules, and teaching\nlogic as a computer language for children.\nKeywords: Logical English, Prolog, Law, Education\n\n1\n\nIntroduction\n\nLogical English (LE) [6-11, 15] exploits the unique feature of Prolog-like logic programming (LP), that LP is the only programming paradigm based on the use of logic\nfor human thinking and communication. By exploiting this feature, LE becomes a widespectrum computer language, which can be understood with only a reading knowledge\nof English and without any technical training in computing, mathematics or logic.\nLE is not only a Turing-complete computer programming language. It has the\npotential to represent and reason with a broad range of human knowledge, as shown by\nits ability to codify the language of law. In an educational setting, it can be used to\nintroduce both computational and logical thinking across the whole range of subjects\ntaught in school, bridging STEM and non-STEM subjects alike.\nBasic syntax. LE differs from pure Prolog primarily in the syntax for atomic predicates.\nIn LE, predicates and their argument are declared by means of templates, as in:\n*a person* likes *a thing*\nwhere asterisks delimit the argument places of the predicate. In the simplest case, an\nargument place can be filled by a constant or a variable. For example:\nOrdinary English:\n\nAlice likes anyone who likes logic.\n\nLogical English:\n\nAlice likes a person if the person likes logic.\n\nProlog:\n\nlikes(alice, A) :- likes(A, logic).\n\nA variable is a noun phrase ending with a common noun, such as \u201cperson\u201d or \u201cthing\u201d\nand starting with a determiner such as \u201ca\u201d, \u201can\u201d or \u201cthe\u201d. The indefinite determiner, \u201ca\u201d\nor \u201can\u201d, introduces the first occurrence of a variable in a sentence. The same noun\n\n\f2\n\nphrase with the indefinite determiner replaced the definite determiner, \u201cthe\u201d, represents\nall later occurrences of the same variable in the same sentence. Any other string of\nwords in the position of an argument place is a constant. Unlike in Prolog, upper and\nlower case letters have no significance. Here is another example:\nTemplates:\n\n*a person* is a parent of *a person*,\n*a person* is the mother of *a person*.\n\nLogical English:\n\nA person is a parent of an other person\nif the person is the mother of the other person.\n\nProlog:\n\nis_a_parent_of(A, B) :- is_the_mother_of(A, B).\n\nThese examples illustrate some of the following characteristics of the basic syntax of\nLE, which are inherited from LP:\n\u2022\n\n\u2022\n\u2022\n\n\u2022\n\n\u2022\n\nSentences in LE have the form of facts or rules. Facts are atomic sentences,\nwhereas rules are sentences of the form conclusion if conditions, where the\nconclusion is an atomic sentence and the conditions are a combination of\natomic sentences, typically connected by and.\nAll variables in a sentence are implicitly universally quantified with scope being the rule in which they occur. This means that variables in different rules\nhave no relationship with one another, even if they have the same name.\nThe basic version of LE is untyped, like Prolog, and variable names are purely\nmnemonic. So, the first example sentence above has the same translation into\nProlog as the meaningless sentence Alice likes a hat if the hat likes logic. We\nare developing an extended version of LE in which types are represented by\ncommon nouns, and the arguments of predicates are checked for compatibility\nwith types that are declared in the templates.\nLE is designed so that sentences in LE have a unique translation into pure\nProlog. But LE is also designed to be as unambiguous as possible, when understood by a human reader. For this purpose, LE deliberately eliminates the\nuse of pronouns, which are a major source of ambiguity, as in the sentence A\nperson is a parent of an other person if she is the mother of her.\nThe current, basic syntax of LE does not include relative clauses, as in Alice\nlikes anyone who likes logic. This is another deliberate choice, because relative\nclauses are another source of ambiguity. For example, the relative clause\nwhich breathe fire is ambiguous in the sentence All dragons which breathe\nfire are scary. The relative clause can be understood restrictively as meaning\nthat a dragon is scary if the dragon breathes fire. Or it can be understood nonrestrictively, as meaning that, not only are all dragons scary, but they also\nbreathe fire.\nLogically, restrictive relative clauses add extra conditions to a sentence,\nwhereas non-restrictive relative clauses add extra conclusions to the sentence.\nThere are syntactic conventions for distinguishing between restrictive and\n\n\f3\n\nnon-restrictive relative clauses (such as the use of commas), but not everyone\nuses them correctly and consistently, and they differ between American and\nBritish English.\n\nFig. 1. An LE program together with alternative scenarios and queries, displayed in a VS Code\neditor. The editor provides syntax highlighting, predictive text, and a simple form of static type\nchecking. https://le.logicalcontracts.com/p/unvaccinated.pl.\n\n2\n\nThe SWISH implementation of LE\n\nThe current implementation of LE in SWISH [20] translates LE programs and queries\ninto Prolog or s(CASP) [15]. The implementation uses Prolog or s(CASP) to answer\nqueries, and it translates answers and explanations into LE syntax. Figure 1 displays an\nexample in a VS Code editor. The example illustrates some important additional features, which are not in the basic syntax of LE.\n\n\f4\n\nNegation as failure for rules and exceptions. LE uses negation as failure to cater for\nexceptions, as in the negative condition on lines 21 and 22 of figure 1. In contrast,\nordinary natural language often omits such explicit negative conditions for exceptions,\nand relies instead on stating separately that the conclusion of a rule does not apply, as\nin Proleg [16, 17]. For example, instead of stating that a meeting is excused if the meeting is a meeting of the cabinet ministers, it may be more natural to state that it is not\nthe case that a meeting is prohibited if the meeting is a meeting of the cabinet ministers.\nWe are exploring the possibility of extending LE, to include such a treatment of exceptions for legal applications.\nMetapredicates for propositional attitudes. LE inherits the feature of Prolog that sentences can occur as arguments of meta-predicates. LE uses this to represent deontic\nmodalities (obligation, prohibition, permission) and other propositional attitudes (notification, belief, desire, dislike), introduced by the keyword that. For example, in line\n24 of figure 1 the keyword that introduces the proposition the person pays \u00a3100 as an\nargument of the meta-predicate A person has an obligation. Similarly, the keyword that\nin line 27 introduces the proposition the meeting is prohibited as an argument of the\nmeta-predicate the person is notified.\nThe implementation of LE translates the sentence on lines 24-27 into the Prolog rule:\nhas_an_obligation_that(A, pays(A, '\u00a3_100')) :attends(A, B), is prohibited(B), is_notified_that(A, is_prohibited(B)).\nIt translates the sentence on lines 29-32 into the Prolog rule:\n'An_arrest_warrant_is_issued_for'(A) :has_an_obligation_that(A, pays(A, B)), not pays(A, B).\nNotice that the sentence expresses the deontic character of an obligation by representing the less-than-ideal consequence of violating the obligation.\nScenarios and queries. Figure 1 also includes a number of scenarios and queries,\nwhich can be combined and posed to the system, as shown in figure 2.\nIn the combination of query one and scenario one, Novak is obligated to pay \u00a3100,\nbut Boris is not, because, although both have attended a prohibited party (thanks to\nNovak), only Novak has been notified of the prohibition.\nIn the combination of query one and scenario two, Boris is obligated to pay \u00a3100,\nbut Novak is not, because this time it is Boris, rather than Novak, who is notified of the\nprohibition.\nIn the combination of query two with scenario one, no arrest warrant is issued, because Novak, the only person obligated to pay \u00a3100, pays the required amount.\nIn the combination of query two with scenario two, Boris is issued an arrest warrant,\nbecause he pays an incorrect amount. An explanation for issuing the arrest warrant to\nBoris is displayed in figure 3.\n\n\f5\n\nFig. 2. A log of combined queries and scenarios together with their answers.\n\nFig. 3. An explanation for the answer to query two with scenario two.\n\n3\n\nLogical English for Legal Applications\n\nWe have been using LE to explore the representation of a wide range of legal texts,\nhelping to identify ambiguities, explore alternative representations of the same text, and\ncompare the logical consequences of the alternatives. The texts include portions of loan\nagreements, accountancy law, Italian citizenship, EU law on criminal rights, International Swaps and Derivative contracts, and insurance contracts.\nThe Italian Citizenship Example. We are also developing analogues of LE for other\nnatural languages, such as Italian and Spanish. Figure 4 shows both an LE and a Logical Italian (LI) representation of Article 1 of Act No. 91 of 5 February 1992:\n\n\f6\n\nE\u2019 cittadino per nascita: a) il figlio di padre o di madre cittadini; b) chi e\u2019 nato\nnel territorio della Repubblica se entrambi i genitori sono ignoti o apolidi, ovvero se il figlio non segue la cittadinanza dei genitori secondo la legge dello\nStato al quale questi appartengono.\nBoth representations in figure 4 were generated manually. In contrast with the manually\ngenerated LE representation in figure 4, google translate gives the following translation\nof the original Italian text into English:\nCitizen by birth: a) the child of a citizen father or mother; b) who was born\nin the territory of the Republic if both parents are unknown or stateless, or if\nthe child does not follow the citizenship of the parents according to the law\nof the state to which these belong.\nBoth the Italian text and its English translation are ambiguous: In particular, both the\nEnglish condition \"the child does not follow the citizenship of the parents according to\nthe law of the state to which these belong\" and its Italian counterpart, taken literally,\nseem to cover only the case where both parents have the same citizenship. Moreover,\nboth the Italian \"ovvero se\" and the corresponding English \"or if\" seem to relate to a\nseparate alternative from the alternatives that precede it. These readings of the natural\nlanguage texts leave uncovered such deserving cases as the child having one parent\nwho is stateless or unknown, and another parent who cannot pass on its citizenship to\nits child. It seems doubtful that these omissions would have been intended by the law.\nThe LE and LI representations in figure 4 incorporate only one interpretation of Article 1.1. Of course, other interpretations are possible, and they could also be represented in LE and LI. For comparison, see the similar case of children found abandoned\nin the UK, covered by the 1981 British Nationality Act, as formulated both in the original English and in an earlier, unimplemented variant of LE [7].\n\nFig. 4. LE and LI representations of Article 1 of Act No. 91 of 5 February 1992.\nhttps://le.logicalcontracts.com/p/italian_citizen_new.pl\nhttps://le.logicalcontracts.com/p/cittadinanza_italiana.pl\n\n\f7\nFigure 4 illustrates several features of LE that were not demonstrated earlier:\n\n\u2022\n\u2022\n\u2022\n\nLE uses indentation, rather than brackets, to represent the relative strength of\nbinding of the logical connectives and and or.\nVariables can be given symbolic names, such as A and B in this example.\nConditions can have the form for all cases in which conditions it is the case\nthat conclusion, which are translated into forall(conditions, conclusion).\n\nIn figure 4, the possibility that a parent is unknown is expressed positively (as a kind of\n\u201cstrong\u201d negation), to reflect the wording of the original legal text. Alternatively, the\nsame possibility could be expressed using negation as failure, to conclude that a parent\nof a person is unknown if there is no information about the parent. In fact, with the\nrepresentation in figure 4, it is possible to know that a person is born in Italy, but not to\nknow who the parents are. In such a case, the for-all condition would be satisfied vacuously, and the person would be an Italian citizen by default.\n\n4\n\nLogical English for Education\n\nBy eliminating ambiguity from natural language, LE forces a writer to think more\nclearly about the relationship between sentences and their meanings. Thinking about\nmeaning is unavoidable when writing sentences for translation into computer-executable code. But it also helps to avoid misunderstandings in communication among humans. Moreover, it helps to bridge the gap between the sciences and the humanities, by\nshowing that clarity of language and thought is important in all academic disciplines.\nThe Italian citizenship example shows in a simple case how the use of symbolic\nnames, which is associated with STEM disciplines, can be used to improve the clarity\nof communication in a non-STEM area. But the logical use of natural language, associated with LE and with some non-STEM disciplines, is also an important skill for use\nin STEM subjects, to make technical information more accessible to a wider audience.\nThe definition of subset. Figure 5 shows both an LE and an LS (Logical Spanish)\nrepresentation of the definition of subset. Arguably, the definition can be understood\nby a reader without any training in mathematics or logic, but with only a reading\nknowledge of English or Spanish. Figure 6 shows all answers to the LE query which\nset is a subset of which other set, first with the scenario named facts, and then with the\nscenario named lists.\nThe subset example illustrates several features that have not been seen earlier:\n\u2022\n\n\u2022\n\nBecause in the current version of LE variable names are purely mnemonic, the\nconditions that A and B are sets, on lines 13 and 14, need to be stated explicitly. These conditions would not be necessary if common nouns were treated\nas types. We plan to extend LE to include such types in the near future.\nThe notion of set in lines 12-18 is an abstract notion, which is neutral with\nrespect to how sets are represented concretely. Scenarios one and two employ\ndifferent concrete representations. Scenario sets represents sets by facts that\n\n\f8\n\ndefine the belongs to relation explicitly. Scenario lists represents sets by\nProlog-style lists, and the belongs to relation is defined in terms of the is in\nrelation, which is LE syntax for the Prolog member predicate. In both scenarios, there are only two sets. In both scenarios, there is no empty set.\n\nFig. 5. A definition of the subset relation in LE and LS. https://le.logicalcontracts.com/p/sets%20with%20lists.pl\nhttps://le.logicalcontracts.com/p/conjunto.pl\n\nFig. 6. All subsets with sets represented by facts or by lists.\n\nReading versus writing. It is natural to associate teaching computer science with\nteaching students how to write computer programs. But this overlooks the fact that most\npeople will never need to write computer programs in their adult life. Some people may\nwant to read programs, to convince themselves that the programs meet their requirements. Some may want to understand explanations for answers to queries, and they may\nwant to modify assumptions to obtain better answers. But hardly anyone will need to\nwrite programs themselves from scratch.\n\n\f9\n\nFocussing on teaching students how to write computer programs also overlooks the\nfact that learning to write well in any language, whether it be a natural language or a\ncomputer language, is much harder than learning to read. In this respect, LE has an\nadvantage over other computer languages, because it can exploit a much wider range\nof examples requiring only a reading knowledge of natural language.\nHow to be a happy dragon. By focusing on reading rather than writing, examples of\nprogramming language constructs that would ordinarily be considered too difficult to\nteach at an introductory level can be included from the very beginning. Figure 7 illustrates such an example. Here the first sentence uses recursion, the second uses negation\nas failure, and the third uses universal quantification, achieving the same effect as iteration, while-loops or recursion in conventional programming languages.\n\nFig. 7. An LE program for introducing young children to logic and computing.\nhttps://le.logicalcontracts.com/p/happy_dragon.pl\n\nAlthough this style of English may seem artificial, it can be made more natural, while\nremaining unambiguous, by treating common nouns as types. For example, the sentence\non lines 13-16 could be written more naturally and more simply as:\nA dragon smokes if an other dragon is a parent of the dragon\nand the other dragon smokes.\nAll the examples we have seen until now can be understood without any knowledge\nabout how LE is executed. Moreover, that understanding can be enhanced by experimenting with different scenarios and queries, and by exploring the logical consequences. In this example, a student can learn that alice is happy, because her only child,\n\n\f10\n\nbob, is healthy; bob is healthy because he does not smoke; and bob does not smoke,\nbecause his parent alice does not smoke. It might be harder to convince a student that\nbob is a happy dragon too. But at least it shows that Logic and Computing can be introduced to children at an early age without having to use examples, such as controlling\na robot or manipulating images on a screen, which can be implemented just as well, or\nmaybe even better, in an imperative programming language.\nThe Euclidean Algorithm. As a computer language, LE combines in one language the\nfeatures of a programming language, database language, and knowledge representation\nand problem-solving language. All the examples we have seen so far are examples of\nits use for knowledge representation and problem solving. The representation in figure\n8 of the Euclidean algorithm for computing the greatest common divisor (gcd) of two\nnumbers illustrates its use for programming. It uses the built-in Prolog predicates for\nsubtraction and for testing inequalities.\nNotice that a query such as which number is the gcd of 1946 and which other number\ncannot be answered, because the Prolog predicate for inequality can be used only when\nthe two numbers are both given as input. On the other hand, the same program can be\nused both to test that a given number is the gcd of two other given numbers, as well as\nto generate the gcd. This capability would need two separate programs in a conventional\nimperative programming language.\n\nFig. 8. The Euclidean algorithm. https://le.logicalcontracts.com/p/Euclid.pl\n\nOn the other hand, the LE representation is not an algorithm. The Euclidean algorithm\nis the behaviour obtained by using the LE representation to reason top-down (or backward), as in Prolog. This behaviour can be described imperatively:\nTo find the gcd D of two given numbers N and M:\nIf N = M, then D = N.\nIf N > M, replace N by N-M, find the gcd D\u2019 of N-M and M, then D = D\u2019.\nIf M > N, replace M by M-N, find the gcd D\u2019 of N and M-N, then D = D\u2019.\nOne of the advantages of the declarative representation is that it is written in the same\nlogical style as the natural definition (or specification) of gcd, illustrated in figure 9.\n\n\f11\n\nCompared with the imperative representation, the LE representation in figure 8 makes\nit much easier to reason that the Euclidean algorithm correctly computes the gcd. As\nDavid Warren points out [19], this can be done by using mathematical induction, exploiting the fact that the bottom-up (inductive) interpretation of the program in figure 8\ncomputes the same gcd relation as the top-down (algorithmic) interpretation.\nNotice that the specification of gcd, illustrated in figure 9, is also executable, although it is much less efficient than the Euclidean algorithm.\n\nFig. 9. The definition of gcd. https://le.logicalcontracts.com/p/gcd.pl\n\n5\n\nRelated and future work\n\nLE can be regarded as a controlled natural language, which is similar in spirit to ACE\n[3] and PENG [18], which are also implemented in Prolog. But, whereas LE is syntactic\nsugar for pure Prolog, ACE and PENG are syntactic sugar for first-order logic.\nPENGASP [4], on the other hand, which is syntactic sugar for ASP, is closer to LE, but\nalso closer to natural English.\nLE inherits the wide spectrum use of LP as a computer language for programming,\nprogram specification, databases and knowledge representation and reasoning. However, in its current form, it is not entirely general-purpose. It lacks the ability of imperative languages to represent an agent\u2019s goals and the ability of an agent to satisfy goals\nby executing actions in reaction to external events.\nTo remedy this disability, we developed the language LPS (Logic Production System) [12-14] as an extension of LP. In fact, the earliest implementation of LE was for\na smart contract using the rock-paper-scissors game [2] written in LPS. We plan to\nextend LE to include the reactive rules and causal laws of LPS. Other proposed extensions include a more natural representation of rules and exceptions, following the approach of [16-17], as well as natural language analogues of object-oriented types and\nembedded functions and relations as in Ciao [1,5].\nIn the meanwhile, the current version of LE and its natural language cousins, such\nas LI and LS, indicate the future potential of logic-based computer languages with a\nnatural language syntax. In this paper, we have highlighted legal applications and education as two major areas in which the benefits of such languages can be exploited\nalready today.\n\n\f12\n\nReferences\n1. Casas, A., Cabeza, D., Hermenegildo, M.V.: A syntactic approach to combining functional\nnotation, lazy evaluation, and higher-order in LP systems. In: Functional and Logic Programming: 8th International Symposium, FLOPS 2006, pp. 146-162. Springer (2006).\n2. Davila, J.: Rock-Paper-Scissors https://demo.logicalcontracts.com/p/rps-gets.pl (2017).\n3. Fuchs, N.E., Schwitter, R.: Attempto controlled English (ACE). arXiv preprint cmplg/9603003 (1996).\n4. Guy, S.C., Schwitter, R. The PENGASP system: architecture, language and authoring\ntool. Lang Resources & Evaluation 51, 67\u201392 (2017).\n5. Hermenegildo, M., Morales, J., Lopez-Garcia P., Carro, M.: Types, modes and so much\nmore \u2013 the Prolog way. In: Warren, D., Dahl, V., Eiter, T., Hermenegildo, M., Kowalski, R.\nand Rossi, F. (eds.) Prolog - The Next 50 Years. LNCS, vol. 13900. Springer (2023).\n6. Kowalski, R.: English as a logic programming language. New Generation Computing 8(2).\n91\u201393 (1990),\n7. Kowalski, R.: Legislation as Logic Programs. In: G. Comyn , N. E. Fuchs, M. J. Ratcliffe\n(eds.), Logic Programming in Action, pp. 203-230, Springer (1992).\n8. Kowalski, R.: Logical English, In Proceedings of Logic and Practice of Programming\n(LPOP) (2020).\n9. Kowalski, R., Datoo, A.: Logical English meets legal English for swaps and derivatives.\nArtificial Intelligence and Law, 30(2), 163-197 (2022).\n10. Kowalski, R., D\u00e1vila, J., Calejo, M., Logical English for legal applications. XAIF, Virtual\nWorkshop on Explainable AI in Finance (2021).\n11. Kowalski, R., D\u00e1vila, J., Sartor, G., Calejo, M.: Logical English for Law. In Proceedings of\nthe Workshop on Methodologies for Translating Legal Norms into Formal Representations\n(LN2FR), JURIX, (2022).\n12. Kowalski, R., Sadri, F.: Reactive Computing as Model Generation. New Generation Computing, 33(1), 33-67 (2015).\n13. Kowalski, R., Sadri, F.: Programming in logic without logic programming. Theory and Practice of Logic Programming, 16(03), pp.269-295 (2016)\n14. Kowalski, R., Sadri, F., Calejo, M., D\u00e1vila, J.: Combining Logic Programming and Imperative Programming in LPS. In: Warren, D., Dahl, V., Eiter, T., Hermenegildo, M., Kowalski,\nR., Rossi, F. (eds.) Prolog - The Next 50 Years. LNCS, vol. 13900. Springer, Heidelberg\n(2023).\n15. Sartor, G., D\u00e1vila, J., Billi, M., Contissa, G., Pisano, G., Kowalski, R.: Integration of Logical\nEnglish and s(CASP), 2nd Workshop on Goal-directed Execution of Answer Set Programs\n(GDE\u201922) (2022).\n16. Satoh, K., Asai, K., Kogawa, T., Kubota, M., Nakamura, M., Nishigai, Y., Shirakawa, K.,\nTakano, C., PROLEG: An implementation of the presupposed ultimate fact theory of Japanese civil code by PROLOG technology\", LNCS, 6797, pp 153-164. Springer (2010).\n17. Satoh, K.: PROLEG: Practical Legal Reasoning System, In: Warren, D., Dahl, V., Eiter, T.,\nHermenegildo, M., Kowalski, R., Rossi, F. (eds.) Prolog - The Next 50 Years. LNCS, vol.\n13900. Springer, Heidelberg (2023).\n18. Schwitter, R.: English as a formal specification language. In: Proceedings. 13th International\nWorkshop on Database and Expert Systems Applications pp. 228-232, IEEE (2002).\n19. Warren, D.S.: Writing Correct Prolog Programs. In: Warren, D., Dahl, V., Eiter, T., Hermenegildo, M., Kowalski, R., Rossi, F. (eds.) Prolog - The Next 50 Years. LNCS, vol. 13900.\nSpringer, Heidelberg (2023).\n\n\f13\n20. Wielemaker, J., Schrijvers, T., Triska, M., Lager, T.: SWI-Prolog. Theory and Practice of\nLogic Programming 12(1-2), 67-96 (2012).\n\n\f",
+      "capabilities": {
+        "citations": "unreliable",
+        "equations": "unreliable",
+        "section_headings": "partial"
+      },
+      "derived_authors": [
+        "College London,",
+        "Andes, Venezuela.",
+        "Keywords: Logical",
+        "English, Prolog,",
+        "Law, Education",
+        "Ordinary English:"
+      ],
+      "derived_section_headings": [
+        "Introduction",
+        "References"
+      ],
+      "derived_title_candidates": [
+        "Logical English for Law and Education",
+        "Logical English for Law and Education Robert Kowalski1, Jacinto D\u00e1vila2, Galileo Sator3 and Miguel Calejo4",
+        "Robert Kowalski1, Jacinto D\u00e1vila2, Galileo Sator3 and Miguel Calejo4",
+        "Logical English for Law and Education Robert Kowalski1, Jacinto D\u00e1vila2, Galileo Sator3 and Miguel Calejo4 Logical English for Law and Education"
+      ],
+      "diagnostics": {
+        "line_count": 328,
+        "preflight": {
+          "available": true,
+          "details": {
+            "capabilities": {
+              "citations": "unreliable",
+              "equations": "unreliable",
+              "section_headings": "partial"
+            },
+            "command": "pdftotext",
+            "path": "/usr/bin/pdftotext"
+          },
+          "messages": [
+            "pdftotext found"
+          ],
+          "parser_name": "pdftotext",
+          "status": "available"
+        }
+      },
+      "parse_status": "ok",
+      "parser_name": "pdftotext",
+      "parser_version": "unknown",
+      "references": [],
+      "section_headings": [
+        "Introduction",
+        "References"
+      ],
+      "title_candidates": [
+        "Logical English for Law and Education Robert Kowalski1, Jacinto D\u00e1vila2, Galileo Sator3 and Miguel Calejo4",
+        "Logical English for Law and Education",
+        "Robert Kowalski1, Jacinto D\u00e1vila2, Galileo Sator3 and Miguel Calejo4"
+      ]
+    },
+    {
+      "abstract": "",
+      "authors": [],
+      "body_markdown": "",
+      "body_text": "",
+      "capabilities": {
+        "citations": "unreliable",
+        "equations": "unreliable",
+        "section_headings": "partial"
+      },
+      "derived_authors": [],
+      "derived_section_headings": [],
+      "derived_title_candidates": [],
+      "diagnostics": {
+        "preflight": [
+          {
+            "available": false,
+            "details": {
+              "capabilities": {
+                "citations": "unreliable",
+                "equations": "unreliable",
+                "section_headings": "partial"
+              },
+              "command": "marker_single"
+            },
+            "messages": [
+              "marker_single not found in PATH"
+            ],
+            "parser_name": "marker",
+            "status": "unavailable"
+          }
+        ]
+      },
+      "parse_status": "unavailable",
+      "parser_name": "marker",
+      "parser_version": "unknown",
+      "references": [],
+      "section_headings": [],
+      "title_candidates": []
+    },
+    {
+      "abstract": "",
+      "authors": [],
+      "body_markdown": "",
+      "body_text": "",
+      "capabilities": {
+        "citations": "unreliable",
+        "equations": "unreliable",
+        "section_headings": "partial"
+      },
+      "derived_authors": [],
+      "derived_section_headings": [],
+      "derived_title_candidates": [],
+      "diagnostics": {
+        "preflight": [
+          {
+            "available": false,
+            "details": {
+              "capabilities": {
+                "citations": "unreliable",
+                "equations": "unreliable",
+                "section_headings": "partial"
+              },
+              "url": "http://localhost:8070/api/isalive"
+            },
+            "messages": [
+              "<urlopen error [Errno 1] Operation not permitted>"
+            ],
+            "parser_name": "grobid",
+            "status": "unavailable"
+          }
+        ]
+      },
+      "parse_status": "unavailable",
+      "parser_name": "grobid",
+      "parser_version": "unknown",
+      "references": [],
+      "section_headings": [],
+      "title_candidates": []
+    },
+    {
+      "abstract": "",
+      "authors": [],
+      "body_markdown": "",
+      "body_text": "",
+      "capabilities": {
+        "citations": "unreliable",
+        "equations": "unreliable",
+        "section_headings": "partial"
+      },
+      "derived_authors": [],
+      "derived_section_headings": [],
+      "derived_title_candidates": [],
+      "diagnostics": {
+        "preflight": [
+          {
+            "available": false,
+            "details": {
+              "capabilities": {
+                "citations": "unreliable",
+                "equations": "unreliable",
+                "section_headings": "partial"
+              },
+              "command": "magic-pdf"
+            },
+            "messages": [
+              "magic-pdf not found in PATH"
+            ],
+            "parser_name": "mineru",
+            "status": "unavailable"
+          },
+          {
+            "available": false,
+            "details": {
+              "path": "/home/chakwong/magic-pdf.json"
+            },
+            "messages": [
+              "/home/chakwong/magic-pdf.json not found"
+            ],
+            "parser_name": "mineru_config",
+            "status": "misconfigured"
+          }
+        ]
+      },
+      "parse_status": "unavailable",
+      "parser_name": "mineru",
+      "parser_version": "unknown",
+      "references": [],
+      "section_headings": [],
+      "title_candidates": []
+    },
+    {
+      "abstract": "",
+      "authors": [],
+      "body_markdown": "",
+      "body_text": "",
+      "capabilities": {
+        "citations": "unreliable",
+        "equations": "unreliable",
+        "section_headings": "partial"
+      },
+      "derived_authors": [],
+      "derived_section_headings": [],
+      "derived_title_candidates": [],
+      "diagnostics": {
+        "preflight": [
+          {
+            "available": false,
+            "details": {
+              "capabilities": {
+                "citations": "unreliable",
+                "equations": "unreliable",
+                "section_headings": "partial"
+              },
+              "command": "markitdown"
+            },
+            "messages": [
+              "markitdown not found in PATH"
+            ],
+            "parser_name": "markitdown",
+            "status": "unavailable"
+          }
+        ]
+      },
+      "parse_status": "unavailable",
+      "parser_name": "markitdown",
+      "parser_version": "unknown",
+      "references": [],
+      "section_headings": [],
+      "title_candidates": []
+    }
+  ],
+  "requires_manual_review": true
+}

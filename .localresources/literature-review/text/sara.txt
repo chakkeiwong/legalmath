@@ -1,0 +1,464 @@
+                                             A Dataset for Statutory Reasoning in Tax Law Entailment and
+                                                                  Question Answering
+                                                      Nils Holzenberger                             Andrew Blair-Stanek                                Benjamin Van Durme
+                                                   Johns Hopkins University                   U. of Maryland Carey School of Law                      Johns Hopkins University
+                                                   Baltimore, Maryland, USA                        Baltimore, Maryland, USA                           Baltimore, Maryland, USA
+                                                         nilsh@jhu.edu                              Johns Hopkins University                            vandurme@cs.jhu.edu
+                                                                                                   Baltimore, Maryland, USA
+                                                                                               ablair-stanek@law.umaryland.edu
+arXiv:2005.05257v3 [cs.CL] 12 Aug 2020
+
+
+
+
+                                         ABSTRACT                                                                   sources, e.g. textbooks, and connecting high-performance symbolic
+                                         Legislation can be viewed as a body of prescriptive rules expressed        solvers with large-scale language models.
+                                         in natural language. The application of legislation to facts of a case         In parallel, models have begun to consider task definitions like
+                                         we refer to as statutory reasoning, where those facts are also ex-         Machine Reading (MR) [46] and Recognizing Textual Entailment
+                                         pressed in natural language. Computational statutory reasoning is          (RTE) [15, 16] as not requiring the use of explicit structure. Instead,
+                                         distinct from most existing work in machine reading, in that much          the problem is cast as one of mapping inputs to high-dimensional,
+                                         of the information needed for deciding a case is declared exactly          dense representations that implicitly encode meaning [18, 45], and
+                                         once (a law), while the information needed in much of machine read-        are employed in building classifiers or text decoders, bypassing
+                                         ing tends to be learned through distributional language statistics.        classic approaches to symbolic inference.
+                                         To investigate the performance of natural language understanding               This work is concerned with the problem of statutory reasoning
+                                         approaches on statutory reasoning, we introduce a dataset, together        [62, 66]: how to reason about an example situation, a case, based
+                                         with a legal-domain text corpus. Straightforward application of ma-        on complex rules provided in natural language. In addition to the
+                                         chine reading models exhibits low out-of-the-box performance on            reasoning aspect, we are motivated by the lack of contemporary
+                                         our questions, whether or not they have been fine-tuned to the legal       systems to suggest legal opinions: while there exist tools to aid
+                                         domain. We contrast this with a hand-constructed Prolog-based              lawyers in retrieving relevant documents for a given case, we are
+                                         system, designed to fully solve the task. These experiments support        unaware of any strong capabilities in automatic statutory reasoning.
+                                         a discussion of the challenges facing statutory reasoning moving               Our contributions, summarized in Figure 2, include a novel
+                                         forward, which we argue is an interesting real-world task that can         dataset based on US tax law, together with test cases (Section 2).
+                                         motivate the development of models able to utilize prescriptive            Decades-old work in expert systems could solve problems of the
+                                         rules specified in natural language.                                       sort we construct here, based on manually derived rules: we repli-
+                                                                                                                    cate that approach in a Prolog-based system that achieves 100%
+                                         CCS CONCEPTS                                                               accuracy on our examples (Section 3). Our results demonstrate
+                                                                                                                    that straightforward application of contemporary Machine Read-
+                                         • Applied computing → Law; • Computing methodologies →                     ing models is not sufficient for our challenge examples (Section
+                                         Natural language processing; Knowledge representation and reason-          5), whether or not they were adapted to the legal domain (Section
+                                         ing.                                                                       4). This is meant to provoke the question of whether we should
+                                                                                                                    be concerned with: (a) improving methods in semantic parsing
+                                         KEYWORDS                                                                   in order to replace manual transduction into symbolic form; or
+                                         Law, NLP, Reasoning, Prolog                                                (b) improving machine reading methods in order to avoid explicit
+                                                                                                                    symbolic solvers. We view this work as part of the conversation
+                                         1   INTRODUCTION                                                           including recent work in multi-hop inference [61], where our task
+                                         Early artificial intelligence research focused on highly-performant,       is more domain-specific but potentially more challenging.
+                                         narrow-domain reasoning models, for instance in health [37, 40,
+                                         54] and law [30, 38]. Such expert systems relied on hand-crafted
+                                                                                                                    2    DATASET
+                                         inference rules and domain knowledge, expressed and stored with            Here, we describe our main contribution, the StAtutory Reason-
+                                         the formalisms provided by databases [21]. The main bottleneck of          ing Assessment dataset (SARA): a set of rules extracted from the
+                                         this approach is that experts are slow in building such knowledge          statutes of the US Internal Revenue Code (IRC), together with a
+                                         bases and exhibit imperfect recall, which motivated research into          set of natural language questions which may only be answered
+                                         models for automatic information extraction (e.g. Lafferty et al. [36]).   correctly by referring to the rules1 .
+                                         Systems for large-scale automatic knowledge base construction                 The IRC2 contains rules and definitions for the imposition and
+                                         have improved (e.g. Etzioni et al. [20], Mitchell et al. [41]), as well    calculation of taxes. It is subdvided into sections, which in general,
+                                         as systems for sentence level semantic parsing [64]. Among others,
+                                         this effort has led to question-answering systems for games [22]
+                                         and, more recently, for science exams [14, 23, 27]. The challenges         1 The dataset can be found under https://nlp.jhu.edu/law/
+
+                                         include extracting ungrounded knowledge from semi-structured               2 https://uscode.house.gov/browse/prelim@title26&edition=prelim
+                                                                             Overall, the IRC can be framed as a set of predicates formulated in
+                                                                          human language. The language used to express the law has an open
+                                                                          texture [29], which makes it particularly challenging for a computer-
+                                                                          based system to determine whether a subsection applies, and to
+                                                                          identify and fill the slots mentioned. This makes the IRC an excellent
+                                                                          corpus to build systems that reason with rules specified in natural
+                                                                          language, and have good language understanding capabilities.
+
+                                                                          2.1    Statutes and test cases
+                                                                          As the basis of our set of rules, we selected sections of the IRC
+Figure 1: Sample cases from our dataset. The questions can                well-supported by Treasury Regulations, covering tax on individu-
+be answered by applying the rules contained in the statutes               als (§1), marriage and other legal statuses (§2, 7703), dependents
+to the context.                                                           (§152), tax exemptions and deductions (§63, 68, 151) and employ-
+                                                                          ment (§3301, 3306). We simplified the sections to (1) remove highly
+                                                                          specific sections (e.g. those concerning the employment of sailors)
+                                                                          in order to keep the statutes to a manageable size, and (2) ensure
+                                                                          that the sections only refer to sections from the selected subset. For
+                                                                          ease of comparison with the original statutes, we kept the original
+                                                                          numbering and lettering, with no adjustment for removed sections.
+                                                                          For example, there is a section 63(d) and a section 63(f), but no
+                                                                          section 63(e). We assumed that any taxable year starts and ends at
+                                                                          the same time as the corresponding calendar year.
+                                                                             For each subsection extracted from the statutes, we manually
+                                                                          created two paragraphs in natural language describing a case, one
+                                                                          where the statute applies, and one where it does not. These snippets,
+                                                                          formulated as a logical entailment task, are meant to test a system’s
+                                                                          understanding of the statutes, as illustrated in Figure 1. The cases
+                                                                          were vetted by a law professor for coherence and plausibility. For
+                                                                          the purposes of machine learning, the cases were split into 176
+                                                                          train and 100 test samples, such that (1) each pair of positive and
+                                                                          negative cases belongs to the same split, and (2) each section is split
+                                                                          between train and test in the same proportions as the overall split.
+                                                                             Since tax legislation makes it possible to predict how much tax
+Figure 2: Resources. Corpora on the left hand side were used              a person owes, we created an additional set of 100 cases where the
+to build the datasets and models on the right hand side.                  task is to predict how much tax someone owes. Those cases were
+                                                                          created by randomly mixing and matching pairs of cases from the
+define one or more terms: section 3306 defines the terms employ-          first set of cases, and resolving inconsistencies manually. Those
+ment, employer and wages, for purposes of the federal unemploy-           cases are no longer a binary prediction task, but a task of predicting
+ment tax. Sections are typically structured around a general rule,        an integer. The prediction results from taking into account the
+followed by a number of exceptions. Each section and its subsec-          entirety of the statutes, and involves basic arithmetic. The 100 cases
+tions may be cast as a predicate whose truth value can be checked         were randomly split into 80 training and 20 test samples.
+against a state of the world. For instance, subsection 7703(a)(2):           Because the statutes were simplified, the answers to the cases
+                                                                          are not those that would be obtained with the current version of
+       an individual legally separated from his spouse under              the IRC. Some of the IRC counterparts of the statutes in our dataset
+       a decree of divorce or of separate maintenance shall not           have been repealed, amended, or adjusted to reflect inflation.
+       be considered as married
+can be checked given an individual.                                       2.2    Key features of the corpus
+   Slots are another major feature of the law. Each subsection refers     While the corpus is based on a simplification of the Internal Rev-
+to a certain number of slots, which may be filled by existing entities    enue Code, care was taken to retain prominent features of US law.
+(in the above, individual, spouse, and decree of divorce or of separate   We note that the present task is only one aspect of legal reason-
+maintenance). Certain slots are implicitly filled: §7703(a)(1) and        ing, which in general involves many more modes of reasoning, in
+(b)(3) mention a “spouse", which must exist since the “individual" is     particular interpreting regulations and prior judicial decisions. The
+married. Similarly, slots which have been filled earlier in the section   following features are quantified in Tables 1 to 4.
+may be referred to later on. For instance, “household" is mentioned          Reasoning with time. The timing of events (marriage, retirement,
+for the first time in §7703(b)(1), then again in §7703(b)(2) and in       income...) is highly relevant to determining whether certain sections
+§7703(b)(3). Correctly resolving slots is a key point in successfully     apply, as tax is paid yearly. In total, 62 sections refer to time. Some
+applying the law.                                                         sections require counting days, as in §7703(b)(1):
+               Cross-references      Explicit   Implicit                 Vocabulary                             train     867       statutes      768
+               Within the section         30         25                  size                                    test     535     combined       1596
+               To another section         34         44                                                 min      max      avg        stddev    median
+Table 1: Number of subsections containing cross-references               Sentence              train      4       138     12.3           9.1       11
+                                                                         length                 test      4        34     11.6           4.5       10
+                        min    max     avg ± stddev        median
+                                                                         (in words)         statutes      1        88     16.5          14.9      12.5
+        Depth of leaf     1      6         3.6 ± 0.8            4                         combined        1       138     12.7           9.5       11
+        Depth of node     0      6         3.2 ± 1.0            3
+                                                                         Case length           train      1         9      4.2           1.7         4
+ Table 2: Statistics about the tree structure of the statutes            (in                    test      2         7      3.8           1.3         4
+                                                                         sentences)       combined        1         9      4.1           1.6         4
+        a household which constitutes for more than one-half of          Case                  train     17       179     48.5          22.2       43
+        the taxable year the principal place of abode of a child         length                 test     17        81     41.6          14.7       38
+or taking into account the absolute point in time as in §63(c)(7):       (in words)       combined       17       179     46.3          20.3       41
+                                                                         Section          sentences       2        16      8.3           4.7         9
+        In the case of a taxable year beginning after December           length               words      62     1151     488.9         310.4      549
+        31, 2017, and before January 1, 2026-
+                                                                        Table 3: Language statistics. The word “combined” means
+   Exceptions and substitutions. Typically, each section of the IRC     merging the corpora mentioned above it.
+starts by defining a general case and then enumerates a number of
+exceptions to the rule. Additionally, some rules involve applying                         min          max      average          stddev     median
+a rule after substituting terms. A total of 50 sections formulate an            train       0     2,242,833    85,804.86     258,179.30    15,506.50
+exception or a substitution. As an example, §63(f)(3):                           test       0       243,097    65,246.50      78,123.13    26,874.00
+                                                                            combined        0     2,242,833    81,693.19     233,695.33    17,400.50
+        In the case of an individual who is not married and is
+                                                                                Table 4: Answers to numerical questions (in $).
+        not a surviving spouse, paragraphs (1) and (2) shall be
+        applied by substituting “$750" for “$600".
+                                                                        3     PROLOG SOLVER
+   Numerical reasoning. Computing tax owed requires knowledge of
+the basic arithmetic operations of adding, subtracting, multiplying,    It has been shown that subsets of statutes can be expressed in first-
+dividing, rounding and comparing numbers. 55 sections involve           order logic, as described in Section 6. As a reaffirmation of this, and
+numerical reasoning. The operation to be used needs to be parsed        as a topline for our task, we have manually translated the statutes
+out of natural text, as in §1(c)(2):                                    into Prolog rules and the cases into Prolog facts, such that each case
+                                                                        can be answered correctly by a single Prolog query3 . The Prolog
+        $3,315, plus 28% of the excess over $22,100 if the taxable      rules were developed based on the statutes, meaning that the Prolog
+        income is over $22,100 but not over $53,500                     code clearly reflects the semantics of the textual form, as in Gunning
+   Cross-references. Each section of the IRC will typically reference   et al. [27]. This is primarily meant as a proof that a carefully crafted
+other sections. Table 1 shows how this feature was preserved in         reasoning engine, with perfect natural language understanding, can
+our dataset. There are explicit references within the same section,     solve this dataset. There certainly are other ways of representing
+as in §7703(b)(1):                                                      this given set of statutes and cases. The point of this dataset is not
+        an individual who is married (within the meaning of             to design a better Prolog system, but to help the development of
+        subsection (a)) and who files a separate return                 language understanding models capable of reasoning.
+explicit references to another section, as in §3301:                    3.1     Statutes
+        There is hereby imposed on every employer (as defined           Each subsection of the statutes was translated with a single rule,
+        in section 3306(a)) for each calendar year an excise tax        true if the section applies, false otherwise. In addition, subsections
+and implicit references, as in §151(a), where “taxable income" is       define slots that may be filled and reused in other subsections, as
+defined in §63:                                                         described in Section 2. To solve this coreference problem, any term
+        the exemptions provided by this section shall be allowed        appearing in a subsection and relevant across subsections is turned
+        as deductions in computing taxable income.                      into an argument of the Prolog rule. The corresponding variable
+   Common sense knowledge. Four concepts, other than time, are left     may then be bound during the execution of a rule, and reused in a
+undefined in our statutes: (1) kinship, (2) the fact that a marriage    rule executed later. Unfilled slots correspond to unbound variables.
+ends if either spouse dies, (3) if an event has not ended, then it         To check whether a given subsection applies, the Prolog sys-
+is ongoing; if an event has no start, it has been true at any time      tem needs to rely on certain predicates, which directly reflect the
+before it ends; and some events are instantaneous (e.g. payments ),     facts contained in the natural language descriptions of the cases.
+(4) a person’s gross income is the sum of all income and payments       For instance, how do we translate Alice and Bob got married on
+received by that person.                                                January 24th, 1993 into code usable by Prolog? We rely on a set
+   Hierarchical structure. Law statutes are divided into sections,      of 61 predicates, following neo-davidsonian semantics [9, 17, 42].
+themselves divided into subsections, with highly variable depth and     The level of detail of these predicates is based on the granularity
+structure. This can be represented by a tree, with a special ROOT       of the statutes themselves. Anything the statutes do not define,
+node of depth 0 connecting all the sections. This tree contains 132     and which is typically expressed with a single word, is potentially
+leaves and 193 nodes (node includes leaves). Statistics about depth     3 The Prolog program can be found under https://nlp.jhu.edu/law/
+are in Table 2.
+such a predicate: marriage, residing somewhere, someone paying            4.2    Tax vectors
+someone else, etc. The example above is translated in Figure 3.           Before training a word2vec model [39] on this corpus, we did two
+                                                                          tax-specific preprocessing steps to ensure that semantic units re-
+3.2    Cases
+                                                                          mained together. First, we put underscores between multi-token
+The natural lan-                                                          collocations that are tax terms of art, defined in either the tax code,
+guage description          marriage_(alice_and_bob).                      Treasury regulations, or a leading tax-law dictionary. Thus, “surviv-
+of each case was           agent_(alice_and_bob, alice).                  ing spouse" became the single token “surviving_spouse". Second,
+manually translated        agent_(alice_and_bob, bob).                    we turned all tax code sections and Treasury regulations into a
+into the facts men-        start_(alice_and_bob, "1993-01-24").           single token, stripped of references to subsections, subparagraphs,
+tioned above. The                                                         and subclauses. Thus, “Treas. Reg. §1.162-21(b)(1)(iv)" became the
+question or log-           Figure 3: Example predicates used.             single token “sec_1_162_21". The vectors were trained at 500 dimen-
+ical entailment prompt                                                    sions using skip-gram with negative sampling. A window size of 15
+was translated into a Prolog query. For instance, Section 7703(b)(3)      was found to maximize performance on twelve human-constructed
+applies to Alice maintaining her home for the year 2018. translates       analogy tasks.
+to s7703_b_3(alice,home,2018). and How much tax does Alice
+have to pay in 2017? translates to tax(alice,2017,Amount).                4.3    Legal BERT
+   In the broader context of computational statutory reasoning,           We performed further training of BERT [18], on a portion of the full
+the Prolog solver has three limitations. First, producing it requires     case.law corpus, including both state and federal cases. We did
+domain experts, while automatic generation is an open question.           not limit the training to tax cases. Rather, the only cases excluded
+Second, translating natural language into facts requires semantic         were those under 400 characters (which tend to be summary orders
+parsing capabilities. Third, small mistakes can lead to catastrophic      with little semantic content) and those before 1970 (when judicial
+failure. An orthogonal approach is to replace logical operators and       writing styles had become recognizably modern). We randomly
+explicit structure with high-dimensional, dense representations and       selected a subset of the remaining cases, and broke all selected
+real-valued functions, both learned using distributional statistics.      cases into chunks of exactly 510 tokens, which is the most BERT’s
+Such a machine learning-based approach can be adapted to new              architecture can handle. Any remaining tokens in a selected case
+legislation and new domains automatically.                                were discarded. Using solely the masked language model task (i.e.
+                                                                          not next sentence prediction), starting from Bert-Base-Cased, we
+4     LEGAL NLP                                                           trained on 900M tokens.
+As is commonly done in MR, we pretrained our models using two                The resulting Legal BERT has the exact same architecture as
+unsupervised learning paradigms on a large corpus of legal text.          Bert-Base-Cased but parameters better attuned to legal tasks. We
+                                                                          applied both models to the natural language questions and answers
+4.1    Text corpus                                                        in the corpus we introduce in this paper. While Bert-Base-Cased
+We curated a corpus consisting solely of freely-available tax law         had a perplexity of 14.4, Legal BERT had a perplexity of just 2.7,
+documents with 147M tokens. The first half is drawn from cas [1],         suggesting that the further training on 900M tokens made the model
+a project of Harvard’s Law Library that scanned and OCR’ed many           much better adapted to legal queries.
+of the library’s case-law reporters, making the text available upon          We also probed how this further training impacted ability to
+request to researchers. The main challenge in using this resource is      handle fine-tuning on downstream tasks. The downstream task we
+that it contains 1.7M U.S. federal cases, only a small percentage of      chose was identifying legal terms in case texts. For this task, we
+which are on tax law (as opposed to criminal law, breach of contract,     defined legal terms as any tokens or multi-token collocations that
+bankruptcy, etc.). Classifying cases by area is a non-trivial problem     are defined in Black’s Law Dictionary [25], the premier legal dictio-
+[55], and tax-law cases are litigated in many different courts. We        nary. We split the legal terms into training/dev/test splits. We put
+used the heuristic of classifying a case as being tax-law if it met one   a 4-layer fully-connected MLP on top of both Bert-Base-Cased
+of the following criteria: the Commissioner of Internal Revenue           and Legal BERT, where the training objective was B-I-O tagging
+was a party; the case was decided by the U.S. Tax Court; or, the case     of tokens in 510-token sequences. We trained both on a set of
+was decided by any other federal court, other than a trade tribunal,      200M tokens randomly selected from case.law cases not previ-
+with the United States as a party, and with the word tax appearing        ously seen by the model and not containing any of the legal terms
+in the first 400 words of the case’s written opinion.                     in dev or test, with the training legal terms tagged using string
+   The second half of this corpus consists of IRS private letter rul-     comparisons. We then tested both fine-tuned models’ ability to
+ings and unpublished U.S. Tax Court cases. IRS private letter rulings     identify legal terms from the test split in case law. The model
+are similar to cases, in that they apply tax law to one taxpayer’s        based on Bert-Base-Cased achieved F1 = 0.35, whereas Legal BERT
+facts; they differ from cases in that they are written by IRS attorneys   achieved F1 = 0.44. As a baseline, two trained lawyers given the same
+(not judges), have less precedential authority than cases, and redact     task on three 510-token sequences each achieved F1 = 0.26. These
+names to protect taxpayer privacy. Unpublished U.S. Tax Court             results indicate that Legal BERT is much better adapted to the legal
+cases are viewed by the judges writing them as less important than        domain than Bert-Base-Cased. Black’s Law Dictionary has well-
+those worthy of publication. These were downloaded as PDFs from           developed standards for what terms are or are not included. BERT
+the IRS and Tax Court websites, OCR’ed with tesseract if needed,          models learn those standards via the train set, whereas lawyers
+and otherwise cleaned.                                                    are not necessarily familiar with them. In addition, pre-processing
+dropped some legal terms that were subsets of too many others,                                 Model          Features      Inputs     Entailment     Numerical
+which the lawyers tended to identify. This explains how BERT-                                  Baseline       -             -                  50       20 ± 15.8
+                                                                                               BERT-          BERT          question           48       20 ± 15.8
+based models could outperform trained humans.
+                                                                                               based                        context            55       15 ± 14.1
+5 EXPERIMENTS                                                                                                               statutes           49         5 ± 8.6
+                                                                                                              + unfreeze    statutes           53       20 ± 15.8
+5.1 BERT-based models
+                                                                                                              Legal BERT    question           48         5 ± 8.6
+In the following, we frame our task as textual entailment and numer-                                                        context            49         5 ± 8.6
+ical regression. A given entailment prompt q mentions the relevant                                                          statutes           48         5 ± 8.6
+subsection (as in Figure 1)4 . We extract s, the text of the relevant                                         + unfreeze    statutes           49       15 ± 14.1
+subsection, from the statutes. In q, we replace Section XYZ applies                            feedforward    tax vectors   question           54       20 ± 15.8
+with This applies. We feed the string “[CLS] + s + [SEP] + q + c                               neural                       context            49       20 ± 15.8
++ [SEP]", where “+" is string concatenation, to BERT [18]. Let r                                                            statutes           50       20 ± 15.8
+be the vector representation of the token [CLS] in the final layer.                                           word2vec      question           50       20 ± 15.8
+                                                                                                                            context            50       20 ± 15.8
+The answer (entailment or contradiction) is predicted as д(θ 1 · r )
+                                                                                                                            statutes           50       20 ± 15.8
+where θ 1 is a learnable parameter and д is the sigmoid function.
+                                                                                               feedforward    tax vectors   question           51       20 ± 15.8
+For numerical questions, all statutes have to be taken into account,                           non-neural                   context            51       20 ± 15.8
+which would exceed BERT’s length limit. We encode “[CLS] all                                                                statutes           47       25 ± 17.1
+[SEP] + q + c + [SEP]" into r and predict the answer as µ + σθ 2 · r                                          word2vec      question           52       20 ± 15.8
+where θ 2 is a learned parameter, and µ and σ are the mean and                                                              context            51       20 ± 15.8
+standard deviation of the numerical answers on the training set.                                                            statutes           53       20 ± 15.8
+   For entailment, we use a cross-entropy loss, and evaluate the                             Table 5: Test set scores. We report the 90% confidence inter-
+models using accuracy. We frame the numerical questions as a                                 val. All confidence intervals for entailment round to 8.3%.
+taxpayer having to compute tax owed. By analogy with the concept
+of “substantial understatement of income tax” from §6662(d), we                              or prompt q, we retrieve relevant subsection s as above. Using
+                       |y−ŷ |
+define ∆(y, ŷ) = max(0.1y,5000) where y is the true amount of tax                           Arora et al. [2], s is mapped to vector vs , and (c, q) to vc+q . Let
+owed, and ŷ is the taxpayer’s prediction. The case ∆(y, ŷ) ≥ 1                             r = [vs , vq+c , |vs − vc+q |, vs ⊙ vc+q ] where [a, b] is the concate-
+corresponds to a substantial over- or understatement of tax. We                              nation of a and b, |.| is the element-wise absolute value, and ⊙ is
+compute the fraction of predictions ŷ such that ∆(y, ŷ) < 1 and                            the element-wise product. The answer is predicted as д(θ 1 · f (r ))
+report that as numerical accuracy.5 The loss function used is:                               or µ + σθ 2 · f (r ), as above, where f is a feed-forward neural net-
+                                                                                             work. We use batch normalization between each layer of the neural
+       Õ                                                 Õ                                   network [31]. As above, we perform ablation experiments, where
+L=              yi log ŷi + (1 − yi ) log(1 − ŷi ) +            max(∆(yi , ŷi ) − 1, 0)   we drop the statute, or the context and the statute, in which case
+       i ∈I 1                                            i ∈I 2                              r is replaced by vc+q or vq . We also experiment with f being the
+where I 1 (resp. I 2 ) is the set of entailment (resp. numerical) ques-                      identity function (no neural network). Training is otherwise done
+tions, yi is the ground truth output, and ŷi is the model’s output.                         as above, but without the warmup schedule.
+   We use Adam [34] with a linear warmup schedule for the learning
+rate. We freeze BERT’s parameters, and experiment with unfreezing                            5.3    Results
+BERT’s top layer. We select the final model based on early stopping                          We report the accuracy on the test set (in %) in Table 5. In our ab-
+with a random 10% of the training examples reserved as a dev                                 lation experiments, “question" models have access to the question
+set. The best performing model for entailment and for numerical                              only, “context" to the context and question, and “statute" to the
+questions are selected separately, during a hyperparameter search                            statutes, context and question. For entailment, we use a majority
+around the recommended setting (batch size=32, learning rate=1e-                             baseline. For the numerical questions, we find the constant that
+5). To check for bias in our dataset, we drop either the statute, or                         minimizes the hinge loss on the training set up to 2 digits: $11,023.
+the context and the statute, in which case we predict the answer                             As a check, we swapped in the concatenation of the RTE datasets of
+from BERT’s representation for “[CLS] + c + [SEP] + q + [SEP]" or                            Bentivogli et al. [5], Dagan et al. [16], Giampiccolo et al. [26], Haim
+“[CLS] + q + [SEP]", whichever is relevant.                                                  et al. [28], and achieved 73.6% accuracy on the dev set with BERT,
+                                                                                             close to numbers reported in Wang et al. [59]. BERT was trained on
+5.2      Feedforward models                                                                  Wikipedia, which contains snippets of law text: see article United
+We follow Arora et al. [2] to embed strings into vectors, with                               States Code and links therefrom, especially Internal Revenue Code.
+smoothing parameter equal to 10−3 . We use either tax vectors de-                            Overall, models perform comparably to the baseline, independent
+scribed in Section 4 or word2vec vectors [39]. We estimate unigram                           of the underlying method. Performance remains mostly unchanged
+counts from the corpus used to build the tax vectors, or the train-                          when dropping the statutes or statutes and context, meaning that
+ing set, whichever is relevant. For a given context c and question                           models are not utilizing the statutes. Adapting BERT or word vec-
+                                                                                             tors to the legal domain has no noticeable effect. Our results suggest
+4 The code for these experiments can be found under https://github.com/SgfdDttt/sara
+5 For a company, a goal would be to have 100% accuracy (resulting in no tax penalties)
+                                                                                             that performance will not be improved through straightforward
+while paying the lowest amount of taxes possible (giving them something of an interest-      application of a large-scale language model, unlike it is on other
+free loan, even if the IRS eventually collects the understated tax).                         datasets: Raffel et al. [45] achieved 94.8% accuracy on COPA [49]
+using a large-scale multitask Transformer model, and BERT pro-            sense knowledge. Contrary to the present work, the types of ques-
+vided a huge jump in performance on both SQuAD 2.0 [46] (+8.2             tion in the train and test sets are highly related, and the vocabulary
+F1) and SWAG [63] (+27.1 percentage points accuracy) datasets as          overlap is quite high. Numeric reasoning appears in a variety of
+compared to predecessor models, pre-trained on smaller datasets.          MR challenges, such as in DROP [19].
+   Here, we focus on the creation of resources adapted to the legal          Understanding procedural language – knowledge needed to per-
+domain, and on testing off-the-shelf and historical solutions. Future     form a task – is related to the problem of understanding statutes,
+work will consider specialized reasoning models.                          and so we provide a brief description of some example investiga-
+                                                                          tions in that area. Zhang et al. [65] published a dataset of how-to
+6   RELATED WORK                                                          instructions, with human annotations defining key attributes (actee,
+There have been several efforts to translate law statutes into expert     purpose...) and models to automatically extract the attributes. Simi-
+systems. Oracle Policy Automation has been used to formalize rules        larly, Chowdhury et al. [13] describe a dataset of human-elicited
+in a variety of contexts. TAXMAN [38] focuses on corporate reorga-        procedural knowledge, and Wambsganß and Fromm [58] automati-
+nization law, and is able to classify a case into three different legal   cally detect repair instructions from posts on an automotive forum.
+types of reorganization, following a theorem-proving approach.            Branavan et al. [7] employed text from an instruction manual to
+Sergot et al. [52] translate the major part of the British National-      improve the performance of a game-playing agent.
+ity Act 1981 into around 150 rules in micro-Prolog, proving the
+suitability of Prolog logic to express and apply legislation. Bench-      7    CONCLUSION
+Capon et al. [4] further discuss knowledge representation issues.         We introduce a resource of law statutes, a dataset of hand-curated
+Closest to our work is Sherman [53], who manually translated part         rules and cases in natural language, and a symbolic solver able
+of Canada’s Income Tax Act into a Prolog program. To our knowl-           to represent these rules and solve the challenge task. Our hand-
+edge, the projects cited did not include a dataset or task that the       built solver contrasts with our baselines based on current NLP
+programs were applied to. Other works have similarly described the        approaches, even when we adapt them to the legal domain.
+formalization of law statutes into rule-based systems [24, 30, 32, 51].      The intersection between NLP and the legal domain is a growing
+   Yoshioka et al. [62] introduce a dataset of Japanese statute law       area of research [3, 11, 33, 35, 48], but with few large-scale system-
+and its English translation, together with questions collected from       atic resources. Thus, in addition to the exciting challenge posed by
+the Japanese bar exam. To tackle these two tasks, Kim et al. [33]
+                                                                          statutory reasoning, we also intend this paper to be a contribution
+investigate heuristic-based and machine learning-based methods.
+                                                                          to legal-domain natural language processing.
+A similar dataset based on the Chinese bar exam was released                 Given the poor out-of-the box performance of otherwise very
+by Zhong et al. [66]. Many papers explore case-based reasoning            powerful models, this dataset, which is quite small compared to typ-
+for law, with expert systems [43, 56], human annotations [8] or           ical MR resources, raises the question of what the most promising
+automatic annotations [3] as well as transformer-based methods            direction of research would be. An important feature of statutory
+[44]. Some datasets are concerned with very specific tasks, as in         reasoning is the relative difficulty and expense in generating care-
+tagging in contracts [10], classifying clauses [11], and classification   fully constructed training data: legal texts are written for and by
+of documents [12] or single paragraphs [6]. Ravichander et al. [47]       lawyers, who are cost-prohibitive to employ in bulk. This is un-
+have released a dataset of questions about privacy policies, elicited     like most instances of MR where everyday texts can be annotated
+from turkers and answered by legal experts. Saeidi et al. [50] frame
+                                                                          through crowdsourcing services. There are at least three strategies
+the task of statutory reasoning as a dialog between a user and a
+                                                                          open to the community: automatic extraction of knowledge graphs
+dialog agent. A single rule, with or without context, and a series        from text with the same accuracy as we did for our Prolog solver
+of followup questions are needed to answer the original question.         [57]; improvements in MR to be significantly more data efficient in
+Contrary to our dataset, rules are isolated from the rest of the body     training; or new mechanisms for the efficient creation of training
+of rules, and followup questions are part of the task.                    data based on pre-existing legal cases.
+   Clark et al. [14] describe a decades-long effort to answer science        Going forward, we hope our resource provides both (1) a bench-
+exam questions stated in natural language, based on descriptive           mark for a challenging aspect of natural legal language processing
+knowledge stated in natural language. Their system relies on a            as well as for machine reasoning, and (2) legal-domain NLP models
+variety of NLP and specialized reasoning techniques, with their           useful for the research community.
+most significant gains recently achieved via contextual language
+modeling. This line of work is the most related in spirit to where we
+believe research in statutory reasoning should focus. An interesting      REFERENCES
+contrast is that while scientific reasoning is based on understanding      [1] 2019. Caselaw Access Project. http://case.law
+the physical world, which in theory can be informed by all manner          [2] Sanjeev Arora, Yingyu Liang, and Tengyu Ma. 2016. A simple but tough-to-beat
+                                                                               baseline for sentence embeddings. (2016).
+of evidence beyond texts, legal reasoning is governed by human-            [3] Kevin D Ashley and Stefanie Brüninghaus. 2009. Automatically classifying
+made rules. The latter are true by virtue of being written down and            case texts and predicting outcomes. Artificial Intelligence and Law 17, 2 (2009),
+                                                                               125–165.
+agreed to, and are not discovered through evidence and a scientific        [4] Trevor JM Bench-Capon, Gwen O Robinson, Tom W Routen, and Marek J Sergot.
+process. Thus, statutory reasoning is an exceptionally pure instance           1987. Logic programming for large scale applications in law: A formalisation of
+of a reasoner needing to understand prescriptive language.                     supplementary benefit legislation. In Proceedings of the 1st international conference
+                                                                               on Artificial intelligence and law. 190–198.
+   Weston et al. [60] introduced a set of prerequisite toy tasks for       [5] Luisa Bentivogli, Peter Clark, Ido Dagan, and Danilo Giampiccolo. 2009. The
+AI systems, which require some amount of reasoning and common                  Fifth PASCAL Recognizing Textual Entailment Challenge.. In TAC.
+ [6] Carlo Biagioli, Enrico Francesconi, Andrea Passerini, Simonetta Montemagni,                 to a logical rules set from medical law using the medical relational model and the
+     and Claudia Soria. 2005. Automatic semantics extraction in law documents. In                world rule model for a medical decision support system. In Informatics, Vol. 3.
+     Proceedings of the 10th international conference on Artificial intelligence and law.        Multidisciplinary Digital Publishing Institute, 2.
+     133–140.                                                                               [33] Mi-Young Kim, Juliano Rabelo, and Randy Goebel. 2019. Statute Law Informa-
+ [7] SRK Branavan, David Silver, and Regina Barzilay. 2012. Learning to win by                   tion Retrieval and Entailment. In Proceedings of the Seventeenth International
+     reading manuals in a monte-carlo framework. Journal of Artificial Intelligence              Conference on Artificial Intelligence and Law. 283–289.
+     Research 43 (2012), 661–704.                                                           [34] Diederik P Kingma and Jimmy Ba. 2014. Adam: A method for stochastic opti-
+ [8] Stefanie Bruninghaus and Kevin D Ashley. 2003. Predicting outcomes of case                  mization. arXiv preprint arXiv:1412.6980 (2014).
+     based legal arguments. In Proceedings of the 9th international conference on Artifi-   [35] Anastassia Kornilova and Vladimir Eidelman. 2019. BillSum: A Corpus for
+     cial intelligence and law. 233–242.                                                         Automatic Summarization of US Legislation. In Proceedings of the 2nd Workshop
+ [9] Hector Neri Castañeda. 1967. Comment on D. Davidson’s “The logical forms of                 on New Frontiers in Summarization. Association for Computational Linguistics,
+     action sentences”. The Logic of Decision and Action (1967).                                 Hong Kong, China, 48–56. https://doi.org/10.18653/v1/D19-5406
+[10] Ilias Chalkidis and Ion Androutsopoulos. 2017. A Deep Learning Approach to             [36] John Lafferty, Andrew McCallum, and Fernando CN Pereira. 2001. Conditional
+     Contract Element Extraction.. In JURIX. 155–164.                                            random fields: Probabilistic models for segmenting and labeling sequence data.
+[11] Ilias Chalkidis, Ion Androutsopoulos, and Achilleas Michos. 2018. Obligation and            (2001).
+     prohibition extraction using hierarchical rnns. arXiv preprint arXiv:1805.03871        [37] Robert S Ledley and Lee B Lusted. 1959. Reasoning foundations of medical
+     (2018).                                                                                     diagnosis. Science 130, 3366 (1959), 9–21.
+[12] Ilias Chalkidis, Manos Fergadiotis, Prodromos Malakasiotis, and Ion Androut-           [38] L Thorne McCarty. 1976. Reflections on TAXMAN: An experiment in artificial
+     sopoulos. 2019. Large-Scale Multi-Label Text Classification on EU Legislation.              intelligence and legal reasoning. Harv. L. Rev. 90 (1976), 837.
+     arXiv preprint arXiv:1906.02192 (2019).                                                [39] Tomas Mikolov, Ilya Sutskever, Kai Chen, Greg S Corrado, and Jeff Dean. 2013.
+[13] Debajyoti Paul Chowdhury, Arghya Biswas, Tomasz Sosnowski, and Kristina                     Distributed representations of words and phrases and their compositionality. In
+     Yordanova. 2020. Towards Evaluating Plan Generation Approaches with Instruc-                Advances in neural information processing systems. 3111–3119.
+     tional Texts. arXiv preprint arXiv:2001.04186 (2020).                                  [40] Randolph A Miller, Harry E Pople Jr, and Jack D Myers. 1982. Internist-I, an
+[14] Peter Clark, Oren Etzioni, Tushar Khot, Bhavana Dalvi Mishra, Kyle Richardson,              experimental computer-based diagnostic consultant for general internal medicine.
+     Ashish Sabharwal, Carissa Schoenick, Oyvind Tafjord, Niket Tandon, Sumithra                 New England Journal of Medicine 307, 8 (1982), 468–476.
+     Bhakthavatsalam, et al. 2019. From’F’to’A’on the NY Regents Science Exams: An          [41] Tom Mitchell, William Cohen, Estevam Hruschka, Partha Talukdar, Bishan Yang,
+     Overview of the Aristo Project. arXiv preprint arXiv:1909.01958 (2019).                     Justin Betteridge, Andrew Carlson, Bhanava Dalvi, Matt Gardner, Bryan Kisiel,
+[15] Robin Cooper, Dick Crouch, Jan Van Eijck, Chris Fox, Johan Van Genabith, Jan                et al. 2018. Never-ending learning. Commun. ACM 61, 5 (2018), 103–115.
+     Jaspars, Hans Kamp, David Milward, Manfred Pinkal, Massimo Poesio, et al. 1996.        [42] Terence Parsons. 1990. Events in the Semantics of English. Vol. 334. MIT press
+     Using the framework. Technical Report. Technical Report LRE 62-051 D-16, The                Cambridge, MA.
+     FraCaS Consortium.                                                                     [43] Walter G Popp and Bernhard Schlink. 1974. Judith, a computer program to advise
+[16] Ido Dagan, Oren Glickman, and Bernardo Magnini. 2005. The PASCAL recog-                     lawyers in reasoning a case. Jurimetrics J. 15 (1974), 303.
+     nising textual entailment challenge. In Machine Learning Challenges Workshop.          [44] Juliano Rabelo, Mi-Young Kim, and Randy Goebel. 2019. Combining Similarity and
+     Springer, 177–190.                                                                          Transformer Methods for Case Law Entailment. In Proceedings of the Seventeenth
+[17] Donald Davidson. 1967. The logical forms of action sentences. The Logic of                  International Conference on Artificial Intelligence and Law. 290–296.
+     Decision and Action (1967).                                                            [45] Colin Raffel, Noam Shazeer, Adam Roberts, Katherine Lee, Sharan Narang,
+[18] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2018. Bert:               Michael Matena, Yanqi Zhou, Wei Li, and Peter J Liu. 2019. Exploring the lim-
+     Pre-training of deep bidirectional transformers for language understanding. arXiv           its of transfer learning with a unified text-to-text transformer. arXiv preprint
+     preprint arXiv:1810.04805 (2018).                                                           arXiv:1910.10683 (2019).
+[19] Dheeru Dua, Yizhong Wang, Pradeep Dasigi, Gabriel Stanovsky, Sameer Singh,             [46] Pranav Rajpurkar, Robin Jia, and Percy Liang. 2018. Know What You Don’t Know:
+     and Matt Gardner. 2019. DROP: A reading comprehension benchmark requiring                   Unanswerable Questions for SQuAD. In Proceedings of the 55th Annual Meeting
+     discrete reasoning over paragraphs. arXiv preprint arXiv:1903.00161 (2019).                 of the Association for Computational Linguistics.
+[20] Oren Etzioni, Michele Banko, Stephen Soderland, and Daniel S Weld. 2008. Open          [47] Abhilasha Ravichander, Alan W Black, Shomir Wilson, Thomas Norton, and
+     information extraction from the web. Commun. ACM 51, 12 (2008), 68–74.                      Norman Sadeh. 2019. Question Answering for Privacy Policies: Combining
+[21] Edward A Feigenbaum. 1992. Expert systems: principles and practice. (1992).                 Computational and Legal Perspectives. arXiv preprint arXiv:1911.00841 (2019).
+[22] David Ferrucci, Eric Brown, Jennifer Chu-Carroll, James Fan, David Gondek,             [48] Edwina L Rissland, Kevin D Ashley, and Ronald Prescott Loui. 2003. AI and Law:
+     Aditya A Kalyanpur, Adam Lally, J William Murdock, Eric Nyberg, John Prager,                A fruitful synergy. Artificial Intelligence 150, 1-2 (2003), 1–15.
+     et al. 2010. Building Watson: An overview of the DeepQA project. AI magazine           [49] Melissa Roemmele, Cosmin Adrian Bejan, and Andrew S Gordon. 2011. Choice
+     31, 3 (2010), 59–79.                                                                        of plausible alternatives: An evaluation of commonsense causal reasoning. In
+[23] Noah S Friedland, Paul G Allen, Gavin Matthews, Michael Witbrock, David Baxter,             2011 AAAI Spring Symposium Series.
+     Jon Curtis, Blake Shepard, Pierluigi Miraglia, Jurgen Angele, Steffen Staab, et al.    [50] Marzieh Saeidi, Max Bartolo, Patrick Lewis, Sameer Singh, Tim Rocktäschel,
+     2004. Project halo: Towards a digital aristotle. AI magazine 25, 4 (2004), 29–29.           Mike Sheldon, Guillaume Bouchard, and Sebastian Riedel. 2018. Interpretation
+[24] Wachara Fungwacharakorn and Ken Satoh. 2018. Legal Debugging in Proposi-                    of natural language rules in conversational machine reading. arXiv preprint
+     tional Legal Representation. In JSAI International Symposium on Artificial Intelli-         arXiv:1809.01494 (2018).
+     gence. Springer, 146–159.                                                              [51] Ken Satoh, Kento Asai, Takamune Kogawa, Masahiro Kubota, Megumi Naka-
+[25] Bryan A Gardner. 2019. Black’s Law Dictionary (11 ed.).                                     mura, Yoshiaki Nishigai, Kei Shirakawa, and Chiaki Takano. 2010. PROLEG: an
+[26] Danilo Giampiccolo, Bernardo Magnini, Ido Dagan, and Bill Dolan. 2007. The                  implementation of the presupposed ultimate fact theory of Japanese civil code by
+     third pascal recognizing textual entailment challenge. In Proceedings of the ACL-           PROLOG technology. In JSAI International Symposium on Artificial Intelligence.
+     PASCAL workshop on textual entailment and paraphrasing. Association for Com-                Springer, 153–164.
+     putational Linguistics, 1–9.                                                           [52] Marek J. Sergot, Fariba Sadri, Robert A. Kowalski, Frank Kriwaczek, Peter Ham-
+[27] David Gunning, Vinay K Chaudhri, Peter E Clark, Ken Barker, Shaw-Yi Chaw,                   mond, and H Terese Cory. 1986. The British Nationality Act as a logic program.
+     Mark Greaves, Benjamin Grosof, Alice Leung, David D McDonald, Sunil Mishra,                 Commun. ACM 29, 5 (1986), 370–386.
+     et al. 2010. Project Halo UpdateâĂŤProgress Toward Digital Aristotle. AI Maga-         [53] David M Sherman. 1987. A Prolog model of the income tax act of Canada. In
+     zine 31, 3 (2010), 33–58.                                                                   Proceedings of the 1st international conference on Artificial intelligence and law.
+[28] R Bar Haim, Ido Dagan, Bill Dolan, Lisa Ferro, Danilo Giampiccolo, Bernardo                 127–136.
+     Magnini, and Idan Szpektor. 2006. The second pascal recognising textual entail-        [54] Edward H Shortliffe and Bruce G Buchanan. 1975. A model of inexact reasoning
+     ment challenge. In Proceedings of the Second PASCAL Challenges Workshop on                  in medicine. Mathematical biosciences 23, 3-4 (1975), 351–379.
+     Recognising Textual Entailment.                                                        [55] Jerrold Soh, How Khang Lim, and Ian Ernst Chai. 2019. Legal Area Classification:
+[29] Herbert Lionel Adolphus Hart and Herbert Lionel Adolphus Hart. 2012. The                    A Comparative Study of Text Classifiers on Singapore Supreme Court Judgments.
+     concept of law. Oxford university press.                                                    Association for Computational Linguistics, Minneapolis, Minnesota.
+[30] Robert Hellawell. 1980. A computer program for legal planning and analysis:            [56] Anne vdL Gardner. 1983. The design of a legal analysis program. In AAAI-83.
+     Taxation of stock redemptions. Columbia Law Review 80, 7 (1980), 1363–1398.                 114–118.
+[31] Sergey Ioffe and Christian Szegedy. 2015. Batch normalization: Accelerating            [57] Lai Dac Viet, Vu Trong Sinh, Nguyen Le Minh, and Ken Satoh. 2017. ConvAMR:
+     deep network training by reducing internal covariate shift. arXiv preprint                  Abstract meaning representation parsing for legal document. arXiv preprint
+     arXiv:1502.03167 (2015).                                                                    arXiv:1711.06141 (2017).
+[32] Imran Khan, Muhammad Sher, Javed I Khan, Syed M Saqlain, Anwar Ghani,                  [58] Thiemo Wambsganß and Hansjörg Fromm. 2019. Mining User-Generated Repair
+     Husnain A Naqvi, and Muhammad Usman Ashraf. 2016. Conversion of legal text                  Instructions from Automotive Web Communities. In Proceedings of the 52nd
+                                                                                                 Hawaii International Conference on System Sciences.
+[59] Alex Wang, Yada Pruksachatkun, Nikita Nangia, Amanpreet Singh, Julian Michael,        [63] Rowan Zellers, Yonatan Bisk, Roy Schwartz, and Yejin Choi. 2018. Swag: A large-
+     Felix Hill, Omer Levy, and Samuel Bowman. 2019. Superglue: A stickier bench-               scale adversarial dataset for grounded commonsense inference. arXiv preprint
+     mark for general-purpose language understanding systems. In Advances in Neural             arXiv:1808.05326 (2018).
+     Information Processing Systems. 3261–3275.                                            [64] Sheng Zhang, Xutai Ma, Kevin Duh, and Benjamin Van Durme. 2019. Broad-
+[60] Jason Weston, Antoine Bordes, Sumit Chopra, Alexander M Rush, Bart van Mer-                Coverage Semantic Parsing as Transduction. In Proceedings of the 2019 Conference
+     riënboer, Armand Joulin, and Tomas Mikolov. 2015. Towards ai-complete question             on Empirical Methods in Natural Language Processing and the 9th International
+     answering: A set of prerequisite toy tasks. arXiv preprint arXiv:1502.05698 (2015).        Joint Conference on Natural Language Processing (EMNLP-IJCNLP). Association
+[61] Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio, William Cohen, Ruslan                 for Computational Linguistics, Hong Kong, China, 3786–3798. https://doi.org/
+     Salakhutdinov, and Christopher D. Manning. 2018. HotpotQA: A Dataset for                   10.18653/v1/D19-1392
+     Diverse, Explainable Multi-hop Question Answering. In Proceedings of the 2018         [65] Ziqi Zhang, Philip Webster, Victoria S Uren, Andrea Varga, and Fabio Ciravegna.
+     Conference on Empirical Methods in Natural Language Processing. Association                2012. Automatically Extracting Procedural Knowledge from Instructional Texts
+     for Computational Linguistics, Brussels, Belgium, 2369–2380. https://doi.org/10.           using Natural Language Processing.. In LREC, Vol. 2012. 520–527.
+     18653/v1/D18-1259                                                                     [66] Haoxi Zhong, Chaojun Xiao, Cunchao Tu, Tianyang Zhang, Zhiyuan Liu, and
+[62] Masaharu Yoshioka, Yoshinobu Kano, Naoki Kiyota, and Ken Satoh. 2018.                      Maosong Sun. 2019. JEC-QA: A Legal-Domain Question Answering Dataset.
+     Overview of japanese statute law retrieval and entailment task at coliee-2018. In          arXiv preprint arXiv:1911.12011 (2019).
+     Twelfth International Workshop on Juris-informatics (JURISIN 2018).
+

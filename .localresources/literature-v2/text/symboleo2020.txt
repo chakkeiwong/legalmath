@@ -1,0 +1,387 @@
+    Symboleo: Towards a Specification Language for
+                  Legal Contracts
+                Sepehr Sharifi, Alireza Parvizimosaed, Daniel Amyot, Luigi Logrippo, John Mylopoulos
+                                       School of EECS, University of Ottawa, Ottawa, Canada
+                                    {sshar190, aparv007, damyot, logrippo, jmylopou}@uottawa.ca
+
+
+   Abstract—Legal contracts specify the terms and conditions (in               The idea of smart contracts has been around for more than
+essence, requirements) that apply to business transactions. Smart           20 years [2], going back to seminal work by Nick Szabo.
+contracts are software systems that monitor and control the                 However, interest in them has surged in the last ten years,
+execution of contracts to ensure compliance. This paper proposes
+a formal specification language for contracts, called Symboleo,             thanks to increased availability and reduced cost for IoT
+where contracts consist of collections of obligations and powers            technologies (sensors, actuators, robotic devices, etc., see http:
+that define the legal contract’s compliant executions. The formal           //bit.ly/2M3QT0U), as well as the rise of distributed ledger
+semantics of Symboleo is based on an extension of an ontology               or blockchain technologies. Blockchain provides only one of
+for Law and is described in terms of logical axioms on statecharts          several possible monitoring methods for smart contracts, but
+that describe the lifetimes of contracts, obligations and powers.
+Our proposal includes a preliminary evaluation through the                  it can be essential when integrity and security warranties for
+specification of a real life-inspired Sale-of-Goods contract, with a        execution logs are required. It should be noted that in this
+prototype execution engine. We envision this language to enable             work, we subscribe to Szabo’s original definition of smart
+formally verifying contracts to detect requirements-level issues            contracts, from which more recent views have deviated by
+and to generate executable smart contracts (e.g., on blockchain             referring to any application software running on a blockchain
+technology).
+   Index Terms—Legal contracts, smart contracts, software re-
+                                                                            platform, although there are common elements in the two
+quirements specifications, formal specification languages                   definitions [2].
+                                                                               In this paper we propose a formal specification language for
+                         I. I NTRODUCTION                                   smart contracts called Symboleo1 that is sufficiently expressive
+                                                                            to represent real-life contracts, while still capable of supporting
+   Legal contracts specify the terms and conditions that ap-                their analysis, as we plan to demonstrate in future work.
+ply to business transactions. Legal contracts are commonly                     A contract can be viewed as an outcomes-oriented process
+expressed in natural language and contain many legal re-                    that specifies its compliant executions. However, contracts
+quirements that are often ambiguous, incomplete, and possibly               specify legal processes (as compared to business processes)
+inconsistent. We are interested in formal specifications of such            where there are provisions for penalties and compensations
+contracts that can enable automated analysis as well as the                 whenever any party violates its obligations. Looking at them
+generation of smart contract programs.                                      from this perspective, contracts are very interesting processes
+   Smart contracts are programs intended to partially automate              because they provide alternative compliant executions if terms
+the execution of contracts and also monitor them for com-                   and conditions are violated, including the imposition of new
+pliance with relevant terms and conditions. For example, a                  obligations on non-compliant parties through powers (special
+smart contract may monitor the execution of a Sale-of-Goods                 kinds of rights). They can also specify the possibility of
+contract between an Argentinian meat producer, call it A, and               subcontracting, as well as the delegation of obligations to third
+a Canadian supermarket chain, call it C, by receiving and                   parties at execution time.
+recording events on a blockchain ledger capturing the exe-                     Our research methodology is based on Design Science. The
+cution flow of the contract. Events monitored may be pickup                 main constructs are a language (with preliminary results re-
+of the meat from A, delivery to Buenos Aires port, loading                  ported here) with tools for verification and code generation (fu-
+on a cargo vessel, delivery to the Vancouver port, pickup and               ture work). The problem relevance was assessed by interacting
+delivery to C. The smart contract may also carry out some of                with engineering and lawyers from industry and government
+the actions called for in the contract, such as payment for the             in a large, six-year long international project (anonymized for
+transaction by transferring funds held in an escrow account.                this submission), by exploring the literature and by analyzing
+There is tremendous interest in the food supply chain industry              dozens of contracts on supply chains, construction, and energy.
+for such systems, but also in other sectors, including energy,              The contributions of this paper include:
+insurance, and government affairs [1].                                         • A formal specification language (Symboleo) for smart
+                                                                                  contracts that accounts for obligations and powers, using
+   The research reported herein is partially funded by an NSERC Strategic
+Partnership Grant titled “Middleware Framework and Programming Infras-            domain concepts and axioms. Symboleo specifications
+tructure for IoT Services” and by SSHRC’s Partnership Grant “Autonomy
+through Cyberjustice Technologies (ACT)”                                      1 From the Greek word Συµβoλαιo, which means contract.
+     provide requirements for smart contract executions that        Unified Foundational Ontology (UFO) [6]. Shaded concepts
+     can be monitored at runtime.                                   in the figure are adopted from UFO, while the remaining
+   • A formal semantics based on statecharts that define the        concepts are either new or specializations of UFO concepts
+     lifecycle of contracts, obligation and power instances,        with new association links. It is worth noting that UFO-L is
+     following earlier work on process process monitoring [3].      based on Alexy’s Theory of Constitutional Rights [7], which is
+   • An illustrative example (international meat sales contract)    based on Hohfeld’s theory of legal positions [8] but without
+     inspired from real-life contracts is used to demonstrate the   some of its shortcomings [6]. The concepts of our contract
+     language, and offer a preliminary evaluation.                  ontology are as follows:
+   The rest of this paper is structured as follows. Section II      Contract: a collection of obligations and powers between two
+presents our research baseline, including the nature of legal       or more roles, which are assigned to parties during execution,
+contracts and the ontology we adopted for specifying them.          and are concerned with two or more assets (since at least one
+Section III presents our specification language through an          asset should be associated with each role2 ).
+example, while Section IV presents the syntax and semantics         Asset: an owned (tangible or intangible) item of value [10].
+for Symboleo. Section V discusses related work, whereas             Assets include contractual considerations [9] that a contract
+Section VI concludes and highlights future work.                    is concerned with. Other kinds of assets can also be used to
+                                                                    ensure proper execution of a contract, e.g., a bill of lading
+                  II. R ESEARCH BASELINE                            for freight contracts3 or invoices. Asset quantity and quality
+   A contract is a collection of obligations and powers between     constraints are typically specified in contracts.
+participating parties. As a legal artifact, a contract has its      Legal Position: legal positions are the legal relationships
+own lifecycle that begins with proposals and negotiations,          between roles. For our purposes, there are just two such
+during which three necessary conditions apply: offer, ac-           relationships: obligations and powers [8].
+ceptance and consideration. The execution (performance) of          Obligation: the legal duty of a debtor towards a creditor to
+a contract is initiated after signing (formation). Execution        bring about a certain legal situation (consequent) when another
+may be suspended, successfully or unsuccessfully terminated,        legal situation (antecedent) holds. Surviving obligations remain
+renegotiated or renewed.                                            in effect after the termination of the contract. A 6-month non-
+   Contracts can be understood as prescriptions of allowable        disclosure obligation after the end of the contract is an example
+execution processes [4], [5]. Relative to business processes,       of a surviving obligation. Obligations usually concern assets
+contracts are outcome-oriented processes focusing on ‘what’         and are instantiated by conditions (trigger)4 .
+the obligations of different parties are, and leaving the ‘how’     Legal situation: a type of situation associated with a contract,
+to the parties responsible. In addition, contracts fundamentally    obligation or power instance. Situations are states of affairs and
+differ from business processes in that they can change during       are comprised of possibly many endurants (including other
+their execution through the exertion of powers. For the meat        situations and relata) [12]. A situation occurs within a time
+sales example, the contract specifies that the seller needs to      interval T, but not in any of its proper subintervals [13].
+deliver the meat to a freight company, who delivers it to a         Event: a happening that occurs at a time instance, and that
+shipping company; however this obligation can be violated,          cannot change. Events also have pre-state and post-state situ-
+which may give the buyer the power to terminate the contract.       ations [12], [13]. For example, delivered for a product is an
+                                                                    event whose pre-state is ‘being in transit’ and post-state is
+                                                                    ’being in the point of destination’.
+                                                                    Power: the right of a party to create, change, suspend or
+                                                                    extinguish legal positions. A power is instantiated by a trigger
+                                                                    and has an antecedent (legal situation) that must be met for it
+                                                                    to become in effect.
+                                                                    Role: contractual roles are characterized by a collection of
+                                                                    obligations and powers they participate in [6].
+                                                                    Party: a legal agent (person or institution) who owns assets
+                                                                    and who is assigned roles in contracts.
+
+
+
+
+                                                                       2 In bilateral contracts (contracts between two parties), each party should
+                Fig. 1. Proposed Contract Ontology                  offer something (i.e., an asset) to the other party as a consideration. Otherwise,
+                                                                    this will be a gift, not a contract [9].
+                                                                       3 The bill of lading is a legally binding document that works as receipt of
+  Ontologies capture the primitive concepts of domains at
+various levels of abstractions [6]. We propose a contract do-       freight services, defined by a contract between a freight carrier and shipper
+                                                                    and a document of title.
+main ontology, depicted in Fig. 1, which refines a Core Legal          4 A trigger is true for most obligations. However, suspensive obligations
+Ontology, namely UFO-L, which in turn is an extension of the        need to be triggered explicitly before they are instantiated [11].
+III. S YMBOLEO : A C ONTRACT S PECIFICATION L ANGUAGE                                                       TABLE II
+                                                                                                M EAT SALES CONTRACT PROTOCOL
+   This section introduces Symboleo with a meat sales exam-
+ple expressed as parameterized natural language in Table I.                    Domain meatSaleD
+Producing a formal specification from natural language text                      Seller isA Role with returnAddress: String;
+                                                                                 Buyer isA Role with warehouse: String;
+                                                                                 Currency isA Enumeration(‘CAD’, ‘USD’, ‘EUR’);
+                           TABLE I                                               MeatQuality isA Enumeration(‘PRIME’, ‘AAA’, ‘AA’, ‘A’);
+    S AMPLE CLAUSES OF A MEAT PURCHASE AND SALE CONTRACT                         PerishableGood isA Asset with quantity: Number, quality: MeatQuality;
+                                                                                 Meat isA PerishableGood;
+This agreement is entered into as of the date <effDate>, between                 Delivered isA Event with item: Meat, deliveryAddress: String, delDueD:
+<party1> as Seller with the address <retAdd>, and <party2> as Buyer                   Date;
+with the address <delAdd>.                                                       Paid isA Event with amount: Number, currency: Currency, from: Role,
+  1) Payment & Delivery                                                               to: Role, payDueD: Date;
+                                                                                 PaidLate isA Event with amount: Number, currency: Currency, from:
+    1.1 Seller shall sell an amount of <qnt> meat with <qlt> quality                  Role, to: Role;
+         (“goods”) to the Buyer.                                                 Disclosed isA Event with contractID : String;
+    1.2 Title in the Goods shall not pass on to the Buyer until payment
+         of the amount owed has been made in full.                             endDomain
+    1.3 The Seller shall deliver the Order in one delivery within
+         <delDueDateDays> days to the Buyer at its warehouse.                  Contract meatSaleC buyer: Buyer, seller: Seller, qnt: Number, qlt:
+    1.4 The Buyer shall pay <amt> (“amount”) in <curr> (“currency”)            MeatQuality, amt: Number, curr: Currency, payDueDate: Date, delAdd:
+                                                                                                                                                 
+         to the Seller before <payDueDate>.                                    String, effDate: Date, delDueDateDays: Number, intRate: Number
+    1.5 In the event of late payment of the amount owed due, the Buyer           Declarations
+         shall pay interests equal to <intRate>% of the amount owed, and            goods : Meat with quantity := qnt, quality := qlt;
+         the Seller may suspend performance of all of its obligations under         delivered : Delivered with item := goods, deliveryAddress := delAdd,
+         the agreement until payment of amounts due has been received                     delDueD := effDate + delDueDatedays;
+         in full.                                                                   paid : Paid with amount := amt, currency := curr, from := buyer, to
+  2) Assignment                                                                           := seller, payDueD := payDueDate;
+    2.1 The rights and obligations are not assignable by Buyer.                     paidLate : PaidLate with amount := (1 + intRate/100)×amt, currency
+                                                                                          := curr, from := buyer, to := seller;
+  3) Termination                                                                    disclosed : Disclosed with contract := self;
+    3.1 Any delay in delivery of the goods will not entitle the Buyer to         Preconditions
+         terminate the Contract unless such delay exceeds 10 Days.
+                                                                                    isOwner(goods, seller);
+  4) Confidentiality
+                                                                                 Postconditions
+    4.1 Both Seller and Buyer must keep the contents of this contract
+         confidential during the execution of the contract and six months           isOwner(goods, buyer) AND NOT(isOwner(goods, seller));
+         after the termination of the contract.                                  Obligations
+                                                                                    O1 : O(seller, buyer, true, happensBefore(delivered,
+                                                                                          delivered.delDueD));
+involves several key decisions. These decisions can be taken                        O2 : O(buyer, seller, true, happensBefore(paid, paid.payDueD));
+in consultation with all parties involved and contribute to make                    O3 : violates(O2 .instance) → O(buyer, seller, true,
+formally specified contracts more precise and consistent than                             happens(paidLate, ));
+it is normally the case for conventional contracts. Firstly, we                  SurvivingObls
+                                                                                    SO1 : O(seller, buyer, true, not happens(disclosed(self), t)
+need to decide how generic/specific we want the specification                             AND (t within activates(self) + 6 months));
+to be. In the example, the contract could apply to a single sale                    SO2 : O(buyer, seller, true, not happens(disclosed(self), t)
+of meat with two specific parties serving as seller and buyer,                            AND (t within activates(self) + 6 months));
+or to multiple sales of various food assets involving different                  Powers
+parties. This decision determines the parameters of the contract                    P1 : violates(O2 .instance) → P(seller, buyer, true,
+                                                                                          suspends(O1 .instance));
+specification. Secondly, the specifier needs to consider whether                    P2 : happensWithin(paidLate, suspension(O1 .instance)) → P(buyer,
+the informal specification is missing important implicit con-                             seller, true, resumes(O1 .instance));
+straints and, if so, include them in the formal specification. For                  P3 : not(happensBefore(delivered, delivered.delDueDate +
+                                                                                          10 days)) → P(buyer, seller, true, terminates(self));
+example, does every execution of the contract terminate in a                     Constraints
+finite amount of time (say, 21 days after the start date), or can                   NOT(isEqual(buyer, seller));
+it run for an indefinite period because of a missing temporal                       forAll o | self.obligation.instance (CannotBeAssigned(o));
+constraint? Are there sub-contracting constraints? Answers                          forAll p | self.power.instance (CannotBeAssigned(p));
+to such questions concern liveness and safety properties for                   endContract
+contracts, in a way similar to those defined for distributed
+systems [14]. To address the above concerns, we propose the
+structure illustrated in Table II, with an example corresponding              The body essentially contains deontic requirements.
+to the natural language contract in Table I.                                  Domain. Domain-related concepts are defined as special-
+  Contract Specification. Consists of two sections: (a) the                   izations (isA) of contract ontology concepts. For instance,
+domain section, defining domain-dependent concepts as spe-                    Buyer and Seller are specializations of Role with additional
+cializations of Symboleo’s concepts, and corresponding to the                 attributes; Meat is a specialization of PerishableGood, which
+definitions stated in the contract; (b) the contract body, cor-               is a specialization of Asset; and Paid specializes Event with
+responding to the terms and conditions stated in the contract.                attributes amount and currency.
+Contract Signature. The second part of a contract specifica-         action and bring about a suspends (O1 .instance) situation. A
+tion begins with its name and typed parameters. Parameters           power is activated whenever its antecedent is true. If a party
+consist of at least two roles with optional variables that           obtains a power, it can change the states of obligations, powers
+determine properties of contractual elements. During contract        and contracts as stated in its consequent. For example, P3
+formation, roles are assigned to parties. For instance, Meat-        can bring about unsuccessful termination of the contract if its
+Sale (shown in Table II) is a contract between roles buyer           antecedent becomes true (which is always true in this case).
+and seller, where seller promises to deliver qnt quantity of         Just as obligations, powers can be instantiated by triggers.
+meat with qlt quality to buyer; and buyer promises to pay            Constraints. Liveness constraints ensure that every contract
+the amount owed amt with currency curr before due date               execution terminates in a bounded amount of time, while
+payDueDate. The buyer and seller are assigned (e.g., EatMart         safety constraints ensure that bad things do not happen during
+and Great Argentinian Meat Company) upon instantiation.              any execution. The following are safety constraints: Cannot-
+Contract Body. Contracts also contain local variable dec-            BeAssigned(o) disallows assignment of obligation instance o
+larations; preconditions and postconditions; obligations and         during the execution of a contract, whereas not(isEqual(seller,
+powers; as well as contract constraints that define liveness and     buyer)) prohibits any party from being assigned to both roles
+safety properties.                                                   at the same time.
+Obligations. The main part of a contract consists of obli-
+gations. An obligation is specified as Oid :O(debtor, creditor,                      IV. S YNTAX AND S EMANTICS
+antecedent, consequent). Debtor and creditor are roles, and          Syntax. The syntax of Symboleo is defined in terms of
+antecedent and consequent are legal situations (specified by         an Extended BNF grammar, for which we have an editor
+propositions). Antecedent and consequent propositions de-            prototype (based on Xtext) [15].
+scribe situations that need to hold for obligations to be
+fulfilled. Obligations become InEffect when their antecedents        Semantics. The most important aspect of the semantics of
+becomes true. Suspensive Obligations require a trigger to be         Symboleo concerns instances of contracts, obligations and
+created. Triggers are situations that are stated in terms of         powers that have a lifecycle that can be described in terms
+propositions and are located on the left side of the ‘→’ symbol.     of statecharts (Fig. 2). A change of state for any contract,
+If there are no triggers mentioned in the specification, an          obligation or power instance is marked by an event. By
+obligation will be instantiated but will take effect only when       recording events, for example in a blockchain ledger, smart
+its antecedent becomes true. In Table II, three obligations are      contracts can monitor contract execution, ensure compliance
+specified for the example contract:                                  to the contract, and determine violations and violators.
+– O1 obliges the seller towards the buyer to bring about the            An obligation (instance) comes into existence as soon as
+meat delivery by due date; it should be noted that, since            the contract forms, but a suspended obligation depends on a
+quantity and quality are attributes of the meat, delivery has        trigger to resume. In addition, the proposed statecharts capture
+not occurred if these attributes are not complied with.              dependencies among the lifecycles of obligations, powers and
+– O2 obliges the buyer towards the seller to bring about             contract. For example, when an active contract terminates
+payment by its due date.                                             unsuccessfully, e.g., because one of the parties exerts its power
+– O3 obliges the buyer towards the seller to bring about late        to terminate (cancel) it, all active obligations and powers
+payment. O3 is triggered by the violation of O2 . The amount         transition to their unsuccessful termination state.
+of late payment is specified in the Declarations section.                After contract formation, parties are bound to the contract
+Surviving Obligations. They are obligations that survive after       but the contract only becomes active on its effective date.
+the Termination of a contract. Surviving obligations are usually     During assignment of a contract [9], a contract may enter
+prohibitions such as non-disclosure clauses (e.g., SO1 and SO2       the Unassign state when the assigner withdraws, and then
+in Table II). They too can have triggers.                            will remain in that state until an assignee is assigned. A
+Powers. A power is specified as Pid :P(creditor, debtor, an-         contract may also be suspended if one of the parties exerts
+tecedent, consequent), where the creditor and debtor are roles,      its suspension powers, or if a force majeure occurs, e.g., a
+the antecedent is a legal situation described as a proposition,      natural catastrophe. Upon suspension, all obligation and power
+and consequent is a proposition describing a legal situation that    instances associated with the suspended contract are suspended
+can be brought about by the creditor. In Table II, three powers      as well. The suspended contract waits for an event that resumes
+are specified:                                                       it, such as a suspension deadline or an action performed
+– P1 allows the seller to suspend delivery (i.e., O1 .instance) if   by some party. After resumption, all instances of suspended
+obligation O2 has been violated.                                     obligations and powers return to the InEffect state. A contract
+– P2 allows the buyer to resume O1 with a late payment               successfully terminates (SuccessfulTermination) if all of its
+(including interests).                                               active obligations, except surviving ones, are fulfilled. In other
+– P3 allows the buyer to terminate the contract, if meat delivery    cases, namely termination due to the exertion of a power or
+does not occur within ten days after the delivery due date.          contract expiration while in the Active superstate, the contract
+   A power entitles the creditor to bring about the consequent.      and its active obligations and powers terminate unsuccessfully
+For example, P1 entitles the seller to perform the suspending        (UnsuccessfulTermination). If a material obligation is violated
+                                                                           The formal semantics of contract, obligation and power
+                                                                        instance lifecycles is specified through 27 axioms. Due to
+                                                                        space constraints, we present here three of these axioms in
+                                                                        eqs. 1- 3, while the rest are available in [17]. The axioms’
+                                                                        five primitive predicates are listed in Table III. Since Symboleo
+                                                                        supports both temporal interval and point expressions, some
+                                                                        predicates are adopted from Allen [13], namely occurs(s,T),
+                                                                        while initiates(e,s), terminates(e,s), happens(e,s) and hold-
+                                                                        sAt(s,t) are adopted from the event calculus [18]. Moreover, as
+                                                                        a shorthand, we allow events to be used in place of points in
+                                                                        time expressions, and situations in place of intervals, as in ‘e
+                                                                        within s’, where event e represents a time point and situation
+                                                                        s represents a time interval.
+
+                                                                                                       TABLE III
+                                                                                          P RIMITIVE PREDICATES OF S YMBOLEO
+
+                                                                           e within s             situation s holds when event e happens.
+                                                                           occurs(s, T)           situation s holds during the whole interval T,
+                                                                                                  not just in any of its subintervals.
+                                                                           initiates(e, s)        event e brings about situation s.
+                                                                           terminates(e, s)       event e terminates situation s.
+        Fig. 2. SDs of the contract, obligation and power concepts         happens(e, t)          event e happens at time instance t.
+
+                                                                        Axiom 1 (Create a conditional obligation): for all condi-
+(material breach of the contract), Contract Law usually allows          tional triggered obligations o of contract c, if o is triggered
+the damaged party to terminate the contract even if such power          while c is in effect, then o is created. Assumption: o.ant
+                                                                        denotes the antecedent of obligation o.
+is not explicitly specified in the contract. Renegotiation and
+renewal are expressed in terms of implicit powers for every                   happens(triggered(o), ) ∧
+contract specification that can be activated upon all contractual             (triggered(o) within InEffect(c)) ∧ ¬(o.ant = true)              (1)
+parties’ agreement and will be further explored in future work.                  → initiates(triggered(o), create(o))
+   Conditional obligations are created (instantiated) when their
+triggers become true5 . However, a trigger transitions an un-           Axiom 2 (Terminate an obligation by a power): for any
+                                                                        obligation o and power p of contract c, if the consequent of
+conditional obligation (whose antecedent is always true) to             p implies that o is terminated and p is exerted while p is in
+the InEffect state directly. A conditional obligation is not            effect, then o is terminated unsuccessfully.
+activated until its antecedent becomes true. In the case of
+                                                                          (e = terminated(o)) ∧ (e within active(o))∧
+antecedent expiration, the obligation is discharged, since there
+                                                                          (e within InEffect(p)) ∧ (e within InEffect(c)) ∧
+is no possibility for it to become true after it has expired.
+Discharged obligations are cancelled obligations rather than              (p.cons → happens(terminated(o), ))                                  (2)
+unsuccessfully terminated ones. When an obligation instance                  → initiates(e, unsuccessfulTermination(o)) ∧
+becomes InEffect, its debtor can fulfill it by bringing about its           terminates(e, active(o)) ∧ happens(terminated(o), )
+consequent. The breach (transitioning to the violation state)           Axiom 3 (Suspend an obligation by contract suspension):
+of an obligation instance, e.g., because a deadline has passed,         for any obligation o of contract c, if c is suspended while o
+may trigger a power that entitles its creditor to suspend, ter-         is in effect; then o is suspended.
+minate or discharge one or more InEffect obligation instances,
+                                                                         (e = suspended(c)) ∧ happens(e, ) ∧
+or may trigger another obligation6 . In the case of suspension,
+                                                                         (e within InEffect(o)) ∧ (e within InEffect(c)) →          (3)
+the debtor is not responsible against the creditor to bring about
+                                                                           initiates(e, suspension(o)) ∧ terminates(e, InEffect(o))
+the obligation until an event, e.g., the fulfillment of another
+obligation, resumes it.                                                    We have tested these axioms through a Prolog-based pro-
+   Powers are instantiated and activated in the same way as             totype reasoning tool by checking the sample Sales-of-goods
+obligations. In many cases, events such as violations of obli-          contract. The tool and the test cases (with successful results)
+gations trigger them to become InEffect. A power might have             are also available [17].
+a deadline for exertion, i.e., a deadline in its antecedent. After
+the deadline, the power expires thus entering the Unsuccessful                                  V. R ELATED W ORK
+Termination state.                                                         There has been much work on the formalization of legal
+  5 In some cases, triggers can always be true, e.g. O1 in Table II.    concepts. Logicians model legal concepts with variants of
+  6 In the literature, this is also known as a Contrary to Duty (CTD)   Deontic Logic, such as Standard Deontic Logic [19] and De-
+Obligation [16].                                                        feasible Logic [20]. Event Calculus [21] and Linear Temporal
+Logic [22] have been used to formalize obligations, permis-          (e) extend Symboleo to support advanced subcontracting fea-
+sions and powers [23]. Such approaches have not addressed            tures, and (f) perform case studies. An Xtext-based editor
+many aspects of contracts, focusing instead on modelling legal       for (a) and a Prolog-based tool for (b) are currently under
+relations (legal positions). A process view of contracts was         development [15], [17]. We have also identified case studies
+proposed in [4], [5] where contracts are modelled as finite          in the energy and service sectors, with industrial partners.
+state machines (FSMs). This enables normative monitoring of
+contracts, but contracts are rarely specified in sufficient detail                                 R EFERENCES
+to allow FSM representations [5]. Likewise, Chesani et al. [3]        [1] H. Shahid, “How smart contracts are transforming the landscape of
+propose an event calculus-based axiomatization that formally              insurance industry,” 2019, accessed 2019-02-05. [Online]. Available:
+specifies FSM of time-aware commitments in order to monitor               http://bit.ly/32MWZJc
+                                                                      [2] N. Szabo, “Formalizing and securing relationships on public networks,”
+business processes, but do not address powers and surviving               First Monday, vol. 2, no. 9, 1997.
+obligations. These axioms have been extended by Günay et             [3] F. Chesani, P. Mello, M. Montali, and P. Torroni, “Representing and
+al. [24] to include conditional commitments where there are               monitoring social commitments using the event calculus,” Autonomous
+                                                                          Agents and Multi-Agent Systems, vol. 27, no. 1, pp. 85–130, 2013.
+antecedents with consequents.                                         [4] A. Daskalopulu, “Modelling legal contracts as processes,” in Database
+   Our view of contracts-as-processes is in line with that of             and Expert Systems Applications, 2000. 11th Int. Workshop. IEEE,
+Azzura [25]. However, these processes should be defined                   2000, pp. 1074–1079.
+                                                                      [5] G. Governatori, F. Idelberger, Z. Milosevic, R. Riveret, G. Sartor, and
+declaratively in terms of outcomes, rather than operationally             X. Xu, “On legal contracts, imperative and declarative smart contracts,
+in terms of activities. We have mentioned here and will show              and blockchain systems,” Artificial Intelligence and Law, vol. 26, no. 4,
+in future work that outcomes are events that are the result of            pp. 377–409, 2018.
+                                                                      [6] C. Griffo, J. P. A. Almeida, and G. Guizzardi, “Towards a legal core
+obligations and powers being acted upon and can be recorded               ontology based on Alexy’s theory of fundamental rights,” in Multilingual
+in logs or in the blockchain. Ladleif and Weske [26] recently             Workshop on Artificial Intelligence and Law (ICAIL), 2015.
+proposed a unifying model of legal smart contracts based              [7] R. Alexy, A theory of constitutional rights. Oxford University Press,
+                                                                          USA, 2010.
+on UFO-L, where legal relations enable actions when their             [8] W. N. Hohfeld, “Some fundamental legal conceptions as applied in
+conditions occur and are updated by actions. This is similar to           judicial reasoning,” Yale Lj, vol. 23, p. 16, 1913.
+our notion of power. However, their model only has primitive          [9] B. H. Bix, Contract law: rules, theory, and context.           Cambridge
+                                                                          University Press, 2012.
+time and does not support several elements of legal contracts.       [10] Wikipedia contributors, “Asset — Wikipedia, the free encyclopedia,”
+   Various smart contract languages have been introduced for              https://bit.ly/35TjZrn, 2019, [Online; accessed 21-October-2019].
+distributed ledger systems. Many of them are implementation          [11] M.-P. Allard, “The retroactive effect of conditional obligations in tax
+                                                                          law,” Canadian Tax Journal, vol. 49, no. 6, pp. 1726–1839, 2001.
+dependent and do not completely capture the concepts in-             [12] G. Guizzardi, G. Wagner, J. P. A. Almeida, and R. S. Guizzardi,
+volved in legal contracts. The languages that have come closest           “Towards ontological foundations for conceptual modeling: the unified
+to addressing both these issues are the Accord Project (https:            foundational ontology (UFO) story,” Applied ontology, vol. 10, no. 3-4,
+                                                                          pp. 259–271, 2015.
+//www.accordproject.org), DAML (https://daml.com) and CSL            [13] J. F. Allen, “Towards a general theory of action and time,” Artificial
+(https://www.deondigital.com). Although these are not as                  intelligence, vol. 23, no. 2, pp. 123–154, 1984.
+widely used as Solidity, they abstract out the storage layer         [14] E. Kindler, “Safety and liveness properties: A survey,” Bulletin of the
+from the language, making it implementation agnostic. Still,              European Association for Theoretical Computer Science, vol. 53, no.
+                                                                          268-272, p. 30, 1994.
+these languages only capture basic legal notions (obligations        [15] Anonymized, “Symboleo syntax and editor,” 2020. [Online]. Available:
+but not power) and their development is in early stages.                  https://gofile.io/?c=NbBkSo
+These languages are really programming languages, rather             [16] H. Prakken and M. Sergot, “Contrary-to-duty obligations,” Studia Log-
+                                                                          ica, vol. 57, no. 1, pp. 91–115, 1996.
+than analyzable specification languages such as Symboleo.            [17] Anonymized, “Symboleo draft semantics and prototype,” 2020.
+                                                                          [Online]. Available: https://gofile.io/?c=WFxRdd
+                                                                     [18] M. Shanahan, “The event calculus explained,” in Artificial intelligence
+          VI. C ONCLUSIONS AND F UTURE W ORK                              today. Springer, 1999, pp. 409–430.
+                                                                     [19] W. M. Farmer and Q. Hu, “FCL: A formal language for writing con-
+   We have sketched the fundamental elements of Symboleo,                 tracts,” in Quality Software Through Reuse and Integration. Springer,
+a formal specification language for contracts and their re-               2016, pp. 190–208.
+quirements. In the spirit of disciplined Software Engineering        [20] I. A. Letia and A. Groza, “Running contracts with defeasible commit-
+                                                                          ment,” in IEA/AIE 2006, ser. LNAI, vol. 4031. Springer, 2006, pp.
+principles, such specifications are intended to serve as starting         91–100.
+point towards smart contract implementations on platforms            [21] A. D. Farrell, M. J. Sergot, M. Sallé, C. Bartolini, D. Trastour, and
+offering adequate distributed and secure ledger functionalities,          A. Christodoulou, “Performance monitoring of service-level agreements
+                                                                          for utility computing using the event calculus,” in Electronic Contract-
+such as blockchain platforms.                                             ing, 2004. Proceedings. First IEEE International Workshop on. IEEE,
+   For future work, we plan to (a) develop a tool-supported               2004, pp. 17–24.
+process for transforming contract specifications into smart          [22] H. L. Cardoso and E. Oliveira, “Directed deadline obligations in agent-
+                                                                          based business contracts,” in Coordination, Organizations, Institutions
+contract code, e.g., in DAML; (b) develop formal analysis                 and Norms in Agent Systems V. Springer, 2010, pp. 225–240.
+methods for contract specifications, likely with SMT solvers;        [23] A. J. Jones and M. Sergot, “A formal characterisation of institutionalised
+(c) improve the usability of the syntax; (d) develop tools                power,” Logic Journal of the IGPL, vol. 4, no. 3, pp. 427–443, 1996.
+                                                                     [24] A. Günay and P. Yolum, “Detecting conflicts in commitments,” in Inter-
+for the semi-automatic transformation of legal contract texts             national Workshop on Declarative Agent Languages and Technologies.
+into formal specifications (e.g., to analyze existing contracts);         Springer, 2011, pp. 51–66.
+[25] F. Dalpiaz, E. Cardoso, G. Canobbio, P. Giorgini, and J. Mylopoulos,
+     “Social specifications of business processes with azzurra,” in 9th In-
+     ternational Conference on Research Challenges in Information Science
+     (RCIS). IEEE CS, 2015, pp. 7–18.
+[26] J. Ladleif and M. Weske, “A unifying model of legal smart contracts,”
+     in Conceptual Modeling. Cham: Springer, 2019, pp. 323–337.
+

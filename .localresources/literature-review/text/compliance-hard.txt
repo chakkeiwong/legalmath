@@ -1,0 +1,991 @@
+This may be the author’s version of a work that was submitted/accepted
+for publication in the following source:
+
+Tosatto, Silvano Colombo, Governatori, Guido, & Kelsen, Pierre
+(2015)
+Business process regulatory compliance is hard.
+IEEE Transactions on Services Computing, 8(6), pp. 958-970.
+
+This file was downloaded from: https://eprints.qut.edu.au/100964/
+
+
+© Consult author(s) regarding copyright matters
+
+This work is covered by copyright. Unless the document is being made available under a
+Creative Commons Licence, you must assume that re-use is limited to personal use and
+that permission from the copyright owner must be obtained for all other uses. If the docu-
+ment is available under a Creative Commons License (or other specified license) then refer
+to the Licence for details of permitted re-use. It is a condition of access that users recog-
+nise and abide by the legal requirements associated with these rights. If you believe that
+this work infringes copyright please provide details by email to qut.copyright@qut.edu.au
+
+
+
+Notice: Please note that this document may not be the Version of Record
+(i.e. published version) of the work. Author manuscript versions (as Sub-
+mitted for peer review or as Accepted for publication after peer review) can
+be identified by an absence of publisher branding and/or typeset appear-
+ance. If there is any doubt, please refer to the published source.
+
+https://doi.org/10.1109/TSC.2014.2341236
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                                    1
+
+
+
+
+    Business Process Regulatory Compliance is
+                      Hard
+                           Silvano Colombo Tosatto, Guido Governatori and Pierre Kelsen
+
+      Abstract—Verifying whether a business process is compliant with a regulatory framework is a difficult task. In the present paper
+      we prove the hardness of the business process regulatory compliance problem by taking into account a sub-problem of the
+      general problem. This limited problem allows to verify only the compliance of structured processes with respect to a regulatory
+      framework composed of a set of conditional obligations including a deadline. Experimental evidence from existing studies shows
+      that compliance is a difficult task. In this paper, despite considering a sub-problem of the general problem, we provide some
+      theoretical evidence of the difficulty of the task. In particular we show that the source of the complexity lies in the core language
+      of verifying conditional obligations with a deadline. We prove that for this simplified case verifying partial compliance belongs
+      to the class of NP-complete problems, and verifying full compliance belongs to the class of coNP-complete problems. Thus
+      by proving the difficulty of a simplified compliance problem we prove that the general problem of verifying business process
+      regulatory compliance is hard.
+
+      Index Terms—Compliance, Computational Complexity, NP-Completeness, Hamiltonian Path, Tautology
+
+                                                                        F
+
+
+
+1    I NTRODUCTION                                                             Solutions for the business process regulatory com-
+Compliance initiatives are becoming more and more                           pliance problem have been already proposed in the
+important in enterprises with the increase of the                           literature (e.g., Governatori et al. [1], [2], Goedertier
+number of regulatory frameworks explicitly requiring                        and Vanthienen [3], Hoffmann et al. [4], Awad et al.
+businesses to show compliance with them. As a con-                          [5], Ly et at. [6] and Ramezani et al. [7]). However the
+sequence IT support for compliance activities within                        solutions proposed do not consider the complexity of
+enterprises is growing.                                                     the problem or, in case they do, they only provide
+   One of the possibilities to show compliance with                         approximate solutions.
+a regulatory framework is through business process                             The paper is structured as follows: Section 2 de-
+models. Using these models an enterprise can rep-                           scribes the compliance problem by defining its ele-
+resent its ways to achieve a business objective. The                        ments: the process models and the obligations. Sec-
+business process regulatory compliance problem stud-                        tion 3 contains the complexity proof showing that
+ies whether a business process is compliant with the                        the problem of verifying partial compliance is NP-
+obligations specified by the regulatory framework.                          complete. Section 4 proves that the problem of verify-
+   A business process can be compliant with the                             ing full compliance is coNP-complete. Section 5 gives
+obligations specified by the regulatory framework in                        the proof showing that the problem of verifying non
+two ways. If all the ways of achieving the business                         compliance is coNP-complete. Section 6 concludes the
+objective contained in the business process fulfil the                      paper.
+obligations, then the business process is fully compli-
+ant. Differently if at least one of the ways to achieve
+the business objective fulfils the obligations, then the
+                                                                            2 T HE B USINESS P ROCESS R EGULATORY
+business process is considered to be partially com-
+pliant with the regulatory framework. However, the                          C OMPLIANCE P ROBLEM
+business process is not compliant with the regulatory
+                                                                            This section describes the business process regulatory
+framework in the case where none of the ways of
+                                                                            compliance problem. To describe the problem we first
+achieving a business objective contained in a business
+                                                                            introduce the business process models and secondly
+process fulfills the obligations.
+                                                                            the abstract framework defining the regulatory frame-
+                                                                            work and compliance.
+• S. Colombo Tosatto and P. Kelsen are with University of Luxembourg,
+  Luxembourg.                                                                 We adopt an abstract approach because of the goal
+  E-mail: silvano.colombotosatto@uni.lu                                     of studying the complexity of the problem itself. By
+  pierre.kelsen@uni.lu
+• G. Governatori is with NICTA, Brisbane, Australia, and with Queens-
+                                                                            opting for an abstract approach we are capable of
+  land University of Technology, Brisbane, Australia.                       focusing on the most general and common features
+  E-mail: guido.governatori@nicta.com.au                                    of the problem and leaving out the minor ones, used
+                                                                            only by some specific instances of the problem.
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                   2
+
+
+
+2.1   Business Process                                                 – XOR(B1 , . . . , Bn ) denotes the block with ver-
+In the present paper we study the complexity of                           tex set ∪V (Bi ) ∪ {xsplit, xjoin} and edge set
+verifying the compliance of a particular class of busi-                   ∪E(Bi ) ∪ {(xsplit, b(Bi )), (f (Bi ), xjoin) : 1 ≤
+ness processes: the structured processes. Such class                      i ≤ n} where xsplit and xjoin denote an
+of business processes, similar to the structured work-                    xor split coordinator and an xor join coordi-
+flows defined by Kiepuszewski et al. [8], is limited                      nator, respectively.
+in its expressivity because it does not allow cycles                   – AND(B1 , . . . , Bn ) denotes the block with ver-
+and its components have to be properly nested. An                         tex set ∪V (Bi ) ∪ {asplit, ajoin} and edge set
+advantage of using structured processes is that their                     ∪E(Bi ) ∪ {(asplit, b(Bi )), (f (Bi ), ajoin) : 1 ≤
+correctness can be verified in polynomial time. While                     i ≤ n} where asplit and ajoin denote an
+not all business processes are structured, the struc-                     and split and an and join coordinator, respec-
+tured processes are a substantial class of real-life                      tively.
+processes. According to Polyvanyy et al. [9], 406 of              Using the process blocks introduced in Definition
+the 604 processes in the SAP reference models [10] are         1, it is then possible to define the structured business
+structured. In addition Polyvanyy et al. [9] identify          processes. These type of processes are defined by
+conditions under which unstructured processes can              enclosing a process block within two specific pseudo-
+be transformed into structured ones, and proposes an           tasks: the start and end, which are respectively placed
+algorithm for the transformation. They also report that        before and after a process block to construct a struc-
+seventy-eight of the unstructured processes in the SAP         tured business process.
+reference models can be converted into behaviourally              Definition 2 (Structured Process Model): The pseudo-
+equivalent structured process models.                          tasks start and end are used respectively to identify
+   We define the structured processes used in this             the beginning of a structured process model and
+paper compositionally and following the semantics              when it terminates. A structured process model P
+used by Business Process Model and Notation 2.01 . We          is a directed graph composed of a process block B
+first define the basic blocks constituting a structured        called the main process block. The vertex set of P
+process. The most basic element is the task; it ab-            is V (P ) = V (B) ∪ {start, end} and its edge set is
+stractly represents an atomic action that can be exe-          E(P ) = E(B) ∪ {(start, b(B)), (f (B), end)}.
+cuted to help towards the achievement of the business             The processes used in this paper can be graphically
+objective purposed by the business process. The tasks          represented using Business Process Model and Notation
+can be then combined in more complex structures,               2.0. We use{       , to represent
+                                                                                        ,   ,   } the start coordinator and
+like sequences, and blocks and xor blocks. In turn     {     ,     ,to represent
+                                                                        ,    }      the end coordinator. The and split and
+such structures can be used to build more complex              and join coordinators are represented{ both, by, ., The}
+structures.                                                    and split is identified by a single incoming transition
+   Definition 1 (Process Block): A process block B is a        and multiple outgoing transitions. The opposite is
+directed graph: the nodes are called elements and the          true for the and join, which is identified by multiple
+edges are called transitions. We also use the terms            incoming transitions and a single outgoing transition.
+nodes and vertices for elements and edges for transi-          In the same way, the       {   operator
+                                                                                              ,    ,   ,     }identifies both
+tions. The set of elements of a process block is identi-       xor split and xor join coordinators.
+fied by the function V (B) and the set of transitions by          In a structured process model XOR blocks and AND
+the function E(B). The set of elements is composed             blocks have to be properly nested, meaning that if the
+of tasks and coordinators. The coordinators are of 4           block A starts inside the block B, A has to end within
+types: and split, and join, xor split and xor join. Each       B. An example of a structured process model is shown
+process block B has two distinguished nodes called             in Fig. 1.
+the initial and final element. The initial element has            Example 1: Fig. 1 shows a structured business pro-
+no incoming transition from other elements in B and            cess containing four tasks labelled t1 , . . . , t4 . The struc-
+is denoted by b(B). Similarly the final element has            tured process contains an XOR block delimited by the
+no outgoing transitions to other elements in B and is          xor split and the xor join. The XOR block contains the
+denoted by f (B).                                              tasks t1 and t2 . The XOR block is itself nested inside an
+   A directed graph composing a process block is               AND block with the task t3 . The AND block is nested
+defined inductively as follows:                                in a SEQ block where it is followed by task t4 .
+   • A single task constitutes a process block. The task          Structured processes exclude business processes
+      is both initial and final element of the block.          containing badly nested blocks (Fig. 2.(a)) and busi-
+   • Let B1 , . . . , Bn be process blocks with n > 1:         ness processes with loops (Fig. 2.(b)).
+        – SEQ(B1 , . . . , Bn ) denotes the process block         An execution of a structured process is a sequence
+          with node set ∪V (Bi ) and edge set ∪E(Bi ) ∪        of a subset of the tasks belonging to the model and
+          {(f (Bi ), b(Bi+1 )) : 1 ≤ i < n}.                   it represents a possible way to achieve the business
+                                                               objective, which has been modelled in the process. A
+  1. http://www.omg.org/spec/BPMN/2.0                          valid execution identifies a path from the start to the
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                           3
+
+
+
+        SEQ block
+                                                                       where ∀x, y ∈ S such that x 6= y, x ≺ y ∈≺s or
+         AND block                                                     y ≺ x ∈≺s .
+                     XOR block
+                                  t1
+                                                                    Let P1 = (S1 , ≺s1 ) and P2 = (S2 , ≺s2 ) be partial
+                                                                 ordered sets, we define the following four operations:
+                                                                    • Union: P1 ∪P P2 = (S1 ∪ S2 , ≺s1 ∪ ≺s2 ), where ∪
+                                  t2
+                                                                       is the disjoint union.
+                                                       t4
+                                                                    • Intersection: P1 ∩P P2 = (S1 ∩ S2 , ≺s1 ∩ ≺s2 )
+                                                                    • Concatenation: P1 +P P2 = (S1 ∪ S2 , ≺s1 ∪ ≺s2
+                                  t3
+                                                                       ∪{s1 ≺ s2 |s1 ∈ S1 and s2 ∈ S2 }).
+                                                                    • Linear Extensions: I(P1 )                   = {(S, ≺s )|S =
+                                                                       S1 , (S, ≺s ) is a sequence and ≺s1 ⊆≺s }.
+Fig. 1. A structured business process                               In other words, the linear extensions of a partial
+                                                                 ordered set is the set containing all the possible total
+                                                                 orders over the elements of the partial ordered set
+                             t1
+                                                                 which keeps true the orderings specified in the partial
+                                                                 ordered set.
+                             t2                   t4                The associative property holds for Union, Intersec-
+                                                                 tion and Concatenation.
+                             t3                                     A serialisation of a process block is a linear exten-
+                                       (a)                       sion of the partial order set representing the semantics
+                                                                 of such process block.
+                             t1                                     Definition 4 (Process Block Serialisations):
+                                                                 Given       a        process        block       B,     the     set  of
+                             t2              t4             t5
+                                                                 serialisations             of     B,       written      Σ(B)        =
+                                                                 {| is a sequence and is a serialisation of B}.                   The
+                             t3
+                                                                 function Σ(B) is defined as follows:
+                                       (b)
+                                                                    1) If B is a task t, then Σ(B) = {({t}, ∅)}
+                                                                    2) if B is a composite block with sub-blocks
+Fig. 2. Examples of non-structured processes                            B1 , . . . , Bn let i be the projection of  on block
+                                                                        Bi (obtained by ignoring all tasks which do not
+                                                                        belong to Bi )
+end of the process and follows the semantics of the                       a) If B = SEQ(B1 , . . . , Bn ), then Σ(B) = {1 +P
+coordinators and transitions that are traversed.                               · · · +P n |i ∈ Σ(Bi )}
+  Before proceeding to define an execution of a busi-                     b) If B = XOR(B1 , . . . , Bn ), then Σ(B) =
+ness process, we recall the definition of partial ordered                      Σ(B1 ) ∪ · · · ∪ Σ(Bn )
+set which is used as an auxiliary concept in defining                          S B
+                                                                           c) If                 =         AND(B1 , . . . , Bn ), then
+the serialisation of a process block. A process block                              1 ,...,n I( 1 ∪P · · · ∪P n |∀i ∈ Σ(Bi ))
+serialisation is then used to define a business process             Given a structured process model, we can now
+execution. In addition to recalling the definition of            define its possible executions in terms of the serial-
+partial ordered set, we introduce some operations on             isations of its main process block. Each execution of a
+this type of set.                                                process model corresponds to one of the serialisations
+  Definition 3 (Partial Ordered Set): A partial order set        of its main process block to which are attached the
+P = (S, ≺s ) is a tuple where S is a set of elements and         pseudo-tasks start and end.
+≺s is a set of ordering relations between two elements              Definition 5 (Execution): Given a structured process
+of S such that ≺s ⊆ S × S and for which transitivity             P whose main process block is B, the set of possible
+and antisymmetry2 hold.                                          executions of P is Σ(P ) = {Pstart +P +P Pend | ∈ Σ(B)}
+  Two special cases of a partial ordered set are the set         where Pstart = ({start}, ∅) and Pend = ({end}, ∅).
+and the sequence:                                                   Example 2 (Execution): The executions of the struc-
+  • Set: a set is a partial ordered set where no or-             tured process illustrated in Fig. 3 are shown in the
+     dering relations have been defined between its              first column of Table 1.
+     elements, formally: (S, ∅).                                    We use a set of literals to represent the world at a
+  • Sequence: a sequence is a particular partial or-             given point of the execution of a business process and
+     dered set, called total order, where an order-              we call it the state of the process.
+     ing relation is defined between each pair of                   The state of a process can evolve during the execu-
+     elements belonging to the set, formally (S, ≺s )            tion of the process. An annotated process is a process
+                                                                 whose tasks are associated with consistent sets of
+  2. Antisymmetry: if a ≺s b and b ≺s a, then a = b.             literals. These set of literals are called annotations [11]
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                    4
+
+
+
+ and determine how the state of the process changes                  2) Li+1 = Li ⊕ ann(ti+1 ), for 1 ≤ i < n.
+ when a task is executed.                                            We use Θ(B, ann) to denote the set of traces of a
+    Definition 6 (Consistent literal set): A set of literals L    process block B given an annotation function ann. In
+ is consistent if and only if it does not contain both l          a similar way we use Θ(P, ann) to denote the set of
+ and its complement ˜l for each literal l ∈ L, where              traces of a process P .
+˜l = a if l = ¬a, or ˜l = ¬a if l = a.
+                                                                     Example 4: Table 1 shows the traces of the anno-
+    Definition 7 (Annotated process): Let P be a struc-           tated process (P, ann) illustrated in Fig. 3. The first
+ tured process and let T be the set of tasks contained            column contains the possible executions of P . The
+ in P . An annotated process is a pair (P, ann), where            second column the corresponding traces.
+ ann is a partial function associating to each task in T
+ a consistent set of literals: ann : T 7→ 2L .
+    We define the function ann as partial to allow tasks          2.2   Regulatory Framework
+ to be annotated by an empty set of literals.                     The regulatory framework defines, using a set of
+    Example 3: Fig. 3 shows a structured process con-             conditional obligations, which are the correct ways to
+ taining four tasks labeled t1 , t2 , t3 and t4 and their         achieve a business objective. Each trace contained in a
+ annotations. The process contains an AND block fol-              business process defines a possible way of achieving a
+ lowed by a task and an XOR block nested within the               business objective. We define different extents of com-
+ AND block. The annotations indicate what has to hold             pliance depending on the amount of traces, contained
+ after a task is executed. If t1 is executed, then the            in a business process, fulfilling the obligations.
+ literal a has to hold in the state of the process.                  A business process is fully compliant if all its traces
+                                                                  fulfil the obligations. Similarly, a business process is
+                         {a}                                      partially compliant if at least one of its traces fulfils the
+                         t1                                       obligations. In the remaining case, when none of the
+                                                                  traces of a business process fulfil the obligations, then
+                        {b,c}                    {¬ a}
+                                                                  this business process is not compliant.
+                         t2                      t4
+                                                                     We represent the regulatory framework as a set of
+                        {c,d}                                     obligations } = {À1 , . . . Àk }, where Ài represents an
+                         t3                                       obligation. We use a subset of Process Compliance
+                                                                  Logic (PCL) [13] to specify the obligations.
+                                                                     Each obligation has a lifeline and a deadline. These
+Fig. 3. An annotated process                                      elements define the validity period of the obligation.
+                                                                  Once triggered by its lifeline, an obligation becomes
+   We represent the state of a process as a pair con-             active. If an obligation is already active, further trig-
+taining a set of literals and a task. The set of literals         gers of its lifeline have no effect. Similarly when its
+describes the world holding after the execution of the            deadline is triggered, an obligation is deactivated. The
+task contained in the state.                                      last state of a trace deactivates every obligation.
+   Definition 8 (Process State): The state of a process is           An obligation can be of two types: achievement and
+represented by a pair σ = (t, L) where L is the set of            maintenance. We also consider the punctual obliga-
+literals holding after the execution of the task t.               tion which is a special case of both achievement and
+   We define an update operator (inspired by AGM                  maintenance. The condition of an obligation, along
+belief revision [12]).                                            with its type, determines how an activated obligation
+   Definition 9 (Literal set update): Given two consis-           should be fulfilled.
+tent sets of literals L1 and L2 , the update of L1 with              The lifeline, deadline and condition of an obligation
+L2 , denoted by L1 ⊕ L2 is a set of literals defined as           are represented using propositional formulae over a
+follows:                                                          set of literals.
+             L1 ⊕ L2 = L1 \ {˜l | l ∈ L2 } ∪ L2                      Definition 11 (Obligations): Let ϕc , ϕb and ϕd be
+                                                                  propositional formulae. An obligation À is a triple
+   A trace represents the evolution of the state of a             À = hO, ϕb , ϕd i where ϕb is the lifeline condition, ϕd
+process during one of its executions. It is represented           is the deadline condition and O is one of the following
+by a sequence of states, holding at the different stages          types, where ϕc is the fulfilment condition:
+of an execution.
+   Definition 10 (Trace): Given an annotated process                           O    ::=   Oa (ϕc )   achievement
+                                                                                      |   Om (ϕc )   maintenance
+(P, ann) and an execution sequence  = (t1 , . . . , tn )
+such that  ∈ Σ(P ), a trace θ is a finite sequence of              Example 5 (Achievement Obligation): In a scenario
+states: (σ1 , . . . , σn ). Each state of σi ∈ θ contains a set   where a customer dines in a restaurant, there exists
+of literals Li capturing what holds after the execution           the obligation that the bill has to be payed before
+of a task ti . Each Li is a set of literals such that:            leaving. In this case we can picture the dining at
+   1) L1 = ann(t1 );                                              a restaurant as a process and paying the bill as an
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                             5
+
+
+                       Σ(P )                                                      Θ(P, ann)
+             (start, t1 , t3 , t4 , end)       ((start, ∅), (t1 , {a}), (t3 , {a, c, d}), (t4 , {¬a, c, d}), (end, {¬a, c, d}))
+             (start, t2 , t3 , t4 , end)   ((start, ∅), (t2 , {b, c}), (t3 , {b, c, d}), (t4 , {¬a, b, c, d}), (end, {¬a, b, c, d}))
+             (start, t3 , t1 , t4 , end)     ((start, ∅), (t3 , {c, d}), (t1 , {a, c, d}), (t4 , {¬a, c, d}), (end, {¬a, c, d}))
+             (start, t3 , t2 , t4 , end)   ((start, ∅), (t3 , {c, d}), (t2 , {b, c, d}), (t4 .{¬a, b, c, d}), (end, {¬a, b, c, d}))
+
+                                                          TABLE 1
+                                   Executions and Traces of the annotated process in Fig. 3.
+
+
+
+achievement obligation triggered when the customer                       analysis. Because of this limitation we also avoid to
+orders. This achievement obligation has to be fulfilled                  deal with perdurant obligations, which are still consid-
+before leaving the restaurant, which corresponds with                    ered active even when not fulfilled. Thus when a trace
+the deadline.                                                            does not fulfil an obligation, we revert the status of
+   Example 6 (Maintenance Obligation): While                             the obligation to inactive, and we consider the trace
+accessing secure data there exists the obligation to                     to be not compliant with the regulatory framework.
+have the proper credentials for the whole period. In                        Definition 13 (Obligation Fulfilment): Given an obli-
+this case we can see “having the proper credentials”                     gation À = hO, ϕb , ϕd i and a trace θ, θ fulfils À,
+as a maintenance obligation which is triggered when                      written θ ` À, iff:
+the secure data is being accessed. The deadline is                                    a             a
+                                                                            • O = O (ϕc ): θ ` hO (ϕc ), ϕb , ϕd i iff:
+represented by terminating the access to the secure                           ∀σi ∈ θ where σi |= ϕb implies ∃σj ∈ θ such that
+data.                                                                         σj |= ϕc and σj  σi , and ¬∃σh ∈ θ such that
+   An obligation is activated in a state satisfying the                       σh |= ϕd and σi ≺ σh ≺ σj .
+lifeline and deactivated in a state satisfying the dead-                              m              m
+                                                                            • O = O (ϕc ): θ ` hO (ϕc ), ϕb , ϕd i iff:
+line. If an obligation is already active, then a state                        ∀σi ∈ θ where σi |= ϕb implies ∃σh ∈ θ such that
+satisfying the lifeline would have no effect. The same                        σh |= ϕd and ∀σj ∈ θ such that σj |= ϕc and
+applies if an obligation is not active and a state                            σi ≺ σj  σh .
+satisfies the deadline.                                                  Otherwise θ does not fulfil À, written θ 6` À.
+   The propositional formulae, used to represent the                        An alternative way of representing the activation
+lifeline, deadline and condition of an obligation, are                   period of an obligation is by using a finite state
+satisfied in a state if and only if the interpretation of                automaton. Fig. 4.(a) shows the automaton modelling
+the propositional variables given by such state makes                    the activation period of an achievement obligation.
+the propositional formulae true.                                         Fig. 4.(b) represents the automaton modelling the
+   Definition 12 (Formula Entailment): Given a state                     activation period of a maintenance obligation. We can
+σ
+V = (t, V L) and a formula ϕ, σ |= ϕ if and only if                      notice that in both cases, an obligation becomes active
+   x ∧ ¬y |= ϕ, where each x ∈ L and each y 6∈ L.                        only if is inactive and a state triggering the lifeline
+   The following exceptions apply:                                       is found. Finding such state while the obligation is
+   • Given the state σ = (end, L) and a formula ϕ, σ |=                  already active has no impact on the activation period
+      ϕ is always the case if ϕ is a deadline condition.                 of the obligation. Similarly, when an obligation is in-
+   • Given the state σ = (end, L) and a formula ϕ, σ 6|=                 active, states triggering the deadline or the condition
+      ϕ is always the case if ϕ is a lifeline condition.                 of an obligation do not influence its state.
+   To be fulfilled, achievement obligations’ fulfil-                        The activation period always terminates when a
+ment condition needs to be satisfied in at least one                     state fulfilling the deadline is found. Moreover for
+state within their activation period. Once fulfilled                     achievement obligations, the activation period can
+an achievement obligation is deactivated. Differently,                   terminate if a state fulfilling the condition is found.
+maintenance obligations need that their fulfilment                       Differently for a maintenance obligation, an active
+condition is satisfied in each state of their activation                 obligation becomes not fulfilled and inactive when a
+period and are deactivated only when the deadline is                     state not fulfilling the condition is found.
+triggered. In case an obligation has multiple activation                    The two automata are consistent with the semantics
+periods, it must be fulfilled in each of them.                           of Definition 13. Notice that for the sake of clarity
+   In legal theory it is often the case that a compen-                   we avoid representing explicitly in the figure the
+sation is provided when an obligation is not fulfilled.                  transitions which would not have changed the state
+Compensations represent additional obligations to be                     of the automaton. For instance a state σ of a trace,
+fulfilled in case others were not. However, in the                       where σ |= ϕb , reading σ does not change the state
+present paper we do not include compensations in                         of the automaton if the automaton is in the Active
+the sub-problem being used to analyse the complexity                     state. Also notice that the  in the automata mean that
+of the business process regulatory compliance. Thus                      from the states Fulfilled and Not Fulfilled, the state of
+when an obligation is not fulfilled, we consider a trace                 the automata becomes Inactive without reading and
+to be violating such obligation and we avoid further                     consuming a state of a trace.Once the obligation is
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                  6
+
+
+
+either fulfilled or not, the state of the automaton is           state, we define define the semantics of punctual
+brought back to Inactive thanks to the  transitions.            obligations as follows:
+This represents that an obligation can be activated                Definition 14 (Punctual Obligation Fulfilment): Given
+multiple times by a trace.                                       a punctual obligation À = hOp (ϕc ), ϕb , >i and a trace
+   Given a trace and an obligation, the automaton in             θ = (σ0 , ..., σn ), θ ` À iff:
+Fig. 4 can be used to determine whether an obligation
+is active or inactive with respect to the states of the                ∀σi ∈ θ, 0 ≤ i ≤ n : if σi |= ϕb then σi+1 |= ϕc .
+given trace. For this reason we avoid to represent any           Otherwise θ 6` À.
+final state in the automaton.                                       Notice that following from Definition 7 and Defini-
+                                                                 tion 10, a trace of a process model always ends with
+                                                                 a state containing the pseudo-task end. Thus the last
+                               Fulfilled                         state of a proper trace would never trigger the lifeline
+                          ✏                  |= 'c               of a punctual obligation according to Definition 12,
+                                                                 hence verifying σi+1 |= ϕc is still possible.
+                                |= 'b
+    Start     Inactive                          Active           2.2.2 Set Compliance
+                                                                 A trace is compliant with a set of obligations if it
+                          ✏                 |= 'd ^    6|= 'c    fulfils all the obligations belonging to the set. Note
+                                Not                              that according to Definition 13 (and Definition 14 for
+                              Fulfilled                          punctual obligations), an obligation never activated
+                                                                 by a trace is considered to be fulfilled by such trace.
+                               (a)                                 Definition 15 (Set Fulfilment): Given a trace θ and a
+                                                                 set of obligations } = {À1 , . . . , Àn },
+                                                                                θ ` } iff ∀Ài ∈ }, (θ ` Ài )
+                                Fulfilled
+                                                                 Otherwise θ 6` }.
+                          ✏                  |= 'd ^     |= 'c
+                                                                 2.2.3 Types of Compliance
+                                 |= 'b                           Given a set of obligations, an annotated process can be
+     Start     Inactive                           Active
+                                                                 fully compliant, partially compliant or not compliant
+                                                                 with such set. An annotated process is fully compliant
+                          ✏                  6|= 'c
+                                                                 if each trace is compliant with the set of obligations.
+                                                                 It is partially compliant, if at least one trace of the
+                                Not
+                              Fulfilled                          annotated process is compliant with the set of obliga-
+                                                                 tions. If none of the traces are compliant with the set
+                                (b)                              of obligations, then a process is not compliant.
+                                                                    Definition 16 (Process Set Compliance): Given an an-
+Fig. 4. Activation Periods using Finite State Automaton          notated process (P, ann) and a set of obligations }.
+                                                                    • Full Compliance:
+                                                                                       F
+                                                                             (P, ann) ` } iff ∀θ ∈ Θ(P, ann), θ ` }.
+2.2.1   Punctual Obligations
+                                                                   •   Partial Compliance:
+Punctual obligations are a special type of obligations.
+                                                                                       P
+The peculiarity of this type of obligation is, that it has                   (P, ann) ` } iff ∃θ ∈ Θ(P, ann), θ ` }.
+to be fulfilled in exactly one state. This means that
+such obligations become active for exactly one state.              •   Non Compliance:
+To allow such behaviour, the deadline of punctual                           (P, ann) 6` } iff ¬∃θ ∈ Θ(P, ann), θ ` }.
+obligations can be satisfied by any state. Punctual
+obligations are a particular kind of both achievement              In first order logic ∀x does not necessarily implies
+and maintenance. If these obligations can be fulfilled           ∃x, because the former is true while considering the
+in only one state, independently on the type the                 empty set but the latter is not. However, in the present
+condition of the obligation has to be achieved in such           context where we want to classify whether a business
+state.                                                           process is fully, partially or not compliant with a set
+   For this reason, in the following definition we rep-          of obligations, we can safely say that full compliance
+resent the deadline of a punctual obligation using               implies partial compliance. Following from Definition
+the tautology formula >. Knowing that the activation             2 a business process contains at least a trace, hence
+period of this type of obligation is limited to a single         the case where a business process would be fully
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                7
+
+
+
+compliant but not partially due to its set of traces          3.1.1 Verifying the Validity
+being empty does not apply in this setting.                   We hereby describe Algorithm 1 which checks
+  Observation 1: In business process regulatory com-          whether a certificate is a valid trace of an annotated
+pliance, whenever a process is fully compliant with a         structured business process.
+set of obligations, then such a process is also partially        Algorithm 1: Given               a    trace   θ         =
+compliant with the same set.                                  (σstart , σ1 , . . . , σn , σend ) where σstart = (start, L0 )
+                                                              and σend = (end, Ln+1 ), an execution  = (t1 , . . . , tn )
+3     V ERIFYING PARTIAL C OMPLIANCE IS NP-                   representing the corresponding serialisation of θ,
+                                                              and an annotated process (P, ann) where B is the
+COMPLETE
+                                                              main process block of P , the following algorithm
+In this section we prove that verifying whether a             A1 (θ, , (P, ann), B) decides if θ is a valid trace of
+structured annotated process is partially compliant           (P, ann).
+with a set of obligations is an NP-complete problem.             Algorithm A1
+   Definition 17 (NP-complete): A decision problem is          1: if P1 (, B) and P2 (θ, (P, ann)) then
+NP-complete if it is in the set of NP problems and             2:    return θ ∈ Θ(P, ann)
+if every problem in NP is polynomial-time many-one             3: else
+                                                               4:    return θ 6∈ Θ(P, ann)
+reducible to it.                                               5: end if
+   To prove the NP-completeness of the problem of
+                                                                 P1 (, B) verifies wether  is a correct serialisation of
+verifying whether a business process is partially com-
+                                                              B. P1 returns true or f alse accordingly to the result
+pliant with a regulatory framework, first we show
+                                                              and uses the following recursive procedure:
+that the problem is in NP and second that another
+                                                                 Procedure 1: P1 (, B)
+NP-complete problem is polynomial-time many-one
+                                                                 1) if B = t, then  is valid if  = (t)
+reducible to it.
+                                                                 2) if B is a composite block with sub-blocks
+                                                                    B1 , . . . , Bn let i be the projection of  on block
+3.1   NP Membership                                                 Bi (obtained by ignoring all tasks which do not
+To prove membership in NP, we need to show that                     belong to Bi )
+an annotated business process is partially compliant                  a) if B = SEQ(B1 , . . . , Bn ) then  is valid if it
+with a set of obligations if and only if there is a                        is the concatenation of 1 , . . . , k and each
+certificate whose size is at most polynomial in terms                      i is a valid serialisation for Bi
+of the length of the input (comprising the annotated                  b) if B = XOR(B1 , . . . , Bn ), then  is valid if
+business process and the set of obligations) with                          exactly one i is non-empty and that i is
+which we can check whether it fulfils the regulatory                       valid for Bi
+framework in polynomial time. As a certificate we                      c) if B = AND(B1 , . . . , Bn ), then  is valid if
+will choose a particular trace satisfying the obligations                  the set of tasks in  is the disjoint union of
+composing the regulatory framework. The size of any                        the sets of tasks in i (for each i) and each
+proper traces is always polynomial with respect to the                     i is a valid serialisation for Bi
+business process considered and the set of literals.             P2 (θ, (P, ann)) verifies wether the sequence of
+   Since the type of business processes considered in         states in θ is valid for (P, ann):
+the present paper is structured, cycles are not allowed          Procedure 2: P2 (θ, (P, ann))
+and a task belonging to this type of processes can               • L0 = ∅
+be executed at most once. Thus given a structured                • For each Li ∈ θ and i > 0: Li = Li−1 ⊕ ann(ti )
+process, the maximum length of a proper trace is not             • Ln = Ln+1
+greater than the number of the tasks contained in such           P2 returns true if all of these properties hold and
+process. Additionally the size of the states contained        f alse otherwise.
+in a trace is at most as big as the set of literals used in      Correctness:
+the process. Before verifying the compliance of such               Proof:
+a trace, we first need to check that the trace is indeed         The correctness of procedure P1 follows from Defi-
+a valid trace for the annotated business process (done        nition 4. The first part of the procedure verifies the
+by Algorithm 1 below) and that the trace does indeed          first property of the definition. The uniqueness of
+satisfy the obligations (done by Algorithm 2 described        the task is instead given by construction of a process
+below). We will further show that the time complexity         model as in Definition 1. The second part of the pro-
+of both algorithms is at most polynomial in the size          cedure verifies the three properties of the Definition
+of the input, thus concluding that verifying partial          4.
+compliance is in NP.                                             The correctness of procedure P2 follows directly
+   Claim 1: Verifying whether a structured business pro-      from Definition 10.
+cess is partially compliant with a regulatory framework is       The correctness of the algorithm A1 follows directly
+in NP.                                                        from Definitions 4 and 10.
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                   8
+
+
+
+   Complexity:                                                    structured process, then following from Definition 16,
+   To analyse the complexity of checking whether a                the fact that the certificate fulfils the set of obligations
+trace is a valid serialisation of a business process              is a sufficient condition to say that the structured
+whose main process block is B (procedure P1 ), con-               process is partially compliant with the regulatory
+sider the tree reflecting the hierarchical structure of a         framework containing such set of obligations.
+process block. If B is a single task, the tree consists              Correctness:
+of a single node representing a task. Otherwise the                    Proof: Soundness: θ ` } ⇒ A2 (θ, }) = θ ` }.
+tree has a root corresponding to B and subtrees repre-            Direct proof:
+senting the different sub-blocks Bi of B. The recursive              From the hypothesis we know that θ ` }, hence we
+procedure spends polynomial time (as a function of                know that ∀À ∈ }, θ ` À from Definition 15. Inde-
+n, where n is the number of tasks in B) for each node             pendently of the type of an obligation, if its lifeline is
+of the tree for pre-processing, launching the recursive           never triggered, then it is fulfilled (Definition 13). This
+calls and recombining the results. Since the size of the          is captured in Algorithm 2 because the lines returning
+tree itself is O(n) the overall time for the procedure is         not compliant are inside the for-each cycle (from line
+polynomial in n.                                                  4 to 28), which requires the obligation’s lifeline to be
+Procedure P2 can clearly be executed in time poly-                triggered.
+nomial in n × k where k is the size of the set of                    In the case the lifeline of an obligation is triggered,
+literals. Therefore the time complexity of Algorithm              we distinguish whether the obligation to fulfill it is
+1 is O(n × k), which is polynomial in the size of the             an achievement or a maintenance obligation.
+input.
+                                                                    • Achievement: In this case the lines from 5 to 12
+3.1.2 Verifying the Fulfilment                                        are concerned. Among those, the only line return-
+In the present sub-section we describe Algorithm 2,                   ing not compliant is 10, which is executed when
+which verifies whether a certificate fulfils the obliga-              the state analyzed by the algorithm satisfies the
+tions contained in a regulatory framework.                            deadline condition. However we know that each
+   Algorithm 2: Given a set of obligations } and a                    obligation is fulfilled by the trace and from Def-
+trace θ = (σstart , σ1 , . . . , σn , σend ) such that σstart =       inition 13 it follows that: ∃σj ∈ θ such that σj |=
+(start, L0 ) and θ ∈ Θ(P, ann), the algorithm A2 (θ, }) is            ϕc and ¬∃σh ∈ θ such that σh |= ϕd and σh ≺
+defined as follows (in the following, Ob denotes the                  σj . Thus because the algorithm analyzes the
+set of active obligations and we treat θ as a vector):                states of the trace in order, the condition of line
+   Algorithm A2                                                       9 cannot be fulfilled before the condition at line
+ 1: Ob = ∅                                                            6. When the condition at line 6 is fulfilled, it
+ 2: for j = 0; j ≤ n + 1; j + + do                                    removes the obligation from the cycle, hence
+ 3:    σi = θ[j]                                                      preventing the result not compliant.
+ 4:    for each hO, ϕb , ϕd i in Ob do                              • Maintenance: In this case the lines from 14 to 21
+ 5:       if O = Oa (ϕc ) then
+ 6:          if σi |= ϕc then                                         are concerned. Among those, the only line return-
+ 7:             Ob = Ob \ hOa (ϕc ), ϕb , ϕd i                        ing not compliant is 16, which is executed when
+ 8:          else                                                     the state analyzed by the algorithm does not
+ 9:             if σi |= ϕd then                                      satisfy the condition of the obligation. However
+10:                return θ 6` }                                      we know that each obligation is fulfilled by the
+11:             end if
+12:          end if                                                   trace and from Definition 13 it follows that: ∃σh ∈
+13:       else                                                        θ such that σh |= ϕd and ∀σj ∈ θ such that σj |=
+14:          if O = Om (ϕc ) then                                     ϕc and σj  σh . Thus the condition at line 15
+15:             if σi 6|= ϕc then                                     is never satisfied in the same state or in one
+16:                return θ 6` }                                      preceding a state satisfying the condition at line
+17:             end if
+18:             if σi |= ϕd then                                      18, which removes the obligation and prevents
+19:                Ob = Ob \ hOm (ϕc ), ϕb , ϕd i                     the result not compliant.
+20:             end if                                              Thus we have shown that if the trace being ana-
+21:          end if
+22:       end if                                                  lyzed fulfills the set of obligations, then Algorithm 2
+23:    end for each                                               returns compliant as result.
+24:    for each hO, ϕb , ϕd i in } do                                  Proof: Completeness: A2 (θ, }) = θ ` } ⇒ θ ` }.
+25:       if σi |= ϕb then                                        Proof by contradiction:
+26:          Ob = Ob ∪ hO, ϕb , ϕd i
+27:       end if                                                    We assume that θ 6` }. From this assumption, it
+28:    end for each                                               follows that exists an obligation À in } such that θ 6`
+29: end for                                                       À (Definition 15). Independently of the type of the
+30: return θ ` };                                                 obligation, in order not to be fulfilled by a trace, the
+  Algorithm 2 identifies wether a certificate fulfils a           obligation’s lifeline has to be triggered by such trace at
+set of obligations. If the certificate is a valid trace of a      least once (Definition 13). We analyse independently
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                              9
+
+
+
+two cases, depending on the type of the obligation to        a propositional formula can be done in time that is
+be fulfilled:                                                at most polynomial (in fact linear) in the length of
+  • Achievement: If an achievement obligation is not         the formula, the above asymptotic time bound is at
+     fulfilled by a trace, it means that it is triggered     most polynomial in the length of the input (which
+     in a state σh and the following holds: ∃σi ∈            includes the annotated business process and the set
+     θ such that σi  σh and σi |= ϕd and ¬∃σj ∈             of obligations, including the associated formulas).
+     θ such that σj |= ϕc and σh ≺ σj ≺ σi (Definition          We conclude that given a yes-instance of the partial
+     13).                                                    compliance problem, there is a certificate of size poly-
+     Because the obligation’s lifeline is triggered, we      nomial in the length of the input (namely the trace
+     know that the for-each cycle (from line 4 to line       that satisfies the obligations) for which we can check
+     28) is entered. In particular, because the obliga-      compliance in time polynomial in the length of the
+     tion to be fulfilled is an achievement, we consider     input. We conclude that verifying Partial Compliance
+     the lines between 5 and 12 of Algorithm 2.              is indeed in NP.
+     Because the algorithm analyses the states of the
+     trace in order and this achievement obligation is
+                                                             3.2     NP-Hardness
+     not fulfilled by the trace, we have that line 6 is
+     never fulfilled before the condition in line 9. Thus    After having proven the NP membership of the prob-
+     the obligation is never removed from the loop           lem in the previous sub-section, to prove that the
+     which will end in fulfilling line 9 and executing       problem is NP-complete we have to show that the
+     line 10 which returns θ 6` }. Line 9 is guaranteed      problem is NP-Hard.
+     to be fulfilled because the last state of the trace        To prove the NP-hardness of Verifying Partial
+     always fulfils the deadline condition (Definition       Compliance, we show that the problem of deciding
+     13). In this case we have that A2 (θ, }) = θ 6` }.      whether a directed graph contains an hamiltonian
+  • Maintenance: If a maintenance obligation is not          path (another NP-Complete problem) is polynomial-
+     fulfilled by a trace, it means that it has been trig-   time many-one reducible to it.
+     gered in a state σh and the following holds: ∃σi ∈         In graph theory, the hamiltonian path problem is
+     θ such that σi  σh and σi |= ϕd and ∃σj ∈              the decision problem of determining wether an hamil-
+     θ such that σj 6|= ϕc and σh ≺ σj  σi (Definition      tonian path exists in a given directed graph. This
+     13).                                                    problem is part of the commonly known NP-complete
+     Because the obligation’s lifeline is triggered, we      problems.
+     know that the for-each cycle (from line 4 to line          In a directed graph G = (N, D) where N is a set
+     28) is entered. In particular, because the obliga-      of nodes and D is a set of directed edges represented
+     tion to fulfil is a maintenance, we consider the        as a binary relation N × N , a hamiltonian path is a
+     lines between 14 and 21 of Algorithm 2.                 path in G that visits each node exactly once. A path
+     Because the algorithm analyses the states of the        can travel from one node to another if there exists a
+     trace in order and this maintenance obligation          directed edge starting from a node and pointing to
+     is not fulfilled by the trace, we have that line        the one following it in the path.
+     18 is never fulfilled before the condition in line         Definition 18 (Hamiltonian Path): Let G = (N, D) be
+     15. Thus the obligation is never removed from           a directed graph where the size of N is n. A hamil-
+     the loop which will end in fulfilling line 15 is        tonian path ham = (v1 ; . . . ; vn ) satisfies the following
+     and executing 16 which returns θ 6` }. Line             properties:
+     15 is guaranteed to be fulfilled because the last          1) N = {v1 , . . . , vn }
+     state of the trace always fulfils the deadline con-        2) ∀i, j((vi , vj ∈ ham ∧ j = i + 1), ((vi , vj ) ∈ D)
+     dition (Definition 13). In this case we have that          Claim 2: Hamiltonian Path Problem ≤p Verifying Par-
+     A2 (θ, }) = θ 6` }.                                     tial Compliance
+  We have shown that independently of the type of               Given a directed graph G = (N, D), we reduce the
+the obligation to be fulfilled, if we assume that θ 6` },    problem of deciding whether G contains an hamilto-
+then A2 (θ, }) = θ 6` }. The result contradicts the          nian path to the decision problem of deciding whether
+premise that A2 (θ, }) = θ ` }, hence A2 (θ, }) = θ `        an annotated structured process (P, ann) is partially
+}, then θ ` } is true.                                       compliant with a regulatory framework.
+   Complexity:
+                                                             3.2.1    Reduction
+   The time complexity of checking whether a trace is
+compliant with the set of obligations using Algorithm        Given a directed graph G = (N, D), it can be trans-
+2 is at most O(n×o×T ) where n is the number of tasks        lated to an annotated structured process (P, ann) as
+in the process, o is the number of obligations and T is      follows:
+the maximum time to check whether a state satisfies            1 Assuming that B is the main process block of P ,
+a formula. Since checking whether a state satisfies               B contains a task labeled N odei for each vertex
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                         10
+
+
+                                                                                                                           P
+                        N ode1                                    Here we prove the soundness ((P, ann) ` } ⇒
+                                                                                                                                P
+                                                              ∃ham) and the completeness (∃ham ⇒ (P, ann) ` })
+                        N ode2                                of our reduction. We refer to the two conditions stated
+                                                              in Definition 18 as (1) and (2) respectively.
+                                                                     Proof:
+                                                                                              P
+                                                                  Soundness: (P, ann) ` } ⇒ ∃ham
+                                            N odef ake
+                                                              Direct Proof:
+                                                                  The condition (1) is fulfilled by construction of
+                       N oden−1
+                                                              the reduction because all the tasks representing the
+                                                              nodes of the graph are included in an AND block
+                        N oden                                which has always to be serialised. Thus each possible
+                                                              serialisation of the process and consequently each of
+                                                              its traces contains each of the tasks in the AND block
+Fig. 5. Hamiltonian path problem as verifying partial
+                                                              exactly once (Definition 4).
+compliance.
+                                                                  From the hypothesis it follows that ∃θ ∈
+                                                              Θ(P, ann) such that θ ` } (Definition 13). Thus it
+                                                              also follows that ∀O ∈ }, θ ` O (Definition 15).
+    vi contained in N . In addition, B also contains a            By     construction          of      the      reduction         we
+    task labeled N odef ake .                                 know that each obligation in } is of type
+    The main process block B is structured as an              punctual. We know that there exists a trace
+    AND block followed by a task. The AND block               θ         =           ((start, L0 ), (N odei1 , L1 ), . . . , (N odein ,
+    contains in each branch a single task N odei .            Ln ), (N odef ake , Ln+1 ), (end, Ln+2 )) fulfilling each
+    The task N odef ake , follows the AND block:              of the punctual obligations in }, hence for
+    SEQ(AND(N ode1 , . . . , N oden ), N odef ake ).          each (N odeik , Lk ) and (N odeik+1 , Lk+1 ) in θ,
+    Intuitively a serialisation of the AND block rep-         it follows that there is no punctual obligation
+    resents a tentative hamiltonian path. The task            hOp (¬lik+1 ), lik , >i ∈ }. Thus by construction of the
+    N odef ake has no correspondence in the original          reduction it follows that for each (N odeik , Lk ) and
+    graph, its purpose is to terminate the serialisation      (N odeik+1 , Lk+1 ) in θ, there exists (vik , vik+1 ) ∈ D,
+    of vertices. Annotations and obligations are used         which fulfils the condition (2) because there exists
+    to verify that two adjacent nodes in the serialisa-       and edge between vik and vik+1 in G.
+    tion can be indeed also adjacent in an hamiltonian            Because there exists at least a trace in the process
+    path (explained in detail in 2). Thus, since the last     fulfilling the conditions (1) and (2), it follows that
+    vertex in an hamiltonian path does not need a             ∃ham in G.
+    successor, the task N odef ake allows to ignore the              Proof: Completeness: ∃ham ⇒ (P, ann) ` }
+                                                                                                                            P
+
+    obligations triggered by such vertex.                     Direct Proof:
+  2 In this reduction we use the annotations to iden-             From       the      hypothesis          we        know         that
+    tify which node is being selected in the sequence         ∃ham = (v1 ; . . . ; vn ) satisfying conditions (1)
+    constituting the tentative hamiltonian path. Thus         and (2) in Definition 18. If we substitute each vi in
+    we use for the annotations a language containing          ham with N odei we obtain a valid process block
+    a literal for each node in G. The annotation of           serialisation  = (N ode1 , . . . , N oden ) for the AND
+    each task in (P, ann) is the following:                   block of the process obtained with the reduction
+      – ∀i|1 ≤ i ≤ k, ann(N odei ) = {¬l1 , . . . , ¬ln } ⊕   (Definition 4). If we append N odef ake at the end
+         {li }                                                of  obtaining 0 = (N ode1 , . . . , N oden , N odef ake ),
+      – ann(N odef ake ) = {¬l1 , . . . , ¬ln }               we have that 0 ∈ Σ(P ) is a valid execution of the
+    The obligations are used to represent the directed        main block of P (Definition 5). Using the annotations
+    edges departing from a vertex, in other words             in P we can use 0 to construct a trace θ =
+    which vertices are the suitable successors in the         ((start, L0 ), (N ode1 , L1 ), . . . , (N odek , Lk ), (N odef ake ,
+    hamiltonian path. The set } contains the follow-          Ln+1 ), (end, Ln+2 )) which is a valid trace of P
+    ing obligations:                                          (Definition 10).
+      – ∀vi , vj |(vi , vj ) 6∈ D, hOp (¬lj ), li , >i            Because (2) is fulfilled we know that for each
+                                                              vi , vi+1 ∈ ham there exists (vi , vi+1 ) ∈ D. From
+    Notice that the annotation of N odef ake is com-          this and the construction of the reduction it follows
+    posed in such a way that it always fulfils all the        that there is no obligation À = hOp (¬li+1 ), li , >i. By
+    obligations triggered by the task serialised last in      construction of the reduction we know that only punc-
+    the AND block.                                            tual obligations are allowed, hence it is sufficient to
+  We claim that there exists a trace θ ∈ Θ(P, ann) such       consider two neighbouring states in the trace to verify
+that θ ` } if and only if G has an hamiltonian path.          their fulfilment. By construction of the annotations we
+  Correctness:                                                know that for each (N odei , Li ) and (N odei+1 , Li+1 ) in
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                            11
+
+
+
+θ, only À would not be fulfilled in θ (Definition 13).         From Definition 20 it follows that to verify not full
+Thus, because there is no such obligation like À for         compliance it is sufficient to show that there exists
+any (N odei , Li ) and (N odei+1 , Li+1 ) in θ, then θ ` }   a trace belonging to the structured business process
+(Definition 14).                                             which does not fulfil the regulatory framework.
+   Because there exists at least a trace of P fulfilling
+                                         P
+each obligation in }, then (P, ann) ` }.                     4.1.1 NP Membership
+                                                             To prove membership in NP, we show that an anno-
+   Complexity:                                               tated business process is not fully compliant with a set
+   The complexity of reducing the input of an hamil-         of obligations if and only if there is a certificate whose
+tonian path problem to a problem deciding whether            size is at most polynomial in terms of the length of the
+an annotated structured process is partially compliant       input and which can be verified in polynomial time.
+with a regulatory framework is polynomial in terms           As a certificate we choose a particular trace. Moreover
+of the size of the input. The time complexity of con-        we need to show that verifying whether it is a valid
+structing the annotated structured business process          trace of the annotated business process and is not fully
+is O(n2 ), where n is the number of vertices in G.           compliant can be done in polynomial time.
+The time complexity of constructing the regulatory                Proof:
+framework is O(e), where e is the number of edges               To verify whether a certificate is indeed a valid
+in G. Since e is at most n × n, we can conclude that         trace of the annotated business process we can reuse
+the time complexity of the reduction is O(n2 ).              Algorithm 1 introduced in Section 3.1.
+                                                                In the same way, we can reuse Algorithm 2 to verify
+4 V ERIFYING F ULL C OMPLIANCE IS CO NP-                     the not full compliance of the annotated business
+COMPLETE
+                                                             process. This can be done because Algorithm 2 returns
+                                                             either θ ` } or θ 6` }. Thus in case the algorithm
+In this section we prove that the problem of verifying       returns θ 6` }, according to Lemma 20 the certificate
+whether a structured annotated process is fully com-         proves that the structured annotated process is not
+pliant with a set of obligations is a coNP-complete          fully compliant with the set of obligations.
+problem.                                                        In Section 3.1 it is proven that the complexity of
+   Definition 19 (coNP-complete): A decision problem is      both Algorithms 1 and 2 is polynomial in the length
+coNP-complete if it is in coNP and if every problem          of the input, hence the problem of verifying whether
+in coNP is polynomial-time many-one reducible to             a structured annotated process is not fully compliant
+it. A decision problem is in coNP if and only if its         is indeed in NP.
+complement is in the complexity class NP.
+   To prove that a decision problem is coNP-complete
+we first show that the complementary problem be-             4.2   Completeness of Full Compliance
+longs to NP and second we show that the the tautol-          To show that the problem of verifying whether a
+ogy problem, a known coNP-complete problem, is re-           business process is fully compliant with a set of obli-
+ducible to the problem of verifying whether a business       gations is coNP-complete, we reduce the tautology
+process is fully compliant with a set of obligations.        problem to it.
+                                                                Definition 21 (Tautology): A formula of proposi-
+                                                             tional logic is a tautology if the formula itself is always
+4.1 Not full compliance is in NP
+                                                             true regardless of which valuation is used for the
+We define the complement of the problem of verifying         propositional variables.
+full compliance as its negation. This means verifying
+whether a structured business process is not fully           4.2.1 Reduction
+compliant with a given regulatory framework, which           Let ϕ be a propositional formula for which we want
+is composed by a set of obligations.                         to verify whether it is a tautology or not, and let L
+   According to Definition 16, full compliance with          be the set of literals contained in ϕ. We include in L
+respect to a set of obligations } is defined as follows:     only the positive version of a literal, for instance if l
+   Full Compliance:                                          or ¬l are contained in ϕ, then only l is included in L.
+                        F
+             (P, ann) ` } iff ∀θ ∈ Θ(P, ann), θ ` }.           For each literal l belonging to L we construct an
+                                                             XOR block containing two tasks, one labeled and
+Therefore, we define the complement of full compli-          containing in its annotation the positive literal (i.e. l)
+ance, not full compliance, as follows:                       and the other the negative literal (i.e. ¬l). All the XOR
+   Definition 20 (Not Full Compliance): Given an anno-       blocks constructed from L are then included within a
+tated process (P, ann) and a set of obligations }.           single AND block. This AND block is in turn followed
+   Not Full Compliance:                                      by a task labeled “test” and containing a single literal
+                            F
+                                                             in its annotation: ltest . The sequence containing the
+            ¬(P, ann) ` } iff ∃θ ∈ Θ(P, ann), θ 6` }.        AND block and the task test is then enclosed within a
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                             12
+
+
+
+start and an end, composing the annotated business             all the traces of (P, ann), all the possible combinations
+process model (P, ann), graphically represented in             of interpreting the propositions belonging to ϕ are
+Figure 6.                                                      considered.
+                                                                  Therefore, since the obligation hOa (ϕ), ltest , ⊥i is
+                          l1
+                                                               fulfilled by each trace and each trace corresponds to
+                                                               an interpretation, it follows from Definition 21 that ϕ
+                         ¬l1
+                                                               is indeed a tautology.
+                                                                     Proof:
+                                                                                                        F
+                         l2                                       Completeness: ϕ ≡ > ⇒ (P, ann) ` }
+                                                                  From the construction of the reduction we know
+                         ¬l2                                   that the condition of the only obligation contained in
+                                                               } is constituted by ϕ. However from the hypothesis
+                                                               we know that ϕ is a tautology, hence according to Def-
+                                                               inition 13, such obligation is always fulfilled indepen-
+                                              test
+                                                               dently on the trace taken into consideration. Therefore
+                                                               following from Definition 16, it follows that if ϕ is a
+                        ln 1
+                                                               tautology, then the compliance problem constructed
+                                                               using the reduction results in full compliance.
+                        ¬ln 1
+
+
+                        ln                                       Complexity:
+                                                                 The process P and the obligation hOa (ϕ), ltest , ⊥i
+                        ¬ln                                    can be constructed in time proportional to |L| + |ϕ|
+                                                               where |ϕ| denotes the length of formula ϕ. Since |L| ≤
+                                                               |ϕ| by construction, the time is at most polynomial in
+Fig. 6. Tautology problem as verifying full compliance.        the length of the formula ϕ.
+
+   The set of obligations, to which the constructed
+business process has to be verified to be fully com-
+                                                               5     V ERIFYING N ON C OMPLIANCE IS CO NP-
+pliant with, is composed of a single obligation con-           COMPLETE
+structed as follows from the propositional formula ϕ:          In this section we prove that the problem of verifying
+                                                               whether a structured annotated process is not compli-
+                     hOa (ϕ), ltest , ⊥i                       ant with a regulatory framework is a coNP-complete
+We claim that for all traces θ ∈ Θ(P, ann) we have             problem. In the same way as we proved that verifying
+θ ` } if and only if ϕ is a tautology.                         full compliance is coNP-complete, also in this case
+   Correctness:                                                we have to prove that the complementary problem
+                                                F
+   Here we prove the soundness ((P, ann) ` } ⇒ ϕ ≡             of verifying non compliance is in NP-complete.
+                                                    F
+>) and the completeness (ϕ ≡ > ⇒ (P, ann) ` }) of
+our reduction.                                                 5.1   Not non compliance is NP-complete
+      Proof:                                                   Once again we define the complement of the problem
+                          F
+   Soundness: (P, ann) ` } ⇒ ϕ ≡ >                             as its negation.
+   From the hypothesis and Definition 16, we know                According to Definition 16, non compliance with
+that each trace of the business process (P, ann) fulfils       respect to a set of obligations } is defined as follows:
+the obligations in }. Following from the construction
+                                                                 Non Compliance:
+of the reduction we know that the only obligation
+belonging to } is hOa (ϕ), ltest , ⊥i.                                     (P, ann) 6` } iff ¬∃θ ∈ Θ(P, ann), θ ` }.
+   From Definition 10 and the construction of the
+reduction we know that each trace of P contains the               Therefore, we define the complement of non com-
+task ltest . Therefore, according to Definition 13, in         pliance, not non compliance, as follows:
+order for the obligation hOa (ϕ), ltest , ⊥i to be fulfilled      Definition 22 (Not Non Compliance): Given an anno-
+each trace contains a state following the one where            tated process (P, ann) and a set of obligations }.
+ltest appears.                                                    Not Non Compliance:
+   From the construction of the reduction, in particular
+                                                                           ¬(P, ann) 6` } iff ∃θ ∈ Θ(P, ann), θ ` }.
+how (P, ann) is constructed, and Definition 5 we have
+that in the only state following the one where ltest             We can see that the condition of non compliance is
+appears the first time, the set of literals associated         the same as that of partial compliance. Thus the NP-
+to that state corresponds to an interpretation of the          completeness of partial compliance implies the NP-
+propositions contained in ϕ. Moreover, again from              completeness of not non compliance and hence also
+the construction of the reduction, we know that in             the coNP-completeness of non compliance.
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                          13
+
+
+
+6 C ONCLUSION                                                complete polynomial time algorithm (implemented in
+In this paper we show that in general the problem            [18]) to check whether a trace of a process is compli-
+of verifying business process regulatory compliance          ant. For a process the algorithm has to be applied to
+is hard. More specifically we prove that the problem         all traces in a process, but the number of traces in a
+of verifying whether a structured process is partially       given process, in general, is exponential in terms of
+compliant with a set of obligations is NP-complete,          the number of tasks and gateways in the process.
+and that the problem of verifying whether a struc-              Ghose and Koliadis [14] adopt the same update
+tured process is fully compliant with a set of obliga-       semantics presented in this paper. In case of XOR
+tion is coNP-complete.                                       and AND splits a copy of the current state of the
+   In the third section of the paper we prove that ver-      process before the split is created for each branch of
+ifying partial compliance is NP-complete by showing          the split and then propagated independently from the
+the membership in NP and the NP-Hardness of the              other branches. The states are merged using union in
+problem. The NP-Hardness is shown by reducing the            cases of AND joins. The number of copies generated
+hamiltonian path problem to a problem of verifying           is exponential in the number of the XOR gateways
+partial compliance.                                          occurring in the process, and traces corresponding
+   In the fourth section of the paper we prove that          to interleaving tasks from different branches of AND
+verifying full compliance is coNP-complete by show-          blocks are not considered.
+ing that verifying the complement is an NP problem              The approach by Hoffman et al. [4] offers a polyno-
+and we prove the completeness by reducing the tau-           mial time approximate solution to the business pro-
+tology problem to it. We prove the NP membership of          cess regulatory compliance problem. This approach
+the complementary problem by reusing some of the             is based on the technique of I-propagation. Similarly
+results obtained in Section 3.                               to Ghose and Koliadis [14] the annotations of the
+   In a similar way, in the fifth section we prove that      branches in AND and OR blocks are computed inde-
+verifying non compliance is also coNP-complete.              pendently. The difference is that for XOR join they
+   The results obtained are in line with the statement       consider the intersection of the incoming set of literals
+of Observation 1, where it is stated that full compli-       (one set for each incoming branch). This permits an
+ance implies partial.                                        efficient computation, but it loses information related
+   Our results explain why existing solutions like           to the XOR splits. Also, as in Ghose and Koliadis [14]
+Hoffmann et al. [4], Ghose and Koliadis [14], Gov-           it does not consider the traces resulting from inter-
+ernatori et al. [1], Awad et al. [5] and Ramezani et al.     leaving the tasks in parallel branches of AND blocks.
+[7] do not provide efficient solutions, or in case they         Finally PENELOPE [3] and SeaFlow [6] use, respec-
+do, the solutions provided are an approximation of           tively, Event Calculus and first order logic to model
+the real ones.                                               compliance requirements. Given that Event Calculus
+   The approaches of Awad et al. [5], Ramezani et al.        is a specialised first order logic theory, in both cases
+[7] and Elgammal et al. [15] use Linear Temporal Logic       compliance is reduced to an entailment problem in
+(LTL) to model processes and compliance require-             first order logic, which is known to be computation-
+ments. In particular they define business process pat-       ally intractable.
+terns corresponding to compliance requirements. The             The goal of the present paper is to show the in-
+problem of determining whether a business process            tractability of the business process regulatory com-
+is compliant reduces to a model checking problem             pliance problem. We represent the possible ways of
+in the underlaying logic, LTL, which is known to             achieving a business objective using a business pro-
+be PSPACE-complete [16]. Accordingly, such systems           cess model and we consider the regulatory framework
+adopt a more complex (and more expressive) for-              to be composed by a set of obligations. Given these
+malism. Despite the more expressive language these           elements, we formally prove that verifying whether
+frameworks are restricted to “structural” compliance,        a business process is partially compliant with the
+namely the compliance requirements are just about            regulatory framework is an NP-complete problem
+the presence of tasks in a process and relationships         and the complexity of verifying whether a business
+among tasks and not about the effects of the tasks. In       process is either fully compliant, or not compliant
+addition there are some concerns that temporal logics,       with the regulatory framework is coNP-complete.
+and in particular LTL, might not be able to model               As future work we plan to extend the present
+compliance requirements as shown by Governatori              work in two ways: first, we plan to study larger
+[17].                                                        and more complete problems, like the ones includ-
+   The approaches of Governatori and Sadiq [1], Ghose        ing compensations for the obligations violated in the
+and Koliadis [14], and Hoffmann et al. [4] attach            form of contrary to duties described by Prakken and
+effects to the tasks in a process and propagate the          Sergot[19] and by Jones and Carmo [20]. With this
+effects while traversing a process model.                    further analysis we want to see whether the com-
+   The approach proposed by Governatori and Sadiq            plexity of the problem increases and to which extent.
+[1] and further developed in [2] defines a sound and         Second we plan to study the complexity of the sub-
+IEEE TRANSACTIONS ON SERVICE COMPUTING, VOL. X, NO. X, X X                                                                                           14
+
+
+
+problems of the problem tackled in the present paper.                      [15] A. Elgammal, O. Turetken, W.J. van den Heuvel, and
+The results of this analysis will help the community                            M. Papazoglou, “Formalising and applying compliance
+                                                                                patterns for business process compliance,” Software and
+by pointing out which sub-problems may be solved                                Systems Modeling, 2014. [Online]. Available: http://dx.doi.
+efficiently.                                                                    org/10.1007/s10270-014-0395-3
+                                                                           [16] A. P. Sistla and E. M. Clarke, “The complexity of propositional
+                                                                                linear temporal logics,” Journal of ACM, vol. 32, no. 3, pp.
+                                                                                733–749, Jul. 1985. [Online]. Available: http://doi.acm.org/
+ACKNOWLEDGMENTS                                                                 10.1145/3828.3837
+                                                                           [17] G. Governatori, “Thou shalt is not you will,” NICTA, Tech.
+      • We thank Prof. Leendert van der Torre from Uni-                         Rep. 8026, 2014.
+        versity of Luxembourg for his helpful suggestions                  [18] G. Governatori and S. Shek, “Regorous: a business process
+                                                                                compliance checker,” in ICAIL, E. Francesconi and B. Verheij,
+        and comments.                                                           Eds. ACM, 2013, pp. 245–246.
+      • NICTA is funded by the Australian Government                       [19] H. Prakken and M. Sergot, “Dyadic deontic logic and contrary-
+        as represented by the Department of Commu-                              to-duty obligations,” in Defeasible Deontic Logic, D. Nute, Ed.
+                                                                                Kluwer Academic Publishers, 1997, pp. 223–262.
+        nications and the Australian Research Council                      [20] A. Jones and J. Carmo, “Deontic logic and contrary-to-duties,”
+        through the ICT Centre of Excellence program.                           in Handbook of Philosophical Logic, D. Gabbay and F. Guenthner,
+      • Silvano Colombo Tosatto is supported by the                             Eds. Kluwer Academic Publishers, 2002, pp. 265–343.
+        National Research Fund, Luxembourg.
+
+
+R EFERENCES
+[1]  G. Governatori and S. Sadiq, “The journey to business process
+     compliance,” in Handbook of Research on BPM, J. Cardoso and
+     W. van der Aalst, Eds. IGI Global, 2009, ch. 20, pp. 426–454.
+[2] G. Governatori and A. Rotolo, “A conceptually rich model               Silvano Colombo Tosatto studied computer science at the Univer-
+     of business process compliance,” in APCCM 2010, ser. CRPIT,           sitá di Torino where he got his master degree in 2010 defending his
+     S. Link and A. Ghose, Eds., vol. 110. Australian Computer             thesis entitled “Neural Symbolic Learning Systems: Neural Networks
+     Society, 2010, pp. 3–12.                                              for Normative Reasoning”. Silvano is currently a Ph.D. Student at the
+[3] S. Goedertier and J. Vanthienen, “Designing compliant busi-            university of Luxembourg where he is mainly working on the com-
+     ness processes with obligations and permissions,” in Business         plexity of proving regulatory compliance. Silvano’s main research
+     Process Management (BPM) Workshops, 2006, pp. 5–14.                   interest is artificial intelligence, in particular agent architectures, multi
+[4] J. Hoffmann, I. Weber, and G. Governatori, “On compliance              agent systems and normative reasoning.
+     checking for clausal constraints in annotated process models,”
+     Information Systems Frontiers, vol. 14, no. 2, pp. 155–177, 2012.
+[5] A. Awad, M. Weidlich, and M. Weske, “Visually Specifying
+     Compliance Rules and Explaining their Violations for Business
+     Processes,” Journal of Visual Languages & Computing, vol. 22,
+     no. 1, pp. 30–55, 2011.
+[6] L. T. Ly, S. Rinderle-Ma, K. Göser, and P. Dadam, “On enabling
+     integrated process compliance with semantic constraints in
+     process management systems,” Information Systems Frontiers,
+     vol. 14, no. 2, pp. 195–219, 2012.                                    Guido Governatori is a senior principal researcher in the Software
+[7] E. Ramezani, D. Fahland, and W. M. P. van der Aalst, “Where            Systems Research Group at NICTA where he leads the research
+     did I misbehave? Diagnostic information in compliance check-          activities on Business Process Compliance. He is also an adjoint
+     ing,” in BPM 2012, ser. LNCS, A. P. Barros, A. Gal, and               professor in the BPM Group at Queensland University of Technology.
+     E. Kindler, Eds., vol. 7481. Springer, 2012, pp. 262–278.             He received his PhD in Legal Informatics from the University of
+[8] B. Kiepuszewski, A. H. M. ter Hofstede, and C. Bussler, “On            Bologna. His research interests include defeasible reasoning, modal
+     structured workflow modelling,” in CAiSE 2000, ser. LNCS,             deontic and non-classical logics and their applications to normative
+     B. Wangler and L. Bergman, Eds., vol. 1789. London, UK:               reasoning, agent systems and business process modelling.
+     Springer-Verlag, 2000, pp. 431–445.
+[9] A. Polyvyanyy, L. Garcı́a-Bañuelos, and M. Dumas, “Structur-
+     ing acyclic process models,” Information Systems, vol. 37, no. 6,
+     pp. 518–538, 2012.
+[10] G. Keller and T. Teufel, SAP R/3 Process Oriented Implementa-
+     tion: Iterative Process Prototyping. ddison-Wesley, 1998.
+[11] G. Governatori, J. Hoffmann, S. W. Sadiq, and I. Weber,
+     “Detecting regulatory compliance for business process models
+     through semantic annotations,” in Business Process Management
+     Workshops, ser. LNBIP, D. Ardagna, M. Mecella, and J. Yang,
+                                                                           Pierre Kelsen is professor of computer science at the University of
+     Eds., vol. 17. Springer, 2008, pp. 5–17.
+                                                                           Luxembourg where he leads the Laboratory for Advanced Software
+[12] C. E. Alchourrón, P. Gärdenfors, and D. Makinson, “On the
+                                                                           Systems. He received a PhD in computer science at the University of
+     logic of theory change: Partial meet contraction and revision
+                                                                           Illinois at Urbana-Champaign in the area of parallel graph algorithms.
+     functions,” Journal of Symbolic Logic, vol. 50, no. 2, pp. 510–530,
+                                                                           He held postdoctoral positions at the University of British Columbia
+     1985.
+                                                                           and the Max-Planck Institute for Informatics. His research interests
+[13] G. Governatori and A. Rotolo, “Norm compliance in business            include model-driven engineering, formal methods, and algorithms.
+     process modeling,” in Proceedings of the 4th International Web
+     Rule Symposium: Research Based and Industry Focused (RuleML
+     2010), ser. LNCS, vol. 6403. Springer, 2010, pp. 194–209.
+[14] A. Ghose and G. Koliadis, “Auditing business process compli-
+     ance,” in ICSOC 2007, ser. LNCS, B. J. Krämer, K.-J. Lin, and
+     P. Narasimhan, Eds., vol. 4749. Springer, 2007, pp. 169–180.
+

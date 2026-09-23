@@ -1,0 +1,421 @@
+\section{The product: a shared specification that can be reviewed and executed}
+\label{sec:product}
+
+LegalMath should be a regulatory specification workbench. Its primary users are
+the compliance officer interpreting a change, the product or operations owner
+deciding how it affects the business, and the engineer implementing the resulting
+control. An auditor or independent reviewer should be able to reconstruct the
+same decision later. The product succeeds when those people can inspect one
+maintained interpretation through views suited to their work.
+
+The first release should support a narrow end-to-end task: take a selected public
+circular and its dependencies, prepare proposed rules, resolve or retain
+interpretation questions, evaluate synthetic cases, and export a versioned change
+package containing generated Java source, a compiled JAR and its evidence.
+Integration into bank systems follows the bank's ordinary change process.
+
+\subsection{What a reviewer should see}
+
+Opening the SPI financial condition should display the source passage and its
+annex context beside a controlled explanation: the portfolio route or the
+net-asset route can satisfy this particular condition. Definitions should be
+available in place, especially ownership attribution and exclusion of the primary
+residence. The same screen should show the boundary cases, missing evidence and
+where the condition is used in the larger SPI assessment.
+
+The reviewer can change an interpretation, ask for a distinguishing example, or
+record a question for the policy owner. If two candidate readings differ only at
+the threshold, the workbench should produce that boundary case. If they differ
+because one applies to a representative and another to the client, the example
+should name the roles. The user should not need to understand a solver formula
+to see why the choice matters.
+
+The engineer views the corresponding types, data mappings, executable dependency
+graph and tests. The operations owner views required actions, responsible teams,
+timing and evidence of completion. A diagram or decision table is generated from
+the same adopted rules. Maintaining a separate hand-edited flowchart would create
+another translation boundary and another version to reconcile.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=8mm and 8mm,
+ box/.style={draw=teal,fill=pale,rounded corners,text width=40mm,align=center,minimum height=17mm,font=\small},
+ arr/.style={-{Latex[length=2mm]},thick,draw=navy}]
+\node[box] (source) {Preserved sources\\and dependencies};
+\node[box,right=of source] (draft) {Proposed interpretation\\and unresolved questions};
+\node[box,right=of draft] (spec) {Reviewed typed rules\\and examples};
+\node[box,below=of spec] (exec) {Reference evaluator\\and generated Java};
+\node[box,left=of exec] (evidence) {Tests, counterexamples\\and scoped proofs};
+\node[box,left=of evidence] (history) {Decision explanations\\and amendment history};
+\draw[arr] (source)--(draft); \draw[arr] (draft)--(spec);
+\draw[arr] (spec)--(exec); \draw[arr] (exec)--(evidence);
+\draw[arr] (evidence)--(history);
+\draw[arr] (evidence.north)--(draft.south);
+\end{tikzpicture}
+\caption{The proposed workbench. Counterexamples return to interpretation review.
+A proof result remains attached to the exact rules, assumptions and software
+version it checks.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{The intermediate representation}
+
+A JSON document becomes an executable specification only when its expressions
+have defined meanings. RuleIR 0.1 fixes a finite, acyclic expression language and
+a separate event profile. The following sections give its expression, evidence,
+event, storage and service rules in the manuscript. The JSON schemas and
+\path{docs/specs/v0.1/} files provide machine-checkable structures and detailed
+operational copies of those contracts. They do not select an alternative logic
+or leave missing-value behavior to the implementer.
+
+Each rule needs more than its condition. It must identify the source document and
+revision, paragraph or page, exact supporting span, language, source digest and
+retrieval date. It must record the legal actor, activity, product, client class,
+relevant time and interpretation status. It must distinguish a derived fact from
+a duty, permission or prohibition. A duty also needs an actor, trigger, action,
+timing rule and evidence by which performance can be assessed. A missing source
+deadline remains missing; operational escalation times belong to a separately
+identified bank policy.
+
+Definitions should be reusable and versioned. A field for portfolio value must
+refer to the adopted portfolio definition, relevant ownership rules, valuation
+date and currency conversion convention. The application mapping records where
+each fact comes from, its freshness and who can resolve a conflict. A rule whose
+necessary definition remains unresolved can be reviewed and discussed, but it
+cannot be released as an executable control for that use.
+
+The complete financial-condition bundle is supplied in
+\path{fixtures/spi-financial.bundle.json} beneath the specification directory.
+It declares two money inputs, an unconditional scope for this isolated
+subcondition, the expression, interpretation record and a verified span in
+Annex 1 paragraph 3.1. The excerpt below is a complete expression node from
+that bundle. Node identifiers make its trace reproducible.
+
+\begin{minipage}{\textwidth}
+\begin{lstlisting}[caption={The portfolio comparison in the supplied JSON bundle. Amounts are HK cents.}]
+{"node_id":"portfolio.ge", "op":"compare", "cmp":"ge",
+ "left":{"node_id":"portfolio.input", "op":"fact",
+         "name":"portfolio"},
+ "right":{"node_id":"portfolio.threshold", "op":"literal",
+          "type":"money_hkd", "value":"4000000000"}}
+\end{lstlisting}
+\end{minipage}
+
+The second comparison uses \texttt{net\_assets\_ex\_home} and
+\texttt{"8000000000"}; an \texttt{any} node combines them. These inputs denote
+amounts normalized under adopted wealth definitions, not any account balance
+supplied under the same name. Release requires those definitions and applicability
+to be reviewed. The narrow result name, \texttt{spi.financial}, identifies a
+subcondition rather than a complete SPI assessment or trade authorization.
+
+\input{03a-rule-contract}
+
+\subsection{A precise example: money, alternatives and unknown values}
+\label{sec:semantics}
+
+Let $P$ denote the client's portfolio amount under the adopted definition, and
+let $N$ denote net assets excluding the primary residence. Both are valued at the
+relevant date and expressed in HK dollars under an explicit conversion policy.
+For complete, valid inputs, the financial condition is
+\begin{equation}
+ F(P,N)=(P\geq 40{,}000{,}000)\ \lor\ (N\geq 80{,}000{,}000).
+ \label{eq:financial}
+\end{equation}
+The source of the constants, inclusive comparisons and alternative is Annex 1,
+paragraph 3.1. Equation~\eqref{eq:financial} formalizes that subcondition; its
+inputs incorporate the separate definitions in paragraphs 3.2--3.4
+\citep{sfcspiannex1}. RuleIR stores monetary amounts as
+integer HK cents encoded as decimal strings. Conversions must take place
+before the comparison, with the exchange-rate source and valuation instant
+recorded. Floating-point rounding must not silently move a boundary.
+
+Bank evidence is often incomplete. Define the comparison with a missing amount
+to return $\Unknown$, and let $\True$, $\False$ and $\Unknown$ mean established,
+refuted and unresolved for this condition. For the alternative in
+Equation~\eqref{eq:financial}, use the following truth table:
+\begin{equation}
+\begin{array}{c|ccc}
+\lor & \True & \False & \Unknown\\\hline
+\True & \True & \True & \True\\
+\False & \True & \False & \Unknown\\
+\Unknown & \True & \Unknown & \Unknown
+\end{array}
+\label{eq:or}
+\end{equation}
+This table follows the intended treatment of incomplete evidence: a known
+sufficient route establishes the alternative, both refuted routes refute it,
+and otherwise missing information can matter. With unknown $P$ and
+$N=90{,}000{,}000$, the second comparison is true, so
+$\Unknown\lor\True=\True$. With unknown $P$ and $N=70{,}000{,}000$, the result
+is $\Unknown\lor\False=\Unknown$. Figure~\ref{fig:financial-flow} gives a
+flowchart view.
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[font=\small,
+ box/.style={draw=teal,fill=pale,rounded corners,text width=39mm,align=center,minimum height=13mm},
+ decision/.style={draw=teal,diamond,aspect=2.6,align=center,text width=40mm,inner sep=1mm},
+ arr/.style={-{Latex[length=2mm]},thick,draw=navy}]
+\node[box] (input) at (0,0) {Defined, dated amounts\\or explicit unknowns};
+\node[decision] (yes) at (0,-2.8) {Is either financial\\route established?};
+\node[box] (true) at (6,-2.8) {Financial condition\\established};
+\node[decision] (no) at (0,-5.6) {Are both financial\\routes refuted?};
+\node[box] (false) at (6,-5.6) {Financial condition\\refuted};
+\node[box] (unknown) at (0,-8.3) {Unresolved: identify\\decision-relevant evidence};
+\draw[arr] (input)--(yes);
+\draw[arr] (yes)--node[above]{Yes}(true);
+\draw[arr] (yes)--node[left]{No}(no);
+\draw[arr] (no)--node[above]{Yes}(false);
+\draw[arr] (no)--node[left]{No}(unknown);
+\end{tikzpicture}
+\caption{Proposed review flow for the financial subcondition, after resolving
+input conflicts. Passing this test alone does not establish SPI status.}
+\label{fig:financial-flow}
+\end{figure}
+
+The other Boolean operations need equally explicit tables. Under the proposed
+conservative three-valued semantics, conjunction is false if an operand is false,
+true if both are true, and otherwise unresolved; negation swaps true and false
+and preserves unknown. This semantics does not discover every conclusion implied
+by correlations among unknown facts. For example, a general expression
+$A\lor\neg A$ remains unresolved when $A$ is unresolved under these tables.
+A more powerful completion-based analysis may establish additional conclusions,
+but it must be a specified refinement with its own evidence. No accidental
+change of logic should occur when switching backends.
+
+Contradictory input records are handled before this evaluation. If two
+authoritative-looking records disagree on the same ownership allocation, the
+workbench creates an evidence conflict and identifies the disputed fact. It must
+not insert both as classical premises and infer arbitrary results from an
+inconsistent theory. Being outside a rule's scope, having insufficient evidence,
+and detecting a data conflict are also distinct operational outcomes. These
+statuses should wrap the logical result rather than being encoded as false.
+
+\subsection{Obligations and event histories}
+
+The decision fragment cannot represent every continuing control. For consent,
+let $s_i$ describe the recorded arrangement immediately before event $e_i$:
+its client, selected categories, agreed threshold, monitoring mode, relevant
+reviews and withdrawal status. Each event includes its timestamps and ordering
+evidence. It changes the recorded state through a
+versioned transition function,
+\begin{equation}
+ s_{i+1}=T_v(s_i,e_i).
+ \label{eq:transition}
+\end{equation}
+Here $i$ orders processed events; it does not assume equal physical time
+steps. Version $v$ identifies the adopted rules and ordering convention. A
+withdrawal event can change the availability of the streamlined arrangement for
+subsequent decisions. A new-funds event can trigger the designated-account
+checks. An annual-review event creates work that must later be evidenced as
+completed. The exact consequences require review of the cited guidance and the
+bank's operating procedure \citep{sfcspiannex1,sfcspiannex2}.
+
+An obligation record should distinguish its creation, due condition, performance,
+breach and any later remediation. If a transaction occurs after a withdrawal, the
+audit view must retain the transaction and identify the issue; it cannot erase
+the event because the authorization view would have blocked it. This follows the
+useful separation of normative permission from actual occurrence in eFLINT
+\citep{eflint2026}.
+
+Time requires two histories. Legal validity time records when a source or adopted
+rule applies. System-recorded time records when the bank received and deployed
+it. These support different questions: what should have applied to an event, and
+what version did the system actually use? The same distinction applies to facts
+received late or corrected later. A reconstructed historical assessment may use
+new evidence, but it must not overwrite the original decision and its inputs.
+
+Event ordering is a material assumption. The prototype should store source
+timestamps, receipt timestamps, sequence identifiers, time zone and any uncertainty
+in ordering. A synthetic trace with a consent withdrawal and execution at the
+same timestamp is unresolved unless the available ordering or an adopted
+convention settles it. Calendar computations should identify whether they use
+anniversaries, elapsed days or another reviewed operation, drawing on the date
+semantics literature \citep{dates2024}. Neither the operating system clock nor the
+order in which messages happen to arrive establishes legal priority.
+
+\input{03b-event-contract}
+
+\subsection{What can be proved, and what must be reviewed}
+\label{sec:proof}
+
+There are three distinct assurance questions. The first is interpretive: does the
+adopted specification represent the relevant sources for the chosen business
+scope? The second is computational: does the implementation compute that
+specification? The third is evidential: do the facts and event records represent
+the relevant circumstances? A complete change package needs evidence for all
+three, but the evidence is different.
+
+To make the computational question precise, let $R_v$ be an approved version of
+the formal rules. Let $\llbracket R_v\rrbracket(x)$ denote the reference meaning
+of those rules on input $x$, and let $C_v(x)$ be the result of an implementation
+or compiled adapter. Define $D_v$ to include the declared input types, admissible
+values, explicit unknowns and relevant state. The target is
+\begin{equation}
+ \forall x\in D_v:\quad C_v(x)=\llbracket R_v\rrbracket(x).
+ \label{eq:refinement}
+\end{equation}
+Equality here includes the named decision and required obligations represented by
+the specification. If explanations are part of the verified output, their
+relationship must be stated too. The meaning of the output cannot shrink from a
+set of duties to one Boolean while retaining the same assurance claim.
+
+Equation~\eqref{eq:refinement} is a proposed verification objective, not a result
+already established by LegalMath. For a finite input space it may be checked by
+enumeration; for a restricted expression language it may be amenable to an SMT
+encoding or a proof by induction over expressions. For a production adapter,
+the mapping from bank data into $x$ and the implementation of calendar and
+currency operations also belong to the argument. A test suite samples the
+equation and provides useful defect evidence, but it does not generally prove its
+universal quantifier.
+
+The interpretive question does not become a theorem simply by naming a formal
+target. Source text, legal context and justified interpretations determine
+$R_v$. Compliance review, source coverage, competing readings and independently
+constructed cases address that step. Likewise, a theorem cannot establish that
+a recorded balance or signature is authentic. These limits are operationally
+useful: each review task is directed to the person and evidence that can answer it.
+
+\subsection{Counterexamples make disagreements reviewable}
+
+For many regulatory changes, a small counterexample is more useful than a large
+proof transcript. Suppose the proposed implementation accidentally replaces the
+first inclusive comparison in Equation~\eqref{eq:financial} with a strict one.
+Let that candidate be $G$, and write $D$ for the declared set of admissible,
+complete inputs $(P,N)$. A solver can search for
+\begin{equation}
+ \exists (P,N)\in D:\quad F(P,N)\ne G(P,N).
+ \label{eq:counterexample}
+\end{equation}
+The concrete values $P=40{,}000{,}000$ and $N=0$ witness the disagreement:
+$F$ is true and $G$ is false. A compliance officer can understand the error
+without reading the encoding. Replacing the alternative with a conjunction is
+similarly exposed by $P=35{,}000{,}000$ and $N=90{,}000{,}000$.
+
+This technique also compares two candidate interpretations or old and new rule
+versions. It must check the admissibility and consistency of its assumptions
+first. If a test domain accidentally demands that the same amount is both
+positive and negative, the absence of a counterexample proves nothing useful
+about real cases. Unsatisfiable assumptions should be reported as a separate
+failure, with the conflicting constraints identified. Solver timeout and unknown
+results should never be rendered as ``equivalent.''
+
+The initial Z3 adapter supports a smaller language than the interpreter:
+Boolean, integer and money expressions with explicit knownness and bounded
+declared domains. Dates, scaling, defaults and events return
+\texttt{UNSUPPORTED}. Encode a Boolean expression $a$ by two bits $(t_a,f_a)$:
+true is $(1,0)$, false $(0,1)$ and unknown $(0,0)$; prohibit $(1,1)$.
+Conjunction then has the encoding
+\begin{equation}
+ t_{a\land b}=t_a\land t_b,\qquad
+ f_{a\land b}=f_a\lor f_b.
+ \label{eq:knownness}
+\end{equation}
+Disjunction uses the dual equations and negation swaps the bits. A numeric value
+carries a knownness bit, and a comparison produces neither Boolean bit unless
+both operands are known. These equations implement the stated truth tables.
+Giving an unknown fact an unconstrained classical Boolean would instead make
+$A\lor\neg A$ always true and verify a different language.
+
+The service checks domain satisfiability before searching for a difference in
+tagged results. Display a satisfying model only after replay through both
+interpreters. An unsatisfiable difference query yields
+\texttt{NO\_COUNTEREXAMPLE\_IN\_DECLARED\_DOMAIN}; an empty domain yields
+\texttt{INCONSISTENT\_DOMAIN}; timeout stays \texttt{UNKNOWN}. Preserve formula,
+domain, rule hashes and solver version. A solver answer is a different class
+of evidence from a certificate replayed by an independent checker.
+
+For event rules, the corresponding search concerns traces. A useful first
+property is that, in the adopted consent model, no transition representing a new
+streamlined decision uses a withdrawn consent state. Another is that processing
+the same evidence event twice does not create duplicate obligations. Each
+property has assumptions about event identity and ordering. Bounded trace search
+can find violations, while a proof of an invariant can establish a stronger
+claim if the transition model and induction obligations are checked.
+
+\subsection{The smallest useful execution architecture}
+
+The authoring runtime is a Python 3.11 reference interpreter, with JSON Schema and
+semantic validation, SQLite storage, content-addressed source files and a local
+FastAPI service. A server-rendered interface presents source, rule and case
+together. The interpreter walks a validated syntax tree; it does not execute
+model-generated Python. Sets, quantifiers, general recursion, arbitrary code,
+currency conversion and unbounded temporal formulas are outside RuleIR 0.1.
+An external, evidenced normalizer can supply a reviewed count or HKD value.
+
+These restrictions keep common questions tractable and make the trusted code
+small enough to inspect. They also provide a natural place to evaluate the
+literature: Catala for the decision fragment, DMN as a possible Java integration comparison,
+and a Stipula-inspired state model for a bounded workflow. The project should not
+integrate all candidate engines before demonstrating one complete use case.
+
+A reference interpreter implements the written execution semantics. A schema
+validator checks structure; a semantic validator checks expression types,
+resolved dependencies,
+source links and explicit exception relationships; a scenario runner evaluates
+reviewed examples. A solver adapter then searches for conflicts, unreachable
+branches and semantic differences. Generated code should come from a deterministic
+compiler for the supported fragment. At transaction time, evaluation uses an
+approved rule version and a recorded fact snapshot; language-model generation
+belongs to authoring and review.
+
+An implementation adapter is accepted only after its treatment of missing
+values, numeric boundaries, priority, dates and obligations agrees with the
+reference semantics on the required checks. DMN's hit-policy choices and Rego's
+undefined results make this comparison substantive
+\citep{dmn2024,opadocs}. A backend that cannot express a required distinction
+should report that limitation instead of approximating it silently.
+
+\input{03c-storage-review}
+
+\subsection{Language-model drafting with visible uncertainty}
+
+The drafting service should propose clause segments, roles, definitions,
+cross-references, candidate rules and review questions. Every proposal must cite
+the exact source passage and expose the definitions it imports. The service
+should use constrained structured output, followed by validation against the
+rule grammar. Retrieved text is evidence to interpret, not an instruction that
+can modify the workbench or execute arbitrary tools.
+
+Independent candidate translations can help discover uncertainty. Their value
+comes from meaningful differences, not a vote count. When two candidates disagree,
+the solver should try to construct a case that distinguishes them. When both
+depend on a missing FAQ, the next action is to retrieve and inspect that source.
+When the language requires legal judgment, the result is an explicit assessment
+task. The model's confidence and the solver's ability to execute a formula must
+remain separate from approval of the interpretation, consistent with the lessons
+of ARc and the tax-reasoning work \citep{arc2025,jurayj2026}.
+
+The reviewer should receive a short set of consequential questions. For example:
+does the selected evidence establish that an agreement is absent, or merely that
+it has not been retrieved? Does a new circular replace the entire earlier source
+or a specified part? Does a control apply to the distributor or the provider?
+Question selection should reduce ambiguity in the actual decision rather than
+produce generic compliance checklists.
+
+\subsection{Amendments and the release package}
+
+Every source revision should produce both a textual change view and an impact
+view. The former identifies changed passages, annexes and links; the latter
+follows dependencies to interpretations, definitions, rules, tests, data mappings
+and deployed controls. The 2023 and 2026 tokenisation circulars form a useful
+initial replacement case. A replacement marker is evidence about the document
+relationship, but application dates and treatment of existing arrangements still
+require the relevant source and review \citep{sfctoken2023,sfctoken2026}.
+
+Where old and new executable rules cover the same domain, the workbench should
+find representative cases on which their outcomes differ. Where a new rule
+introduces an additional fact or actor, it should identify the new data dependency
+and the cases that cannot yet be evaluated. A textual difference alone cannot
+measure operational impact, and an unchanged threshold cannot establish that a
+definition or exception is unchanged.
+
+The release package should contain the source snapshot, interpretation record,
+rule version, unresolved exclusions, approved examples, test and solver results,
+adapter version, data mappings and owner approvals. Decisions made with that
+package should record its identifier and input snapshot. Dependency analysis can
+identify tests and interpretation evidence that remain relevant after a change.
+Every changed bundle nevertheless needs fresh approval of its exact hash and a
+new evidence report; a result for an older hash cannot authorize its release.
+The historical record remains intact. This distinction permits reuse of work
+without obscuring what needs fresh review.

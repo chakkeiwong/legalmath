@@ -1,0 +1,36 @@
+// COMMONS WAARDE AANGEBODEN VAN AANBOD.eflint
+//   by Lut99
+//
+// Created:
+//   20 Aug 2024, 10:00:22
+// Last edited:
+//   20 Aug 2024, 10:03:46
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Implementeert uitbreidingen aan `commons-waarde-aangeboden` die deze
+//   automatisch berekent van aanbiedingen die als Commons worden gedaan.
+//
+
+#require "../begrippen/aanbod.eflint".
+#require "../begrippen/commons-waarde.eflint".
+
+
+/// REGELS ///
+Extend Fact commons-waarde-aangeboden
+    Derived from (Foreach deelnemer, jaar :
+        commons-waarde-aangeboden(
+            deelnemer,
+            Sum(Foreach aanbod, dienst-waarde :
+                dienst-waarde.waarde
+                When (
+                    aanbod-als-commons(aanbod)
+                    && aanbod.aanbieder == deelnemer
+                    && aanbod.dienst == dienst-waarde.dienst
+                    && aanbod.jaar == jaar
+                )
+            ),
+            jaar
+        )
+    ).

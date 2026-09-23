@@ -1,0 +1,57 @@
+// ARTIKEL 7.10.eflint
+//   by Lut99
+//
+// Created:
+//   03 Jul 2024, 10:21:33
+// Last edited:
+//   20 Aug 2024, 15:36:54
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.10 van het Afsprakenstelsel.
+//   
+//   Dit artikel wordt geïnterpreteerd als dat de markering van een aanbod als
+//   Commons moet gebeuren als een overeenstemming tussen de aanbieder en
+//   afnemer.
+//   
+//   Zie `artikel7.10.md` voor meer informatie.
+//
+
+#require "../begrippen/beheerder.eflint".
+#require "../begrippen/overeenkomst.eflint".
+
+
+///// INPUT /////
+/// Benoemt dat de aanbieder en afnemer van een overeenkomst ook daadwerkelijk overeen zijn
+/// gekomen.
+Fact overeenkomst-met-overeenstemming Identified by overeenkomst.
+
+
+
+
+
+///// REGELS /////
+/// Stelt dat een `overeenkomst` alleen mag worden gemaakt over aanbiedingen die als Commons zijn
+/// gedaan (`aanbod-als-commons`) als zowel de aanbieder als de afnemer daarmee akkoord zijn gegaan
+/// (i.e., `overeenkomst-met-overeenstemming` geldt voor deze overeenkomst).
+/// 
+/// # Afsprakenstelsel
+/// > Overeenstemming over afname en levering als Commons is een bilaterale transactie tussen
+/// > desbetreffende Deelnemers.
+Duty alleen-overeenkomst-over-commons-als-overeenstemming
+    Holder aanbieder
+    Claimant beheerder
+    Related to overeenkomst
+    // De plicht geldt voor alle overeenkomsten die zijn gemaakt over Commons
+    Derived from (Foreach overeenkomst, beheerder :
+        alleen-overeenkomst-over-commons-als-overeenstemming(
+            overeenkomst.aanbod.aanbieder,
+            beheerder,
+            overeenkomst
+        )
+        When aanbod-als-commons(overeenkomst.aanbod)
+    )
+    // De plicht is geschonden zodra het aanbod is gemarkeerd als Commons, maar er geen
+    // overeenstemming is.
+    Violated when aanbod-als-commons(overeenkomst.aanbod) && Not(overeenkomst-met-overeenstemming(overeenkomst)).

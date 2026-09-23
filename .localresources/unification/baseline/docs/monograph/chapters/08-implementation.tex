@@ -1,0 +1,573 @@
+\chapter{An implementation contract for the interpretation workbench}
+\label{ch:implementation}
+
+\section{Extend the existing product at a defined boundary}
+
+The current repository already has source intake, RuleIR validation and execution,
+event replay, Java generation, review records, build and release manifests, and a
+local service interface. Its drafting provider is a deterministic fixture. The
+new work is an interpretation investigation service between source intake and
+approval of a candidate bundle. Replacing the entire runtime would discard useful
+engineering evidence and enlarge the task unnecessarily.
+
+The extension accepts a retained source packet, an activity profile and an
+explicit investigation policy. It creates inventories, candidates, arguments,
+discrepancies and bounded actions. Its output is a report and, when appropriate,
+one or more validated draft bundles. The existing review and release services
+remain responsible for approval and export, with an additional requirement that
+the interpretation report and its unresolved issues be checked.
+
+This boundary has two advantages. The interpretation service can evolve its
+candidate-generation methods without changing deterministic production execution.
+The Java path can be verified independently of any particular model provider.
+A candidate that requires an unsupported operator is returned as an engineering
+question rather than forcing a runtime change through an unreviewed model output.
+
+The companion contracts define the proposed \texttt{interpretation.v1} extension.
+They are stored in \texttt{docs/monograph/contracts}. These are design contracts
+and examples, not
+a claim that the service is already implemented. The accompanying ordered task file identifies dependencies and acceptance conditions. An
+implementation agent should read this chapter with those files and the existing
+v0.1 runtime contracts; it should not infer additional authority from illustrative
+code in the manuscript.
+
+\section{Separate durable records from generated prose}
+
+The service needs a small set of durable record types. A run binds the source
+packet, activity profile, policy and required ensemble roles. A candidate binds a
+proposed meaning to a formal representation and its assumptions. An issue records
+a discrepancy and its evidence need. An action records one authorized external
+operation. A report reconciles the run's evidence and terminal status. Review
+decisions and source coverage records connect these objects to human authority
+and document completeness.
+
+Generated prose is a field within these records, not their controlling structure.
+A model may write an explanation saying an issue is resolved, but the service
+changes the issue's resolution status only through a validated transition with
+the required evidence. A sentence saying ``approved by compliance'' has no effect
+unless an authenticated review record exists for the exact object.
+
+Identifiers are stable opaque strings within a namespace; content hashes identify
+immutable payloads. These roles should not be confused. A run identifier remains
+stable while events accumulate, whereas each immutable candidate revision has a
+new content identity. A human-readable title can change without becoming the
+primary key. References use identifiers and, where integrity requires it, the
+expected content hash.
+
+Timestamps use the project's canonical UTC format. Durations are integer
+milliseconds or seconds with explicitly named units. Counts are nonnegative
+integers. Monetary reservations use exact minor units and a named billing
+currency. No field called \texttt{cost} should leave the unit or estimated-versus-
+actual distinction implicit. This discipline prevents the controller from
+comparing incompatible budgets.
+
+The schemas reject unknown properties. This catches misspelled limits and
+unrecognized status fields rather than ignoring them. Structural validation is
+only the first step: the service also verifies references, state transitions,
+source compatibility, budget arithmetic and role authority. JSON Schema cannot
+prove that a source passage supports an interpretation or that two referenced
+objects belong to the same run.
+
+\section{The run and policy records}
+
+A run records its immutable configuration hash, source packet hash, profile
+identifier, required roles, creation time, deadline and current lifecycle state.
+It also references its candidate, issue, action and report collections. Mutable
+projections such as counters are derived from durable events or updated
+transactionally with them; they are never trusted solely because a client submits
+a number.
+
+The lifecycle begins with initialization, proceeds through initial proposals and
+resolution rounds, and ends in ready-for-review, blocked-unresolved, cancelled or
+failed-integrity. A ready-for-review run is complete enough to present, not
+released. A run that is blocked can still contain useful validated candidates.
+The API returns them with the block, rather than suppressing all information
+because the overall investigation is incomplete.
+
+The policy supplies all material resource and coverage choices. It names required
+roles, maximum initial actions, maximum resolution rounds, per-root and global
+action caps, no-progress limit, action timeout, run duration, candidate count,
+argument-node count and dependency depth. It also declares whether monetary and
+token caps are enforced. Configuration validation checks internal consistency,
+such as requiring the initial-action cap not to exceed the global cap.
+
+The reference fixture policy is deliberately explicit:
+\begin{lstlisting}[caption={Reference limits for deterministic controller fixtures.}]
+{
+  "schema_version": "interpretation.v1",
+  "policy_id": "fixture-policy.v1",
+  "use": "DETERMINISTIC_FIXTURE_ONLY",
+  "max_initial_actions": 4,
+  "max_resolution_rounds": 3,
+  "max_actions_per_issue_root": 3,
+  "max_actions_total": 12,
+  "max_no_progress_rounds": 2,
+  "action_timeout_seconds": 30,
+  "run_deadline_seconds": 600,
+  "max_candidates": 24,
+  "max_argument_nodes": 200,
+  "max_dependency_depth": 6,
+  "token_cap": null,
+  "cost_cap_minor_units": null
+}
+\end{lstlisting}
+
+The candidate, graph and dependency bounds make local processing tractable for
+fixtures. Reaching one opens or preserves an incompleteness issue. These numbers
+are convenience choices for engineering tests, not selected production defaults.
+A paid provider configuration must add enforceable cost and token reservations,
+and its deployment policy must explain why the chosen limits are sufficient for
+the intended workload.
+
+A policy version is immutable once used. Changing a cap during a run requires an
+explicit authorized amendment event if that capability is later implemented;
+the first prototype should instead require a successor run. This keeps budget
+semantics simple and prevents a worker from extending its own authority. The
+successor links to the prior report and explains why additional work is justified.
+
+\section{The candidate record carries the interpretive commitment}
+
+A candidate has a parent revision, source references, subject unit, controlled-
+language statement, formal bundle reference, assumptions and interpretation
+family. The family identifies a consequential choice, such as component versus
+whole-offer assessment. It is not merely a cluster label assigned by a text
+embedding. A candidate can belong to several dimensions, but its changed choices
+must be explicit relative to its parent.
+
+Each assumption has a statement, provenance and status. Possible statuses include
+supported by inspected source, factual evidence required, provisional modeling
+choice, disputed and rejected. A known fact in a runtime snapshot must not be
+created directly from a disputed assumption. The candidate-to-fact mapping is a
+reviewed transformation with its own evidence requirements.
+
+Supporting and opposing arguments reference source spans or other arguments.
+An argument distinguishes premises, inference rule and conclusion, and labels
+strict versus defeasible inference where that distinction is used. If an
+argumentation engine is not yet implemented, these records can still support a
+structured review interface. The service must not label the resulting graph as
+formally evaluated until the selected semantics has actually been run.
+
+Candidate status distinguishes active, deferred, defeated, unsupported and
+selected-for-review. Deferred means not yet sufficiently investigated, not false.
+Defeated requires a recorded reason under the chosen argument and authority
+policy. Unsupported means the current record lacks adequate support. Selected
+for review is a presentation decision; only a separate authenticated decision can
+approve the candidate's meaning.
+
+The record includes score components with definitions and calibration status.
+The initial contract permits a scheduling priority and categorical evidence
+states. It explicitly leaves probability of legal correctness null. Later
+calibration can add a versioned, narrowly defined score, but cannot reinterpret
+old uncalibrated priorities as probabilities after the fact.
+
+Source and assumption identity survive formal deduplication. If two candidates
+share an identical RuleIR body, the body can be stored once. Their distinct
+assumptions and source mappings remain separate candidate records. This prevents
+a compiler optimization from erasing the very disagreement the workbench is
+intended to expose.
+
+\section{The issue and action records make automatic work accountable}
+
+An issue names its root, parent if any, run, source units, affected candidates,
+semantic dimension and materiality. It records the observed discrepancy and the
+question that would resolve it. Processing state and resolution state are separate
+fields. A terminal processing state can coexist with unresolved meaning.
+
+Resolution evidence is typed. A source-based resolution references retained spans
+and the reviewer or deterministic rule that accepted them. An adjudication
+references the authenticated decision. An equivalence resolution references the
+comparison report, domain and confirmation that no distinct source commitment
+remains. A bare model statement is not a valid resolution-evidence type.
+
+An action names the run, issue root or initial role, round, permitted action type,
+input hashes, adapter, timeout, reservation and current state. It also stores the
+idempotency key, lease owner, fencing token and terminal result reference. The
+action's question and success criterion are immutable after dispatch. Changing
+them creates another counted action.
+
+The action result separates transport success from substantive progress. A model
+request can return valid JSON yet fail to provide any supported new proposition.
+A retrieval can succeed technically while returning the wrong version. A solver
+can complete normally with an unknown result. The adapter reports its technical
+outcome, and the controller validates whether the result answers the action's
+question.
+
+External text is untrusted data. It cannot name a new tool and cause execution,
+change a budget, alter role permissions or select an arbitrary filesystem path.
+Permitted actions come from a server-side registry. The model can propose an
+action from that registry, but the controller validates its applicability and
+reserves resources before dispatch. This is both a security boundary and a way to
+keep the method's stopping proof connected to actual behavior.
+
+Typed evidence records bind their content hash, source context, validation state
+and origin action or review. Source spans, factual records, validated repairs,
+formal comparisons and human adjudications are distinct evidence kinds. A formal
+comparison additionally names its domain and result; an unknown result cannot
+close an equivalence issue. The companion checker rejects unvalidated closure
+and equivalence claims supported only by a repair narrative. Establishing legal
+sufficiency and authenticated review authority remains a service and review
+responsibility beyond JSON validation.
+
+The issue record retains attempted actions even when they fail. It is often useful
+to know that an official dependency was unavailable at the assessment cut-off,
+that two classification prompts produced no new evidence, or that a formal check
+was outside the supported fragment. Those facts explain why the investigation
+stopped and what would justify reopening it.
+
+\section{Coverage records connect source units to consequences}
+
+A coverage record maps each inventoried unit to one or more dispositions:
+implemented rule, contextual explanation, definition dependency, separate
+obligation, reviewed out-of-scope provision, or unresolved question. The record
+includes the reason and responsible reviewer where a legal judgment is involved.
+A paragraph can have more than one role; it may contain both a definition and an
+operative condition.
+
+Coverage validation first checks that the record refers to the same source hash
+as the inventory. It then checks that every inventoried unit appears, every
+referenced rule or issue exists, and any claim of implemented coverage has a
+validated bundle and verification evidence. It cannot decide the substantive
+adequacy of a legal disposition from structure alone, so that judgment remains
+an explicit review obligation.
+
+Dependencies are edges with types and versions. An incorporated definition is
+stronger than a background analogy in the sense that missing it can directly
+prevent interpretation of the selected rule. The impact service uses these edges
+to identify affected candidates when a source changes. A generic document list
+would not tell the service which conclusions depend on which definitions.
+
+The source inventory itself is versioned and reviewed. An improved extractor may
+find a previously missed footnote without any change to the official bytes. That
+creates a new derivative and inventory revision, not a new official source
+publication. Candidates whose coverage was assessed against the older inventory
+need reconsideration. Distinguishing source revision from extraction revision
+makes that event explainable.
+
+For the second circular, the executable scope remains paragraph 10. The coverage
+record must retain all eighteen paragraphs and four footnotes with their
+respective dispositions. A machine-readable count of one implemented paragraph
+and seventeen other paragraph dispositions is more honest than a banner saying
+``circular translated'' without a denominator. The report can still present the
+selected slice as a successful engineering example while showing why whole-
+document release is not established.
+
+\section{Storage transactions and event history}
+
+The first implementation can extend the existing transactional store. Tables for
+runs, candidates, issues, actions, coverage revisions, reports and review decisions
+store canonical payloads with indexed identity and relationship fields. Foreign
+keys protect references, unique constraints protect idempotency, and transactions
+protect coupled state changes. The exact storage engine can remain the existing
+local choice for the prototype; bank deployment requires its own availability and
+administrative-control assessment.
+
+The most important transaction reserves an action. It reads the current run and
+root counters under a lock or equivalent serializable mechanism, checks all
+limits, inserts the action and outbox row, increments counters and appends the
+audit event. If any step fails, none commits. A later worker cannot dispatch an
+action that lacks the committed reservation.
+
+A resolution transaction similarly checks the issue revision, validates the
+resolution evidence, updates the issue projection and invalidates dependent
+results when necessary. It does not modify immutable candidate or source blobs.
+The event history records what changed and why, while the current projection
+supports efficient queries. Recovery can rebuild projections or verify them
+against the event sequence.
+
+Client idempotency is scoped by authenticated caller and operation. Repeating the
+same key with the same canonical payload returns the existing result. Reusing the
+key with a different payload returns conflict. The service must not accept a
+client-supplied role in the payload as authority. Authentication determines the
+caller and its permitted operations.
+
+The local audit log is useful for reproducibility but is not automatically
+ tamper-resistant against a database administrator. A bank deployment may require
+external append-only storage, signed checkpoints or equivalent controls. Those
+choices are part of the operational security design, not properties conferred by
+calling a table an audit log. The prototype should preserve enough identity and
+ordering information to integrate such controls later.
+
+\section{An API with reviewable state transitions}
+
+The proposed HTTP extension uses asynchronous jobs for investigation and explicit
+resources for review. Creating a run requires the source packet, profile,
+configuration and idempotency key. The server validates all references and returns
+a run identifier and job reference. It does not block the request until every
+model has completed.
+
+\begin{longtable}{@{}P{49mm}P{41mm}P{58mm}@{}}
+\caption{Proposed interpretation-service operations. Existing v0.1 endpoints remain separate.}\label{tab:interpretation-api}\\
+\toprule
+Operation & Purpose & Required behavior\\
+\midrule\endfirsthead
+\toprule Operation & Purpose & Required behavior\\\midrule\endhead
+\texttt{POST}\newline\path|/interpretation-runs| & Create a bounded investigation & Validate source/profile/policy; authenticate caller; idempotent creation\\
+\texttt{GET}\newline\path|/interpretation-runs/{id}| & Inspect current state & Return counters, phase, terminal reason and linked resources\\
+\texttt{POST}\newline\path|/interpretation-runs/{id}/cancel| & Stop new automatic work & Preserve outstanding actions and produce a cancelled report\\
+\texttt{GET}\newline\path|/interpretation-runs/{id}/report| & Retrieve a report version & Expose blocked and failed reports as well as review-ready ones\\
+\texttt{GET}\newline\path|/interpretation-issues/{id}| & Inspect a discrepancy & Return candidates, evidence need, attempts and status separately\\
+\texttt{POST}\newline\path|/interpretation-issues/{id}/decisions| & Record human adjudication & Require reviewer authority, expected revision and exact evidence links\\
+\texttt{POST}\newline\path|/interpretation-runs/{id}/successors| & Authorize further work & Require reason, new policy and lineage; never reset the old run\\
+\bottomrule
+\end{longtable}
+
+These paths are proposed additions, not descriptions of endpoints already present
+in the retained OpenAPI file. The implementation task must generate a new OpenAPI
+contract from actual request models and test it against the service. The book's
+path table states responsibilities; the machine-readable schema files state the
+record shapes.
+
+Malformed requests return boundary errors without creating partial runs. Missing
+references and incompatible source versions return semantic validation errors.
+A stale expected revision returns conflict so the reviewer can reload the changed
+issue. Unauthorized decisions fail without writing a review or audit entry that
+suggests acceptance. The service records denied-operation security evidence
+through its appropriate logging channel without pretending that the mutation
+succeeded.
+
+Pagination must preserve completeness. Collection responses include stable cursors
+and total or explicitly unknown counts; reports bind the complete underlying
+collection hashes. A user-interface page showing twenty issues cannot imply that
+only twenty exist. Exports include all issue records or a manifest identifying
+every page, with integrity checks that detect omission.
+
+\section{The review interface should expose the decisive difference}
+
+A reviewer should begin with the source passage and the decision under review,
+not a wall of model transcripts. The interface shows the activity and subject
+profile, the candidate's controlled-language rule, and the facts needed to apply
+it. A neighboring comparison shows the strongest surviving alternative and a
+scenario where the outcomes differ.
+
+The discrepancy view explains the type of uncertainty. Missing factual evidence
+should lead to a data request; unresolved meaning should lead to a legal question;
+unsupported runtime operations should lead to engineering work. Mixing these
+under a single confidence badge makes review slower and encourages the wrong
+remedy. The interface can use concise status labels, with the full evidence one
+step away.
+
+Source references open the retained version and highlight the exact span. A live
+link is useful for checking current authority, but it should not replace the
+retained version used in the run. If the live document differs, the interface
+shows the change and offers a successor investigation. This prevents a reviewer
+from unknowingly approving a candidate against a document that changed after
+its creation.
+
+Two review moments require different records. An adjudication during the run
+binds the issue revision, candidate and source context; it cannot require a hash
+of a final report that does not yet exist. The eventual report includes that
+adjudication. A subsequent final review binds the immutable report and candidate.
+The companion \texttt{issue-decision} and \texttt{review-decision} schemas keep
+these directions separate and avoid a circular report-to-decision hash dependency.
+Neither record alone authorizes deployment.
+
+A decision form asks for the proposition being accepted, the evidence relied on,
+the treatment of the strongest objection, the scope of the decision and any
+conditions. It does not ask only for a confidence slider. The authenticated role
+and exact candidate/report hashes are supplied by the service. The reviewer
+cannot approve an unseen revision through a stale browser tab.
+
+Unresolved reports remain useful work products. They can present a focused
+question for the next authorized reviewer, show which offers are affected and
+identify a temporary operational policy proposal. The interface should make clear
+whether that policy is a bank choice or a conclusion about the regulator's rule.
+This distinction is central to keeping cautious operations from becoming false
+statements of law.
+
+\section{Provider adapters are deliberately narrow}
+
+A provider adapter accepts a typed task and returns a bounded response plus usage
+and execution metadata. It has no direct database credentials for approvals,
+release records or budgets. It cannot invoke arbitrary tools selected in model
+text. The controller supplies the exact retained sources and permitted retrieval
+scope, and the adapter reports which inputs were actually sent.
+
+The initial interface can support three adapter kinds: scripted fixtures,
+retrieval tools and model proposals. Scripted fixtures are essential because they
+make failures reproducible. Retrieval adapters return bytes and acquisition
+metadata for validation. Model adapters return structured proposals and source
+references that the controller checks. All adapters use the same action identity
+and timeout accounting.
+
+The adapter must distinguish refusal, abstention, malformed output, transport
+failure, timeout and unknown remote result. Treating them all as an empty answer
+would lose the reason a mandatory role is incomplete. It must also report hidden
+provider behavior, such as automatic retries or server-side tool execution, when
+that behavior affects resource accounting or evidence provenance. An integration
+that cannot bound these behaviors is unsuitable for the unattended profile.
+
+Prompt templates are versioned source files. They state the role, source
+perimeter, required structured fields and prohibition on treating source text as
+instructions to the system. The prompt should ask for assumptions and opposing
+reasons, but those requests do not make the response reliable by themselves.
+Validation and independent evidence remain necessary.
+
+The service stores provider and model identifiers, relevant sampling settings,
+template version and source hashes. A provider alias that changes its underlying
+model must be recorded as such. Reproducibility may be limited even with these
+fields, so reports distinguish replay of a retained response from regeneration of
+a fresh model response. Deterministic execution of an accepted bundle does not
+depend on reproducing the model's original generation.
+
+\section{Security protects the meaning of the evidence}
+
+The source packet can contain malicious or misleading instructions, whether
+through a compromised document, an uploaded file or quoted text. The interpreter
+must treat them as source content, not commands. A paragraph saying to ignore
+prior rules cannot change the controller's budget or authentication policy. The
+model's task is to analyze that text within the source context; tool permissions
+come from the server.
+
+Acquisition should retain the existing restrictions on HTTPS destinations,
+redirects, public addresses, response size and time. A user-supplied URL does not
+establish official authority. Uploaded documents remain unverified until a
+separate process establishes provenance. A source that is useful for comparison
+may still be ineligible to support release.
+
+PDF parsing needs an isolation boundary in a bank deployment. The current local
+prototype's bounded parser is not an operating-system sandbox for arbitrary
+hostile files. A production intake worker should have limited filesystem and
+network access, resource limits and a narrow output contract. This protects the
+workbench without changing the legal interpretation method.
+
+Bank factual data and public regulatory sources have different access needs.
+The initial ensemble prototype should use public sources and synthetic scenarios.
+Sending client or transaction data to a model provider requires the bank's
+approved data-handling arrangement. The architecture supports minimizing that
+exposure: legal interpretation can often use abstract fact patterns, while
+production evaluation remains inside the bank with the generated Java package.
+
+Logs must avoid becoming an uncontrolled copy of sensitive evidence. Store
+references and necessary metadata in operational logs, retain full evidence in
+access-controlled stores, and make redaction policies explicit. A redacted report
+must preserve enough structure to explain its limitations. Redaction cannot
+silently remove the only evidence supporting an approval while leaving the
+approval summary apparently complete.
+
+Security tests should use concrete attacks: source text that requests a tool
+call, candidate output containing executable markup, a URL redirecting to an
+internal address, an oversized graph, a forged reviewer role and an action result
+that tries to change its run identifier. The expected behavior is rejection or
+safe treatment as data, with a recorded reason. These tests protect the authority
+boundaries on which the interpretation method relies.
+
+\section{The ordered implementation sequence}
+
+The implementation should proceed in small stages that each produce a reviewable
+capability. The first stage freezes contracts and builds deterministic examples.
+The next adds persistence and budgets. Only after the controller behaves correctly
+with scripted members should it call live model providers. This sequence avoids
+confusing stochastic model behavior with defects in state management.
+
+\begin{longtable}{P{13mm}P{49mm}P{85mm}}
+\caption{Ordered work packages for the proposed extension.}\label{tab:extension-tasks}\\
+\toprule
+ID & Deliverable & Acceptance condition\\\midrule\endfirsthead
+\toprule ID & Deliverable & Acceptance condition\\\midrule\endhead
+E01 & Contract models and reference policy & All valid examples pass; extra fields, incompatible limits and invalid transitions are rejected.\\
+E02 & Source inventory and dependency records & Every retained unit has a disposition; missing or mismatched units create issues even under unanimous proposals.\\
+E03 & Immutable candidate and assumption store & Revisions retain parents and source hashes; changing a definition invalidates dependent candidates.\\
+E04 & Issue identity and lifecycle & Child issues inherit root accounting; terminal unresolved states cannot masquerade as resolutions.\\
+E05 & Atomic budget and outbox service & Concurrent reservations never exceed caps; crash recovery preserves issued counts and fencing.\\
+E06 & Scripted provider and controller & Omission repair, persistent ambiguity, timeout, no-progress and cancellation traces match the specification.\\
+E07 & Structured comparison and witnesses & Different source contexts are detected; supported formal differences replay in Python and Java.\\
+E08 & Complete report and review interface & Every issue and mandatory role is represented; dissent and unexplored families remain visible.\\
+E09 & Review and release integration & Exact report/candidate/build identity is required; all stale or unresolved release attempts are rejected.\\
+E10 & Restricted retrieval and model adapters & No uncounted retries or model-directed tools; malformed and unavailable responses retain distinct outcomes.\\
+E11 & Independent reference corpus & Source and scenario judgments are frozen before model outputs; disagreement and adjudication are retained.\\
+E12 & Equal-budget evaluation harness & Baselines share source access and cost accounting; uncertainty and abstention metrics are reported together.\\
+E13 & Optional argumentation/search extension & Small reference graphs and family-preservation tests pass; incomplete search remains explicit.\\
+E14 & Bank integration and shadow operation & Real identity, host mappings, operational dispositions and rollback procedures are approved and exercised.\\
+\bottomrule
+\end{longtable}
+
+Dependencies matter. E05 depends on the record and issue contracts, while E06
+needs E05 and a scripted adapter. E09 depends on complete reports and existing
+release identity checks. E10 can be developed behind the adapter interface, but
+live evaluation should wait for E11 and E12. E13 is optional until the simpler
+scheduler's limitations are measured; it must not delay a clear implementation
+of bounded disagreement handling.
+
+Each task should specify files to add or extend, existing interfaces to reuse,
+acceptance identifiers and evidence locations. The companion task JSON provides
+that structure without changing the existing master plan's completed T00--T22
+history. These are new extension tasks, not a retroactive claim that the earlier
+MVP failed to implement its agreed scope.
+
+An implementation agent should stop a task for a genuine contract inconsistency,
+missing authority or unavailable required infrastructure. It should not stop
+merely because a scripted candidate fails: detecting that failure is often the
+acceptance criterion. A failed interpretation candidate can trigger the next
+planned repair phase while still blocking release. The task record distinguishes
+those outcomes.
+
+\section{Acceptance scenarios that exercise the whole cycle}
+
+The first end-to-end fixture uses the explicit type-of-product omission. It
+freezes the source packet, emits two candidates, creates a discrepancy, reserves
+a repair action, validates the revised formula, reruns affected checks and
+produces a report. The report is ready for review only if all other required
+coverage and dependencies in that fixture are complete. The real second-circular
+packet remains blocked where its dependencies are unresolved.
+
+The second fixture uses the cashback ambiguity with no resolving authority. It
+must preserve both supported candidates through the configured rounds and end in
+a blocked report. The test checks not only the terminal status but also the
+attempt history, retained objections, question for the reviewer and absence of
+release authority. This scenario prevents an implementation from treating
+exhaustion as permission to choose the highest score.
+
+The third fixture tests unanimous omission. All candidate providers return the
+same incomplete rule, while an independent inventory identifies an uncovered
+source unit. The controller must open a material issue despite unanimous agreement.
+If it does not, the ensemble has implemented voting rather than the proposed
+method.
+
+The fourth fixture tests failures under concurrency. Two workers attempt the last
+available reservation, one crashes after dispatch, and a stale worker later
+returns a result. Exactly one reservation may consume the remaining slot; the
+crashed action remains counted; the stale result cannot overwrite a newer state.
+The test uses a controlled clock and scripted transport so it is reproducible.
+Real distributed-system testing later extends this fixture under the deployment
+infrastructure.
+
+The fifth fixture tests invalidation. A reviewer approves a candidate and report,
+then a source derivative reveals a previously omitted footnote. The affected
+coverage and interpretation records become stale. Release with the earlier
+approval must fail until the impact is reviewed and the required checks rerun.
+An unchanged Boolean body does not bypass the source-coverage question.
+
+The sixth fixture tests report recovery. A run is cancelled or encounters a
+malformed provider response. The service must still produce a complete terminal
+report from durable records. If rich rendering fails, a minimal machine-readable
+report must remain available. The acceptance condition is not a pretty success
+screen; it is a reconstructible account of what happened.
+
+\section{The first vertical slice and its completion rule}
+
+A useful first vertical slice implements E01--E09 with scripted members and the
+public second-circular packet. It exercises source inventory, competing candidates,
+a repair, a persistent ambiguity, a report and the existing Java path. It does
+not need an expensive model integration to test whether the controller's logic
+is coherent. This is the smallest product-shaped demonstration of the proposed
+method.
+
+Completion requires more than green unit tests. The service must generate an
+inspectable report from a fresh run, preserve the exact input and output identities,
+show all unresolved issues in the interface, and reject a release attempt for the
+blocked example. A separate synthetic fully resolved fixture can demonstrate the
+positive review path using local test identities. Its approval status must remain
+clearly synthetic.
+
+The implementation note should record the command, environment, source hashes,
+policy, result files and any departures from the design. If a departure changes
+meaning, budget accounting or approval behavior, it requires a contract revision
+and new acceptance cases. Minor internal choices can be made by the agent, but
+must not silently alter observable semantics.
+
+Live models then replace scripted proposal adapters without changing the controller
+contract. That transition creates a new empirical question: whether the methods
+find useful alternatives and omissions on unseen circulars at acceptable cost.
+The next chapter supplies the reference process, baselines and uncertainty
+analysis needed to answer that question. Engineering completion of the vertical
+slice is a prerequisite for that study, not its result.

@@ -1,0 +1,129 @@
+// AANBOD.eflint
+//   by Lut99
+//
+// Created:
+//   08 Aug 2024, 14:35:27
+// Last edited:
+//   23 Apr 2025, 13:25:28
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Specificeert de notie van een aanbieding.
+//
+
+#require "deelnemer.eflint".
+#require "catalogus.eflint".
+#require "dienst.eflint".
+#require "id.eflint".
+#require "plaats.eflint".
+#require "tijd.eflint".
+#require "waarde.eflint".
+
+
+///// REGELS /////
+/// Vertegenwoordigd een aanbod van een Dienst. Dit is niet per sé Commons, gewoon een Dienst in het
+/// algemeen.
+Fact aanbod Identified by id * aanbieder * dienst * jaar.
+Extend Fact id
+    Derived from (Foreach aanbod : aanbod.id).
+Extend Fact deelnemer
+    Derived from (Foreach aanbod : aanbod.aanbieder).
+Extend Fact dienst
+    Derived from (Foreach aanbod : aanbod.dienst).
+Extend Fact jaar
+    Derived from (Foreach aanbod : aanbod.jaar).
+
+
+
+/// Specificeert aan wie een `aanbod` wordt gedaan.
+/// 
+/// Dit is anders dan een `overeenkomst`, omdat een overeenkomst als een interactie tussen de twee
+/// Deelnemers encodeert. Dit feit, daarintegen, zit daarvoor nog; het kan worden gezien als een
+/// representatie van of een overeenkomst kan worden gesloten tussen deze twee partijen voor afname
+/// van dit aanbod.
+Fact aanbod-aan Identified by aanbod * afnemer.
+Extend Fact deelnemer
+    Derived from (Foreach aanbod-aan: aanbod-aan.afnemer).
+
+
+
+/// Specificeert als hoeveel een dienst wordt aangeboden.
+Fact aanbod-kosten Identified by aanbod * waarde.
+Extend Fact waarde
+    Derived from (Foreach aanbod-kosten : aanbod-kosten.waarde).
+
+/// Specificeert hoeveel gebruikskosten er aan een aanbod hangen voor een bepaalde Deelnemer.
+Fact aanbod-gebruiks-kosten Identified by aanbod * waarde.
+Extend Fact waarde
+    Derived from (Foreach aanbod-gebruiks-kosten : aanbod-gebruiks-kosten.waarde).
+
+// /// Specificeert hoeveel gebruikskosten er verbonden zijn aan het gebruik van de AV per aanbod.
+// Fact aanbod-av-kosten Identified by aanbod * waarde.
+// Extend Fact waarde
+//     Derived from (Foreach aanbod-av-kosten : aanbod-av-kosten.waarde).
+
+
+
+/// Specificeert in welke catalogi een `aanbod` is opgenomen.
+Fact aanbod-in Identified by aanbod * catalogus.
+Extend Fact catalogus
+    Derived from (Foreach aanbod-in : aanbod-in.catalogus).
+
+/// Specificeert waar een aanbod wordt afgehandelt.
+Fact aanbod-via Identified by aanbod * plaats.
+Extend Fact plaats
+    Derived from (Foreach aanbod-via : aanbod-via.plaats).
+
+
+
+/// Specificeert of een aanbod als Commons wordt aangeboden aan iemand.
+Fact aanbod-als-commons Identified by aanbod.
+
+
+
+
+
+// ///// ASSERTIONS /////
+// /// We willen liever geen overlappende IDs.
+// Invariant unieke-aanbod-ids
+//     When (Forall aanbod1:
+//         Not(Exists aanbod2:
+//             aanbod1.id == aanbod2.id
+//             When aanbod1 != aanbod2
+//         )
+//     ).
+
+// /// Er mag maar maximaal één `aanbod-kosten` per `aanbod` worden gegeven omdat:
+// ///   a) we niet willen sommeren als we niet hoeven; en
+// ///   b) er geen duplicate waardes in hetzelfde jaar kunnen worden weergeven (eFLINT voegt beide
+// ///      instanties samen tot één).
+// Invariant maximaal-een-aanbod-kosten
+//     When (Forall aanbod :
+//         Count(Foreach aanbod-kosten :
+//             aanbod-kosten
+//             When aanbod-kosten.aanbod == aanbod
+//         ) <= 1
+//     ).
+
+// /// Er mag maar maximaal één `aanbod-gebruiks-kosten` per `aanbod` worden gegeven omdat:
+// ///   a) we niet willen sommeren als we niet hoeven; en
+// ///   b) er geen duplicate waardes in hetzelfde jaar kunnen worden weergeven (eFLINT voegt beide
+// ///      instanties samen tot één).
+// Invariant maximaal-een-aanbod-gebruiks-kosten
+//     When (Forall aanbod :
+//         Count(Foreach aanbod-gebruiks-kosten :
+//             aanbod-gebruiks-kosten
+//             When aanbod-gebruiks-kosten.aanbod == aanbod
+//         ) <= 1
+//     ).
+
+
+
+
+
+///// UTILITIES /////
+/// Maakt een nieuw `aanbod` met een unieke maar arbitraire ID.
+Event maak-aanbod
+    Related to aanbieder, dienst, jaar
+    Creates aanbod(Max(Foreach id: id) + 1, aanbieder, dienst, jaar).

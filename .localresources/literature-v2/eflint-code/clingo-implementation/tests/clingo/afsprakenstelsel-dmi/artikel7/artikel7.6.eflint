@@ -1,0 +1,109 @@
+// ARTIKEL 7.6.eflint
+//   by Lut99
+//
+// Created:
+//   27 Jun 2024, 15:35:53
+// Last edited:
+//   20 Aug 2024, 11:52:32
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.6 van het Afsprakenstelsel.
+//
+//   Dit artikel wordt geïnterpreteert dat áls Deelnemers data aanbieden, dat
+//   ze dit dan ook als Commons naar kennisinstellingen moeten aanbieden.
+//   
+//   Verder wordt gedefinieerd dat als een kennisinstituut nieuwe data
+//   publiceert die is vergaart met data aangeboden via data verkregen van het
+//   systeem als Commons, ze deze om niet beschikbaar moeten stellen.
+//   
+//   Zie `artikel7.6.md` voor meer informatie.
+//
+
+#require "artikel7.5.eflint".
+
+
+///// INPUT /////
+/// Specificeert dat een bepaalde dataset is verkregen met behulp van een eerder als Commons
+/// aangeboden dataset.
+Fact dienst-opgebouwd-met-commons-data Identified by dienst.
+Extend Fact dienst
+    Derived from (Foreach dienst-opgebouwd-met-commons-data : dienst-opgebouwd-met-commons-data.dienst).
+
+
+
+
+
+///// REGELS /////
+/// Stelt dat, áls een dataset wordt aangeboden, dit als Commons moet worden gedaan jegens
+/// kennisinstituten.
+/// 
+/// Afsprakenstelsel:
+/// > Om kosten van in te kopen data(gebruik) zo laag mogelijk te kunnen houden voor
+/// > kennisinstituten en onderzoeksinstellingen, dienen alle Deelnemers aan dezen data(gebruik)
+/// > altijd aan te bieden als Commons, [...]
+Duty data-als-commons-voor-kennisinstituten
+    Holder aanbieder
+    Claimant beheerder
+    Related to aanbod
+    // Deze plicht geldt voor alle aanbieders die data niet als Commons aanbieden...
+    Derived from (Foreach aanbod, kennisinstituut, beheerder :
+        data-als-commons-voor-kennisinstituten(aanbod.aanbieder, beheerder, aanbod)
+        When (
+            Not(aanbod-als-commons(aanbod))
+            && data(aanbod.dienst)
+        )
+    )
+    // De plicht is geschonden zodra er een kennisinstituut is wat geen toegang heeft tot deze data
+    // van deze aanbieder als Commons.
+    Violated when (Exists kennisinstituut :
+        Not(Exists aanbod' :
+            aanbod-als-commons(aanbod') && aanbod-aan(aanbod', kennisinstituut.deelnemer)
+            When (
+                aanbod'.aanbieder == aanbod.aanbieder
+                && aanbod'.dienst == aanbod.dienst
+                && aanbod'.jaar == aanbod.jaar
+            )
+        )
+    ).
+
+/// Uitbreiding van 'commons-vrij-van-gebruiks-kosten' die kennisinstituten uitzondert (i.e., zij
+/// mogen _wel_ gebruikskosten worden doorgerekend).
+/// 
+/// Afsprakenstelsel:
+/// > Indien er inspanningen verbonden zijn aan de distributie en/of bewerkingen van die data, dan
+/// > mogen de redelijke kosten daarvan bij de ontvanger in rekening worden gebracht.
+Extend Duty commons-vrij-van-gebruiks-kosten
+    Conditioned by Not(kennisinstituut(overeenkomst.afnemer)).
+
+/// Stelt dat áls een kennisinstituut iets aanbiedt wat is opgebouwd met als Commons aangeboden
+/// data, dit gratis beschikbaar moet worden gemaakt.
+/// 
+/// Afsprakenstelsel:
+/// > De kennis die door desbetreffende kennisinstituten en onderzoeksinstellingen mede door deze
+/// > als Commons verstrekte data wordt opgebouwd, dient door dezen altijd kosteloos beschikbaar
+/// > te worden gesteld aan alle Deelnemers.
+Duty data-opgebouwd-met-commons-data-om-niet
+    Holder kennisinstituut
+    Claimant beheerder
+    Related to dienst
+    // Deze plicht geldt voor elke aangeboden dienst die is opgebouwd met Commons data en is
+    // aangeboden door een kennisinstituut.
+    Derived from (Foreach aanbod, beheerder :
+        data-opgebouwd-met-commons-data-om-niet(kennisinstituut(aanbod.aanbieder), beheerder, aanbod.dienst)
+        When (
+            kennisinstituut(aanbod.aanbieder)
+            && dienst-opgebouwd-met-commons-data(aanbod.dienst)
+        )
+    )
+    // De plicht is geschonden als het aanbod niet gratis is.
+    Violated when (Exists aanbod :
+        aanbod.aanbieder == kennisinstituut.deelnemer
+        && aanbod.dienst == dienst
+        && dienst-opgebouwd-met-commons-data(aanbod.dienst)
+        && (
+            (Exists aanbod-kosten : aanbod-kosten.aanbod == aanbod && aanbod-kosten.waarde > 0)
+            || (Exists aanbod-gebruiks-kosten : aanbod-gebruiks-kosten.aanbod == aanbod && aanbod-gebruiks-kosten.waarde > 0)
+        )
+    ).

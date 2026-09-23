@@ -1,0 +1,57 @@
+// DIENST NIET COMMERCIEEL GEBRUIKEN.eflint
+//   by Lut99
+//
+// Created:
+//   04 Jul 2024, 16:03:52
+// Last edited:
+//   21 Aug 2024, 09:30:32
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Scenario dat een paar voorbeelden toont voor
+//   `dienst-niet-commercieel-gebruiken` uit artikel 7.13.
+//
+
+#require "../../artikel7/artikel7.13.eflint".
+
+
+///// SCENARIO /////
+// Er is een huidig jaar
++huidig-jaar(2023).
+
+// Er is een beheerder
++beheerder(Ecoraad).
+
+// Er zijn twee partijen
++deelnemer(Amy).
++deelnemer(Bob).
+
+// Er zijn drie diensten
++dienst-waarde("Appel", 1000).
++dienst-waarde("Banaan", 500).
++dienst-waarde("Citroen", 1500).
+
+// Amy en Bob bieden appels en bananen aan als Commons, respectievelijk.
++aanbod(0, Amy, Appel, 2023).
++aanbod-als-commons(aanbod(0, Amy, Appel, 2023)).
++aanbod(1, Bob, Banaan, 2023).
++aanbod-als-commons(aanbod(1, Bob, Banaan, 2023)).
++aanbod(2, Bob, Citroen, 2023).
+
+// Amy gebruikt data voor een niet-commerciële reden
++dienst-gebruik("Appels uitdelen aan voedselbanken").
++dienst-aanwending(Amy, "Appel", "Appels uitdelen aan voedselbanken").
+//#violated not dienst-niet-commercieel-gebruiken(deelnemer(Amy), beheerder(Ecoraad), dienst-aanwending(deelnemer(Amy), dienst("Appel"), data-gebruik("Appels uitdelen aan voedselbanken"))).
+
+// Bob, echter, gebruikt de banaan voor commerciële redenen! Wat een stoute jongen, toch.
++dienst-gebruik("Bananen verkopen aan bedrijven").
++dienst-gebruik-commercieel(dienst-gebruik("Bananen verkopen aan bedrijven")).
++dienst-aanwending(Bob, "Banaan", "Bananen verkopen aan bedrijven").
+//#violated dienst-niet-commercieel-gebruiken(deelnemer(Bob), beheerder(Ecoraad), dienst-aanwending(deelnemer(Bob), dienst("Banaan"), dienst-gebruik("Bananen verkopen aan bedrijven"))).
+
+// Maar als Bob het niet meer aanbiedt als Commons, is het prima. Zoals hij doet bij citroenen.
++dienst-gebruik("Citroenen verkopen aan bedrijven").
++dienst-gebruik-commercieel(dienst-gebruik("Citroenen verkopen aan bedrijven")).
++dienst-aanwending(Bob, "Citroen", "Citroenen verkopen aan bedrijven").
+//#violated not dienst-niet-commercieel-gebruiken(deelnemer(Bob), beheerder(Ecoraad), dienst-aanwending(deelnemer(Bob), dienst("Citroen"), dienst-gebruik("Citroenen verkopen aan bedrijven"))).

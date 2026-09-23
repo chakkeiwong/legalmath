@@ -1,0 +1,107 @@
+// ARTIKEL 7.2.eflint
+//   by Lut99
+//
+// Created:
+//   10 Jun 2024, 16:27:43
+// Last edited:
+//   07 May 2025, 16:25:40
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.2 van het Afsprakenstelsel.
+//
+//   In dit artikel wordt gespecificeerd dat diensten die grotendeels
+//   gefinancieerd zijn met publieke middelen gratis moeten worden aangeboden,
+//   en niet als Commons mogen worden aangeboden.
+//   
+//   Ook staat er dat eventuele kosten als gevolg van gebruik van de Commons
+//   wél mogen worden doorgerekend aan de afnemer.
+//   
+//   Zie `artikel7.2.md` voor meer informatie.
+//
+
+#require "../begrippen/beheerder.eflint".
+#require "../begrippen/commons-waarde.eflint".
+#require "../begrippen/transactie.eflint".
+
+
+///// REGELS /////
+/// Legt de plicht op aan aanbieders om tenminste de jaarlijkse eurowaarde aan Commons aan te
+/// bieden aan elke (andere) Deelnemer.
+/// 
+/// # Afsprakenstelsel
+/// > Iedere Deelnemer moet jaarlijks ten bedrage van een door de Ecoraad vast te stellen
+/// > Eurowaarde eigen producten, diensten en/of data(gebruik) aan elk van de andere Deelnemers
+/// > beschikbaar te stellen als Commons, [...].
+Duty moet-commons-aanbieden
+    Holder aanbieder
+    Claimant beheerder
+    Related to jaar
+    // NOTE: Dit werkt zolang we ervoor zorgen dat er altijd een `commons-waarde-aangeboden` is.
+    //       Zie `../begrippen/commons-waarde.eflint` voor een afleidregel die dit realiseert.
+    Derived from (Foreach commons-waarde-aangeboden, beheerder:
+        moet-commons-aanbieden(
+            commons-waarde-aangeboden.aanbieder,
+            beheerder,
+            commons-waarde-aangeboden.jaar
+        )
+        When (Exists jaarlijkse-commons-waarde:
+            (commons-waarde-aangeboden.waarde < jaarlijkse-commons-waarde.waarde)
+            && (jaarlijkse-commons-waarde.jaar == commons-waarde-aangeboden.jaar)
+        )
+    )
+    // NOTE: Het onderstaande is een betere encodering om de plicht te laten werken zelfs als er
+    //       geen `commons-waarde-aangeboden` is gedefinieerd. Echter, dit laat een bug optreden in
+    //       eFLINT; zie <https://gitlab.com/eflint/haskell-implementation/-/issues/17>.
+    // // De plicht geldt zodra een aanbieder bestaat die nog niet genoeg heeft aangeboden aan een
+    // // afnemer.
+    // Derived from (Foreach deelnemer, jaarlijkse-commons-waarde, beheerder :
+    //     moet-commons-aanbieden(
+    //         deelnemer,
+    //         beheerder,
+    //         jaarlijkse-commons-waarde.jaar
+    //     )
+    //     When Sum(Foreach commons-waarde-aangeboden:
+    //         commons-waarde-aangeboden.waarde
+    //         When (
+    //             commons-waarde-aangeboden.aanbieder == deelnemer
+    //             && commons-waarde-aangeboden.jaar == jaarlijkse-commons-waarde.jaar
+    //         )
+    //     ) < jaarlijkse-commons-waarde.waarde
+    // )
+    // De plicht is geschonden zodra het niet meer het huidige jaar is (maar de plicht nog wel
+    // geldt)
+    Violated when (Exists huidig-jaar : huidig-jaar.jaar > jaar).
+
+
+
+/// Geeft Deelnemers het recht om overeenkomsten om te zetten in transacties. In effect laat dit
+/// Deelnemers aanbiedingen afnemen.
+/// 
+/// # Afsprakenstelsel
+/// > [...] even zoals iedere Deelnemer recht heeft om jaarlijks voor [de door de Ecoraad vast te
+/// > stellen Eurowaarde] producten, diensten en/of datagebruik af te nemen als Commons van elk van
+/// > de andere Deelnemers.
+Act afnemen
+    Actor afnemer
+    Recipient aanbieder
+    Related to overeenkomst
+    // De afnemer heeft het recht om een overeenkomst tussen zichzelf en een aanbieder af te nemen...
+    Derived from (Foreach overeenkomst :
+        afnemen(overeenkomst.afnemer, overeenkomst.aanbod.aanbieder, overeenkomst)
+    )
+    // ...mits de afname van het aanbod niet de nog niet afgenomen jaarlijkse Commons waarde niet
+    // overschrijft
+    Conditioned by (
+        Not(aanbod-als-commons(overeenkomst.aanbod))
+        || (Forall jaarlijkse-commons-waarde, commons-waarde-afgenomen, dienst-waarde :
+            (jaarlijkse-commons-waarde.waarde - commons-waarde-afgenomen.waarde >= dienst-waarde.waarde)
+            && (commons-waarde-afgenomen.afnemer == overeenkomst.afnemer)
+            && (commons-waarde-afgenomen.aanbieder == overeenkomst.aanbod.aanbieder)
+            && (commons-waarde-afgenomen.jaar == overeenkomst.aanbod.jaar)
+            && (dienst-waarde.dienst == overeenkomst.aanbod.dienst)
+        )
+    )
+    // Het gebruiken van het recht creeërt transacties
+    Creates transactie(Max(Foreach transactie: transactie.id) + 1, overeenkomst).

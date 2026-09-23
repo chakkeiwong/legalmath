@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legalmath.invalid/interpretation/v1/evidence",
+  "title": "Proposed interpretation.v1 evidence",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "interpretation.v1"
+    },
+    "evidence_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+    },
+    "source_packet_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "kind": {
+      "enum": [
+        "SOURCE_SPAN",
+        "FACT_RECORD",
+        "VALIDATED_REPAIR",
+        "FORMAL_COMPARISON",
+        "HUMAN_ADJUDICATION"
+      ]
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "source_unit_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "validation_status": {
+      "enum": [
+        "UNVERIFIED",
+        "VALIDATED",
+        "REJECTED"
+      ]
+    },
+    "authority": {
+      "enum": [
+        "SYNTHETIC_FIXTURE",
+        "RETAINED_SOURCE",
+        "AUTHENTICATED_REVIEW"
+      ]
+    },
+    "validator_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "action_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "review_decision_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "domain_hash": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "comparison_result": {
+      "anyOf": [
+        {
+          "enum": [
+            "EQUIVALENT_WITHIN_DOMAIN",
+            "DIFFERENT",
+            "UNKNOWN",
+            "INCONSISTENT_DOMAIN"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "legal_source_commitment_resolved": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema_version",
+    "evidence_id",
+    "run_id",
+    "source_packet_hash",
+    "kind",
+    "content_hash",
+    "statement",
+    "source_unit_ids",
+    "validation_status",
+    "authority",
+    "validator_id",
+    "action_id",
+    "review_decision_id",
+    "domain_hash",
+    "comparison_result",
+    "legal_source_commitment_resolved"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "FORMAL_COMPARISON"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "domain_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "comparison_result": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

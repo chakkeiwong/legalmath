@@ -1,0 +1,78 @@
+// ARTIKEL 7.13.eflint
+//   by Lut99
+//
+// Created:
+//   04 Jul 2024, 15:57:21
+// Last edited:
+//   08 Aug 2024, 15:10:30
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.13 van het Afsprakenstelsel.
+//   
+//   Dit artikel wordt geïnterpreteerd als dat Deelnemers diensten niet mogen
+//   gebruiken voor toepassingen die zijn gemerkt als voor commercial use. Ook
+//   geldt dat het gebruik van diensten niet in strijd mag zijn met de wet.
+//   
+//   Zie `artikel7.13.md` voor meer informatie.
+//
+
+#require "../begrippen/aanbod.eflint".
+#require "../begrippen/beheerder.eflint".
+#require "../begrippen/dienst-gebruik.eflint".
+
+
+///// INPUT /////
+/// Benoemt welke `dienst-gebruik`en commerciële doeleinden betreffen.
+Fact dienst-gebruik-commercieel Identified by dienst-gebruik.
+Extend Fact dienst-gebruik
+    Derived from (Foreach dienst-gebruik-commercieel : dienst-gebruik-commercieel.dienst-gebruik).
+
+/// Benoemt welke `dienst-gebruik`en in strijd zijn met de wet- en regelgeving.
+Fact dienst-gebruik-in-strijd-met-wet Identified by dienst-gebruik.
+Extend Fact dienst-gebruik
+    Derived from (Foreach dienst-gebruik-in-strijd-met-wet : dienst-gebruik-in-strijd-met-wet.dienst-gebruik).
+
+
+
+
+
+///// REGELS /////
+/// Specificeert dat Deelnemers data alleen mogen gebruiken voor niet-commerciële redenen die niet
+/// in strijd zijn met iets.
+/// 
+/// # Afsprakenstelsel
+/// > Inzage en gebruik van producten, diensten en data als Commons is altijd op basis van ‘non
+/// > commercial use only’.
+Duty dienst-niet-commercieel-gebruiken
+    Holder deelnemer
+    Claimant beheerder
+    Related to dienst-aanwending
+    // De plicht geldt voor elke Deelnemer die diensten aanwenden die beschikbaar zijn als Commons.
+    Derived from (Foreach dienst-aanwending, beheerder :
+        dienst-niet-commercieel-gebruiken(dienst-aanwending.deelnemer, beheerder, dienst-aanwending)
+        When (Exists aanbod :
+            aanbod.dienst == dienst-aanwending.dienst
+            && aanbod-als-commons(aanbod)
+        )
+    )
+    // De plicht is geschonden zodra een Deelnemer dienst aanwent voor commercieel gebruik.
+    Violated when dienst-gebruik-commercieel(dienst-aanwending.dienst-gebruik).
+
+/// Specificeert dat Deelnemers data alleen mogen gebruiken voor redenen die niet in strijd zijn
+/// met de wet- en regelgeving.
+/// 
+/// # Afsprakenstelsel
+/// > Aanvullende gebruiksrestricties om te kunnen voldoen aan artikel 3.1 kunnen van toepassing
+/// > zijn.
+Duty dienst-juist-gebruiken
+    Holder deelnemer
+    Claimant beheerder
+    Related to dienst-aanwending
+    // De plicht geldt voor elke Deelnemer die diensten aanwenden.
+    Derived from (Foreach dienst-aanwending, beheerder :
+        dienst-juist-gebruiken(dienst-aanwending.deelnemer, beheerder, dienst-aanwending)
+    )
+    // De plicht is geschonden zodra een Deelnemer dienst aanwent voor een gebruik dat in strijd is met de wet.
+    Violated when dienst-gebruik-in-strijd-met-wet(dienst-aanwending.dienst-gebruik).

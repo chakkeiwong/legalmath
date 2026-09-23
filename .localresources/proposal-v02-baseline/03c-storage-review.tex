@@ -1,0 +1,84 @@
+\subsubsection{Source identity, review and storage}
+
+The source store preserves original bytes and an exact text derivative. The raw
+document and derivative each have a SHA-256 digest. A source span records the
+derivative hash, page, half-open character offsets and a hash of the quoted text.
+Extraction changes create a new derivative; they do not silently move an approved
+span. A reviewer can open the original page beside the extracted passage.
+Scanned or poorly extracted clauses require visual confirmation before release.
+
+The source register distinguishes circulars, annexes, FAQs, codes, bank policy
+and interpretation. Dependency rows record references, definitions, amendments
+and replacements; unresolved targets remain explicit. Publication date does not
+automatically establish effectiveness. Applicability records identify legal
+entity, regulated role, activity, product, client class and jurisdiction. A
+product-provider requirement cannot enter the bank's distributor rules merely
+because its title mentions a product the bank sells.
+
+The bundle contains definitions, expressions, spans and interpretations. Its
+canonical JSON hash identifies the entire immutable revision. Review decisions
+live outside those bytes and approve that exact hash. The lifecycle is draft,
+in review, approved, released and retired; rejection returns a revision to draft,
+while an edit creates a new draft hash. Release requires distinct compliance and
+engineering reviewers, resolved blocking questions and dependencies, a supported
+effective interval and passing evidence for that hash. The author cannot approve
+their own revision under the proposed prototype policy.
+
+SQLite transactions enforce review revisions and idempotency. A stale review
+update is rejected rather than overwriting another review. Content-addressed
+blobs are written before their database references; a missing referenced blob
+is an integrity error. Audit rows record accepted transitions. Hashes detect
+accidental corruption but do not make a database tamper-proof against an
+administrator able to rewrite both records and hashes. Enterprise identity,
+signed retention and access controls belong to the later bank deployment.
+
+\subsubsection{A source-to-decision walkthrough}
+
+The first demonstration imports 23EC35 and Annex 1, verifies their hashes and
+opens paragraph 3.1 beside the financial rule. Its two wealth definitions are
+review issues until the relevant source and data mappings are accepted. An
+engineer loads the supplied draft bundle and the synthetic \texttt{f01} case:
+portfolio HK\$40 million and qualifying net assets zero. The trace evaluates
+both inclusive comparisons and their alternative, returning \texttt{TRUE} for
+\texttt{spi.financial}. It also identifies the exact source revision, input
+snapshot and engine version.
+
+The reviewer next opens \texttt{f02}, one cent below the portfolio threshold,
+with the other route still false. This returns \texttt{FALSE}. In \texttt{f07},
+the portfolio is unknown and net assets are HK\$70 million, so the answer is
+\texttt{UNKNOWN}. In \texttt{f06}, changing only net assets to HK\$90 million
+establishes the financial condition despite the still-missing portfolio. These
+cases let a compliance reader inspect the interpretation before any system rule
+is exported. A proposed strict comparison is challenged with \texttt{f01}.
+
+Once dependencies and meanings are reviewed, the evidence report is attached to
+the bundle hash, reviewers approve it and the release service exports the package.
+The initial production adapter is a deterministic decision API; additional bank
+configuration or code generation is a later adapter against the same contract.
+A changed rule creates another hash and invalidates release approval. Historic
+decisions still point to the old hash and their original evidence.
+
+\subsubsection{Service boundaries an implementer can use}
+
+The API imports sources, creates and retrieves bundles, records reviews, releases
+approved hashes, evaluates snapshots, appends events, replays histories and
+compares versions. The full method/path/payload table is supplied in the contract
+file. The central call is
+\begin{lstlisting}
+evaluate(bundle, snapshot, rule_id, valid_at, known_at,
+         mode="draft")
+    -> EvaluationResult
+\end{lstlisting}
+Its response includes the tagged outcome, exact value if any, reason codes,
+missing and blocking inputs, trace, source/bundle/input hashes and engine version.
+Production calls require a released exact hash; draft calls visibly retain draft
+mode. An HTTP failure is different from a well-formed request whose assessment
+returns an error or conflict.
+
+Longer solver or drafting calls use persisted jobs with explicit failed,
+cancelled and timed-out states. They cannot alter approval records. Official
+documents and model output remain untrusted input: fetching restricts hosts and
+redirects, validates content and limits resources; parsing never executes a
+document's instructions. The initial service binds to localhost and uses public
+sources and synthetic facts. This makes the proposed behavior implementable
+before private data access or production integration is considered.

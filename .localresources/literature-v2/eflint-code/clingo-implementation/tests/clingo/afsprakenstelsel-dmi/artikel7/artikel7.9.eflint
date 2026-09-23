@@ -1,0 +1,70 @@
+// ARTIKEL 7.9.eflint
+//   by Lut99
+//
+// Created:
+//   02 Jul 2024, 15:55:31
+// Last edited:
+//   20 Aug 2024, 15:18:01
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Formaliseert artikel 7.9 van het Afsprakenstelsel.
+//   
+//   Dit artikel wordt geïnterpreteerd als dat áls een afname plaatsvindt, er
+//   wordt genoteerd dat de Deelnemer kosten moet betalen om de Algemene
+//   Voorzieningen te gebruiken.
+//   
+//   Zie `artikel7.9.md` voor meer informatie.
+//
+
+#require "artikel7.2.eflint".
+
+
+///// INPUT & OUTPUT /////
+/// Benoemt dat een bepaalde Deelnemer nog zoveel kosten van het gebruik van de Algemene
+/// Voorzieningen voor hun rekening moet nemen.
+Fact waarde-av-gebruikt Identified by deelnemer * waarde * jaar.
+Extend Fact deelnemer
+    Derived from (Foreach waarde-av-gebruikt : waarde-av-gebruikt.deelnemer).
+Extend Fact waarde
+    Derived from (Foreach waarde-av-gebruikt : waarde-av-gebruikt.waarde).
+Extend Fact jaar
+    Derived from (Foreach waarde-av-gebruikt : waarde-av-gebruikt.jaar).
+
+
+
+
+
+///// REGELS /////
+/// Breidt `afname` uit met de eis dat het bijhoudt hoeveel afnemers nog moeten betalen voor het
+/// gebruik van de Algemene Voorzieningen (`waarde-av-gebruikt`).
+/// 
+/// Afsprakenstelsel:
+/// > De kosten die gemoeid zijn met het gebruik van de Algemene Voorzieningen ten behoeve van een
+/// > transactie in het kader van de Commons, komen voor rekening van de Deelnemer die afneemt,
+/// > [...].
+Extend Act afnemen
+    Creates (
+        waarde-av-gebruikt(
+            afnemer,
+            Sum(Foreach waarde-av-gebruikt :
+                waarde-av-gebruikt.waarde
+                When (waarde-av-gebruikt.deelnemer == afnemer && waarde-av-gebruikt.jaar == overeenkomst.aanbod.jaar)
+            ) + Sum(Foreach overeenkomst-av-kosten :
+                overeenkomst-av-kosten.waarde
+                When (overeenkomst-av-kosten.overeenkomst == overeenkomst)
+            ),
+            overeenkomst.aanbod.jaar
+        ) When (
+            aanbod-als-commons(overeenkomst.aanbod)
+            && aanbod-via(overeenkomst.aanbod, "Algemene Voorzieningen")
+        )
+    )
+    Terminates (Foreach waarde-av-gebruikt :
+        waarde-av-gebruikt
+        When (
+            waarde-av-gebruikt.deelnemer == afnemer
+            && waarde-av-gebruikt.jaar == overeenkomst.aanbod.jaar
+        )
+    ).

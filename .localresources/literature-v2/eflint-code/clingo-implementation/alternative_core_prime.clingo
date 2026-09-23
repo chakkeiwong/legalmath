@@ -1,0 +1,15 @@
+% (inter)state rules and constraints
+state(1).
+state(S) :- in(F,S).
+state(S - 1) :- state(S) ; 1 < S.
+:- state(S) ; not 0 < S.
+
+% event calculus style inertia
+in(     F ,S + 1) :- in((add,F),S) ; not in((rem,F),S) ; state(S + 1).
+in((add,F),S + 1) :- in((add,F),S) ; not in((rem,F),S) ; state(S + 1).
+
+% 'lossless' optimised core
+in((add,(created,I)),S) :- in((create,I),S).
+in((holds,I),S) :- in((created,I),S).
+in((holds,I),S) :- in((derived,I),S).
+in((enabled,I),S) :- in((holds,I),S).
