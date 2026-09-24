@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="2.488" timestamp="2026-09-24T20:23:13.695502+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="test_rejected_reconsideration" name="test_rejected_alternative_is_supplied_unchanged_to_semantic_reviser" time="2.257"><failure message="assert (0 == 1)">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-189/test_rejected_alternative_is_s0')
+
+    def test_rejected_alternative_is_supplied_unchanged_to_semantic_reviser(tmp_path):
+        _,case,public,_=data();reading=deepcopy(case['reference']['binding_reading'])
+        reading['questions']=[]
+        rejected=deepcopy(reading);rejected['local_id']='rejected-alternative'
+        rejected['formalization']['scope']='This is prose rather than an expression'
+        rejected['formalization']['result']='(or regulated business hong_kong)'
+        reconstructed=deepcopy(rejected);reconstructed['formalization']['scope']='true'
+        ledger=tmp_path/'allowance.json';allowance=Allowance(ledger,100,reservation_ceiling=24)
+        requests=[];revisers=[]
+        class Provider:
+            provider_id='test.rejected-branch';live=True;routing={'provider':'fixture','model':'semantic-change'}
+            def complete(self,request,schema,settings):
+                requests.append(request);slot=allowance.reserve(digest(request))
+                if len(requests)==1:
+                    answer={'readings':[rejected],'vocabulary_concerns':[],'questions':[]}
+                elif request['task'] in ('ISSUE_HYPOTHESES','REPAIR_OUTPUT'):
+                    readings=[reading]
+                    if request.get('role')=='discrepancy-reviser':
+                        revisers.append(request)
+                        readings=[reading,reconstructed]
+                    answer={'readings':readings,'vocabulary_concerns':[],'questions':[]}
+                else:
+                    answer={'judgments':[{'candidate_id':cid,'judgment':'SUPPORTED_READING',
+                        'source_evidence':reading['citations'],'rationale':'Controlled supporting criticism.',
+                        'unresolved_question':None} for cid in request['required_candidate_ids']],
+                        'missed_readings':[],'vocabulary_concerns':[],'questions':[]}
+                return Completion(answer,{'provider':self.provider_id,'fresh_context':True,
+                    'request_hash':digest(request),'response_hash':digest(answer),
+                    'allowance_slot':slot,'provider_route_hash':digest(self.routing)})
+        result=MethodRun(tmp_path/'method',public,Provider(),ledger,JDK).execute('assurance')
+&gt;       assert result['cycles']==1 and len(revisers)==1
+E       assert (0 == 1)
+
+/tmp/legalmath-issue-cli/tests/test_rejected_reconsideration.py:39: AssertionError</failure></testcase></testsuite></testsuites>

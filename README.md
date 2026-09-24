@@ -3,6 +3,23 @@
 Turn selected Hong Kong regulatory requirements into reviewable specifications
 and generated Java controls.
 
+- [Reusable clause-interpretation command](docs/implementation/interpretation-round10/operator-guide.md):
+  isolated readers, deliberate alternative interpretations, executed Java distinctions,
+  source criticism, bounded reconsideration and retained uncertainty. The command
+  preserves rejected proposals and resumes completed work without another model call.
+  [Execution and reproduced repairs](docs/implementation/interpretation-round10/execution-report.md),
+  [executable plan](docs/plans/interpretation-h0-reusable-command.md), and
+  [institution-staging inputs](docs/implementation/interpretation-round10/next-phase-plan.md).
+- [Sixteen-job method comparison](docs/implementation/interpretation-round9/execution-report.md):
+  four procedures on two original/altered source pairs, 63 counted calls and 7,168
+  matching final Java/Python evaluations. All jobs retained the authored reference
+  behavior and abstained; this does not establish legal accuracy or method ranking.
+- [Deliberate clause interpretations and Java predicate meanings](docs/implementation/interpretation-round8/execution-report.md):
+  three proposed behaviors, English and parallel-language criticism, two semantic
+  reconsiderations, non-executable readings and verified draft Java packages.
+- [Checkpointed source checks](docs/implementation/interpretation-round7/execution-report.md):
+  204 source-claim/candidate checks in smaller requests, complete failed-call
+  accounting and retained unresolved findings.
 - [Smaller interpretation tasks and retained replay](docs/implementation/interpretation-round6/operator-guide.md):
   complete inventories from two readers, cross-piece qualification checks,
   exact citation preservation, bounded service failures and smaller fidelity tasks.
