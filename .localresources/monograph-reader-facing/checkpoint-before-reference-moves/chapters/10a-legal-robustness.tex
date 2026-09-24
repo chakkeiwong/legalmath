@@ -1,0 +1,167 @@
+\section{What prevents reliance on the present product for bank decisions}
+\label{sec:legal-robustness-review}
+
+The present evidence does not establish that LegalMath is suitable for autonomous
+legal or compliance decisions in a bank. The code implements useful local
+controls, but independent legal adjudication, performance on unseen regulatory
+questions and the production identity, data and operational arrangements are
+unfinished. The issue is not a residual percentage that can be inferred from
+205 passing tests. Several necessary components of the intended use have not
+yet been demonstrated.
+
+This conclusion has consequences for product design. A proposed release needs
+a named legal entity, regulated activity, source perimeter and decision that
+the bank permits the software to influence. Review must distinguish the
+authority governing that use from the technical evidence about the software.
+Financial penalties, client harm and remediation duties cannot be estimated
+from a software test count. Their assessment depends on the actual breach and
+applicable legal and supervisory requirements.
+
+\subsection{AI governance belongs in the regulatory perimeter}
+
+The SFC's 12 November 2024 circular on generative AI language models addresses
+licensed corporations' relevant use of such models, including third-party
+components. It covers senior oversight, validation and ongoing management,
+information security and provider risk. Its validation discussion includes
+systems that combine a model with retrieval, prompts or other components.
+The notification provisions concern the specified high-risk uses and the
+existing notification requirements; they do not create a blanket approval
+statement for every AI application \citep[paras.~6, 9--16, 20--31]{sfcgenai2024}.
+An applicable-use assessment is therefore required before transferring these
+expectations to a particular bank entity or workflow.
+
+The accompanying appendix identifies failure modes relevant to this architecture,
+including retrieval that misses necessary information and prompt injection.
+It also discusses data and third-party risks. A citation-producing retrieval
+system still needs review of its source support
+\citep[appendix, paras.~9--12, 16--19]{sfcgenaiappendix2024}.
+
+\begin{figure}[H]
+\centering
+\TeachingFlow{Entity, activity and AI use}{Applicable SFC or HKMA guidance}{Validation and operational responsibilities}
+\caption{Governance obligations follow the actual use and institution.}
+\label{fig:ai-governance-perimeter}
+\end{figure}
+
+The HKMA's 19 August 2024 circular specifically addresses consumer protection
+in customer-facing generative-AI applications at authorized institutions. It
+sets out governance, fairness, transparency and data-protection expectations,
+including human control and review arrangements in the described circumstances
+\citep[pp.~1--4]{hkmagenai2024}. LegalMath's internal authoring workbench and
+a customer-facing explanation service are different uses. Enabling the latter
+would require an additional applicability and control assessment. This cited
+circular does not by itself determine the full risk-management requirements
+for an internal bank system; its referenced guidance and other applicable
+requirements need their own inventory.
+
+For example, a synthetic control may correctly identify a failed wealth
+condition but give a client an unsupported explanation about legal ineligibility.
+That is a different harm from an incorrect internal Boolean calculation.
+The product needs approved customer explanations, an accountable review route
+and a record linking the explanation to the actual decision if such a use is
+introduced. A technically accurate trace is a starting point for that design.
+
+\subsection{Identity, access and evidence integrity need production controls}
+
+The inspected local implementation registers synthetic identities and their
+roles, and binds reviews to exact content. This is sufficient to exercise
+separation of author, meaning reviewer and engineering reviewer in tests.
+It does not establish an employee's current delegated authority, employment
+status, multi-factor authentication or revocation. A bank identity integration
+must revoke a departing reviewer's future authority while preserving the
+historical record of decisions genuinely authorised at the time.
+
+Access requires a separate design. Authentication of a registered local user
+does not establish that the user may inspect every client's evidence or every
+legal entity's case. Production permissions must apply to source packets,
+candidate reports, exports and factual evidence, including indirect retrieval
+through linked records. A test should attempt to retrieve a second entity's
+case through every relevant interface and verify the intended denial. The
+current local API is not evidence that this separation has been implemented.
+
+\begin{figure}[H]
+\centering
+\TeachingCompare{Who is the caller?}{Which case may they inspect?}{Which decision may they approve?}
+\caption{Authentication, access and decision authority require separate answers.}
+\label{fig:identity-access-authority}
+\end{figure}
+
+The audit chain is stored in the same locally administered environment as the
+database it records. Its hashes can expose changed records when the expected
+chain remains trusted. An administrator who can replace both records and the
+chain can defeat that comparison. The bank design therefore needs an independent
+integrity reference, such as appropriately controlled signed checkpoints or
+external immutable retention, with reviewed key custody and recovery. This is
+a design requirement arising from the trust model, not a claim that one named
+technology is mandated by every regulator.
+
+Consider a synthetic incident in which a privileged operator replaces an approval
+and recomputes the later hashes. A verifier that trusts only the rewritten
+database can find an internally consistent history. An independently retained
+earlier checkpoint would instead expose the divergence. Testing accidental blob
+corruption does not exercise this privileged-rewrite scenario.
+
+\subsection{Abstention needs an operational destination}
+
+An unresolved interpretation is useful only if the affected process handles it.
+Every material issue needs an owner, an evidence request, a permitted interim
+action and a review deadline appropriate to the bank's workflow. The system
+must detect an unowned issue or an overdue queue rather than allowing a blocked
+screen to become routine ignored noise. An override needs defined authority,
+scope and expiry; it must not silently amend the underlying regulatory meaning.
+
+\begin{figure}[H]
+\centering
+\TeachingFlow{Unresolved classification}{Named review owner and interim action}{Resolution or explicit continued restriction}
+\caption{Abstention transfers a specific decision; it does not finish the operating process.}
+\label{fig:abstention-owner}
+\end{figure}
+
+The pure Java evaluator also needs a production release-withdrawal protocol.
+An offline library can continue executing after its central approval is retired
+unless the host checks the applicable release policy. The bank must define
+how revocation reaches hosts, the permitted age of cached authority, behavior
+during disconnection and treatment of in-flight transactions. A release revoked
+for wrong meaning raises a different fallback question from a model-provider
+outage while an approved rule remains applicable.
+
+For a synthetic race, an order is assessed just before a release is suspended,
+then reaches commit after suspension. The host must apply its reviewed policy
+to that transition and record the version used. Merely retaining the JAR hash
+does not decide whether the order may complete. The existing in-memory host
+example motivates this test but does not validate a bank's distributed order
+and deployment infrastructure.
+
+\subsection{Confidentiality and incidents cross the model boundary}
+
+Public regulatory documents and synthetic examples permit development without
+client data. Production work can introduce personal information, confidential
+advice and privileged legal analysis. The bank must identify which material can
+leave its environment, for what purpose, under which provider terms, and with
+what retention, deletion and access arrangements. Privilege and cross-border
+handling require qualified assessment for the actual arrangement. Encrypting
+transport alone does not answer those questions.
+
+A source parser and a model provider also present different attack surfaces.
+The parser needs operating-system isolation and resource bounds for hostile
+files. The provider needs a narrow task interface and cannot inherit approval,
+network or database privileges from text it reads. The complete application
+must be tested with malicious source instructions, altered attachments and
+cross-case references. The focused security, release-binding and host checks
+rerun for this review passed 18 tests; that result covers those cases only.
+
+\begin{figure}[H]
+\centering
+\TeachingFlow{Preserve failing source and decision}{Contain and trace affected uses}{Review remediation and notification duties}
+\caption{Incident response requires evidence, operational action and legal assessment.}
+\label{fig:incident-legal-response}
+\end{figure}
+
+Finally, an incident procedure must assign authority for suspension, client
+remediation, regulatory-notification assessment and preservation of relevant
+records. The product should expose affected decisions and their dependencies
+without deciding the bank's external communications. Rehearsing a missing
+exception, a compromised approval and a stale release tests three different
+response paths. These exercises, independent legal review and a measured shadow
+study are necessary next evidence for a bounded deployment decision. The current
+document and local tests cannot substitute for them.

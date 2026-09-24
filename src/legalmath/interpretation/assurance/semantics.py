@@ -4,6 +4,7 @@ These contracts validate provenance and completeness of the requested checks.
 Entailment itself is a model judgment, never promoted to a mathematical proof.
 """
 from copy import deepcopy
+from collections import Counter
 import re
 from typing import Literal
 from pydantic import Field
@@ -12,6 +13,7 @@ from ...errors import LegalMathError
 from ..contracts import Strict, Id, Text, parse
 from ..search.models import Quote
 from ..search.formal import expression, render_node
+from ..outputs import convention as output_convention
 
 
 class AtomicClaim(Strict):
@@ -64,6 +66,37 @@ class ClaimCheck(Strict):
 class Fidelity(Strict):
     checks: list[ClaimCheck] = Field(min_length=1, max_length=1000)
     additional_concerns: list[Text] = Field(max_length=30)
+
+
+# This is an internal investigation contract, never the model response schema.
+MAX_FIDELITY_PAIRS = 4096
+MAX_FIDELITY_CONCERNS = 1080
+MAX_FIDELITY_BYTES = 2 * 1024 * 1024
+
+
+class FidelityAggregate(Strict):
+    checks: list[ClaimCheck] = Field(min_length=1, max_length=MAX_FIDELITY_PAIRS)
+    additional_concerns: list[Text] = Field(max_length=MAX_FIDELITY_CONCERNS)
+
+
+def pair_diagnostics(expected, pairs, limit=64):
+    """Exact totals, deterministic bounded identities, no silent truncation."""
+    counts = Counter(pairs)
+    groups = {
+        'missing_pairs': sorted(expected - counts.keys()),
+        'unexpected_pairs': sorted(counts.keys() - expected),
+        'repeated_pairs': sorted(pair for pair, count in counts.items() if count > 1),
+    }
+    result = {'kind': 'FIDELITY_PAIR_MISMATCH', 'expected_count': len(expected),
+              'received_count': len(pairs), 'counts': {k: len(v) for k, v in groups.items()},
+              'repeated_extra_rows': sum(n - 1 for n in counts.values()),
+              'identity_limit': limit, 'truncated': sum(map(len, groups.values())) > limit}
+    remaining = limit
+    for name, group in groups.items():
+        result[name] = [{'claim_id': a, 'candidate_id': b, 'occurrences': counts[(a, b)]}
+                        for a, b in group[:remaining]]
+        remaining -= len(result[name])
+    return result
 
 
 def check_quotes(quotes, packet):
@@ -191,13 +224,28 @@ def _representation(reading):
             for child in node: walk(child)
     walk(scope); walk(body)
     definitions = '\n'.join(f"{f['name']}: {f['meaning']} ({f['unit']})" for f in formal['facts'] if f['name'] in used)
-    convention = next((tag for tag in ('TRUE_IS_PROHIBITED', 'TRUE_IS_COMPLIANT', 'VALUE')
-                       if reading['statement'].startswith('[' + tag + ']')), 'UNDECLARED')
-    return 'Declared output convention: ' + convention + '\nUsed facts:\n' + definitions + '\nScope: ' + render_node(scope) + '\nResult: ' + render_node(body) + '\nResult type: ' + formal['result_type']
+    convention = output_convention(reading) or 'UNDECLARED'
+    assessed=', '.join(f['name'] for f in formal['facts'] if f['name'] in used and f['requires_judgment']) or '(none marked)'
+    return ('Declared output convention: ' + convention + '\nUsed facts:\n' + definitions +
+        '\nScope: ' + render_node(scope) + '\nResult: ' + render_node(body) + '\nResult type: ' + formal['result_type']+
+        '\nSupplied classifications requiring judgment: '+assessed+'. Their assessment is not implemented by this formula.'+
+        '\nRuntime semantics: Missing or temporally unavailable facts evaluate as UNKNOWN. '
+        'For Boolean conjunction FALSE dominates UNKNOWN; for disjunction TRUE dominates UNKNOWN; '
+        'otherwise uncertainty is retained, and NOT UNKNOWN is UNKNOWN. A conflicting fact anywhere '
+        'in the rule dependency closure blocks evaluation with CONFLICT even on an unselected branch. '
+        'A false scope returns OUT_OF_SCOPE; an unknown scope returns UNKNOWN; an unknown IF condition '
+        'returns UNKNOWN without choosing either branch. No UNKNOWN, CONFLICT or ERROR is converted to a known Boolean.')
 
 
 def fidelity_request(packet, claims, candidates, required_pairs=None):
     selected = [c for c in claims if c['relevance'] != 'CONTEXT']
+    if required_pairs is not None:
+        allowed={(c['claim_id'],cid) for c in selected for cid in candidates}
+        if not required_pairs or not set(required_pairs)<=allowed or len(required_pairs)!=len(set(required_pairs)):
+            raise LegalMathError('E_REFERENCE',details='Invalid fidelity task pairs')
+        claim_ids={a for a,b in required_pairs};candidate_ids={b for a,b in required_pairs}
+        selected=[c for c in selected if c['claim_id'] in claim_ids]
+        candidates={cid:r for cid,r in candidates.items() if cid in candidate_ids}
     request = {'protocol': 'legalmath.assurance.v1', 'task': 'SOURCE_FIDELITY',
             'instructions': 'Compare EACH selected source claim against EACH executable candidate meaning. '
             'First verify that each extracted claim itself follows from the original full source; '
@@ -226,7 +274,14 @@ def fidelity_request(packet, claims, candidates, required_pairs=None):
 
 
 def validate_fidelity(value, packet, claims, candidates, required_pairs=None):
-    result = parse(Fidelity, value)
+    return _validate_fidelity(parse(Fidelity, value), packet, claims, candidates, required_pairs)
+
+
+def validate_fidelity_aggregate(value, packet, claims, candidates):
+    return _validate_fidelity(parse(FidelityAggregate, value), packet, claims, candidates)
+
+
+def _validate_fidelity(result, packet, claims, candidates, required_pairs=None):
     selected = {c['claim_id']: c for c in claims if c['relevance'] != 'CONTEXT'}
     expected = {(cid, rid) for cid in selected for rid in candidates}
     if required_pairs is not None:
@@ -234,7 +289,7 @@ def validate_fidelity(value, packet, claims, candidates, required_pairs=None):
         expected=set(required_pairs)
     pairs = [(c['claim_id'], c['candidate_id']) for c in result['checks']]
     if len(pairs) != len(set(pairs)) or set(pairs) != expected:
-        raise LegalMathError('E_REFERENCE', details='Every independent source claim/candidate pair needs one check')
+        raise LegalMathError('E_REFERENCE', details=pair_diagnostics(expected, pairs))
     for check in result['checks']:
         check_quotes(check['source_evidence'], packet)
         if check['label'] != 'NOT_ESTABLISHED' and not check['source_evidence']:

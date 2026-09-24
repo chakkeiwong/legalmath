@@ -1,3 +1,175 @@
+# Current recovery state — process and technology guide, 24 September 2026
+
+The user asked for the front of the monograph to explain the complete route
+from a circular to a reviewable Java program. That addition is complete as a
+reader-review candidate: **252 pages in `docs/monograph/monograph.pdf`, 76
+pages in `docs/monograph/technical-companion.pdf`, and a seven-page standalone
+guide** in `docs/monograph/process-guide.pdf`. The guide occupies physical
+pages 4–10, immediately after the executive summary and before the contents;
+it contains fourteen flowcharts covering all eight steps.
+
+Use `docs/monograph/review/process-map/review.md` and
+`docs/monograph/review/process-map/delivery-manifest.json` for this delivery.
+The exact front-page render selection is under
+`.localresources/monograph-process-map/rendered-final/`.
+
+Main PDF SHA-256: `d57c86897817aabb18410910d6c79f8fbfe7fd80bdb64eb9b9e18b292e33aec1`.
+
+Companion PDF SHA-256: `1f66d6736a5a03a986756feeed784da23adb5d715908d714efb2c49577cec5aa`.
+
+Guide PDF SHA-256: `d8323cd6a46869dda26e9c0ee0a5eece1d053b5982a5ea573036a502f4d30c30`.
+
+The charts name technology only after explaining its job. The current route
+starts with source extraction and contextual reading, considers alternative
+interpretations with breadth-first or UCT search, validates the proposed rules
+as RuleIR, emits Java and compares executions. Z3 is shown as a restricted
+domain comparison; selected Lean and SymPy checks belong to the mathematical
+audit. Stipula → Java/JML → KeY is shown as a separate research route, not as
+the current emitter or a locally replayed production proof. Bank approval,
+host integration and continuing monitoring are institution-level work.
+
+The normal build is `python3 scripts/build_reader_facing_monograph.py`; it now
+also exports the standalone guide. The guide export was rerun after the final
+link-anchor repair. The current document checker, preservation check,
+cross-document navigation check and scoped whitespace check pass. The
+protected pre-guide checkpoint contains 247 files. Existing chapter and
+bibliography pages retain identical extracted text and recorded raster output,
+and the companion retains identical extracted text. No implementation code,
+model call, new mathematical proof or scientific experiment was added for this
+front-matter task.
+
+All guide pages received author/executor visual inspection, including the
+contents and Chapter 1 boundaries. Pages 1–3 and the first chapter page retain
+identical extracted text and identical recorded 0.75-scale raster samples
+against the protected pre-guide render; human-reader comprehension and voice
+acceptance remain pending. This is a front orientation, not a
+replacement for the chapters' assumptions, derivations or source boundaries.
+
+The earlier 244/76-page evidence-integration state below is historical. Its
+hashes, page numbers and delivery manifest describe that preceding edition.
+
+---
+
+# Historical recovery state — round-four evidence integration, 24 September 2026
+
+The user authorized execution of
+`docs/plans/monograph-round4-evidence-integration.md`. It is complete as a
+reader-review candidate: **244 pages in `docs/monograph/monograph.pdf` and
+76 pages in `docs/monograph/technical-companion.pdf`**. Use
+`docs/monograph/review/round4/integration-review.md` and
+`docs/monograph/review/round4/delivery-manifest.json` for the current delivery.
+
+Main PDF SHA-256: `cf36b7e26d3f756b92418ecffc16e5f735722999bcb333872650f6de66bdeb81`.
+
+Companion PDF SHA-256: `87a0219e70e2e1e8263b7ecba79d48f51d2b09b403708be55c271ec8ee57a9ee`.
+
+The management summary and all ten chapters now incorporate the implemented
+investigation through the agreed round-four checkpoint. Worked explanations
+cover source editions and historical uncertainty, source support versus proof,
+official FAQ examples, comparable executed questions, shared omissions,
+separate duties versus rival readings, partial checking, method comparison and
+controlled source updates. New companion Appendix A gives the current task
+reference; earlier appendices B–E preserve their historical and lookup roles.
+Later implementation rounds are separate continuations, not a basis for
+silently broadening this edition's claims or copying historical call balances.
+
+The current build remains `python3 scripts/build_reader_facing_monograph.py`.
+Both PDFs and its checks pass. All 35 original display groups, 37 equation
+labels, 21 listings and 207 source-unit labels survive. The additions are two
+derived statistical displays and three companion command listings. All 211
+baseline citation contexts are unchanged; five added occurrences have explicit
+scoped judgments, bringing the totals to 216 occurrences and 85 archived
+sources. All 34 cross-document links resolve, and proposal aliases match.
+
+The 44 selected rendered main pages and 15 companion pages were inspected at
+author/executor level, carrying only byte-identical images between builds.
+Final images and hashes are under
+`.localresources/monograph-round4/rendered-delivery/`. Automated geometry checks
+cover every page. This is not a sequential human reading of the whole pair.
+Human comprehension and voice acceptance remain pending, as do independent
+legal evaluation, representative empirical performance and bank operation.
+
+The immediate source/PDF checkpoint is
+`.localresources/monograph-round4/baseline/manifest.json`: 253 protected files,
+verified unchanged. Earlier protected baselines remain intact. Do not restore
+old sources over this revision or use the historical master program as the
+delivery command. The document task inspected retained implementation
+evidence; it did not rerun the 503-test suite, make model calls or alter
+implementation code or live allowances. Preserve concurrent work.
+
+---
+
+The following memo describes the protected pre-integration edition.
+
+# Historical recovery state — reader-facing reconstruction, 24 September 2026
+
+The user's latest correction applied to the whole volume, with Chapter 2 only
+an example. The authorized rewrite is completed as a candidate for reader review:
+**235 pages in `docs/monograph/monograph.pdf` and 69 pages in
+`docs/monograph/technical-companion.pdf`**. The earlier saved session
+`01a0cbf5-5dd5-7c61-96b1-f04c415c1f7a` and stalled repetition review were recovered
+before this reconstruction. Do not resume from the old 283-page delivery as if
+it were the current manuscript.
+
+The title and two-page executive summary address management's problem,
+contribution, demonstrated work and next decision. All ten chapters were revised.
+Dense inventories, API/JSON/command records and implementation chronology are
+preserved in the companion. Necessary mathematics and derivations stay in the
+main book. Repeated returns were recast around a new distinction, failure or
+example. Chapter 8 now explains what the bank owns and operates.
+
+Main PDF SHA-256: `292889e155b43cd0e63f0a74851ef4435c0e45acc6db8f29be29f489c2885949`.
+
+Companion PDF SHA-256: `8903ca136f411209477286b48d3f0fbf4667f364d29d9c73eaf7077dafbb73e5`.
+
+The current build is `python3 scripts/build_reader_facing_monograph.py`.
+The current checker is `python3 scripts/check_reader_facing_monograph.py`.
+Both pass. The historical `master_monograph_review.py` and exact-transform
+single-volume checker are not the delivery commands for this reconstructed
+edition. Their old reports and tests remain historical evidence.
+
+The current check verifies 243 protected checkpoint files, all 35 displayed
+mathematical groups in the main volume, 37 equation labels, all 21 listings
+across the pair, 207 retained original source labels, 81 archived cited sources
+and 211 citation occurrences. Source labels alone do not certify semantic
+preservation. Explicit relocation and rewrite dispositions are in
+`docs/monograph/review/reader-facing/reconstruction-review.md`.
+
+The citation review carries 204 exact source/key/context judgments and explicitly
+reviews seven changed occurrences in two paragraphs. The checker permits only
+exact-context relocation and verifies the unchanged source and technical-reading
+identity. It cannot manufacture support for changed paragraphs.
+
+Rendered review: 36 selected main pages spanning all chapters and five companion
+pages; every page received automated text/geometry checks. Images and final
+selection are in `.localresources/monograph-reader-facing/rendered-final/`.
+Do not describe this as a fresh sequential human reading of every page. All
+original equations remain; the two new arithmetic examples pass their recorded
+checks. The proposal alias and its adjacent companion match the final PDFs.
+
+Protected baselines: the full 282-page source checkpoint is under
+`.localresources/monograph-repetition/baseline/`; the immediate 283-page PDF and
+selected sources are under `.localresources/monograph-reader-facing/baseline/`.
+A source checkpoint before reference moves is also retained there. Do not alter
+these or restore old manuscript files over the rewrite.
+
+No runtime implementation was changed or retested for this editorial task.
+Preserve all concurrent root README, interpretation plans, code, tests and
+round-2/3/4 data. No commit, merge, deployment or outside message was made.
+
+Remaining acceptance: human comprehension and voice; independent legal/source
+review for a named bank scope; representative live-provider evaluation; and the
+production controls in the retained product-risk review. Source retrieval and
+conditional proof limitations remain explicit. The present delivery does not
+certify policy perfection, production readiness or legal correctness.
+
+The final build, file identities and review locations are recorded in
+`docs/monograph/review/reader-facing/delivery-manifest.json`.
+
+---
+
+The following memo is retained as the historical pre-reconstruction state.
+
 # Execution state — 24 September 2026
 
 The saved session was recovered and the repetition question was completed as a

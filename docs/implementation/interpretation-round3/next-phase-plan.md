@@ -1,5 +1,10 @@
 # Next evidence and engineering after A0–A7
 
+Update, 24 September 2026: B0 has now passed. See the
+[B0 execution report](../interpretation-round4/execution-report.md) and the
+[refreshed B1 plan](../interpretation-round4/next-phase-plan.md). The original
+backlog and its motivation below are preserved as the A7 handoff record.
+
 This is the successor backlog, not a claim that the following mechanisms have
 already been implemented. The current increment adds source-facing checks,
 bounded structured criticism and repair, and continuing reinvestigation. Its

@@ -1,0 +1,209 @@
+\providecommand{\LegalMathRoot}{}
+\providecommand{\LegalMathBibliography}{references}
+\documentclass[12pt,a4paper,oneside,openany]{book}
+\usepackage[margin=25mm,headheight=15pt]{geometry}
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Pagella}
+\setsansfont{TeX Gyre Heros}
+\setmonofont[Scale=0.84]{DejaVu Sans Mono}
+\usepackage{amsmath,amssymb,mathtools,amsthm}
+\usepackage{microtype,setspace}
+\setstretch{1.06}
+\usepackage{booktabs,longtable,tabularx,array}
+\usepackage{graphicx,xcolor,tikz,float}
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric}
+\usepackage{enumitem,listings,titlesec}
+\usepackage[round,authoryear]{natbib}
+\usepackage{url}
+\Urlmuskip=0mu plus 2mu
+\definecolor{navy}{HTML}{173A53}
+\definecolor{teal}{HTML}{186C75}
+\definecolor{pale}{HTML}{F1F5F6}
+\usepackage[unicode,colorlinks=true,linkcolor=navy,citecolor=navy,urlcolor=navy]{hyperref}
+\hypersetup{pdftitle={LegalMath: From SFC Circulars to Reviewed Specifications and Verified Java Controls},pdfauthor={LegalMath research and engineering},pdfsubject={SFC circular interpretation, legal argumentation, ensemble assurance and verified Java delivery}}
+\titleformat{\chapter}[display]{\sffamily\bfseries\color{navy}\raggedright\hyphenpenalty=10000}{\large Chapter \thechapter}{8pt}{\huge}
+\titlespacing*{\chapter}{0pt}{0pt}{24pt}
+\titleformat{\section}{\Large\sffamily\bfseries\color{navy}\raggedright}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\large\sffamily\bfseries}{\thesubsection}{0.65em}{}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\setlength{\emergencystretch}{3em}
+\setlist{itemsep=0.15em,topsep=0.35em,leftmargin=1.6em}
+\setcounter{tocdepth}{1}
+\makeatletter
+\def\ps@legalmath{%
+  \def\@oddhead{\small\sffamily\color{navy}LegalMath\enspace|\enspace Regulatory specification and execution\hfil\leftmark}%
+  \let\@evenhead\@oddhead
+  \def\@oddfoot{\hfil\small\thepage\hfil}%
+  \let\@evenfoot\@oddfoot}
+\makeatother
+\renewcommand{\chaptermark}[1]{\markboth{Chapter \thechapter}{}}
+\pagestyle{legalmath}
+\lstset{basicstyle=\small\ttfamily,backgroundcolor=\color{pale},frame=single,rulecolor=\color{pale},breaklines=true,columns=fullflexible,keepspaces=true,showstringspaces=false,aboveskip=0.8em,belowskip=0.8em}
+\newcommand{\True}{\mathsf{T}}
+\newcommand{\False}{\mathsf{F}}
+\newcommand{\Unknown}{\mathsf{U}}
+\newcommand{\Conflict}{\mathsf{C}}
+\newcommand{\OO}{\mathsf{OUT\_OF\_SCOPE}}
+\newcommand{\HKD}{\mathrm{HKD}}
+\providecommand{\llbracket}{\mathopen{[\![}}
+\providecommand{\rrbracket}{\mathclose{]\!]}}
+\newcommand{\caseheading}[1]{\subsubsection*{#1}}
+\newcommand{\IR}{\mathrm{IR}}
+\newcommand{\CNL}{\mathrm{CNL}}
+\newcommand{\eval}{\operatorname{eval}}
+\newcommand{\srcpath}[1]{\path{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newtheorem{proposition}{Proposition}[chapter]
+\newtheorem{definition}{Definition}[chapter]
+
+\input{\LegalMathRoot teaching/styles}
+
+\begin{document}
+\raggedbottom
+\frontmatter
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\vspace*{15mm}
+{\sffamily\color{teal}\large RESEARCH MONOGRAPH AND IMPLEMENTATION DESIGN\par}
+\vspace{12mm}
+{\sffamily\bfseries\color{navy}\fontsize{32}{37}\selectfont From SFC Circulars\\to Reviewed Specifications\\and Verified Java Controls\par}
+\vspace{12mm}
+{\Large A unified product, interpretation and execution design\\for Hong Kong private banking\par}
+\vspace{12mm}
+{\large Chak Wong\par}
+\vfill
+\begin{minipage}{0.94\textwidth}
+A management and research account of how a bank can turn a circular into a
+reviewable control. Two SFC circulars provide the cases. The book follows the
+meaning of each requirement through interpretation, evidence, implementation
+and supervised operation, and marks the point where the present evidence stops.
+The technical record remains available for the people who must build and audit
+the control.
+\end{minipage}
+\vspace{16mm}
+\hrule
+\vspace{5mm}
+23 September 2026\hfill Expanded author draft, version 1.2\par
+\small Public-source and synthetic examples. Independent compliance, technical
+and reader acceptance remain pending. Demonstrated behaviour is distinguished
+from proposed work throughout.
+\end{titlepage}
+\hypersetup{pageanchor=true}
+\chapter*{The decision this book supports}
+\addcontentsline{toc}{chapter}{The decision this book supports}
+Senior management is being asked to consider a narrow question: can a bank turn
+a regulatory circular into a repeatable client or product decision without
+losing the meaning of the source along the way? The answer matters because a
+program can apply a mistaken interpretation perfectly. The damaging error is
+often made before implementation, when an exception is missed, the wrong person
+is assessed, or a requirement is applied to a different activity.
+
+This book presents the work completed so far and the boundary that remains. It
+does not present an autonomous legal decision maker. It presents a research
+prototype and a design for a supervised bank control. The prototype keeps the
+source passage, the proposed reading, the evidence supporting each fact, the
+resulting rule, and the review decision together. A later reader can therefore
+ask not only ``What did the control return?'' but also ``Which requirement did
+it apply, to whom, at what time, and on what evidence?''
+
+\section*{What has been done}
+
+The work follows two public SFC circulars through the same chain of questions.
+The first concerns the streamlined treatment of sophisticated professional
+investors. A synthetic client is followed through financial qualification,
+product category, exposure, consent, continuing duties and a proposed
+transaction. The second concerns incentives used when marketing authorised
+funds. It shows why a fee discount may fall within an exception while a voucher
+in the same offer may require a separate assessment. These examples are
+deliberately ordinary. Their value is that a small change in a fact, a date, or
+the subject being assessed changes the responsible answer.
+
+The prototype has turned those examples into explicit rules, generated Java
+behaviour, boundary cases, amendment and withdrawal scenarios, and a review
+record that can be replayed. The engineering demonstrations cover the route from
+an adopted interpretation to a tested release candidate and back to an earlier
+decision when the facts or the rule version changes. This is evidence that the
+chosen controls can be executed and inspected. It is not evidence that the
+underlying legal interpretation is correct for every product or client.
+
+\section*{The contribution}
+
+The contribution is a disciplined middle layer between a circular and a bank
+system. It gives compliance and legal reviewers a place to state what a passage
+means, what remains uncertain, and which choice belongs to bank policy. It gives
+engineering a precise specification to implement. It gives operations a result
+that includes the evidence request or human review route when the available
+information cannot support a safe conclusion.
+
+Four distinctions carry most of the value. The work separates a source duty
+from an additional bank restriction. It keeps an unknown fact different from a
+false fact. It binds a fact to the person, product, component, date and activity
+to which it belongs. It also preserves the knowledge available at the time of a
+past decision, so a later correction can explain the history rather than silently
+rewrite it. These distinctions are easy to state and easy to lose in a compact
+flag or a large language model prompt.
+
+The method also treats disagreement as information. A second reading that finds
+an omitted paragraph, an exception, or a different subject of the rule creates a
+specific review question. Agreement among several readings is useful evidence
+within the examined scope, but it is not a legal vote and it cannot reveal a
+requirement that every reading omitted.
+
+\section*{What the evidence supports today}
+
+The retained demonstrations show that the proposed chain can preserve source
+references, compare competing cases, evaluate explicit rules, detect selected
+implementation mutations, and carry a decision through withdrawal, amendment,
+release and historical replay. The examples use public documents and synthetic
+facts. They establish the behaviour of the demonstration under its stated
+assumptions.
+
+Several decisions remain outside that evidence. The bank has not yet supplied
+an approved legal interpretation for a live business perimeter, independently
+validated the meanings and data mappings, measured performance against a
+reference set of real cases, or connected the result to production identity,
+confidentiality, audit and operational controls. The product therefore cannot
+approve a client, clear a marketing offer, or replace a qualified reviewer.
+
+\section*{The management decision}
+
+The sensible next step is a narrow, supervised prototype with a named legal
+owner and an agreed set of products, entities, dates and evidence sources. Before
+any production use, the bank would need independent legal validation, a review
+of the data and identity mappings, security and audit controls, an evaluation on
+representative cases, and a shadow period in which the system's results are
+compared with decisions made by qualified staff. A failed or unresolved case
+must remain visible and route to a human decision.
+
+The remainder of the book explains how to make that decision responsibly. It
+begins with the two circulars and the concrete mistakes they expose. It then
+introduces formal meaning, competing interpretations, execution checks,
+evaluation and operating controls at the point each is needed. The detailed
+implementation record is retained for readers who must build or audit the
+system, but the argument begins with the banking decision rather than with the
+history of the build.
+\tableofcontents
+\mainmatter
+\input{\LegalMathRoot chapters/01-problem}
+\input{\LegalMathRoot chapters/02-circular}
+\input{\LegalMathRoot chapters/03-proof}
+\input{\LegalMathRoot chapters/04-languages}
+\input{\LegalMathRoot chapters/05-search}
+\input{\LegalMathRoot chapters/06-ensemble}
+\input{\LegalMathRoot chapters/07-verification}
+\input{\LegalMathRoot chapters/08-implementation}
+\input{\LegalMathRoot chapters/09-evaluation}
+\input{\LegalMathRoot chapters/10-operation}
+\appendix
+\input{\LegalMathRoot appendices/implementation-record}
+\input{\LegalMathRoot appendices/full-implementation-record}
+\input{\LegalMathRoot appendices/detailed-tables}
+\backmatter
+\begingroup
+\raggedright
+\bibliographystyle{plainnat}
+\bibliography{\LegalMathBibliography}
+\endgroup
+\end{document}

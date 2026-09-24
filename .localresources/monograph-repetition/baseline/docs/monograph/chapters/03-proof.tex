@@ -1,0 +1,1076 @@
+\chapter{What can be proved, and under which assumptions}
+\label{ch:proof}
+
+% BEGIN SOURCE UNIT M03:00
+\section{Giving a correctness claim a precise target}
+\label{merge:M03:00}
+
+\label{sec:proof-target}
+The second-circular exercise leaves us with two questions that sound similar but
+have different evidentiary requirements. Does the program compute the proposed
+gift rule correctly? Does the proposed gift rule express a justified reading of
+the circular? The first question becomes mathematical once the rule and its
+inputs have precise meanings. The second includes deciding which meanings the
+words, context and authority support. A proof of the first cannot silently
+include a proof of the second.
+
+To see why, suppose a programmer writes a formula that checks gifts promoting a
+specific product and omits the product-type route. A proof assistant can verify
+that an implementation returns exactly that formula's value for every Boolean
+assignment. The proof is correct about its target. The target is incomplete
+relative to the proposed source interpretation. Making the proof longer, using a
+more powerful solver or verifying another implementation will not add the
+missing route. The source-to-formula mapping has to be challenged directly.
+
+This is not a special weakness of legal language. Formal verification always
+depends on the proposition that was formalized. The virtue of a formal method
+is that it makes the conditional claim exact and inspectable. It does not remove
+the need to establish that the proposition is the one the institution intended
+to rely on. Catala's separation between legal authoring and compiler semantics
+is useful precisely because it keeps these responsibilities distinct
+\citep[core language and compilation sections]{catala2021}.
+
+% BEGIN REVISION ADDITION teach-M03-00
+\input{\LegalMathRoot teaching/teach-M03-00}
+% END REVISION ADDITION teach-M03-00
+Let $E$ denote a versioned source packet and $S$ a controlled specification
+adopted for a declared interpretation. Let $F$ be a RuleIR program and $J$ the
+generated Java artifact. Let $A$ contain the explicit vocabulary definitions,
+domain restrictions and operational assumptions. The input domain $D_A$ consists
+of facts and histories allowed by those assumptions. We can now state a proposed
+preservation obligation:
+\begin{equation}
+ \forall x\in D_A,\qquad
+ \pi\bigl(\eval_{\CNL}(S,x)\bigr)
+ =\pi\bigl(\eval_{\IR}(F,x)\bigr)
+ =\pi\bigl(\eval_{J}(J,x)\bigr).
+ \label{eq:preservation-chain}
+\end{equation}
+The projection $\pi$ selects the semantic result components that the contract
+requires to agree. These include the decision category and the specified
+explanation and evidence behavior. They exclude fields whose purpose is to
+identify different backends. Chapter~\ref{ch:verification} makes that projection
+concrete. Equality in equation~\eqref{eq:preservation-chain} is a proposed formal
+target for a supported language fragment, not a theorem already proved about
+the delivered application.
+
+The claim that $S$ is justified by $E$ remains a separate interpretation claim.
+It can be supported by source anchors, explicit alternatives, reviewed
+definitions, adversarial cases and an attributable judgment. When some part of
+$E$ has itself been translated into a formal language, a theorem can relate
+those formal objects. The choice that made the formal source representation
+faithful still needs justification. Repeating that translation boundary does not
+eliminate it.
+% END SOURCE UNIT M03:00
+
+% BEGIN SOURCE UNIT P-03-product:05
+\subsection{The computational preservation objective}
+\label{merge:P-03-product:05}
+
+\label{sec:proof}
+
+There are three distinct assurance questions. The first is interpretive: does the
+adopted specification represent the relevant sources for the chosen business
+scope? The second is computational: does the implementation compute that
+specification? The third is evidential: do the facts and event records represent
+the relevant circumstances? A complete change package needs evidence for all
+three, but the evidence is different.
+
+To make the computational question precise, let $R_v$ be an approved version of
+the formal rules. Let $\llbracket R_v\rrbracket(x)$ denote the reference meaning
+of those rules on input $x$, and let $C_v(x)$ be the result of an implementation
+or compiled adapter. Define $D_v$ to include the declared input types, admissible
+values, explicit unknowns and relevant state. The target is
+\begin{equation}
+ \forall x\in D_v:\quad C_v(x)=\llbracket R_v\rrbracket(x).
+ \label{eq:refinement}
+\end{equation}
+Equality here includes the named decision and required obligations represented by
+the specification. If explanations are part of the verified output, their
+relationship must be stated too. The meaning of the output cannot shrink from a
+set of duties to one Boolean while retaining the same assurance claim.
+
+% BEGIN REVISION ADDITION teach-P-03-product-05
+\input{\LegalMathRoot teaching/teach-P-03-product-05}
+% END REVISION ADDITION teach-P-03-product-05
+Equation~\eqref{eq:refinement} is a proposed verification objective, not a result
+already established by LegalMath. For a finite input space it may be checked by
+enumeration; for a restricted expression language it may be amenable to an SMT
+encoding or a proof by induction over expressions. For a production adapter,
+the mapping from bank data into $x$ and the implementation of calendar and
+currency operations also belong to the argument. A test suite samples the
+equation and provides useful defect evidence, but it does not generally prove its
+universal quantifier.
+
+The interpretive question does not become a theorem simply by naming a formal
+target. Source text, legal context and justified interpretations determine
+$R_v$. Compliance review, source coverage, competing readings and independently
+constructed cases address that step. Likewise, a theorem cannot establish that
+a recorded balance or signature is authentic. These limits are operationally
+useful: each review task is directed to the person and evidence that can answer it.
+% END SOURCE UNIT P-03-product:05
+
+% BEGIN SOURCE UNIT M03:01
+\section{Quantifiers change which entity carries the obligation}
+\label{merge:M03:01}
+
+
+The phrase ``for each'' introduces a choice that a Boolean expression can easily
+hide. To see it without assuming knowledge of predicate logic, consider a
+synthetic requirement: every relevant benefit in an offer must satisfy a specified
+condition. Let $B(o)$ be the finite set of benefit components in offer $o$, and
+let $P(b)$ mean that component $b$ has the property under investigation. The
+universal reading is
+\begin{equation}
+ \forall b\in B(o),\ P(b).
+ \label{eq:universal-benefit}
+\end{equation}
+It requires every component to satisfy the condition. An existential reading,
+\begin{equation}
+ \exists b\in B(o),\ P(b),
+ \label{eq:existential-benefit}
+\end{equation}
+requires only one. These expressions are not two styles of writing the same rule.
+For an offer with two components, one satisfying $P$ and one not, the universal
+reading is false and the existential reading true.
+
+The distinction becomes more consequential when an exception is involved. Suppose
+$G(b)$ identifies a gift and $D(b)$ an excepted discount. A component-level
+prohibition trigger might be
+\begin{equation}
+ \exists b\in B(o),\ G(b)\land\neg D(b).
+ \label{eq:component-exception}
+\end{equation}
+An alternative whole-offer encoding might be
+\begin{equation}
+ \left(\exists b\in B(o),\ G(b)\right)
+ \land\neg\left(\exists b\in B(o),\ D(b)\right).
+ \label{eq:offer-exception}
+\end{equation}
+The first asks whether any component is a non-excepted gift. The second suppresses
+the trigger whenever any component is a discount. A voucher combined with a fee
+waiver distinguishes them immediately: the second formula can let the waiver
+cancel the voucher's effect, while the first continues to assess the voucher.
+These are proposed logical readings for analysis, not a legal determination about
+mixed offers under 23EC46.
+
+% BEGIN REVISION ADDITION teach-M03-01
+\input{\LegalMathRoot teaching/teach-M03-01}
+% END REVISION ADDITION teach-M03-01
+A source interpretation must decide what the variable ranges over before a proof
+about either formula is useful. Is the subject a benefit, a contract, a campaign,
+a transaction or a client relationship? Are components defined by economic
+substance, contractual terms or an operational product record? The formal
+notation exposes this question because $B(o)$ cannot remain undefined in an
+implementation-ready specification.
+
+The current RuleIR fragment has scalar facts rather than unrestricted quantified
+collections. A reviewed adapter can create one snapshot per component and a host
+orchestration can aggregate results under an explicit rule. That aggregation is
+another specification obligation. It must define how true, false, unknown,
+conflict and out-of-scope component results combine, and how the host knows the
+component list is complete.
+
+An empty list deserves attention. In classical logic, a universal statement over
+an empty set is true and an existential statement is false. That convention is
+mathematically coherent, but a missing component inventory must not be treated as
+an established empty offer. The adapter needs an evidence status for collection
+completeness. Otherwise a data omission can pass a universal check by vacuity.
+The same pattern occurs when no argument extensions are returned or no test cases
+are selected: an empty computation can look successful unless existence and
+coverage are checked separately.
+
+Unknown classification also affects aggregation. If one component is known to
+trigger a prohibition and another is unknown, the selected logical aggregation
+may already establish a trigger. Yet the unknown component may remain relevant
+to another obligation or to the completeness of the offer review. A top-level
+known result should not erase the record of missing facts. The distinction between
+missing and blocking inputs in the runtime supports this more informative report.
+% END SOURCE UNIT M03:01
+
+% BEGIN SOURCE UNIT M03:02
+\section{Necessary conditions, sufficient conditions and permissions}
+\label{merge:M03:02}
+
+
+Another frequent translation error changes the direction of implication. Consider
+a synthetic statement that a process may use a streamlined route only if consent
+has been obtained. Let $S$ mean use of the streamlined route and $C$ mean established
+consent. The necessary-condition reading is $S\Rightarrow C$: using the route
+requires consent. It does not follow that $C\Rightarrow S$ or that consent alone
+authorizes the route. Other eligibility conditions may still apply.
+
+A truth-table example makes the difference concrete. With consent true and an
+unmet financial condition, the necessary-condition statement is not violated by
+refusing the streamlined route. An implementation that treats consent as sufficient
+would proceed. Both programs may mention the same two words, but their decisions
+represent different logical relationships.
+
+Likewise, an exception to one prohibition is not a general permission. If the
+selected condition $R$ is false, we know only that this particular trigger is not
+satisfied under the accepted facts and semantics. We do not infer that every
+other prohibition is false or every positive obligation fulfilled. The host must
+compose independently applicable controls without upgrading the absence of one
+trigger into universal clearance.
+
+% BEGIN REVISION ADDITION teach-M03-02
+\input{\LegalMathRoot teaching/teach-M03-02}
+% END REVISION ADDITION teach-M03-02
+In a closed, complete formal theory, one can define permission in terms of the
+absence of a prohibition if that is the intended logic. Legal systems and practical
+source packets often do not provide the completeness needed for that move.
+Explicit permission, lack of evidence of prohibition and a bank's operational
+choice should therefore have different representations. The normative-language
+literature examined in Chapter~\ref{ch:languages} provides several treatments;
+RuleIR's narrow condition results do not choose a universal deontic logic.
+
+The words ``unless'' and ``except'' also require a structural decision. A simple
+propositional rewriting may express an exception as a negated condition, while a
+default system represents a defeasible conclusion that can be overridden. These
+can agree on a selected complete fact pattern and differ under missing evidence,
+conflicting exceptions or additional rules. The translator must identify which
+behavior the approved specification requires.
+
+For the circular example, using $\neg D$ inside the selected body is an explicit
+modeling decision tied to the reviewed factual definition of discount. If $D$ is
+unknown, the program should not act as though the exception is certainly absent.
+The three-valued semantics makes that uncertainty visible. A closed-world database
+query that treats a missing discount row as false would encode a different
+assumption, which requires separate evidence and approval.
+% END SOURCE UNIT M03:02
+
+% BEGIN SOURCE UNIT M03:03
+\section{A proof obligation should expose its assumptions}
+\label{merge:M03:03}
+
+
+A useful proof statement includes the source-independent mathematical property,
+the accepted semantic definitions and the domain assumptions. For example:
+for every well-typed Boolean expression in a specified grammar and every normalized
+fact assignment without conflict, the reference and target evaluators produce
+the same three-valued result. This statement is precise enough to prove by
+structural induction. It does not include the claim that a particular English
+paragraph was mapped to the right expression.
+
+The interpretation assumption can be represented separately as a reviewed
+proposition: under source packet $S$, profile $P$ and definitions $D$, expression
+$e$ represents the selected requirement. A preservation proof then establishes
+that target program $J(e)$ behaves like $e$. Composing these steps is useful, but
+the first premise remains a source and review judgment unless a restricted
+controlled language and its translation semantics are themselves the authoritative
+input.
+
+% BEGIN REVISION ADDITION teach-M03-03
+\input{\LegalMathRoot teaching/teach-M03-03}
+% END REVISION ADDITION teach-M03-03
+A proof assistant will faithfully carry an unjustified premise into a theorem.
+If we assume that every cashback is a discount, it may prove the corresponding
+exception applies. The theorem is conditional on that assumption. It is not a
+discovery that the assumption is legally correct. The proof report must display
+such premises in language the reviewer can understand.
+
+The same principle applies to abstraction. A model may replace a complex offer
+with six Boolean inputs. The proof can establish behavior for every assignment
+of those inputs. To apply it to the real offer, the adapter must establish that
+the six inputs faithfully represent the relevant facts and that the omitted
+features cannot change the selected requirement within the declared scope.
+That relationship is an abstraction argument, not an automatic consequence of
+exhaustive truth-table testing.
+
+The workbench should therefore attach an assumption register to every formal
+result. Each assumption names its provenance, operational meaning and review
+status. A proof that depends on an unresolved definition is retained as a valid
+conditional engineering result, while release remains blocked. This preserves
+the value of formal work without allowing its precision to conceal an uncertain
+starting point.
+% END SOURCE UNIT M03:03
+
+% BEGIN SOURCE UNIT P-01a-language-lesson:00
+\subsection{Why written agreement needs an executable meaning}
+\label{merge:P-01a-language-lesson:00}
+
+\label{sec:language-lesson}
+
+Consider the instruction to obtain written agreement before applying the
+streamlined approach. A checklist can remind an officer to obtain it. A database
+can store a scanned agreement. Neither tells a program what to conclude if the
+agreement covers bonds while the proposed transaction is in a different category,
+or if the client withdrew yesterday. A formal language supplies a precise way
+to state the relevant conditions and the changes that events produce. Its
+purpose here is to preserve an agreed interpretation closely enough that people
+can inspect it and computers can execute and check it.
+
+The word ``formal'' does not mean that the language resolves legal judgment.
+It means that a well-formed statement has a specified computational meaning.
+We can then distinguish disagreement about that meaning from a programming
+mistake in carrying it out. The original circular, the adopted interpretation
+and the formal statement must remain connected.
+% END SOURCE UNIT P-01a-language-lesson:00
+
+% BEGIN SOURCE UNIT P-01a-language-lesson:01
+\subsection{From a sentence to a calculation with a defined meaning}
+\label{merge:P-01a-language-lesson:01}
+
+
+A programming language needs three ingredients. Its \emph{syntax} says which
+statements are allowed. Its \emph{types} say which kinds of value can be combined.
+Its \emph{semantics} says what each allowed statement does. For example,
+\texttt{portfolio >= HKD(40000000)} has comparison syntax, compares two money
+values, and means an inclusive monetary comparison. Comparing that portfolio
+with a consent date is a type error. Using \texttt{>} instead of \texttt{>=} is
+well-typed but changes the meaning at the boundary. A type checker catches the
+first error; an independently chosen boundary example catches the second.
+
+For the SPI financial condition, a readable formal statement is:
+\begin{lstlisting}[caption={Illustrative controlled syntax for Annex 1 paragraph 3.1. This is a teaching notation, not Catala or Stipula source.}]
+financial_condition(client, date) :=
+    portfolio(client, date) >= HKD(40000000)
+    OR net_assets_ex_home(client, date) >= HKD(80000000)
+\end{lstlisting}
+Here \texttt{client} and \texttt{date} are arguments: every occurrence refers to
+the same person and valuation date. \texttt{portfolio} and
+\texttt{net\_assets\_ex\_home} name defined inputs. The source, paragraphs
+3.2--3.4, determines the ownership and net-asset definitions; the host bank must
+provide values calculated under the adopted mapping. The notation makes no
+assumption that the portfolio is simply assets held at this bank.
+
+% BEGIN REVISION ADDITION teach-P-01a-language-lesson-01
+\input{\LegalMathRoot teaching/teach-P-01a-language-lesson-01}
+% END REVISION ADDITION teach-P-01a-language-lesson-01
+The compiler stores the statement as a tree. The root is \texttt{OR}; its two
+children are inclusive comparisons; each comparison has an input and a monetary
+constant. This tree is called an \emph{abstract syntax tree}: it retains the
+operations and their arguments without depending on the layout of the original
+sentence. The JSON in Section~\ref{merge:P-03-product:02} is a serialized version of such
+a tree. An intermediate representation, or IR, adds stable identifiers, source
+locations, types and interpretation records to that executable structure.
+
+Evaluation works from the leaves towards the root. For a portfolio of HK\$35
+million and net assets of HK\$90 million, the comparisons give false and true;
+their alternative gives true. Missing portfolio evidence produces an unresolved
+comparison. An established net-asset route can still make the alternative true.
+If neither route is established and one remains unresolved, the answer remains
+unresolved. This is why an ordinary Java \texttt{boolean}, which has only two
+values, is insufficient as the complete result type.
+
+The financial predicate answers one question. It does not produce a duty or an
+authorization to execute an order. The larger model must combine qualification,
+the selected product category, consent, exposure and retained requirements.
+Keeping these named subquestions separate is useful both to the reviewer and
+to the engineer diagnosing a rejected request.
+% END SOURCE UNIT P-01a-language-lesson:01
+
+% BEGIN SOURCE UNIT M03:04
+\section{Expressions, types and meanings}
+\label{merge:M03:04}
+
+\label{sec:proof-language}
+A formal language is a collection of permitted expressions with rules for
+deciding what they mean. It need not look like a conventional programming
+language. A decision table, a restricted English sentence or a state-transition
+diagram can have formal semantics if each permitted construct has a precise
+interpretation. An unrestricted paragraph usually has more interpretive freedom
+than such a language allows.
+
+The simplest fragment needed for the gift example contains Boolean literals,
+references to named facts, conjunction, disjunction and negation. In a compact
+grammar, an expression $e$ is generated by
+\begin{equation}
+ e ::= \mathsf{true}\mid\mathsf{false}\mid\mathsf{fact}(a)
+       \mid\mathsf{not}(e)\mid\mathsf{all}(e_1,\ldots,e_k)
+       \mid\mathsf{any}(e_1,\ldots,e_k),\quad k\geq 1.
+ \label{eq:boolean-grammar}
+\end{equation}
+Here $a$ is the identifier of a declared Boolean fact. The grammar specifies
+which trees are valid expressions; it does not decide whether the fact denotes
+a legally appropriate classification. That meaning belongs to the declaration
+and its source-linked interpretation.
+
+Types prevent several avoidable errors. A Boolean condition is different from
+a monetary amount. A date is different from a number of days. Money denominated
+in HK cents is different from a foreign-currency amount before conversion.
+The current RuleIR scalar types are Boolean, integer, HKD money and date. A
+comparison accepts compatible ordered values. Addition preserves a numeric
+type. No implicit conversion turns a missing Boolean into zero or a dollar
+amount into cents.
+
+% BEGIN REVISION ADDITION teach-M03-04
+\input{\LegalMathRoot teaching/teach-M03-04}
+% END REVISION ADDITION teach-M03-04
+Typing is valuable because it can reject an entire class of malformed
+specifications before any client case is evaluated. It is also limited. Two
+variables can both have the Boolean type while referring to different subjects
+or definitions. A type checker cannot infer that an offer-level discount flag
+was wrongly substituted for a component-level classification unless the type
+and declaration system explicitly represent that distinction. The proposed
+extension should therefore retain subject, scope and definition identities
+alongside the scalar type.
+
+An expression's semantics is its evaluation rule. For known Boolean inputs,
+\texttt{all} is true exactly when every operand is true, and \texttt{any} is true
+when at least one operand is true. The gift body is a tree whose root is an
+\texttt{all}, with children for the gift fact, the two-route disjunction and
+the negated exception. The tree makes parentheses explicit. A source sentence
+can be attached to the root and narrower evidence anchors to its children.
+
+The chosen language is deliberately finite and acyclic. A reference cycle such
+as rule A depending on B while B depends on A is rejected in the current
+profile. This avoids an undefined recursive evaluation. Richer legal formalisms
+can assign meaning to recursive or mutually defeating rules, but doing so
+requires a specified semantics. A compiler must not guess that an unsupported
+recursive construct means the same thing as the current acyclic profile.
+% END SOURCE UNIT M03:04
+
+% BEGIN SOURCE UNIT P-03-product:03
+\subsection{A precise example: money, alternatives and unknown values}
+\label{merge:P-03-product:03}
+
+\label{sec:semantics}
+
+Let $P$ denote the client's portfolio amount under the adopted definition, and
+let $N$ denote net assets excluding the primary residence. Both are valued at the
+relevant date and expressed in HK dollars under an explicit conversion policy.
+For complete, valid inputs, the financial condition is
+\begin{equation}
+ F(P,N)=(P\geq 40{,}000{,}000)\ \lor\ (N\geq 80{,}000{,}000).
+ \label{eq:financial}
+\end{equation}
+The source of the constants, inclusive comparisons and alternative is Annex 1,
+paragraph 3.1. Equation~\eqref{eq:financial} formalizes that subcondition; its
+inputs incorporate the separate definitions in paragraphs 3.2--3.4
+\citep{sfcspiannex1}. RuleIR stores monetary amounts as
+integer HK cents encoded as decimal strings. Conversions must take place
+before the comparison, with the exchange-rate source and valuation instant
+recorded. Floating-point rounding must not silently move a boundary.
+
+Bank evidence is often incomplete. Define the comparison with a missing amount
+to return $\Unknown$, and let $\True$, $\False$ and $\Unknown$ mean established,
+refuted and unresolved for this condition. For the alternative in
+Equation~\eqref{eq:financial}, use the following truth table:
+\begin{equation}
+\begin{array}{c|ccc}
+\lor & \True & \False & \Unknown\\\hline
+\True & \True & \True & \True\\
+\False & \True & \False & \Unknown\\
+\Unknown & \True & \Unknown & \Unknown
+\end{array}
+\label{eq:or}
+\end{equation}
+This table follows the intended treatment of incomplete evidence: a known
+sufficient route establishes the alternative, both refuted routes refute it,
+and otherwise missing information can matter. With unknown $P$ and
+$N=90{,}000{,}000$, the second comparison is true, so
+$\Unknown\lor\True=\True$. With unknown $P$ and $N=70{,}000{,}000$, the result
+is $\Unknown\lor\False=\Unknown$. Figure~\ref{fig:financial-flow} gives a
+flowchart view.
+
+% BEGIN REVISION ADDITION teach-P-03-product-03
+\input{\LegalMathRoot teaching/teach-P-03-product-03}
+% END REVISION ADDITION teach-P-03-product-03
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[font=\small,
+ box/.style={draw=teal,fill=pale,rounded corners,text width=39mm,align=center,minimum height=13mm},
+ decision/.style={draw=teal,diamond,aspect=2.6,align=center,text width=40mm,inner sep=1mm},
+ arr/.style={-{Latex[length=2mm]},thick,draw=navy}]
+\node[box] (input) at (0,0) {Defined, dated amounts\\or explicit unknowns};
+\node[decision] (yes) at (0,-2.8) {Is either financial\\route established?};
+\node[box] (true) at (6,-2.8) {Financial condition\\established};
+\node[decision] (no) at (0,-5.6) {Are both financial\\routes refuted?};
+\node[box] (false) at (6,-5.6) {Financial condition\\refuted};
+\node[box] (unknown) at (0,-8.3) {Unresolved: identify\\decision-relevant evidence};
+\draw[arr] (input)--(yes);
+\draw[arr] (yes)--node[above]{Yes}(true);
+\draw[arr] (yes)--node[left]{No}(no);
+\draw[arr] (no)--node[above]{Yes}(false);
+\draw[arr] (no)--node[left]{No}(unknown);
+\end{tikzpicture}
+\caption{Proposed review flow for the financial subcondition, after resolving
+input conflicts. Passing this test alone does not establish SPI status.}
+\label{fig:financial-flow}
+\end{figure}
+
+The other Boolean operations need equally explicit tables. Under the proposed
+conservative three-valued semantics, conjunction is false if an operand is false,
+true if both are true, and otherwise unresolved; negation swaps true and false
+and preserves unknown. This semantics does not discover every conclusion implied
+by correlations among unknown facts. For example, a general expression
+$A\lor\neg A$ remains unresolved when $A$ is unresolved under these tables.
+A more powerful completion-based analysis may establish additional conclusions,
+but it must be a specified refinement with its own evidence. No accidental
+change of logic should occur when switching backends.
+
+Contradictory input records are handled before this evaluation. If two
+authoritative-looking records disagree on the same ownership allocation, the
+workbench creates an evidence conflict and identifies the disputed fact. It must
+not insert both as classical premises and infer arbitrary results from an
+inconsistent theory. Being outside a rule's scope, having insufficient evidence,
+and detecting a data conflict are also distinct operational outcomes. These
+statuses should wrap the logical result rather than being encoded as false.
+% END SOURCE UNIT P-03-product:03
+
+% BEGIN SOURCE UNIT M03:05
+\section{Unknown is an information state}
+\label{merge:M03:05}
+
+\label{sec:proof-unknown}
+The bank often lacks a decisive fact when a rule is evaluated. In the gift
+example, the evidence may not establish whether an additional return is a gift.
+The program should distinguish that absence from evidence that no gift exists.
+We therefore need an unknown value, written $\Unknown$, alongside known true
+$\True$ and known false $\False$.
+
+The current Boolean operations follow strong-Kleene tables. The name identifies
+a precise three-valued calculation, which can be taught through the two cases
+already encountered. If a product-specific promotional link is true, then the
+disjunction of that link with an unknown type link is true. If the specific
+link is false and the type link is unknown, the disjunction is unknown. A true
+route suffices; an absent route cannot settle the other one.
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{cc|cc}
+\toprule
+$a$ & $b$ & $a\land b$ & $a\lor b$\\
+\midrule
+$\True$ & $\True$ & $\True$ & $\True$\\
+$\True$ & $\False$ & $\False$ & $\True$\\
+$\True$ & $\Unknown$ & $\Unknown$ & $\True$\\
+$\False$ & $\False$ & $\False$ & $\False$\\
+$\False$ & $\Unknown$ & $\False$ & $\Unknown$\\
+$\Unknown$ & $\Unknown$ & $\Unknown$ & $\Unknown$\\
+\bottomrule
+\end{tabular}
+\caption{The omitted rows follow by exchanging the operands. Negation swaps
+true and false and leaves unknown unchanged. The table describes logical values;
+evidence conflict and errors are handled separately.}
+\label{tab:kleene}
+\end{table}
+
+An established exception can make the gift conjunction false even when another
+body fact is unknown, because one false conjunct is enough. That is the logic
+behind g16. It is not a general instruction to ignore missing information.
+Unknown scope is handled before the body, and conflicting evidence has its own
+precedence. The evaluation result must retain which question was answered and
+why the remaining unknown body facts did not change that answer.
+
+% BEGIN REVISION ADDITION teach-M03-05
+\input{\LegalMathRoot teaching/teach-M03-05}
+% END REVISION ADDITION teach-M03-05
+A convenient symbolic encoding represents a three-valued Boolean by two ordinary
+Boolean indicators: one means ``known true'' and the other ``known false.'' The
+unknown value has neither indicator. If $t_a$ and $f_a$ encode $a$, then
+\begin{align}
+ t_{a\land b}&=t_a\land t_b,& f_{a\land b}&=f_a\lor f_b,\label{eq:kleene-and}\\
+ t_{a\lor b}&=t_a\lor t_b,& f_{a\lor b}&=f_a\land f_b,\label{eq:kleene-or}\\
+ t_{\neg a}&=f_a,& f_{\neg a}&=t_a.\label{eq:kleene-not}
+\end{align}
+The domain excludes $(t_a,f_a)=(1,1)$. That pair would assert both truth and
+falsity, which belongs to a different conflict mechanism in the current design.
+The equations reproduce Table~\ref{tab:kleene}: for example, true and unknown
+have true indicators 1 and 0, so their conjunction cannot be known true; neither
+has a false indicator, so the result is unknown.
+
+This encoding allows a solver to search disagreements while preserving missing
+information. Replacing each unknown by an arbitrary ordinary Boolean inside
+one execution would ask a different question. It could produce a definite answer
+chosen from a possible completion without showing that other completions differ.
+A comparison tool must name the semantics it encoded, not merely report that it
+used a solver.
+
+There is a subtler distinction between compositional three-valued evaluation
+and evaluating every Boolean completion. Let $p$ be unknown. Strong-Kleene
+evaluation gives
+\begin{equation}
+ p\lor\neg p=\Unknown\lor\Unknown=\Unknown.
+ \label{eq:unknown-tautology}
+\end{equation}
+Under every consistent Boolean completion, however, the expression is true:
+if $p$ is true the first term holds, and if $p$ is false the second holds. A
+completion-based semantics can therefore return true. Neither calculation is
+ambiguous once its rules are specified; they are different semantics.
+
+For the read-once gift body, the retained truth oracle's completion method agrees
+with the compositional calculation. That particular equivalence does not make
+the completion oracle a general replacement for RuleIR semantics. A future
+ensemble should treat an unexpected disagreement as a possible semantics
+mismatch before assuming that one interpreter contains a bug. This example is
+also a reason to test repeated variables when extending the comparison fragment.
+% END SOURCE UNIT M03:05
+
+% BEGIN SOURCE UNIT M03:06
+\section{Conflict, scope and errors are not extra Boolean values}
+\label{merge:M03:06}
+
+\label{sec:proof-tags}
+Unknown truth and conflicting evidence should not be combined casually into one
+truth table. The current runtime first normalizes records by validity,
+recording time and explicit supersession. Two admissible non-superseded records
+with incompatible values produce conflict. That result records a problem in
+the evidence supporting a fact. It does not ask the Boolean evaluator to choose
+which record is right.
+
+The static dependency closure contains every fact reachable from the requested
+rule through its scope, body, referenced rules and exception branches. Conflict
+in that closure prevents evaluation from treating a convenient branch as a way
+to evade contradictory evidence. A conflict in an unrelated declared fact does
+not automatically block the requested rule. This distinction makes the
+conservative policy bounded and reproducible.
+
+After successful structural validation and conflict handling, scope determines
+whether the body is an appropriate question. A known-false scope produces out
+of scope. An unknown scope produces unknown with a scope reason. Only a
+known-true scope permits the in-scope body result. Thus an out-of-scope result
+is a statement about the relation between the query and the selected rule,
+not a false answer to the rule's substantive condition.
+
+% BEGIN REVISION ADDITION teach-M03-06
+\input{\LegalMathRoot teaching/teach-M03-06}
+% END REVISION ADDITION teach-M03-06
+Malformed data and unsupported constructs introduce a further distinction.
+An input with an invalid date or duplicated conflicting identifier may be an
+error, not legal uncertainty. If the system cannot parse a request, it cannot
+honestly report that the regulatory condition is unknown on a well-defined
+request. The API should identify the boundary error and the location of the
+malformation. Operationally both may prevent automatic action, but their causes
+and repair routes differ.
+
+We can therefore describe the result as a tagged value whose tag identifies
+the kind of answer. The current contract includes true, false, unknown,
+conflict, out of scope and error, together with diagnostics and provenance.
+The tags are not interchangeable labels for a single confidence score. The
+ensemble discrepancy taxonomy must preserve them so that a failed parser is
+not processed as a legal disagreement and an unresolved definition is not
+processed as a transient network failure.
+
+The precedence is part of the specification. Reordering checks can change
+both a result and its explanation. The g19 example deliberately returns
+conflict even though an actor scope fact is false. A Java implementation that
+short-circuits on scope before consulting the required conflict closure would
+disagree with the current target. That disagreement is wrong relative to the
+declared execution semantics, independently of whether the bank later chooses
+to revise the policy.
+% END SOURCE UNIT M03:06
+
+% BEGIN SOURCE UNIT M03:07
+\section{A readable specification with a fixed translation}
+\label{merge:M03:07}
+
+\label{sec:proof-cnl}
+Controlled natural language keeps the familiarity of English while restricting
+how sentences are formed. The restriction matters because the reader should
+be able to determine the formal structure from the sentence without asking a
+model to interpret it again. Logical English provides one developed example of
+this approach through explicit templates, variable binding and restrictions on
+ordinary linguistic ambiguity \citep[language and law examples]{logicalenglish2023}.
+
+For our narrow gift example, a specification can state: ``For an assessed
+component in the established distributor/fund scope, the selected gift
+restriction is triggered if the component is a gift, at least one of the two
+specified promotional links holds, and the component does not meet the defined
+discount exception.'' The specification must then define each term and its
+evidentiary state. This sentence is reviewer-facing exposition. A machine
+translation needs an accompanying restricted structure in which the three
+conjuncts, disjunction and negation are explicit.
+
+An appropriate authoring interface might present one condition per line with
+typed connectives and named definitions. The reviewer sees the English label
+and can inspect the exact expression beneath it. Free text remains available
+for reasoning and caveats, but it does not secretly alter the executable
+condition. A change to a definition or connective creates a new specification
+revision. Editing an explanatory paragraph must not bypass the formal diff.
+
+% BEGIN REVISION ADDITION teach-M03-07
+\input{\LegalMathRoot teaching/teach-M03-07}
+% END REVISION ADDITION teach-M03-07
+The controlled specification also records the legal character of the source.
+A statement framed as an obligation, a prohibition, a permission, a discretion
+or an expectation should retain that category. Translating all of them into a
+Boolean called \texttt{allowed} would destroy distinctions before verification
+begins. The current RuleIR chiefly computes conditions. A reviewed operational
+policy determines how those conditions affect a bank action. Richer normative
+and temporal languages are introduced in Chapter~\ref{ch:languages}.
+
+A fixed translation from restricted syntax to RuleIR is a valuable target for
+proof. Every permitted construct has a known translation rule; unsupported
+sentences are rejected or left as unresolved authoring work. If a reviewer
+writes an unrestricted sentence outside that syntax, a model can propose a
+restricted rendering, but that proposal returns to the interpretation process.
+The system cannot claim deterministic controlled-language compilation merely
+because an LLM usually produces valid JSON.
+
+Roundtrip verification supplies an additional check. Translate a formal
+candidate into readable language, formalize the rendering again, and compare
+the two formal candidates. A mismatch can reveal drift. Agreement can show
+stability across the tested transformations. The same omitted source condition
+can survive both translations, so the roundtrip result remains one component
+of the evidence, as acknowledged by \citet[method and limitations]{roundtrip2026}.
+It cannot replace the independent source inventory established earlier.
+% END SOURCE UNIT M03:07
+
+% BEGIN SOURCE UNIT M03:08
+\section{How a preservation argument is constructed}
+\label{merge:M03:08}
+
+\label{sec:proof-induction}
+The phrase ``prove the compiler correct'' becomes more useful when the reader
+can see the structure of such a proof. Consider only the finite Boolean
+expression grammar in equation~\eqref{eq:boolean-grammar}. Let its source
+evaluator use Table~\ref{tab:kleene}. Suppose a translation maps literals,
+fact references and each connective to corresponding target operations.
+Assume the target fact lookup returns the same normalized tagged value for
+every declared fact and that its primitive operations implement the same
+tables.
+
+\begin{proposition}[Preservation for the Boolean expression fragment]
+Under those assumptions, translating any well-formed finite expression in
+equation~\eqref{eq:boolean-grammar} preserves its three-valued result for every
+normalized fact assignment.
+\label{prop:boolean-preservation}
+\end{proposition}
+\begin{proof}
+Use induction on the construction of the expression. A true or false literal
+has the same value by the literal translation. A fact reference has the same
+value by the lookup assumption. For a negation, the induction hypothesis gives
+the same child value in both evaluators, and the target negation table maps
+that value to the same result. For a conjunction or disjunction, the induction
+hypotheses give equality for every child. Applying the identical connective
+table to the identical sequence of values gives the identical parent value.
+These cases cover every constructor in the grammar. The finite syntax tree
+ensures the induction reaches a base case on every path.
+\end{proof}
+
+% BEGIN REVISION ADDITION teach-M03-08
+\input{\LegalMathRoot teaching/teach-M03-08}
+% END REVISION ADDITION teach-M03-08
+This small proof is exact, but its scope is intentionally visible. It assumes
+correct target primitives and lookup. It does not establish the current Java
+implementation satisfies those assumptions. It does not cover scope, conflict
+normalization, numeric operations, exceptions, errors or traces until separate
+lemmas include them. And it says nothing about whether the expression is a
+justified interpretation of paragraph 10.
+
+The next proof obligations follow the same pattern. A normalization lemma must
+show that both implementations select the same admissible evidence under the
+same times and supersession relation. A scope lemma must preserve the tagged
+result and the decision to skip the body. A conflict lemma must preserve the
+static closure and conflict precedence. A trace lemma must connect each
+evaluated or skipped node to the required source and evidence identifiers.
+Only after these claims are assembled can the implementation claim be expanded
+from a Boolean value to the full semantic result.
+
+The actual generated Java class currently binds an immutable validated bundle
+and invokes the Java semantic runtime. The proof boundary must follow that
+architecture. Proving a small emitted wrapper correct while assuming an
+unchecked runtime would leave most of the computation outside the theorem.
+Conversely, a proof about a generic runtime still needs to show that the
+generated class embeds the intended bundle and that the host invokes the
+correct class. The theorem's trusted components should be named rather than
+hidden under the word ``compiler.''
+
+There is a useful discipline here for an implementation agent. Begin with a
+small formal fragment whose semantics and generated behavior can be inspected.
+Prove or exhaustively check its components, then extend the fragment with new
+constructors and corresponding obligations. A failed lemma is information
+about the specification or implementation. It is not a reason to weaken the
+claimed target without explaining the change.
+% END SOURCE UNIT M03:08
+
+% BEGIN SOURCE UNIT M03:09
+\section{Counterexamples and the domain they live in}
+\label{merge:M03:09}
+
+\label{sec:proof-counterexamples}
+To compare two candidate interpretations, the system first needs a common
+question and compatible inputs. Let $F_1$ and $F_2$ compute tagged results on
+the same declared input domain. A solver can search for an assignment satisfying
+\begin{equation}
+ D(x)\land\left(\pi(\eval(F_1,x))\ne
+                         \pi(\eval(F_2,x))\right).
+ \label{eq:difference-query}
+\end{equation}
+Here $D$ states the permitted facts and relationships. In the product-type
+example, a witness sets gift true, specific-product link false, type link true
+and discount false, with scope established. The assignment has different
+consequences under the complete and omitted-route rules.
+
+The first solver check should establish that $D$ is satisfiable. If the domain
+simultaneously requires a fact to be true and false, the difference query is
+unsatisfiable for an unhelpful reason: there are no admissible inputs. The
+correct response is \texttt{INCONSISTENT\_DOMAIN}, not equivalence. This
+precheck is a concrete safeguard against a formally successful but meaningless
+verification result.
+
+If the domain is satisfiable and the difference query is satisfiable, the
+assignment is a counterexample to equivalence in that domain. Before displaying
+it to a reviewer, replay it through the ordinary interpreters. That replay
+checks that the solver encoding and the runtime agree on what the witness
+means. If replay disagrees with the solver prediction, the comparison harness
+has failed and the witness cannot be used to adjudicate the candidates.
+
+% BEGIN REVISION ADDITION teach-M03-09
+\input{\LegalMathRoot teaching/teach-M03-09}
+% END REVISION ADDITION teach-M03-09
+If the difference query is unsatisfiable, the supported conclusion is absence
+of a counterexample under the encoded semantics and domain. The strength of
+that result depends on the solver procedure and any checked certificate. A
+machine-checked certificate provides a different assurance level from trusting
+an unchecked solver response. A timeout, unsupported construct or unknown
+solver result remains unresolved; it must never be converted to successful
+equivalence because no witness was printed.
+
+Domain assumptions can hide exactly the error we hoped to find. If a comparison
+asserts that every product-type promotion also names a specific product, the
+omitted-route mutation may become indistinguishable from the proposed rule.
+That assumption would need a source or business justification. It cannot be
+introduced merely because it makes the proof succeed. The report should show
+which constraints exclude a witness and where those constraints came from.
+
+Minimal witnesses are useful for human review, but ``minimal'' also requires a
+definition. One option minimizes the number of facts changed from a familiar
+baseline. Another minimizes monetary amounts within meaningful bounds. Neither
+guarantees that the resulting scenario is legally or operationally feasible.
+Source and domain validation remain necessary. The smallest formal assignment
+may be a poor real-world question if it combines classifications that a reviewer
+would never jointly accept.
+% END SOURCE UNIT M03:09
+
+% BEGIN SOURCE UNIT P-03-product:06
+\subsection{A concrete SPI witness and its knownness encoding}
+\label{merge:P-03-product:06}
+
+
+For many regulatory changes, a small counterexample is more useful than a large
+proof transcript. Suppose the proposed implementation accidentally replaces the
+first inclusive comparison in Equation~\eqref{eq:financial} with a strict one.
+Let that candidate be $G$, and write $D$ for the declared set of admissible,
+complete inputs $(P,N)$. A solver can search for
+\begin{equation}
+ \exists (P,N)\in D:\quad F(P,N)\ne G(P,N).
+ \label{eq:counterexample}
+\end{equation}
+The concrete values $P=40{,}000{,}000$ and $N=0$ witness the disagreement:
+$F$ is true and $G$ is false. A compliance officer can understand the error
+without reading the encoding. Replacing the alternative with a conjunction is
+similarly exposed by $P=35{,}000{,}000$ and $N=90{,}000{,}000$.
+
+This technique also compares two candidate interpretations or old and new rule
+versions. It must check the admissibility and consistency of its assumptions
+first. If a test domain accidentally demands that the same amount is both
+positive and negative, the absence of a counterexample proves nothing useful
+about real cases. Unsatisfiable assumptions should be reported as a separate
+failure, with the conflicting constraints identified. Solver timeout and unknown
+results should never be rendered as ``equivalent.''
+
+% BEGIN REVISION ADDITION teach-P-03-product-06
+\input{\LegalMathRoot teaching/teach-P-03-product-06}
+% END REVISION ADDITION teach-P-03-product-06
+The initial Z3 adapter supports a smaller language than the interpreter:
+Boolean, integer and money expressions with explicit knownness and bounded
+declared domains. Dates, scaling, defaults and events return
+\texttt{UNSUPPORTED}. Encode a Boolean expression $a$ by two bits $(t_a,f_a)$:
+true is $(1,0)$, false $(0,1)$ and unknown $(0,0)$; prohibit $(1,1)$.
+Conjunction then has the encoding
+\begin{equation}
+ t_{a\land b}=t_a\land t_b,\qquad
+ f_{a\land b}=f_a\lor f_b.
+ \label{eq:knownness}
+\end{equation}
+Disjunction uses the dual equations and negation swaps the bits. A numeric value
+carries a knownness bit, and a comparison produces neither Boolean bit unless
+both operands are known. These equations implement the stated truth tables.
+Giving an unknown fact an unconstrained classical Boolean would instead make
+$A\lor\neg A$ always true and verify a different language.
+
+The service checks domain satisfiability before searching for a difference in
+tagged results. Display a satisfying model only after replay through both
+interpreters. An unsatisfiable difference query yields
+\texttt{NO\_COUNTEREXAMPLE\_IN\_DECLARED\_DOMAIN}; an empty domain yields
+\texttt{INCONSISTENT\_DOMAIN}; timeout stays \texttt{UNKNOWN}. Preserve formula,
+domain, rule hashes and solver version. A solver answer is a different class
+of evidence from a certificate replayed by an independent checker.
+
+For event rules, the corresponding search concerns traces. A useful first
+property is that, in the adopted consent model, no transition representing a new
+streamlined decision uses a withdrawn consent state. Another is that processing
+the same evidence event twice does not create duplicate obligations. Each
+property has assumptions about event identity and ordering. Bounded trace search
+can find violations, while a proof of an invariant can establish a stronger
+claim if the transition model and induction obligations are checked.
+% END SOURCE UNIT P-03-product:06
+
+% BEGIN SOURCE UNIT P-01a-language-lesson:05
+\subsection{Solvers, explanations and search in ordinary programming terms}
+\label{merge:P-01a-language-lesson:05}
+
+
+A satisfiability solver searches for values that make a set of logical
+constraints true. To compare the correct wealth alternative with a mistaken
+conjunction, give it both formulas and ask for inputs where their answers differ.
+HK\$35 million and HK\$90 million are one such counterexample. An SMT solver
+extends this idea with theories such as exact integer arithmetic. It is useful
+here because money can be encoded as integers. Before treating ``no
+counterexample'' as evidence, the system must establish that the allowed input
+domain is nonempty and that both formulas were encoded faithfully. A timeout
+means that the search did not finish.
+
+% BEGIN REVISION ADDITION teach-P-01a-language-lesson-05
+\input{\LegalMathRoot teaching/teach-P-01a-language-lesson-05}
+% END REVISION ADDITION teach-P-01a-language-lesson-05
+A justification engine answers a related question: which rules and facts support
+a conclusion? In a rule program, \texttt{eligible(C) :- financial(C), consent(C)}
+means that both supporting predicates are needed to derive eligibility for the
+same client \texttt{C}. s(CASP), used by s(LAW), can expose the supporting
+derivation and assumptions rather than returning only a label. An assumed
+consent predicate in a hypothetical answer is still an assumption; it must never
+be written back as an observed agreement \citep{slaw2024}.
+
+Search over interpretations sits above these calculations. An agent may propose
+two readings of a clause, retrieve a referenced definition, and ask a solver for
+a case that separates them. A Monte Carlo tree or UCB scheduler can choose which
+investigation to try next. Its score measures usefulness under the chosen search
+objective; it does not certify the resulting legal reading. The adopted meaning
+must come from source-based adjudication. The existing MCP projects can assist
+these bounded jobs, as explained in Section~\ref{merge:P-04-prototype:03}.
+% END SOURCE UNIT P-01a-language-lesson:05
+
+% BEGIN SOURCE UNIT M03:10
+\section{Proving a workflow property}
+\label{merge:M03:10}
+
+\label{sec:proof-workflow}
+Some of the strongest useful guarantees concern the review process rather than
+the legal reading. For example, the proposed ensemble should never mark an
+assessment releasable while a material discrepancy remains unresolved. This is
+a property of explicit records and transitions. It is amenable to a state-machine
+argument once the terms ``material,'' ``unresolved'' and ``releasable'' have
+precise stored meanings.
+
+Let $Q$ be an assessment state, $M(Q)$ its set of unresolved material issues,
+and $R(Q)$ the predicate that a release is authorized. A required invariant is
+\begin{equation}
+ R(Q)\ \Longrightarrow\ M(Q)=\varnothing.
+ \label{eq:no-open-release}
+\end{equation}
+The invariant does not say that an empty issue set proves the interpretation
+correct. It says that known unresolved material issues cannot be ignored by
+the release transition. A faulty detector may fail to create an issue, which
+is why independent coverage and detector evaluation remain necessary.
+
+% BEGIN REVISION ADDITION teach-M03-10
+\input{\LegalMathRoot teaching/teach-M03-10}
+% END REVISION ADDITION teach-M03-10
+To establish the invariant, the initial state has no release. Every transition
+that creates, reopens or materially changes an issue must invalidate dependent
+release eligibility. The only transition that authorizes release must check
+the issue set and all other required conditions in the same transaction that
+records the authorization. If a concurrent worker can add an issue after the
+check but before the release without a version check, the implementation does
+not preserve the invariant. Database transaction boundaries are therefore part
+of the proof assumptions, not an incidental engineering detail.
+
+A second property concerns termination of automatic processing. Suppose a run
+has a finite number of reserved actions, and every dispatched action consumes
+one reservation even if the worker fails. If all automatic paths either
+consume a reservation or enter a terminal state, then no run can dispatch more
+actions than its budget. This argument requires crash and retry accounting;
+counting only successful responses would permit unlimited failed calls.
+Chapter~\ref{ch:ensemble} gives the exact controller and its termination
+measure.
+
+These guarantees directly support the user's requirement. They can establish
+that the system reports remaining uncertainty and respects its retry limit.
+They cannot establish that the detectors discovered every possible uncertainty.
+The two responsibilities should be tested separately: detection quality against
+independent cases, and workflow integrity against state-transition and failure
+injection tests.
+% END SOURCE UNIT M03:10
+
+% BEGIN SOURCE UNIT M03:11
+\section{Temporal duties require histories}
+\label{merge:M03:11}
+
+\label{sec:proof-temporal}
+A Boolean assessment of an offer is not enough for every circular requirement.
+Some duties become active after an event and must be performed before a
+deadline. Others must remain satisfied throughout an interval. Consent can be
+granted, withdrawn and granted again. A formal specification for these cases
+needs histories and states, not just a snapshot of current fields.
+
+Consider a hypothetical duty activated at time $a$ with an exclusive deadline
+$d$. Under a declared non-preemptive achievement interpretation, a matching
+performance at time $t$ satisfies the timing condition exactly when
+\begin{equation}
+ a\leq t<d.
+ \label{eq:performance-window}
+\end{equation}
+The inequality states an engineering profile; a source may require a different
+boundary or permit performance before activation. Those choices must be
+reviewed and encoded explicitly. The event must also match the duty's actor,
+action and subject. A timely action by the wrong party is not satisfaction.
+
+% BEGIN REVISION ADDITION teach-M03-11
+\input{\LegalMathRoot teaching/teach-M03-11}
+% END REVISION ADDITION teach-M03-11
+Failure to find a performance record is not by itself evidence that the duty
+was breached. The observation stream may be incomplete. The current event
+runtime therefore requires a completeness assertion through the deadline before
+inferring breach from absence. That assertion has provenance and a recording
+time. A process clock cannot create it. This mirrors the source-coverage
+problem: an empty retrieved set does not prove that the relevant object does
+not exist.
+
+Late performance and breach are also distinct. A duty can be performed after
+its deadline without erasing the fact that timely performance was absent under
+complete evidence. A later correction may establish that an earlier performance
+was missed; that creates a new assessment with a different knowledge cutoff.
+The original assessment remains available. Normative logic and contract-state
+languages help express these distinctions, but their semantics must be selected
+to match the intended duty \citep{violations2006,normative2016,stipula2021}.
+
+The current profile supports a limited event model. It does not automatically
+implement every waiver, sanction, compensatory duty or maintenance obligation
+that a legal document could contain. Unsupported temporal constructs should
+remain explicit implementation gaps. A translator that invents a deadline or
+converts a continuing duty into a single check would create a new rule while
+appearing to simplify the software.
+% END SOURCE UNIT M03:11
+
+% BEGIN SOURCE UNIT M03:12
+\section{An assurance claim is a conjunction of different evidence}
+\label{merge:M03:12}
+
+\label{sec:proof-assurance}
+We can now state the overall structure without pretending that one theorem
+settles the entire process. Source retention establishes which material was
+reviewed. Interpretation review establishes an attributable decision about that
+material within a declared context. Formal checks establish consequences and
+preservation properties for specified languages and domains. Integration checks
+establish how a result reaches a bank action. Each supports a distinct premise
+in the justification for using a control.
+
+This structure prevents two opposite mistakes. The first is to dismiss formal
+verification because it cannot prove the meaning of unrestricted English.
+Preserving a reviewed specification across implementations is valuable, and
+workflow invariants can rule out important classes of operational failure. The
+second is to present formal verification as if it eliminated the interpretation
+and evidence premises. A perfectly verified formula still needs the right
+subject, source version and fact classifications.
+
+% BEGIN REVISION ADDITION teach-M03-12
+\input{\LegalMathRoot teaching/teach-M03-12}
+% END REVISION ADDITION teach-M03-12
+For the bank's reviewers, the practical outcome is a set of answerable
+questions. Which parts of the interpretation are accepted and by whom? Which
+formal properties have actually been established? What lies outside the
+supported fragment? Which data mappings remain unresolved? What would reopen
+the conclusion? Those questions can be supported by exact records rather than
+an undifferentiated confidence statement.
+
+The next chapter examines existing languages and methods in that light. Each
+is introduced by the problem it solves: readable authoring, exceptions,
+alternative interpretations, events, or symbolic checking. Their combination
+must preserve those distinctions instead of assuming that choosing one formal
+language supplies the whole assurance argument.
+% END SOURCE UNIT M03:12
+

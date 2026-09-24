@@ -1,22 +1,29 @@
-# From SFC Circulars to Reviewed Specifications and Verified Java Controls
+# From SFC Circulars to Reviewable Bank Controls
 
-[Read the unified monograph](monograph.pdf) · [Canonical LaTeX](monograph.tex) ·
-[Preservation map](review/unification/content-map.md) ·
-[Merge review](review/unification/merge-review.md)
+[Read the monograph](monograph.pdf) · [Technical companion](technical-companion.pdf) ·
+[Illustrated process guide](process-guide.pdf) · [LaTeX source](monograph.tex) ·
+[Revision review](review/process-map/review.md)
 
-One author draft, ten chapters, **232 PDF pages and 76 cited references**.
-The 66-page product proposal and 153-page interpretation monograph are now
-integrated by subject into this book. There is one introduction, contents and
-bibliography. The former [proposal entry point](../proposal/proposal.tex)
-builds this same manuscript; its distributed PDF is an identical copy.
+The 24 September 2026 reader-review edition contains a **252-page monograph**
+and a **76-page technical companion**. The monograph opens with a two-page
+executive summary, a seven-page illustrated process guide and ten chapters. It follows
+two circulars from the bank's practical questions to interpretation, evidence,
+mathematics, reliable execution and supervised operation.
 
-The book follows regulatory scope through two concrete circulars, formal meaning,
-competing interpretations, bounded ensemble investigation, Java generation,
-review, release, evaluation and continuing operation. The complete SPI example
-from circular 23EC35 precedes the 23EC46 marketing example. Both source inventories,
-worked cases, language explanations, implementation contracts and research
-qualifications are retained. Chapter 8 now connects the earlier work packages to
-the executed T00–T22 MVP and the proposed E01–E14 interpretation extension.
+The content integrates the interpretation work through round four.
+Source editions, competing readings, separately scoped duties, useful comparison
+cases and continuing source review enter through worked explanations. The
+companion begins with a current reference organised by implementation task,
+followed by provision inventories, detailed tables, interfaces and clearly dated
+historical records. Keep both PDFs together for links between them. Mathematical
+derivations needed for the main argument remain in the monograph.
+
+The process guide occupies PDF pages 4–10, directly after the executive summary.
+Fourteen flowcharts expand every step from source collection to Java and bank
+use. They locate breadth-first/UCT search, RuleIR, Java/Python checks, Z3,
+selected Lean proofs and the separate Stipula/JML/KeY research route. The
+standalone guide contains the same pages; keep it beside the main book and
+companion for its links to fuller explanations.
 
 ## Contents
 
@@ -25,75 +32,82 @@ the executed T00–T22 MVP and the proposed E01–E14 interpretation extension.
 3. What can be proved, and under which assumptions.
 4. Languages that make interpretation inspectable.
 5. Constructing and comparing competing interpretations.
-6. An accountable ensemble with bounded resolution.
+6. Using disagreement to improve a review.
 7. From an accepted interpretation to verified Java behavior.
-8. The complete workbench and its interpretation extension.
+8. What the bank would own and operate.
 9. Measuring error, uncertainty and the value of redundancy.
 10. Operating the product without losing its evidence.
 
-Chapter 6 retains the full 27-page ensemble design. Initial proposals are blind;
-source coverage is checked separately; every discrepancy receives a disposition;
-actions are charged before dispatch; retries have explicit limits; dissent and
-unresolved uncertainty remain in the final report. Material unresolved issues
-block release. Search scores and repeated model agreement are not calibrated
-probabilities of legal correctness.
+The examples use public sources and synthetic facts. Earlier live development
+observations and later controlled or replayed checks retain their different
+meanings. They do not establish independent legal validation, comparative
+live-model interpretation performance, reviewer savings or production readiness.
+Subsequent implementation rounds are separate continuations, not evidence
+silently incorporated into this edition.
 
-## Preservation and execution
-
-The original PDFs contain **66 + 153 = 219 pages**; the unified PDF contains
-**232 pages**, including front matter and bibliography. The existing 12-point
-A4 typography is unchanged. The original proposal used different typography, so
-page arithmetic alone cannot establish preservation.
-
-The [automated preservation check](review/unification/preservation-check.json)
-accounts for all **207 original source units**: 67 from the proposal and 140
-from the monograph. It reconstructs each unit from a frozen original and explicit
-editorial changes. All 33 original equation environments, 18 code listings,
-six figures, cited sources and labels survive. Tables are checked as part of
-those exact transformations. Original files, including both PDFs, remain in
-[the protected baseline](../../.localresources/unification/baseline/manifest.json).
-
-Chapter 8 describes the actual source-to-release workflow, withdrawal, replay,
-amendment, host checks, export and restoration. It gives the current API and
-maps the original W work packages to T execution tasks. The earlier SPI-Demo1,
-completed local MVP and proposed ensemble use distinct interfaces and evidence;
-the text identifies each at its point of use. Prior engineering results are
-reported from their retained records, not claimed as newly rerun for this merge.
-
-## Implementation companions
-
-The [product-readiness assessment](../implementation/product-readiness.md)
-checks the retained execution evidence and identifies E01–E09 as the next
-engineering increment, with live-model evaluation and bank adoption kept separate.
-
-[The implementation guide](implementation-guide.md), [task graph](implementation-plan.json)
-and [ten JSON Schemas](contracts/README.md) specify the ensemble extension.
-Its fourteen tasks remain proposed. They supplement the book with machine-readable
-contracts and a synthetic blocked example. The [existing execution report](../implementation/execution-report.md)
-records the implemented MVP; [START-HERE](../implementation/START-HERE.md) remains
-its operational entry point.
-
-The [paper library](../papers/README.md) retains 50 PDF editions representing
-49 works, with 1,298 source pages and recorded hashes. The combined bibliography
-also includes regulatory sources, standards, software and local evidence.
-
-## Build and review
+## Build
 
 From the repository root:
 
 ```sh
-python3 scripts/build_unified_monograph.py
+python3 scripts/build_reader_facing_monograph.py
 ```
 
-This builds the canonical PDF with XeLaTeX, synchronizes the proposal PDF and
-runs document, source-preservation and compatibility checks. The existing system
-Python requires PyMuPDF. Individual checks are `scripts/check_monograph.py`,
-`scripts/check_unified_monograph.py` and the compatibility wrapper
-`scripts/check_proposal.py`. For changes to the ensemble contracts, also run
-`.venv/bin/python scripts/check_interpretation_contracts.py`.
+The build uses XeLaTeX through `latexmk` and Python with PyMuPDF. It
+settles references in both directions, runs the current document checks and
+copies the main PDF to the historical `docs/proposal/proposal.pdf` location.
+The companion and a `monograph.pdf` return-link target are copied beside it.
+The build also exports `process-guide.pdf` with working links inside the guide
+and back to the full books. The export can be repeated independently with
+`python3 scripts/export_monograph_process_guide.py` after a successful build.
 
-[The delivery manifest](review/delivery-manifest.json) binds this edition and its
-checks. [The author review](review/author-review.md) distinguishes automated checks
-and targeted rendered-page inspection from independent acceptance. No new legal
-adjudication, live-model evaluation or bank deployment occurred. Independent legal,
-technical and reader acceptance remain pending.
+The current checker is `scripts/check_reader_facing_monograph.py`. It verifies
+the protected source checkpoint, exact mathematical displays and listings,
+labels, citation archives and existing citation judgments, reference resolution,
+LaTeX diagnostics and the geometry of every page. It does not assign new citation
+support judgments or certify comprehension. A changed citation context needs
+explicit author review; moving an unchanged context may retain its judgment.
+
+## Preservation and review
+
+The [current check](review/reader-facing/document-check.json) compares the two
+documents with the protected 282-page checkpoint and verifies its 243 retained
+files. The 235/69-page pair is protected in a 253-file checkpoint; the immediate
+244/76-page pair and build entry point are protected in a 247-file checkpoint.
+All 35 original mathematical display groups, containing 37 equation labels,
+remain in the main volume. The revision adds two displays in a derived,
+conditional uncertainty argument. All 21 original listings remain across the
+pair, with three new companion command examples. All 207 original source-unit
+labels survive; label retention is a navigation check, not proof that every
+rewritten sentence has the same meaning.
+
+The pair now cites 85 archived documents in 216 citation occurrences. All 211
+contexts from the immediate baseline are unchanged; five added occurrences
+have explicit scoped author judgments. The new sources are two Code editions,
+the retained gift FAQ and the settlement-readiness circular. The
+[citation review](review/reader-facing/citation-occurrence-review.json),
+[source archive](../papers/monograph-citation-archive.json) and technical reading
+notes retain their support and historical limits.
+
+The [process-guide review](review/process-map/review.md) records the technology
+mapping and inspection of all seven new pages. The existing 236 main-body and
+bibliography pages retain identical extracted text and rendered appearance
+against the immediate baseline. The earlier
+[evidence-integration review](review/round4/integration-review.md) records the
+chapter changes and their scoped inspection. The current
+[delivery manifest](review/process-map/delivery-manifest.json) identifies the
+exact PDFs. Naturalness and comprehension still need target-reader acceptance.
+Automated checks and author/model inspection cannot supply it.
+
+The earlier [unification](review/unification/merge-review.md),
+[eight-part assessment](review/revision/final-assessment.md) and
+[whole-volume reconstruction](review/reader-facing/reconstruction-review.md)
+describe historical editions. Their page counts do not describe this revision.
+Use the build and review record above; the historical master program is not
+the current delivery command.
+
+[The implementation entry point](../implementation/START-HERE.md),
+[ensemble contracts](contracts/README.md) and
+[product-risk review](review/revision/product-risk-review.md) retain the separate
+engineering and adoption records. This editorial revision did not rerun or
+promote concurrent implementation work.

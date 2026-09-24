@@ -1,3 +1,10 @@
+> Historical assessment of the 283-page checkpoint. Whole-volume reconstruction
+> and subsequent evidence integration produced the current 244-page monograph
+> and 76-page technical companion. Use [the current revision review](../round4/integration-review.md)
+> and [delivery manifest](../round4/delivery-manifest.json) for this edition.
+> The exact-transform and page-count claims below apply only to the historical
+> checkpoint.
+
 # Final assessment of the eight requirements
 
 24 September 2026. The master program's delivered checkpoint was followed by a

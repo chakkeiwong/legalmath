@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="21" time="3.465" timestamp="2026-09-24T16:03:08.134863+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="tests.assurance.test_decomposition" name="test_partition_preserves_exact_text_order_and_refuses_large_atomic_unit" time="0.000" /><testcase classname="tests.assurance.test_decomposition" name="test_merge_namespaces_local_ids_and_rejects_missing_or_duplicate_coverage" time="0.001" /><testcase classname="tests.assurance.test_decomposition" name="test_two_readers_cover_all_pieces_before_full_source_checks" time="0.021" /><testcase classname="tests.assurance.test_decomposition" name="test_cross_piece_qualification_cannot_disappear_when_assembled" time="0.015" /><testcase classname="tests.assurance.test_decomposition" name="test_missing_piece_or_context_check_never_becomes_a_complete_reader[SOURCE_INVENTORY]" time="0.006" /><testcase classname="tests.assurance.test_decomposition" name="test_missing_piece_or_context_check_never_becomes_a_complete_reader[INVENTORY_CROSS_CHECK]" time="0.010" /><testcase classname="tests.assurance.test_decomposition" name="test_inventory_budget_refuses_before_dispatch" time="0.004" /><testcase classname="tests.assurance.test_decomposition" name="test_compact_transport_preserves_source_text_and_retains_full_mapping" time="0.002" /><testcase classname="tests.assurance.test_decomposition" name="test_transport_circuit_stops_futile_downstream_paid_requests" time="0.001" /><testcase classname="tests.assurance.test_decomposition" name="test_cross_check_missing_units_invented_claims_and_false_quotes_rejected" time="0.000" /><testcase classname="tests.assurance.test_decomposition" name="test_retry_distinguishes_availability_from_permanent_or_application_errors" time="0.000" /><testcase classname="tests.assurance.test_decomposition" name="test_compact_piece_replay_reuses_verified_wire_reservation[False]" time="0.006" /><testcase classname="tests.assurance.test_decomposition" name="test_compact_piece_replay_reuses_verified_wire_reservation[True]" time="0.003" /><testcase classname="tests.assurance.test_decomposition" name="test_split_source_reaches_java_and_keeps_cross_piece_concern" time="2.785"><failure message="KeyError: 'formal_check'">root = PosixPath('/home/chakwong/python/legalmath')
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-138/test_split_source_reaches_java0')
+
+    def test_split_source_reaches_java_and_keeps_cross_piece_concern(root,tmp_path):
+        from .test_integration import responder,settings,source
+        doc=source();doc['data']=b'A distributor should not offer gifts.\nA discount of fees or charges is an exception.'
+        ordinary=responder()
+        def response(request):
+            units=request['source_packet']['units'];task=request['task']
+            if task=='SOURCE_INVENTORY':
+                inv=inventory();unit=units[0];claim=inv['claims'][0]
+                claim['evidence']=[{'unit_id':unit['unit_id'],'quote':unit['text']}]
+                claim['exceptions']=[];claim['statement']=unit['text']
+                if 'exception' in unit['text']:
+                    claim.update(kind='EXCEPTION',modality='MAY',action='offer a discount of fees or charges')
+                inv['units'][0]['unit_id']=unit['unit_id'];return inv
+            if task=='INVENTORY_CROSS_CHECK':
+                return {'checked_unit_ids':[u['unit_id'] for u in units],
+                    'issues':[{'issue_id':'cross.exception','evidence':[{'unit_id':units[1]['unit_id'],'quote':units[1]['text']}],
+                    'affected_claim_ids':[request['inventory']['claims'][0]['claim_id']],
+                    'explanation':'Check the exception in the second piece before applying the first.'}], 'unresolved_questions':[]}
+            value=ordinary(request)
+            if task=='GENERATE':
+                value['readings'][0]['citations']=[{'unit_id':u['unit_id'],'quote':u['text']} for u in units]
+                value['readings'][0]['formalization']['facts'][1]['source_unit_ids']=[units[1]['unit_id']]
+                value['coverage']=[{'unit_id':u['unit_id'],'status':'INTERPRETED','reason':'Scripted selected rule and exception'} for u in units]
+            return value
+        provider=FunctionProvider(response)
+        config=settings().model_copy(update={'inventory_piece_characters':2300,'inventory_piece_units':1})
+        result=Assurance(tmp_path/'run',CompactProvider(provider,tmp_path/'transport'),
+            root/'.localresources/java-toolchain/jdk-17.0.20.1+1',AT,config).drive([doc],'Gift rule with a remote fee-discount exception')
+        assert result['status']=='UNRESOLVED' and result['execution_complete'],result
+        assert result['candidate_ids'] and not result['release_eligible']
+        assert any(f['kind']=='INVENTORY_UNCERTAINTY' and 'second piece' in f['details'] for f in result['findings'])
+        assert list((tmp_path/'run/java').rglob('*.jar')) and len(provider.requests)==11
+        state=loads((tmp_path/'run/search-state.json').read_bytes())
+&gt;       assert all(n['formal_check']['status']=='JAVA_PYTHON_CONFORMANCE' for n in state['nodes'])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_decomposition.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = &lt;list_iterator object at 0x760cbf7dd570&gt;
+
+&gt;   assert all(n['formal_check']['status']=='JAVA_PYTHON_CONFORMANCE' for n in state['nodes'])
+               ^^^^^^^^^^^^^^^^^
+E   KeyError: 'formal_check'
+
+tests/assurance/test_decomposition.py:225: KeyError</failure></testcase><testcase classname="tests.assurance.test_source_derivative" name="test_exact_anchored_derivative_survives_import_and_search_creation[False]" time="0.132" /><testcase classname="tests.assurance.test_source_derivative" name="test_exact_anchored_derivative_survives_import_and_search_creation[True]" time="0.190" /><testcase classname="tests.assurance.test_source_derivative" name="test_default_import_still_normalizes_and_exact_mode_requires_derivative_identity" time="0.054" /><testcase classname="tests.assurance.test_retained" name="test_exact_replay_preserves_original_reservation_without_new_vote" time="0.002" /><testcase classname="tests.assurance.test_retained" name="test_retained_failure_stays_failed_without_a_new_remote_call" time="0.001" /><testcase classname="tests.assurance.test_retained" name="test_changed_retained_response_is_rejected_before_replay" time="0.001" /><testcase classname="tests.assurance.test_retained" name="test_excluded_task_cannot_replay_or_dispatch_and_still_requires_intact_manifest" time="0.002" /></testsuite></testsuites>

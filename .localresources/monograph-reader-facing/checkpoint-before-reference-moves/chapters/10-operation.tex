@@ -1,0 +1,941 @@
+\chapter{Operating the product without losing its evidence}
+\label{ch:operation}
+
+The last step is not a launch button. A control can preserve its source, pass its
+conformance tests and still be unsafe for a bank if the wrong legal entity sends
+it data, a reviewer cannot see an unresolved fact, or an amendment changes a
+past decision without a record. Operation is where responsibility, evidence and
+failure handling meet.
+
+This chapter sets the narrow perimeter in which a supervised prototype could be
+studied. It explains who owns a source decision, how unknown and conflicting
+facts are handled, how a shadow run differs from a release, and what an incident
+must preserve. The final sections turn those requirements into decisions a bank
+would have to make before connecting the control to a live workflow.
+
+
+% BEGIN SOURCE UNIT M10:00
+\section{The bank remains responsible for the control}
+\label{merge:M10:00}
+
+
+The workbench can organize evidence, expose alternatives, verify consequences and
+prevent certain unauthorized transitions. It cannot assume the bank's legal or
+managerial responsibility. The operational design must identify who owns source
+applicability, interpretation, factual mappings, software correctness and release.
+A system that assigns every difficult question to a generic ``human review'' queue
+has not completed that design.
+
+Meaning review belongs to people authorized to assess the relevant regulatory
+requirement. Data owners establish what evidence supports facts, how long it
+remains valid and how corrections are represented. Engineering owners establish
+that the software preserves the approved specification. Release owners verify the
+package, approvals and operational readiness. Business owners determine the
+workflow response to unknown or blocked results within the bank's approved policy.
+
+% BEGIN REVISION ADDITION teach-M10-00
+\input{\LegalMathRoot teaching/teach-M10-00}
+% END REVISION ADDITION teach-M10-00
+These responsibilities can overlap institutionally, but conflicts and separation
+requirements must be explicit. An author should not be able to approve its own
+interpretation through a second display name. A model-generated reviewer identity
+has no authority. The local prototype's test roles exercise the mechanics; the
+bank deployment must bind them to enterprise identity and actual delegated
+responsibilities.
+
+The product's value is not that it eliminates judgment. It makes the judgment
+specific and attributable. Instead of asking a reviewer to bless a long generated
+summary, it asks which definition applies, why an exception attaches to a given
+condition, or whether a source is current for the activity. The final control
+then carries those decisions into its executable form and future amendment review.
+% END SOURCE UNIT M10:00
+
+% BEGIN REVISION ADDITION legal-robustness
+\input{\LegalMathRoot chapters/10a-legal-robustness}
+% END REVISION ADDITION legal-robustness
+
+% BEGIN SOURCE UNIT M10:01
+\section{Start with a narrow operational perimeter}
+\label{merge:M10:01}
+
+
+A first deployment should name the activity, legal entity, products, client or
+counterparty categories, source families and decision points it supports. This
+perimeter is not a marketing description. It determines which circulars enter the
+workbench, which factual schemas are required and which host workflows can consume
+the resulting package.
+
+For example, a paragraph-10 incentive-control pilot could focus on reviewing a
+single component of a proposed offer before it is launched. It would need a
+reliable definition of the component, evidence of its product relationship and a
+reviewed classification process for gift and fee discount. It would not by itself
+cover every marketing, disclosure or distribution requirement. The host must
+continue to route the offer through other applicable controls.
+
+% BEGIN REVISION ADDITION teach-M10-01
+\input{\LegalMathRoot teaching/teach-M10-01}
+% END REVISION ADDITION teach-M10-01
+Narrowing the perimeter is useful when it removes an unsupported ambiguity by an
+explicit operational restriction. If the bank excludes mixed offers from the
+automated pilot and routes them to manual review, the system can assess simpler
+cases under a clearer subject definition. That restriction must be enforced by
+input validation and workflow routing, not merely stated in a project memo.
+Otherwise mixed offers will eventually arrive and receive an unintended answer.
+
+The perimeter also defines negative tests. Inputs from another actor, product type
+or jurisdiction should produce the specified out-of-scope or unsupported-profile
+result. They should not be coerced into the closest known category. A controlled
+failure at the boundary is preferable to a plausible answer about the wrong
+activity.
+
+Expansion requires evidence. Adding a new circular family may introduce temporal
+obligations, different authority relationships or vocabulary that the original
+schema does not support. The team should create a new source and method review,
+update the factual mappings, and evaluate the expanded task. Success on a narrow
+pilot is a reason to consider expansion, not proof that transfer is automatic.
+% END SOURCE UNIT M10:01
+
+% BEGIN SOURCE UNIT P-04-prototype:01
+\subsection{Scope, team and deliverables}
+\label{merge:P-04-prototype:01}
+
+
+The planning assumption is one full-time implementation engineer, a part-time
+technical lead, a compliance specialist available for roughly two days per week, and
+part-time product/operations and independent review support. A formal-methods
+specialist should review the semantics and solver adapter at defined points.
+These are resource assumptions to validate at initiation, not estimates derived
+from measured implementation velocity. Reduced compliance availability should
+reduce scope or extend the schedule rather than silently transfer legal decisions
+to engineers.
+
+The corpus should begin with the cited documents and follow the dependencies
+needed for the selected rules. The first discovery phase will choose a tractable
+slice, provisionally around 30--50 atomic rules and 150--250 synthetic or
+appropriately approved historical scenarios. These ranges are planning hypotheses,
+not known counts of requirements in the circulars. The corpus must include
+thresholds, exceptions, missing evidence, actor distinctions, dates and at least
+one continuing obligation. Entire related clause families should be reserved for
+held-out evaluation to reduce leakage from almost identical examples.
+
+% BEGIN REVISION ADDITION teach-P-04-prototype-01
+\input{\LegalMathRoot teaching/teach-P-04-prototype-01}
+% END REVISION ADDITION teach-P-04-prototype-01
+The demonstrable deliverable is a local workbench with source comparison, typed
+rules, examples, explanations and an amendment view. Its export is a reviewable
+package with generated Java, a compiled JAR, a deterministic decision API and
+evidence records. The initial runtime need not call any bank service: public text and synthetic client facts
+can demonstrate the full path. Integration design should identify the future
+data feeds and control owners, while actual access follows the bank's environment
+and information-handling requirements.
+% END SOURCE UNIT P-04-prototype:01
+
+% BEGIN SOURCE UNIT M10:02
+\section{Keep regulatory meaning distinct from bank policy}
+\label{merge:M10:02}
+
+
+A bank can choose a more restrictive operational policy than the minimum condition
+identified in a circular. It may decline an uncertain promotion, require an
+additional approval or retain a manual check. These decisions should be represented
+as bank policy with their own owner, rationale and effective interval. They should
+not be folded into the regulatory rule and later cited as if the SFC required them.
+
+This separation improves both accountability and maintenance. If a regulatory
+interpretation changes, the team can see whether the bank policy still makes sense.
+If a business owner changes an internal approval threshold, it does not appear
+that the regulator amended the circular. Reports can explain a blocked offer as
+blocked by bank policy pending classification, rather than falsely declaring it
+prohibited by the source.
+
+% BEGIN REVISION ADDITION teach-M10-02
+\input{\LegalMathRoot teaching/teach-M10-02}
+% END REVISION ADDITION teach-M10-02
+The runtime can evaluate both kinds of controls, provided the bundles identify
+their authority and purpose. The host's orchestration specifies how their results
+combine. A regulatory condition returning false may still be blocked by a bank
+policy; a bank policy returning permissive cannot override a regulatory
+prohibition. The combination rules need their own reviewed semantics and tests.
+
+An unresolved interpretation should not be hidden in a conservative default.
+Suppose the team treats every cashback as a gift until clarification. That can be
+a cautious temporary policy, but the uncertainty report should still state that
+the legal classification remains unresolved. Otherwise future reviewers may
+mistake a risk-management choice for settled authority and propagate it into
+other products.
+
+Temporary policies need expiry or review triggers. An indefinite ``pending
+clarification'' rule can become permanent through neglect. The workbench should
+record the question, owner, next review condition and affected activities. A
+reminder is an operational aid; it does not automatically extend the policy or
+resolve the underlying source issue.
+% END SOURCE UNIT M10:02
+
+% BEGIN SOURCE UNIT M10:03
+\section{Shadow operation is a study, not a hidden release}
+\label{merge:M10:03}
+
+
+Shadow operation runs the proposed control alongside the existing process without
+letting its result directly determine the transaction. It allows the team to
+observe real input quality, classification workload, latency and disagreement.
+The scope and access to real data require the bank's normal authorization.
+Shadow results must be clearly distinguished from approved production decisions.
+
+A useful shadow study records the existing process's decision, the workbench's
+result, the facts available to each and the timing of those facts. When they
+disagree, an independent review examines the reasons. The existing process is not
+automatically the truth oracle; manual procedures can be wrong. Equally, the
+workbench is not correct merely because it produces a more detailed explanation.
+The study needs an adjudication process consistent with Chapter~\ref{ch:evaluation}.
+
+% BEGIN REVISION ADDITION teach-M10-03
+\input{\LegalMathRoot teaching/teach-M10-03}
+% END REVISION ADDITION teach-M10-03
+The team should predeclare what would justify promotion, what would veto it and
+what would trigger a repair. A severe false clean result might block promotion
+while motivating a targeted fix. A data-mapping defect might invalidate a subset
+of observations until corrected. A provider outage may reveal operational
+fragility without answering the interpretation question. These distinctions keep
+the study from becoming a succession of improvised demonstrations.
+
+Shadow operation also reveals whether the selected unit of assessment matches
+business practice. If staff enter a whole campaign while the rule expects one
+benefit component, the system may receive apparently valid but semantically wrong
+inputs. The remedy may be a workflow redesign, not a more capable model. The
+interface should help staff identify and evidence components consistently.
+
+Reports from shadow operation remain subject to access, retention and correction
+rules. They can contain sensitive facts and preliminary judgments. A later
+adjudication should append a correction rather than rewrite the original
+observation. This preserves the study's evidence and prevents an apparently
+perfect retrospective record from being created by editing away disagreements.
+% END SOURCE UNIT M10:03
+
+% BEGIN SOURCE UNIT M10:04
+\section{Source monitoring begins a new interpretation cycle}
+\label{merge:M10:04}
+
+
+The workbench should monitor the source families in its approved perimeter for
+new publications, revisions and incorporated-material changes. Discovery creates
+a candidate source record; it does not automatically establish current
+applicability or overwrite the active rule. The acquisition process retains bytes,
+metadata, retrieval time and the relationship to prior versions.
+
+A textual difference is only the first signal. A changed definition may affect
+many controls even when their operative paragraphs are unchanged. A formatting
+change may have no substantive consequence but still change the file hash. The
+impact service therefore combines byte identity, extracted text differences,
+source-unit mapping and the explicit dependency graph.
+
+% BEGIN REVISION ADDITION teach-M10-04
+\input{\LegalMathRoot teaching/teach-M10-04}
+% END REVISION ADDITION teach-M10-04
+The first impact report identifies which candidates, facts, rules, duties,
+reports and releases depend on the changed material. It should distinguish direct
+citations from indirect definition dependencies. A control can be affected through
+an incorporated code provision that is not quoted in its main explanation. This
+is why dependency closure was required before initial interpretation.
+
+An unchanged structural dependency report is not a proof of semantic equivalence.
+Conversely, a changed paragraph number does not prove a changed obligation.
+Semantic comparison and legal review are separate actions. The ensemble can
+propose interpretations of the change and construct scenarios on which old and
+new rules differ, but a reviewer must establish the intended effective regime.
+
+Every changed rule version requires the relevant review, build and verification
+steps again. Reusing a previously approved JAR because its human-readable title
+looks the same would break the evidence chain. Reusing a verified runtime library
+can be legitimate if its identity and supported semantics remain unchanged, while
+the new policy bundle and generated binding receive fresh evidence.
+% END SOURCE UNIT M10:04
+
+% BEGIN SOURCE UNIT P-01-problem:03
+\section{Amendment, actor and conditional language: tokenised products}
+\label{merge:P-01-problem:03}
+
+
+The SFC's 20 April 2026 tokenisation circular replaces the November 2023 circular;
+the earlier public entry is marked accordingly. A source collector that keeps
+only a URL and the most recently extracted text cannot reliably reconstruct
+which requirements an older decision used. A collector that retains both but
+fails to record replacement can apply inconsistent generations together
+\citep{sfctoken2023,sfctoken2026}.
+
+The 2026 circular also provides useful clause-level challenges. Paragraph 10
+keeps responsibility for the tokenisation arrangement and ownership records
+with product providers despite outsourcing. Paragraph 18 addresses distributors,
+including providers distributing their own products. These are actor-specific
+requirements: the word ``bank'' is not a sufficient applicability condition.
+Paragraph 13 conditions the use of public-permissionless networks on additional
+proper controls; translating it into an unconditional technology ban changes the
+statement \citep[paras.~10, 13, 18]{sfctoken2026}.
+
+% BEGIN REVISION ADDITION teach-P-01-problem-03
+\input{\LegalMathRoot teaching/teach-P-01-problem-03}
+% END REVISION ADDITION teach-P-01-problem-03
+Paragraphs 14--16 illustrate several different triggers. Confirmation and
+demonstration upon request are distinguishable actions. Third-party verification
+and a legal opinion are conditioned on an SFC request in the cited paragraphs.
+Removing that trigger creates a different obligation; removing the obligation
+creates the opposite error. A request must be represented as an event, with its
+subject and responsible actor, and any deadline must come from a relevant source
+or separately identified operational policy. The product must not invent a
+generic deadline \citep[paras.~14--16]{sfctoken2026}.
+
+Prior consultation and prior approval are also different. Paragraphs 20--21 and
+footnote 8 distinguish new products, tokenisation of existing products, material
+changes, and circumstances concerning tokenised share classes. Turning
+``consultation required'' into ``approval obtained'' skips an action and invents
+a result. The proposed workbench will expose such verbs and their dependencies
+as separate obligations and evidence fields \citep[paras.~20--21 and n.~8]{sfctoken2026}.
+% END SOURCE UNIT P-01-problem:03
+
+% BEGIN SOURCE UNIT P-03-product:09
+\subsection{Amendments and the release package}
+\label{merge:P-03-product:09}
+
+
+Every source revision should produce both a textual change view and an impact
+view. The former identifies changed passages, annexes and links; the latter
+follows dependencies to interpretations, definitions, rules, tests, data mappings
+and deployed controls. The 2023 and 2026 tokenisation circulars form a useful
+initial replacement case. A replacement marker is evidence about the document
+relationship, but application dates and treatment of existing arrangements still
+require the relevant source and review \citep{sfctoken2023,sfctoken2026}.
+
+Where old and new executable rules cover the same domain, the workbench should
+find representative cases on which their outcomes differ. Where a new rule
+introduces an additional fact or actor, it should identify the new data dependency
+and the cases that cannot yet be evaluated. A textual difference alone cannot
+measure operational impact, and an unchanged threshold cannot establish that a
+definition or exception is unchanged.
+
+% BEGIN REVISION ADDITION teach-P-03-product-09
+\input{\LegalMathRoot teaching/teach-P-03-product-09}
+% END REVISION ADDITION teach-P-03-product-09
+The release package should contain the source snapshot, interpretation record,
+rule version, unresolved exclusions, approved examples, test and solver results,
+adapter version, data mappings and owner approvals. Decisions made with that
+package should record its identifier and input snapshot. Dependency analysis can
+identify tests and interpretation evidence that remain relevant after a change.
+Every changed bundle nevertheless needs fresh approval of its exact hash and a
+new evidence report; a result for an older hash cannot authorize its release.
+The historical record remains intact. This distinction permits reuse of work
+without obscuring what needs fresh review.
+% END SOURCE UNIT P-03-product:09
+
+% BEGIN SOURCE UNIT M10:05
+\section{A worked amendment scenario}
+\label{merge:M10:05}
+
+
+Consider a synthetic amendment used only to explain the process. The original
+selected rule contains a fee-discount exception. A later source adds a condition
+requiring a particular relationship between the discount and the transaction.
+This is not a claim that the SFC has made such an amendment; it is a controlled
+example of how a change would propagate.
+
+The source custodian retains the new document and identifies the added condition.
+The inventory maps it to the earlier exception and opens an interpretation run.
+Candidate A treats the condition as applying to all offers assessed after the
+new commencement date. Candidate B distinguishes offers already committed before
+that date under a possible transition provision. The source packet must include
+that transition provision if one exists; the system cannot infer grandfathering
+from business preference.
+
+The scenario designer creates offers before and after commencement, an offer
+agreed before but performed after, and an offer with incomplete timing evidence.
+These examples reveal whether the competing readings differ. The formal checker
+can compare their executable conditions once the timing concepts are defined.
+It cannot determine which transition interpretation the source supports without
+the relevant authority.
+
+% BEGIN REVISION ADDITION teach-M10-05
+\input{\LegalMathRoot teaching/teach-M10-05}
+% END REVISION ADDITION teach-M10-05
+When reviewers accept the new interpretation, the data owner confirms that the
+required relationship and timing facts can be supplied. Engineering builds and
+verifies the new Java package. The release manifest binds its effective interval
+and applicability profile. The host's release selector is tested at the exact
+boundary, including the excluded endpoint of the earlier interval.
+
+Existing event obligations require separate treatment. If a duty was opened under
+the old bundle, the current MVP preserves that binding. A legal decision may
+require migration, continuation or another treatment. The workbench records the
+question and any approved migration specification. No background update silently
+changes the source version attached to a historical duty.
+
+The old source, interpretation, JAR and decisions remain available for replay.
+A later investigation can ask what the system would have decided under the old
+rule with the evidence known then, or what a corrected assessment under the new
+rule would conclude. Those are different questions and their results carry
+different assessment contexts.
+% END SOURCE UNIT M10:05
+
+% BEGIN SOURCE UNIT M10:06
+\section{Bitemporal replay explains rather than rewrites history}
+\label{merge:M10:06}
+
+
+An incident needs two replay questions. The first asks what the bank could have decided on
+Monday: select the rule and facts whose valid time covered the transaction and whose knowledge
+time was no later than Monday's assessment cut-off. The second asks what the bank should decide
+after a Wednesday correction: retain the same Monday valid time but allow evidence recorded on
+Wednesday. The two-time model keeps those questions separate; valid time describes when a fact or rule
+applies, while knowledge time describes when the system could have used it.
+
+Suppose the Monday classification marked a benefit as a fee discount and a
+Wednesday review finds evidence that the classification should have been a gift
+from Monday onward. Monday replay reproduces the original input and execution.
+The corrected assessment may change the result, but it must be linked as a new assessment with a
+new knowledge cut-off. The difference identifies whether the incident concerns the rule, the data,
+the process or delayed information; it does not make either replay retroactively answer the other question.
+
+% BEGIN REVISION ADDITION teach-M10-06
+\input{\LegalMathRoot teaching/teach-M10-06}
+% END REVISION ADDITION teach-M10-06
+The system should label the corrected assessment and link it to the original.
+It should not replace the original execution hash or pretend that Wednesday's
+evidence was available on Monday. This distinction supports fair investigation
+of whether the failure concerned the rule, data, process or delayed information.
+It also identifies which other decisions relied on the same evidence.
+
+Replay requires the exact historical runtime or a verified equivalent path, the
+bundle, fact snapshot, event history where relevant, calendars and assessment
+context. Retaining only a final status and a current source URL is insufficient.
+The retention policy must preserve these dependencies for the bank's required
+period; this book does not invent a statutory retention duration.
+
+Reproducing an old decision does not endorse it. A replay can faithfully show that
+an earlier rule omitted an exception. That is useful evidence about the incident.
+The corrected rule and reassessment should be linked, with the reason for change
+and any operational remediation. Traceability supports accountability precisely
+because it can preserve an error honestly.
+% END SOURCE UNIT M10:06
+
+% BEGIN SOURCE UNIT M10:07
+\section{Operational responses to unknown and conflict}
+\label{merge:M10:07}
+
+
+Unknown and conflict are ordinary outcomes in a system built around evidence.
+They should have designed workflows rather than being treated as exceptional
+software crashes. The host policy identifies the responsible queue, information
+request, permitted temporary action and escalation deadline for each reason.
+These choices depend on the bank's process and must be approved there.
+
+A missing classification might route to a product specialist. Conflicting fee
+records might route to the data owner. An unavailable incorporated source might
+require legal review before any automated decision. An unsupported RuleIR operator
+requires engineering and meaning review together. The reason code helps select
+the remedy, but the workflow should expose the substantive question in ordinary
+language.
+
+% BEGIN REVISION ADDITION teach-M10-07
+\input{\LegalMathRoot teaching/teach-M10-07}
+% END REVISION ADDITION teach-M10-07
+A conflict should preserve both records and their provenance. Automatically taking
+the newest record can hide a disagreement between systems or an unauthorized
+correction. If the bank adopts a precedence rule, that rule must be explicit and
+reviewed for the evidence type. It should not be embedded in a generic database
+query that happens to order by timestamp.
+
+Manual overrides need their own authority and scope. An override may authorize a
+specific operational action under bank policy while leaving the regulatory
+interpretation unresolved. The record should say exactly what was overridden,
+by whom, for which case and period, and with what rationale. It must not change
+the underlying source or make future cases automatically inherit the exception.
+
+Queues themselves can fail. Unreviewed items can accumulate, deadlines can pass,
+and staff can misunderstand a blocked status. Monitoring should therefore track
+age, owner, materiality and next action for unresolved issues. A low model error
+rate is little comfort if the operational process routinely ignores the issues
+that the model correctly escalates.
+% END SOURCE UNIT M10:07
+
+% BEGIN SOURCE UNIT P-04-prototype:07
+\section{Risks that shape the implementation}
+\label{merge:P-04-prototype:07}
+
+
+The most serious risk is a wrong but internally consistent interpretation. Its
+controls are independent source review, exact evidence links, explicit alternatives
+and cases designed from the circular. Formal verification strengthens the
+implementation step but cannot repair that source error automatically.
+
+The second risk is incomplete scope. A well-modeled clause can depend on an
+uncollected definition or a different entity's obligations. The selected corpus
+therefore needs an applicability and dependency inventory, with unresolved imports
+blocking release of affected rules. The discovery service should distinguish
+``not found'' from ``does not exist.''
+
+The third risk is operational mismatch. A correct financial expression supplied
+with stale valuations or an event history with missing withdrawals can still
+produce a harmful result. The prototype should make data freshness, actor
+identity, event ordering and reconciliation visible. A later bank pilot needs
+named owners for those feeds and a documented response to uncertainty.
+
+% BEGIN REVISION ADDITION teach-P-04-prototype-07
+\input{\LegalMathRoot teaching/teach-P-04-prototype-07}
+% END REVISION ADDITION teach-P-04-prototype-07
+The fourth risk is creating a maintenance burden greater than the one removed.
+Keeping one typed specification with generated views reduces duplication;
+adopting many engines at once increases it. Pin tool versions, preserve proof and
+test dependencies, and add backends only when a specific integration or assurance
+question justifies them. Sources remain accessible if a research tool becomes
+unavailable.
+
+Public sources and synthetic cases suffice for this prototype. If later work
+uses client information, deployment location, access control, retention and model
+access must follow the bank's applicable requirements. This is an architectural
+constraint on that later integration, not a reason to delay the current public
+source study. The initial decision is whether the evidence justifies such a pilot,
+with a defined scope and accountable owners.
+% END SOURCE UNIT P-04-prototype:07
+
+% BEGIN SOURCE UNIT M10:08
+\section{Incident analysis should locate the failed boundary}
+\label{merge:M10:08}
+
+
+When an incorrect control or decision is discovered, the first question is where
+the evidence chain failed. Was the wrong source acquired? Was a qualification
+missed? Was the accepted interpretation encoded incorrectly? Did the host supply
+misclassified facts? Did a transaction race invalidate the snapshot? Did an
+unauthorized or stale package reach production? These mechanisms require different
+repairs and different assessments of affected decisions.
+
+The incident record should preserve the exact failing example, source versions,
+candidate, approvals, JAR, input snapshot, result and operational action. It
+should also preserve the strongest competing interpretation that was available
+at the time. If the objection was present but suppressed, the remedy concerns
+reporting and review as well as generation quality.
+
+% BEGIN REVISION ADDITION teach-M10-08
+\input{\LegalMathRoot teaching/teach-M10-08}
+% END REVISION ADDITION teach-M10-08
+Containment is a bank decision. It may involve suspending a particular offer
+category, returning to an approved manual process, disabling a faulty adapter or
+replacing an implementation while retaining the same accepted rule. The incident
+team must distinguish these options from reverting to a legally superseded rule.
+The workbench supplies impact information; it does not decide the bank's external
+communications or regulatory response.
+
+Root-cause analysis should avoid a generic conclusion that ``the AI hallucinated.''
+That phrase can conceal a missing source, a contaminated oracle, an undefined
+classification or a budget policy that forced premature closure. A specific
+mechanism supports a specific preventive control. The discovered failure becomes
+a retained regression scenario, with its source and interpretation status clear.
+
+The team should also ask what similar decisions may be affected. Dependency and
+lineage queries can identify every package using the disputed definition and
+every assessment using the relevant fact mapping. A database search by final
+status alone will miss decisions that happened to be correct for other reasons.
+The scope of remediation follows the causal dependency, not merely the visible
+outcome.
+% END SOURCE UNIT M10:08
+
+% BEGIN SOURCE UNIT M10:09
+\section{Availability failures must not change the meaning of a result}
+\label{merge:M10:09}
+
+
+The production Java evaluator should not depend on a live model or source website.
+That separation lets an approved control continue to execute during an
+interpretation-provider outage, subject to the bank's release and source-monitoring
+policy. An outage in the workbench still matters for new controls and amendment
+review, but it need not make every existing decision nondeterministic.
+
+The host must distinguish an unavailable interpretation service from an unknown
+fact and from an expired release. These conditions can require different actions.
+An approved, still-applicable local package may remain usable when a research
+provider is unavailable. A release whose effective status cannot be established
+presents a different problem. The fallback policy must state the conditions under
+which each path is permitted.
+
+% BEGIN REVISION ADDITION teach-M10-09
+\input{\LegalMathRoot teaching/teach-M10-09}
+% END REVISION ADDITION teach-M10-09
+No fallback may convert a technical error into a substantive false result. If a
+Java evaluation fails because the snapshot is malformed, returning false would
+imply that the selected condition was evaluated and not satisfied. The correct
+result is an error with an operational disposition. Likewise, a missing
+interpretation report cannot be replaced by a default approval flag.
+
+The ensemble controller has its own recovery obligations. A restart recovers
+reserved and dispatched actions, preserves their charges and determines which
+results are known, late or unknown. It does not restart the investigation from
+zero unless an authorized successor run is created. The supervisor monitors
+absolute deadlines independently of the worker's progress messages.
+
+Capacity planning should consider the difficult tail: large dependency graphs,
+many genuine alternatives and long-running external checks. Graph and action
+limits protect the service, but they create explicit incomplete outcomes. The
+operational owner needs to know how often those outcomes occur and whether the
+manual review process can absorb them. Increasing limits without measuring cost
+and review quality is not a complete capacity strategy.
+% END SOURCE UNIT M10:09
+
+% BEGIN SOURCE UNIT M10:10
+\section{Model updates are method changes}
+\label{merge:M10:10}
+
+
+A new model version can change which alternatives are generated, how sources are
+summarized and which questions are prioritized. Even if the JSON schema remains
+unchanged, the interpretation method has changed. The workbench should bind
+provider, model, prompt and configuration versions to each run and evaluate
+material updates before making them the default.
+
+The update review asks whether known omission cases remain detected, minority
+readings remain visible, unsupported alternatives increase, and uncertainty scores
+retain their measured relationship to the reference. It also checks provider
+behavior relevant to budgets, such as retries, tool use and token accounting.
+A faster model that silently changes these behaviors can invalidate the
+controller's operational assumptions.
+
+% BEGIN REVISION ADDITION teach-M10-10
+\input{\LegalMathRoot teaching/teach-M10-10}
+% END REVISION ADDITION teach-M10-10
+Existing approved Java packages do not need to be regenerated merely because the
+proposal model changes. Their authority derives from the retained interpretation,
+review and verification evidence. A new model may identify a concern that triggers
+review, but its existence alone does not invalidate every prior decision. This
+separation limits unnecessary churn while allowing genuine discoveries to enter
+an accountable amendment or incident process.
+
+Prompt changes deserve similar treatment. Adding a leading example can improve
+performance on one family while anchoring all members to the same interpretation.
+Removing a request for counterarguments can reduce cost while weakening diversity.
+The change record should explain the intended mechanism, evaluation evidence and
+remaining uncertainty. A prompt is part of the method, not incidental prose.
+
+Search-policy changes also require evidence. Switching from a deterministic
+scheduler to MCTS, changing family quotas or increasing a no-progress threshold
+alters which questions receive attention. The study should compare these choices
+under equal resources and independent judgments. Passing controller invariants
+is necessary for either scheduler, but does not establish which investigates law
+more effectively.
+% END SOURCE UNIT M10:10
+
+% BEGIN SOURCE UNIT M10:11
+\section{A release readiness review with concrete evidence}
+\label{merge:M10:11}
+
+
+A readiness review should inspect a concrete package, not approve a future promise
+to generate one. The package contains the accepted interpretation dossier, source
+coverage, factual mapping, verification report, build and release manifests,
+operational dispositions and unresolved-risk record. All identities must agree.
+An approval of one candidate cannot be reused for a different generated bundle.
+
+The meaning reviewer checks that the selected source perimeter and assumptions
+support the rule, that plausible alternatives have a reasoned disposition, and
+that any remaining uncertainty is compatible with the proposed scope. The data
+owner checks input definitions, evidence quality, freshness, corrections and
+calendar or valuation policies. Engineering checks exact behavior, traces,
+resource limits and integration. The release owner checks authority, deployment
+mechanics, monitoring and recovery.
+
+% BEGIN REVISION ADDITION teach-M10-11
+\input{\LegalMathRoot teaching/teach-M10-11}
+% END REVISION ADDITION teach-M10-11
+A useful readiness review asks five plain questions. Has the bank accepted the
+meaning? Can it establish the needed facts? Does the implementation preserve that
+meaning? Is someone authorized to own the release? Can staff act when the answer
+is missing or blocked? The detailed evidence list is retained in Appendix~\ref{app:detailed-tables}.
+
+\begin{table}[htbp]
+\centering
+\caption{Five questions before a bounded deployment decision.}
+\label{tab:readiness-summary}
+\begin{tabularx}{\textwidth}{P{37mm}P{61mm}Y}
+\toprule
+Question & Evidence to inspect & Human responsibility\\
+\midrule
+Meaning & Sources, alternatives, objections and adjudication. & Is the reading justified for this activity and time?\\
+Facts & Definitions, ownership, validity, freshness and conflicts. & Do the bank's records establish the facts the rule needs?\\
+Execution & Conformance, boundary cases, traces and release identity. & Does the implementation cover the supported process?\\
+Authority & Named owners, roles, approvals and audit records. & Are the people accountable for this release authorized?\\
+Operation & Unknown and conflict routes, race tests, fallback and incident rehearsal. & Can staff respond correctly when the control cannot decide?\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+A missing item should produce a specific block and next action. It should not
+trigger a vague demand for more confidence. If a classification is unresolved,
+obtain the authority or narrow the scope. If Java traces differ, repair the
+implementation. If enterprise identity is not integrated, complete that integration
+before relying on local synthetic roles. The package makes these distinctions
+visible enough to assign work.
+
+A review may approve a limited deployment with explicit exclusions and monitoring
+conditions. Those conditions become enforceable configuration and expiry or
+review triggers. They must not remain only in meeting minutes. The system should
+be able to show which operational path enforces each exclusion and which test
+would fail if it were bypassed.
+% END SOURCE UNIT M10:11
+
+% BEGIN SOURCE UNIT M10:12
+\section{Three operational cases for the implementation team}
+\label{merge:M10:12}
+
+
+The first case is a missing definition. The source packet is intact, the candidate
+formula compiles, all named scenarios pass, and the ensemble agrees on the
+expression. An incorporated definition is unavailable. The correct report is
+blocked for the affected classification, even though the engineering checks pass.
+The next action is to obtain or adjudicate the definition, not to add more random
+truth-table tests.
+
+The second case is a wrong host mapping. Reviewers accepted a component-level
+rule, but the host sends one Boolean classification for an entire mixed offer.
+The Java evaluator faithfully applies its inputs and returns a reproducible
+result. The error lies at the subject and fact boundary. The remedy includes a
+component-aware adapter, affected-case analysis and a regression scenario that
+would expose a whole-offer mapping. Reproving the Boolean evaluator alone would
+not address the failure.
+
+% BEGIN REVISION ADDITION teach-M10-12
+\input{\LegalMathRoot teaching/teach-M10-12}
+% END REVISION ADDITION teach-M10-12
+The third case is an unresolved exception priority. Two exception guards are
+true. The current RuleIR default returns conflict, while a developer proposes to
+choose the first exception in the array. That change would make the program run,
+but it would introduce a priority that the specification did not authorize. The
+workbench must preserve conflict and ask whether the source establishes priority,
+whether explicit nesting is justified, or whether the rule lies outside the
+supported fragment.
+
+These cases demonstrate why completion criteria must follow the claimed target.
+In the first, source evidence is incomplete. In the second, the application mapping
+is wrong relative to the accepted interpretation. In the third, a proposed
+implementation change would alter semantics. The same dashboard label ``needs
+review'' is not enough; the system must name the responsible boundary and the
+evidence needed to repair it.
+
+A team rehearsal should walk through each case using the actual interface and
+reports. Staff should be able to locate the source, identify the affected
+candidate, understand the block and record a decision without editing hidden
+configuration. Rehearsal findings become product changes and acceptance tests.
+A successful technical build does not substitute for this operational exercise.
+% END SOURCE UNIT M10:12
+
+% BEGIN SOURCE UNIT M10:13
+\section{Maintaining a useful literature and method record}
+\label{merge:M10:13}
+
+
+The paper library is a working research asset. Each retained paper has a stable
+filename, source URL, version or publication information, digest and reading
+status. The title-and-first-author naming convention requested for this project
+helps people locate a paper, while the manifest disambiguates revised preprints
+and related editions. A citation should point to the version actually inspected.
+
+The bibliography and reading notes distinguish published results, local
+derivations and proposed adaptations. Catala's treatment of defaults, Stipula's
+state and resource semantics, argumentation frameworks, tree search and uncertainty
+methods answer different questions. Combining them in one architecture does not
+transfer every theorem or empirical result to the combination. The method record
+states which mechanism is borrowed and what must be re-established locally.
+
+% BEGIN REVISION ADDITION teach-M10-13
+\input{\LegalMathRoot teaching/teach-M10-13}
+% END REVISION ADDITION teach-M10-13
+Official code is valuable evidence about practical assumptions. The semantic-
+clustering example in Chapter~\ref{ch:search} shows why code and paper can require
+separate inspection. A pinned repository revision may implement a broader
+condition than the prose suggests. The correct response is to document and test
+the difference, not silently choose the version that makes the proposal look
+stronger.
+
+The literature record should also preserve inaccessible or uninspected leads.
+They can guide future work, but cannot support categorical implementation claims.
+The present review is a substantial bounded survey of the retained sources,
+not a declaration that no relevant paper exists outside the library. New work can
+change the best engineering choice, especially in a rapidly developing area.
+
+ResearchAssistant is useful for acquisition, parsing and source structure.
+MathDevMCP is useful for named formal obligations. DynareMCP contributes patterns
+for explicit hypotheses, falsifiers and bounded investigations. Their reuse
+should remain concrete and versioned. The bank should be able to identify which
+function, data structure or proof obligation is being borrowed, rather than
+relying on a broad claim that another project already solved the difficult part.
+% END SOURCE UNIT M10:13
+
+% BEGIN SOURCE UNIT P-02-literature:09
+\subsection{How to turn the citation network into a development program}
+\label{merge:P-02-literature:09}
+
+
+The richest use of this literature is to connect each mechanism to a failure the
+bank can recognize. Catala and Logical English address inspectable definitions,
+while date semantics and CUTECat address difficult boundaries. LegalRuleML,
+s(LAW) and eFLINT address context, unknowns and obligations; Stipula and
+process-compliance work address histories. ContractCheck and SMT techniques
+address contradictory requirements, and the neurosymbolic papers address the
+fallible translation boundary. Each contribution can therefore be tested against
+a specific part of the bank's problem.
+
+For each borrowed mechanism, the prototype should retain one source example,
+one SFC analogue, the assumptions that changed, and a test that would reveal a
+bad transfer. A Stipula event-ordering example becomes a consent-withdrawal trace;
+a Catala exception example becomes the fee-discount exception; an ARc ambiguity
+case becomes two proposed readings with a concrete client case on which they
+disagree. If the mechanism cannot represent the bank case without hidden
+conventions, that is evidence to revise the adapter or keep the case under human
+assessment. It is not a reason to force the circular into the language.
+
+% BEGIN REVISION ADDITION teach-P-02-literature-09
+\input{\LegalMathRoot teaching/teach-P-02-literature-09}
+% END REVISION ADDITION teach-P-02-literature-09
+Citation expansion should continue during development around those unresolved
+questions. New papers enter the library with versioned full text and technical
+notes, and software enters through a small reproducible example. This preserves
+the benefits of a broad research base while keeping the product centered on
+reviewable regulatory change.
+% END SOURCE UNIT P-02-literature:09
+
+% BEGIN SOURCE UNIT P-05-evidence:02
+\subsection{A reproducible research collection}
+\label{merge:P-05-evidence:02}
+
+
+The papers are stored under \path{docs/papers/} using the requested filename
+convention: the title, an underscore, the first author's surname and the year in
+parentheses. Filesystem-unsafe title punctuation is normalized, while the manifest
+retains the original title. Each
+record includes its source URL, bibliographic identity, edition note, retrieval
+date, byte count, PDF page count and SHA-256 digest. The library index distinguishes
+distinct works from alternate editions and identifies discovery leads that were
+not available as usable full text.
+
+The technical notes identify which part of each paper supports a proposed
+borrowing and what remains untested. They distinguish a semantics from its
+implementation, a reported experiment from a reproduced result, and a publicly
+available repository from a licensed and approved bank dependency. Full-text
+extraction is retained for local search, but the source PDF remains the reference
+where layout or equations matter. ResearchAssistant extraction is an aid to
+inspection, not certification of the extracted text.
+
+% BEGIN REVISION ADDITION teach-P-05-evidence-02
+\input{\LegalMathRoot teaching/teach-P-05-evidence-02}
+% END REVISION ADDITION teach-P-05-evidence-02
+The SFC source snapshots and the earlier local-repository inspection records
+remain under \path{.localresources/}, with their own manifest. The LaTeX and
+bibliography are now canonical in \path{docs/monograph/}; the earlier
+proposal entry point builds the same unified work. This arrangement permits another
+reviewer to trace the proposal's substantive examples back to a document edition
+without reconstructing the web searches. Redistributing the paper library is a
+separate matter from using the local copies for this research; the source licenses
+and access terms remain relevant.
+% END SOURCE UNIT P-05-evidence:02
+
+% BEGIN SOURCE UNIT P-05-evidence:03
+\section{Decisions needed at the start of a bank prototype}
+\label{merge:P-05-evidence:03}
+
+
+The first decision is the precise business perimeter: legal entity, activity,
+client class and product family. The second is the owner of each interpretation
+and the independent review process for disputed cases. The third is the mapping
+from regulatory definitions to actual bank records, including freshness and
+missing-evidence treatment. These decisions should be made on the selected source
+slice, with worked examples, rather than as abstract architecture questions.
+
+The initial technical commitment should be modest and testable: one source
+repository, one typed decision semantics, one bounded event model, one review
+interface and one deployment adapter. The literature gives substantial guidance
+for each part. It also explains why a universal translation-and-proof promise
+would be unsound. A successful prototype would show which interpretations are
+adopted, which computations follow them, which facts support the result, and where
+human judgment is still required.
+% END SOURCE UNIT P-05-evidence:03
+
+% BEGIN SOURCE UNIT M10:14
+\section{A practical sequence from manuscript to product}
+\label{merge:M10:14}
+
+
+The first step, implemented in E01--E09, uses public sources and scripted
+members. Its acceptance checks show that the controller can preserve alternatives, detect
+specified discrepancies, respect limits and produce complete reports. The
+second-circular example provides a running integration case, while synthetic
+fully resolved cases exercise the positive review route. The original blocked
+example should remain blocked unless actual new evidence resolves its issues.
+
+The second step is independent reference construction and restricted live-model
+evaluation. The team freezes source inventories and judgments before seeing
+model outputs, runs the baseline ladder and records uncertainty. Failures are
+classified by boundary and used for planned repairs. No model is promoted because
+it merely reproduces the author's original 22-case oracle.
+
+The third step is enterprise integration: identity, approved data access, isolated
+source parsing, provider controls, signed or equivalently authenticated releases,
+monitoring and host transaction behavior. This work can proceed alongside method
+evaluation where dependencies permit. It should not be postponed until a final
+demo, because operational constraints may change which designs are feasible.
+
+% BEGIN REVISION ADDITION teach-M10-14
+\input{\LegalMathRoot teaching/teach-M10-14}
+% END REVISION ADDITION teach-M10-14
+The fourth step is authorized shadow operation in a narrow activity perimeter.
+The study compares the workbench with the existing process and independently
+adjudicates disagreements. It measures both substantive quality and reviewer
+workload. The team rehearses source amendments, unknown facts, provider outages,
+worker crashes and rollback decisions.
+
+The fifth step is a bounded deployment decision based on the concrete evidence
+package. The decision may approve only a subset of controls or retain manual
+review for disputed categories. Monitoring then continues the evidence process:
+new sources, unexpected disagreements and incidents create successor
+investigations. Deployment is not the end of interpretation assurance.
+
+This sequence does not assign an arbitrary calendar duration or staffing number.
+The bank's source perimeter, access constraints and review capacity determine
+those estimates. The task dependencies and acceptance evidence are concrete enough
+to build a schedule once those inputs are known. Inventing a confident delivery
+date without them would add apparent precision without resolving the underlying
+work.
+% END SOURCE UNIT M10:14
+
+% BEGIN SOURCE UNIT M10:15
+\section{What the completed prototype will and will not establish}
+\label{merge:M10:15}
+
+
+The completed E01--E09 deterministic increment supplies test evidence for
+the specified records, controller, budgets, reports and release checks.
+It produces Java packages from accepted RuleIR and preserves the existing
+execution contract. Its scripted scenarios distinguish repair of a known
+encoding omission from an ambiguity that remains unresolved.
+
+A successful independent interpretation study can establish empirical performance
+on its declared task population, with uncertainty and limitations. It may support
+a bounded use or a choice among methods. It cannot prove that every future
+circular will be interpreted correctly, especially under new vocabulary,
+authority or distribution shift. A formal proof of the controller's release
+invariant similarly depends on the recorded evidence and does not prove that no
+source obligation was ever missed.
+
+% BEGIN REVISION ADDITION teach-M10-15
+\input{\LegalMathRoot teaching/teach-M10-15}
+% END REVISION ADDITION teach-M10-15
+These limits do not make the product pointless. The present manual process also
+contains interpretation, transcription, coding and review errors, often without a
+complete record of competing readings. The proposed workbench makes those stages
+explicit, introduces complementary checks and preserves the questions that remain.
+Its value should be demonstrated against that real process with a fair reference
+and comparable resources.
+
+The high stakes justify both ambition and precision. The system should actively
+search for ways its preferred reading could be wrong, retain those challenges,
+and stop automatic work honestly when the evidence or budget is insufficient.
+It should deliver code whose relationship to an approved specification can be
+checked, while keeping the approval of meaning visible as a separate act.
+That combination is a concrete engineering objective and a defensible basis for
+building the next version of LegalMath.
+% END SOURCE UNIT M10:15

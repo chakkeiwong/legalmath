@@ -1,0 +1,1372 @@
+\chapter{From an accepted interpretation to verified Java behavior}
+\label{ch:verification}
+
+Once a reviewer adopts an interpretation, the problem changes. The bank now
+needs to know whether the program behaves like that interpretation when a client
+is exactly at a threshold, when evidence is missing, and when a withdrawal or
+amendment arrives later. A successful compilation answers none of those
+questions.
+
+This chapter follows the accepted SPI decision into its executable form. It
+introduces the comparison target in ordinary language, then gives the precise
+values, histories and tests needed to compare a reference decision with Java.
+The implementation details are included because they protect a concrete bank
+outcome: the same client history should produce the same answer for the same
+rule version.
+
+
+% BEGIN SOURCE UNIT M07:00
+\section{The specification becomes the comparison target}
+\label{merge:M07:00}
+
+
+Once reviewers accept a particular interpretation, a different verification
+problem begins. The source question was whether the rule expresses the relevant
+regulatory requirement. The implementation question is whether the deployed
+program preserves that accepted rule for the inputs and histories it supports.
+Keeping these questions separate allows strong engineering evidence without
+misrepresenting it as legal proof.
+
+The accepted object is larger than a Boolean formula. It includes the source
+versions, activity profile, factual definitions, subject identity, time policy,
+unknown and conflict semantics, exception structure, result interpretation and
+coverage limits. If any of these is omitted, two implementations can agree on a
+formula while giving different advice in practice. A Java adapter that labels
+all rebates as discounts has changed the rule's application even if its Boolean
+operator code is flawless.
+
+% BEGIN REVISION ADDITION teach-M07-00
+\input{\LegalMathRoot teaching/teach-M07-00}
+% END REVISION ADDITION teach-M07-00
+The verification target must therefore name the complete bundle and its
+permitted input domain. The bundle is immutable and content-addressed. The
+comparison includes the decision, missing and blocking facts, errors, source
+references and execution trace. Different backends have different execution
+identities, so equality of their entire serialized result hashes is not the
+right criterion. Compare the specified semantic fields and independently verify
+each backend's own result identity.
+
+The existing workbench already provides a finite RuleIR interpreter, a Java
+runtime, generated policy classes and a release workflow. The ensemble proposed
+in Chapter~\ref{ch:ensemble} is an extension before that delivery path. It should
+produce reviewed candidates that the existing validator can accept, rather than
+silently expanding the runtime language whenever a model proposes a new legal
+construct. Unsupported meaning remains an explicit engineering and review issue.
+% END SOURCE UNIT M07:00
+
+% BEGIN SOURCE UNIT P-03-product:02
+\section{The intermediate representation}
+\label{merge:P-03-product:02}
+
+
+A JSON document becomes an executable specification only when its expressions
+have defined meanings. RuleIR 0.1 fixes a finite, acyclic expression language and
+a separate event profile. The following sections give its expression, evidence,
+event, storage and service rules in the manuscript. The JSON schemas and
+\path{docs/specs/v0.1/} files provide machine-checkable structures and detailed
+operational copies of those contracts. They do not select an alternative logic
+or leave missing-value behavior to the implementer.
+
+Each rule needs more than its condition. It must identify the source document and
+revision, paragraph or page, exact supporting span, language, source digest and
+retrieval date. It must record the legal actor, activity, product, client class,
+relevant time and interpretation status. It must distinguish a derived fact from
+a duty, permission or prohibition. A duty also needs an actor, trigger, action,
+timing rule and evidence by which performance can be assessed. A missing source
+deadline remains missing; operational escalation times belong to a separately
+identified bank policy.
+
+% BEGIN REVISION ADDITION teach-P-03-product-02
+\input{\LegalMathRoot teaching/teach-P-03-product-02}
+% END REVISION ADDITION teach-P-03-product-02
+Definitions should be reusable and versioned. A field for portfolio value must
+refer to the adopted portfolio definition, relevant ownership rules, valuation
+date and currency conversion convention. The application mapping records where
+each fact comes from, its freshness and who can resolve a conflict. A rule whose
+necessary definition remains unresolved can be reviewed and discussed, but it
+cannot be released as an executable control for that use.
+
+The complete financial-condition bundle is supplied in
+\path{fixtures/spi-financial.bundle.json} beneath the specification directory.
+It declares two money inputs, an unconditional scope for this isolated
+subcondition, the expression, interpretation record and a verified span in
+Annex 1 paragraph 3.1. The excerpt below is a complete expression node from
+that bundle. Node identifiers make its trace reproducible.
+
+\begin{minipage}{\textwidth}
+\begin{lstlisting}[caption={The portfolio comparison in the supplied JSON bundle. Amounts are HK cents.}]
+{"node_id":"portfolio.ge", "op":"compare", "cmp":"ge",
+ "left":{"node_id":"portfolio.input", "op":"fact",
+         "name":"portfolio"},
+ "right":{"node_id":"portfolio.threshold", "op":"literal",
+          "type":"money_hkd", "value":"4000000000"}}
+\end{lstlisting}
+\end{minipage}
+
+The second comparison uses \texttt{net\_assets\_ex\_home} and
+\texttt{"8000000000"}; an \texttt{any} node combines them. These inputs denote
+amounts normalized under adopted wealth definitions, not any account balance
+supplied under the same name. Release requires those definitions and applicability
+to be reviewed. The narrow result name, \texttt{spi.financial}, identifies a
+subcondition rather than a complete SPI assessment or trade authorization.
+% END SOURCE UNIT P-03-product:02
+
+% BEGIN SOURCE UNIT P-03a-rule-contract:00
+\subsection{Types and the expressions an agent may generate}
+\label{merge:P-03a-rule-contract:00}
+
+
+The scalar types are Boolean, integer, HKD money and Gregorian date. Integer
+and money values use canonical decimal strings; monetary units are cents.
+There are no floating-point values, implicit casts or known nulls. A date must
+be valid, including its leap-year constraints. Foreign-currency normalization
+records the rate, valuation instant and rounding policy before producing an HKD
+input. A missing exchange rate therefore leaves an unknown amount.
+
+The expression grammar contains typed literals, fact and rule references,
+\texttt{all}, \texttt{any}, \texttt{not}, equality/inclusive/strict comparison,
+addition, subtraction, rational scaling, conditional choice and explicit defaults.
+Addition and subtraction require matching integer or money types. Scaling uses
+a nonnegative integer numerator and a positive denominator; a known result must
+divide exactly. A half-cent allocation returns \texttt{E\_INEXACT\_SCALE} until
+an external reviewed rounding policy resolves it. Date arithmetic is kept in
+the separate scheduler so ordinary library behavior cannot choose a legal
+anniversary convention unnoticed.
+
+% BEGIN REVISION ADDITION teach-P-03a-rule-contract-00
+\input{\LegalMathRoot teaching/teach-P-03a-rule-contract-00}
+% END REVISION ADDITION teach-P-03a-rule-contract-00
+An implementer can express the grammar below directly as tagged records. Every
+\texttt{Expr} additionally carries a unique \texttt{node\_id}. A rule is
+\texttt{(id, type, scope, body, interpretation\_id, source\_span\_ids)};
+\texttt{scope} is Boolean and \texttt{body} has the declared result type.
+\begin{lstlisting}[caption={Complete operator grammar for RuleIR 0.1; repeated arguments are ordered. The Java demonstration implements a stated subset.}]
+Type = bool | integer | money_hkd | date
+Expr = literal(Type, value)
+     | fact(name) | rule(name)
+     | all([Expr, ...]) | any([Expr, ...]) | not(Expr)
+     | compare(eq | ge | gt, left, right)
+     | add(left, right) | sub(left, right)
+     | scale(arg, numerator, denominator)
+     | if(condition, then_value, else_value)
+     | default(base, [Exception, ...])
+Exception = (exception_id, guard, value,
+             interpretation_id, source_span_ids)
+\end{lstlisting}
+A comparison requires two matching integer, money or date operands. Dates
+compare in calendar order; Boolean comparisons are not admitted in this version.
+A conditional requires a Boolean condition and matching branch types. Default
+values match their base type, and all guards are Boolean. An empty exception
+list simply selects the base. There are no loops, quantifiers, dynamic names or
+arbitrary function calls. More elaborate assessment and aggregation enter
+through separately reviewed fact mappings.
+
+Every node has a unique identifier. References must resolve, types must agree
+and the complete dependency graph must be acyclic. A rule reference may refer
+only to an unconditional definition; a scoped result cannot quietly become a
+Boolean false in another expression. Authors can expose the scope explicitly
+as a named Boolean definition. Unknown operators and additional JSON properties
+are rejected. This keeps a model from extending the language merely by emitting
+a plausible field name.
+% END SOURCE UNIT P-03a-rule-contract:00
+
+% BEGIN SOURCE UNIT M07:01
+\section{Facts are evidence-bearing values}
+\label{merge:M07:01}
+
+
+A production fact is not simply a field such as \texttt{gift=true}. It has a type,
+value or uncertainty status, evidence references, validity interval and recording
+time. The validity interval says when the evidence applies to the underlying
+situation. The recording time says when the system knew it. These times answer
+different questions and both are needed for historical reconstruction.
+
+Suppose the bank learns on 10 October that a fee record effective on 1 October
+was incorrect. A decision replay asking what the system knew on 5 October should
+not use the later correction. A corrected assessment made on 10 October may use
+it to reassess the earlier event. The two assessments should coexist. Replacing
+the old record would erase the evidence needed to explain the original decision.
+
+The existing normalization boundary selects records valid at \texttt{valid\_at}
+and recorded no later than \texttt{known\_at}. A correction names the evidence it
+supersedes. Two admissible, non-superseded records with different values create a
+conflict. Arrival order is not a source-priority rule. If both records agree,
+their evidence may be combined without inventing a conflict.
+
+% BEGIN REVISION ADDITION teach-M07-01
+\input{\LegalMathRoot teaching/teach-M07-01}
+% END REVISION ADDITION teach-M07-01
+Intervals are half-open: $[a,b)$ includes the start and excludes the end. If a
+record is valid until midnight, it is not valid at that midnight. This convention
+avoids overlapping adjacent intervals when one record ends exactly as another
+begins. Tests must exercise equality at both endpoints, not merely dates well
+inside an interval. All assessment timestamps use the canonical UTC format with
+six fractional digits; legal calendar dates are separate values.
+
+Unknown facts have reasons. Missing evidence, stale evidence, an unreviewed
+classification and unresolved event order can all lead to unknown, but they call
+for different remedies. A host should not display the same uninformative message
+for every case. Conflict similarly preserves the competing evidence identifiers.
+The evaluator does not decide which source is legally superior without a
+reviewed normalization rule.
+
+This design puts factual interpretation where it belongs: at a visible boundary.
+For the circular, classifying a benefit as a gift or fee discount is an evidenced
+assessment. The decision engine consumes that assessment under its approved
+definition. If the ensemble has not resolved the definition, the adapter cannot
+supply a known value merely to satisfy a required input field.
+% END SOURCE UNIT M07:01
+
+% BEGIN SOURCE UNIT P-03a-rule-contract:01
+\subsection{Evidence is an input to computation, with its own history}
+\label{merge:P-03a-rule-contract:01}
+
+
+Use one synthetic correction to see why a fact carries its own history. A portfolio
+record says HK\$60m at valid time 1 October and is recorded on 2 October. A second
+record, recorded on 10 October, says the value was HK\$55m for the same valid
+interval and explicitly supersedes the first. The first assessment may use the
+record only when its \texttt{known\_at} cut-off reaches 2 October; a later corrected
+assessment may use the second. Both assessments retain their evidence identities.
+
+The same case distinguishes the three information states. If no eligible record exists,
+the value is unknown because evidence is missing or stale. If two admissible,
+non-superseded records disagree, the value is conflicting and both records remain
+visible. Matching records can combine their evidence. Arrival order is not legal
+priority. Every request still supplies \texttt{valid\_at} and \texttt{known\_at},
+and the half-open interval convention makes an amount ending at midnight unavailable at that endpoint.
+
+% BEGIN REVISION ADDITION teach-P-03a-rule-contract-01
+\input{\LegalMathRoot teaching/teach-P-03a-rule-contract-01}
+% END REVISION ADDITION teach-P-03a-rule-contract-01
+Before Boolean evaluation, the engine checks conflicts in the static transitive
+dependency closure, including branches that might later be skipped. A conflicting
+portfolio amount therefore returns \texttt{CONFLICT} even if the net-asset route
+could establish the financial condition. An unrelated conflict does not block
+that rule. This conservative policy is a proposed engineering choice; it is
+deliberately different from ordinary unknown-value propagation.
+% END SOURCE UNIT P-03a-rule-contract:01
+
+% BEGIN SOURCE UNIT M07:02
+\section{Exact arithmetic prevents a second kind of ambiguity}
+\label{merge:M07:02}
+
+
+The existing scalar types are Boolean, integer, Hong Kong dollar money in cents,
+and Gregorian date. Integer and money values use canonical decimal strings and
+arbitrary-precision arithmetic. A monetary value of HK\$100 is represented as
+\texttt{"10000"}. The string representation avoids a transport layer converting
+the value through a floating-point number before the exact arithmetic begins.
+
+Units are part of the contract. A number expressed in dollars and the same number
+expressed in cents differ by a factor of one hundred. A compiler cannot infer
+which was intended from the digits alone. The host mapping must identify the
+source unit, conversion and evidence. Declaration-specific bounds can reject
+implausible inputs, but a plausibility check is not a substitute for a reviewed
+unit mapping.
+
+Consider proportional ownership of a monetary amount. If the accepted operation
+is exact scaling by a rational fraction $n/d$, the runtime computes the product
+and quotient using integers. Let $x$ be cents. It checks
+\begin{equation}
+ nx=dq+r,\qquad 0\leq r<d
+ \label{eq:exact-scale}
+\end{equation}
+for nonnegative $nx$; for signed values the implementation's quotient and
+remainder convention must still make zero remainder the exactness test. A
+nonzero remainder means that the result is not an integer number of cents. The
+current contract returns \texttt{E\_INEXACT\_SCALE}; it does not choose a rounding
+policy on the user's behalf.
+
+% BEGIN REVISION ADDITION teach-M07-02
+\input{\LegalMathRoot teaching/teach-M07-02}
+% END REVISION ADDITION teach-M07-02
+If a bank requires rounding, that is a substantive extension. The rule must state
+which quantity is rounded, at what stage, in which direction and under whose
+policy. Rounding each component before summation can differ from rounding the
+sum. Two correct implementations of different policies can therefore disagree.
+The ensemble should recognize this as a specification issue rather than treating
+one result as a numerical accident.
+
+Foreign-currency conversion is outside RuleIR 0.1. A reviewed adapter supplies an
+HKD amount with rate, valuation instant and rounding evidence. A missing rate
+creates unknown evidence. It must not trigger a guessed conversion or reuse an
+unboundedly old rate. The bank's data owner is responsible for the freshness and
+valuation policy, while engineering verifies that the adapter implements it.
+
+Dates require similar precision. A date is not a timestamp, and an obligation
+measured in business days needs a calendar policy. The current expression
+language compares validated dates but leaves date arithmetic to reviewed event
+scheduling. This restricted design prevents a generic arithmetic library from
+silently deciding whether a public holiday counts toward a regulatory deadline.
+The appropriate calendar must be versioned with the assessment.
+% END SOURCE UNIT M07:02
+
+% BEGIN SOURCE UNIT M07:03
+\section{Unknown, conflict and scope have an order}
+\label{merge:M07:03}
+
+
+The three-valued Boolean rules in Chapter~\ref{ch:proof} govern unknown values,
+but they are not the entire runtime semantics. Before evaluating the requested
+rule, the existing implementation checks conflicting evidence in its static
+transitive dependency closure. That closure includes scope, body, exceptions and
+branches that might later be skipped. A conflict in the closure returns conflict
+even if another route could determine the Boolean result.
+
+This is a conservative evidence policy. For example, an actor may appear outside
+the selected scope, but a conflicting fact in the rule's static closure still
+produces conflict before scope evaluation. The second-circular case that exercises
+this behavior is deliberately different from ordinary short-circuit intuition.
+The specification must teach it because an engineer using conventional Java
+\texttt{\&\&} or \texttt{||} could otherwise implement a different result.
+
+After conflict checking, scope is evaluated. False scope returns
+\texttt{OUT\_OF\_SCOPE}; unknown scope returns \texttt{UNKNOWN} with a scope reason;
+true scope permits evaluation of the body. A body that would be false does not
+turn unknown scope into a known result. The system is answering a scoped
+condition, and the applicability question remains unresolved.
+
+% BEGIN REVISION ADDITION teach-M07-03
+\input{\LegalMathRoot teaching/teach-M07-03}
+% END REVISION ADDITION teach-M07-03
+Within the body, conjunction and disjunction evaluate all operands in declared
+order. This eager behavior retains complete evaluated evidence and exposes errors
+or conflicts even if an earlier operand would determine an ordinary Boolean
+answer. Missing inputs can appear in a known result, while blocking inputs are
+empty when the unknowns do not prevent that result. The distinction is useful:
+the bank may know the condition is false while still needing to repair a stale
+input feed.
+
+A conditional expression behaves differently. It evaluates the condition and
+only the selected branch. An unknown condition returns unknown without evaluating
+either branch, even when the branches appear equal. Skipped branches remain type
+checked and part of the static dependency closure. Their trace roots are marked
+skipped so that the explanation does not invent an evaluation that never occurred.
+
+Defaults add another layer. All exception guards are evaluated first. Two true
+guards produce conflict even if their values would agree. An unknown guard can
+prevent selection of another true guard because the unknown might become a
+competing exception. One true guard with all others false selects its value; all
+false guards select the base. Priority is expressed only by explicit nesting with
+a reviewed interpretation. Array order is not hidden legal priority.
+
+These rules are not universal truths about law or logic. They are the existing
+workbench's specified execution choices. The ensemble may identify a regulation
+that needs different semantics. The correct response is to propose and review an
+extension or keep the case outside the supported fragment, not to reinterpret
+the current operators ad hoc.
+% END SOURCE UNIT M07:03
+
+% BEGIN SOURCE UNIT P-03a-rule-contract:02
+\subsection{Defaults, branch selection and failure behavior}
+\label{merge:P-03a-rule-contract:02}
+
+
+The conformance fixtures should force the evaluator to reveal which rule it uses. Start
+with a false base and two exceptions: one true guard with all other guards false selects
+its value; all false guards select the base; two true guards return conflict even when
+their values agree; and one true guard plus an unknown competitor returns unknown. The
+guard carries its interpretation identifier and source spans, so the trace can explain
+why the result was selected or blocked. Priority enters only through reviewed nesting;
+row order cannot supply it.
+
+The fixtures also separate eager combinations from selective conditionals. An \texttt{all} or \texttt{any}
+expression evaluates its operands in source order, retaining
+errors, conflicts and evidence even when an ordinary Boolean shortcut would already
+determine the answer. A conditional evaluates only its selected branch; an unknown
+condition evaluates neither branch and returns unknown. The unselected branch remains
+type checked and appears as skipped in the trace. These cases are more useful than another rule
+recital because each one distinguishes a possible Java implementation
+from the specified behavior.
+
+% BEGIN REVISION ADDITION teach-P-03a-rule-contract-02
+\input{\LegalMathRoot teaching/teach-P-03a-rule-contract-02}
+% END REVISION ADDITION teach-P-03a-rule-contract-02
+The rule's scope is evaluated separately. A false scope yields
+\texttt{OUT\_OF\_SCOPE}; an unknown scope yields \texttt{UNKNOWN}. In scope,
+Boolean bodies return \texttt{TRUE} or \texttt{FALSE}, other known bodies return
+\texttt{VALUE}, and missing evidence returns \texttt{UNKNOWN}. Conflicts and
+errors are distinct tagged results. An invalid version time is an error, not a
+negative assessment. No exception handler may fall back to false.
+
+The response carries all encountered missing inputs and the conservative subset
+blocking the answer. If a known net-asset route establishes the alternative,
+the unknown portfolio remains visible but is not a blocker. For an unknown
+result, the union of encountered unknown dependencies is reported; the prototype
+does not claim it is a mathematically minimal explanation. Traces record evaluated
+nodes in postorder, evidence, source spans and explicitly skipped branch roots.
+Explanations and diagrams are rendered from that trace.
+% END SOURCE UNIT P-03a-rule-contract:02
+
+% BEGIN SOURCE UNIT M07:04
+\section{Validation failures are part of observable behavior}
+\label{merge:M07:04}
+
+
+A verifier must compare invalid-input behavior as well as successful decisions.
+Malformed JSON, duplicate keys, noncanonical numbers or unpaired Unicode
+surrogates can fail at the transport boundary before a semantic result can be
+hashed. Valid JSON with an invalid bundle or snapshot can instead produce a
+structured semantic error. These outcomes have different evidence and should
+not be conflated.
+
+The current validation order is schema, references and duplicates, types, cycles,
+time, static-closure conflicts and evaluation. A deterministic order makes error
+reports reproducible when an input has several defects. It also prevents a
+runtime from accessing an invalid reference before discovering that the bundle
+should have been rejected. Fixed error codes and pointers are compared across
+backends; dependency-library exception text is not the public contract.
+
+% BEGIN REVISION ADDITION teach-M07-04
+\input{\LegalMathRoot teaching/teach-M07-04}
+% END REVISION ADDITION teach-M07-04
+Resource limits are explicit. The present canonical JSON boundary is bounded in
+size and depth, and the rule graph has node and expanded-call-depth limits. An
+oversized acyclic expression is a resource error; a cycle is a cycle error. An
+implementation must not catch either and continue with a truncated rule. The
+same principle applies to the new ensemble's graph and report limits.
+
+Tests should combine defects when precedence matters. A snapshot can contain a
+conflict and an expired validity interval. A bundle can contain a type error in a
+branch that would otherwise be skipped. A default can have two applicable guards
+whose values contain errors that should never be evaluated. Isolated operator
+tests cannot establish the behavior of these combinations.
+
+A useful specification test states both the expected result and why a tempting
+implementation would differ. For example, a short-circuit implementation might
+return false before encountering an error in the second operand. The accepted
+eager semantics requires the error. This counterexample teaches the contract and
+makes the test more durable than an assertion copied from the current function's
+output.
+% END SOURCE UNIT M07:04
+
+% BEGIN SOURCE UNIT M07:05
+\section{Independent oracles and their limits}
+\label{merge:M07:05}
+
+
+An oracle is a source of expected behavior against which an implementation is
+compared. Independence has several meanings. A separately written evaluator can
+be independent of the production code while relying on the same mistaken
+interpretation. A human reference can be independent of the model's answer while
+sharing the same incomplete source packet. The verification report must specify
+which independence it has actually achieved.
+
+The retained 22-case oracle was frozen before the candidate bundle, which protects
+against some forms of adapting expected outputs to the implementation. It was
+nevertheless prepared by the same author. The 729-case enumeration gives complete
+coverage of six ternary abstract inputs for the selected formula. Neither fact
+establishes independent legal interpretation or whole-document coverage.
+
+A stronger reference process begins with independent source reading and scenario
+judgment. Reviewers state the expected result, assumptions, supporting passage
+and unresolved questions before seeing the candidate output. Disagreements are
+adjudicated with reasons or retained as alternative acceptable outcomes. The
+reference then has a defined relationship to the evidence rather than being a
+single unexplained label.
+
+% BEGIN REVISION ADDITION teach-M07-05
+\input{\LegalMathRoot teaching/teach-M07-05}
+% END REVISION ADDITION teach-M07-05
+For engineering checks, a small executable oracle can be valuable when its method
+is genuinely different. The second-circular body has a read-once unate structure,
+which permits its Boolean-completion check to agree with the specified
+three-valued result. The general expression $p\lor\neg p$ shows why that argument
+cannot be extended to every RuleIR expression: under the specified semantics,
+unknown $p$ yields unknown, while every classical completion yields true.
+An oracle based on the wrong generalization would reject correct implementations
+or bless incorrect ones.
+
+The oracle itself therefore needs a stated domain and a small set of discriminating
+examples. The workbench should retain oracle author, method, source versions,
+review status and any shared components. A generated oracle that imports the same
+evaluator under a different function name supplies little independent evidence.
+A reference that is changed during repair remains useful only when the change is
+separately justified and versioned.
+% END SOURCE UNIT M07:05
+
+% BEGIN SOURCE UNIT P-03c-storage-review:01
+\subsection{The small financial fixture within the complete dry run}
+\label{merge:P-03c-storage-review:01}
+
+
+Section~\ref{sec:dry-run} follows the complete selected transaction profile.
+The smaller conformance fixture imports 23EC35 and Annex 1, verifies their hashes and
+opens paragraph 3.1 beside the financial rule. Its two wealth definitions are
+review issues until the relevant source and data mappings are accepted. An
+engineer loads the supplied draft bundle and the synthetic \texttt{f01} case:
+portfolio HK\$40 million and qualifying net assets zero. The trace evaluates
+both inclusive comparisons and their alternative, returning \texttt{TRUE} for
+\texttt{spi.financial}. It also identifies the exact source revision, input
+snapshot and engine version.
+
+% BEGIN REVISION ADDITION teach-P-03c-storage-review-01
+\input{\LegalMathRoot teaching/teach-P-03c-storage-review-01}
+% END REVISION ADDITION teach-P-03c-storage-review-01
+The reviewer next opens \texttt{f02}, one cent below the portfolio threshold,
+with the other route still false. This returns \texttt{FALSE}. In \texttt{f07},
+the portfolio is unknown and net assets are HK\$70 million, so the answer is
+\texttt{UNKNOWN}. In \texttt{f06}, changing only net assets to HK\$90 million
+establishes the financial condition despite the still-missing portfolio. These
+cases let a compliance reader inspect the interpretation before any system rule
+is exported. A proposed strict comparison is challenged with \texttt{f01}.
+
+Once dependencies and meanings are reviewed, the evidence report is attached to
+the bundle hash, reviewers approve it and the release service exports the package.
+The production change package includes deterministic Java source and its tested
+JAR against the same decision contract. A host adapter supplies the bank's
+facts and enforces the released-version and concurrency requirements.
+A changed rule creates another hash and invalidates release approval. Historic
+decisions still point to the old hash and their original evidence.
+% END SOURCE UNIT P-03c-storage-review:01
+
+% BEGIN SOURCE UNIT M07:06
+\section{Mutation tests measure what the checks can notice}
+\label{merge:M07:06}
+
+
+A mutation deliberately changes a candidate or implementation in a way that
+represents a plausible error. If the verification process rejects it for the
+intended reason, the test demonstrates sensitivity to that error. It does not
+estimate the frequency of that error in real use, and a high mutation score does
+not prove complete correctness.
+
+The second-circular exercise used four meaningful mutations: remove the discount
+exception, omit product-type linkage, assume gift classification and ignore scope.
+The retained named cases detect all four after compilation. This is more
+informative than mutating arbitrary characters because each change corresponds
+to a failure a reviewer or programmer could plausibly make.
+
+% BEGIN REVISION ADDITION teach-M07-06
+\input{\LegalMathRoot teaching/teach-M07-06}
+% END REVISION ADDITION teach-M07-06
+The ensemble extension should add source and process mutations. Remove a footnote
+from one extraction; supply a stale dependency to one member; label a speculative
+classification as established; suppress a minority candidate in the report; reset
+an issue counter after a revision; or reuse an approval after a source change.
+Each mutation targets a distinct assurance boundary. Passing only formula
+mutations would leave the new controller largely untested.
+
+Some mutations are equivalent under the selected domain. Changing an expression
+may not change any supported outcome, and failure to detect that mutation is not
+necessarily a defect. The mutation report must distinguish equivalent mutations,
+invalid encodings and live semantic defects. Counting all undetected mutations as
+failures, or silently excluding inconvenient ones, would distort the result.
+
+A mutation is killed when a required property changes and the check catches it.
+A compiler crash is not always the intended detection: if the task is to test
+whether the oracle notices an omitted exception, a syntax-invalid mutant does not
+answer the question. Mutation construction should preserve validity where the
+research question concerns semantic sensitivity. Invalid-input tests remain a
+separate and necessary category.
+% END SOURCE UNIT M07:06
+
+% BEGIN SOURCE UNIT P-04-prototype:05
+\subsection{Targeted tests and counterexamples}
+\label{merge:P-04-prototype:05}
+
+
+The initial suite should include exact threshold boundaries, small amounts below
+them, and cases in which only one financial route holds. It should distinguish
+unknown from zero, inconsistent from missing evidence, an absent agreement from
+an unretrieved agreement, and client attributes from representative attributes.
+These cases test meaning that common ``typical client'' examples fail to expose.
+
+Category tests should change only the relevant category or qualification route.
+Ownership tests should change only the allocation agreement or associate status.
+Temporal tests should change only the withdrawal sequence, review date or fund
+movement. These paired cases help reviewers identify the controlling condition.
+For facts designated irrelevant to a narrow rule, changing only those facts should
+leave its result unchanged. Such metamorphic checks must name their domain:
+adding wealth might be monotone for Equation~\eqref{eq:financial}, but does not
+establish monotonicity of every suitability or product-distribution decision.
+
+% BEGIN REVISION ADDITION teach-P-04-prototype-05
+\input{\LegalMathRoot teaching/teach-P-04-prototype-05}
+% END REVISION ADDITION teach-P-04-prototype-05
+Mutation tests should deliberately replace inclusive with strict comparisons,
+alternatives with conjunctions, category-specific predicates with global ones,
+conditional requests with unconditional duties, and named exceptions with generic
+fallbacks. Event tests should include duplicated, delayed and out-of-order records.
+The test report must identify which defect each case would catch. This borrows
+the defect-oriented lesson of CUTECat without claiming that automated case
+generation establishes source completeness \citep{cutecat2025}.
+% END SOURCE UNIT P-04-prototype:05
+
+% BEGIN SOURCE UNIT M07:07
+\section{Symbolic comparison requires a feasible domain}
+\label{merge:M07:07}
+
+
+For supported expressions, symbolic comparison can search for inputs on which two
+candidates differ. The domain records admissible values, knownness conditions and
+relationships among facts. Before asking whether the outputs differ, the solver
+must establish that the domain has at least one model. Otherwise an inconsistent
+domain makes every equivalence query vacuously true.
+
+Suppose one domain constraint says that a payment exceeds the fee and another
+says that it cannot exceed the same fee. A query finding no differing outcome
+under both constraints has taught us nothing about the real candidates. The
+workbench returns an inconsistent-domain result. The domain must be repaired or
+reviewed before any equivalence claim is made.
+
+A satisfiable difference query returns a witness. The witness must be decoded to
+a concrete fact snapshot and replayed in both the reference evaluator and Java.
+This replay checks that the symbolic encoding corresponds to executable semantics.
+A solver result alone can be wrong relative to the claimed runtime if the
+encoding mishandles unknown values, scope or arithmetic. The witness and both
+results belong in the report.
+
+% BEGIN REVISION ADDITION teach-M07-07
+\input{\LegalMathRoot teaching/teach-M07-07}
+% END REVISION ADDITION teach-M07-07
+An unsatisfiable difference query establishes no differing result within the
+checked fragment and domain, subject to the solver and encoding assumptions. It
+does not establish that the candidates use the same legal definition, cover the
+same source material or behave identically outside the domain. The result label
+must therefore include the domain and comparison projection.
+
+The current comparison fragment supports documented Boolean and exact
+integer/money reasoning with explicit knownness. It rejects unsupported date,
+scale, default and event constructs. The two solver checks share a bounded time
+budget, with a separate worker deadline. Unknown, timeout, missing Java replay or
+unsupported constructs never become equivalence. The ensemble may schedule
+another permitted check, but cannot relabel the incomplete result as a pass.
+
+Counterexample-guided refinement is useful when a witness exposes an imprecise
+abstraction. The engineer identifies why the witness is infeasible or why the
+encoding omitted a required condition, changes the abstraction with a documented
+reason, and reruns the query. The discipline matters: excluding a witness because
+it is inconvenient is not refinement. The revised domain must correspond to a
+reviewed fact about the application.
+% END SOURCE UNIT M07:07
+
+% BEGIN SOURCE UNIT M07:08
+\section{Property tests should follow the semantics}
+\label{merge:M07:08}
+
+
+Property-based tests generate many inputs and check a relation that should hold.
+They can explore combinations that named examples miss, but the property must
+be valid for the specified semantics. Classical Boolean identities cannot all be
+transferred to unknown or conflict behavior. Likewise, reordering operands may
+preserve a value while changing the required trace or error precedence.
+
+Useful properties include deterministic evaluation for identical canonical
+requests, rejection of undeclared facts where the schema requires it, exact
+integer arithmetic, preservation of known values under irrelevant evidence
+additions, and stable source references under deterministic rendering. Each
+property needs a precise precondition. Adding a conflicting record in the static
+dependency closure is not an irrelevant addition.
+
+% BEGIN REVISION ADDITION teach-M07-08
+\input{\LegalMathRoot teaching/teach-M07-08}
+% END REVISION ADDITION teach-M07-08
+Metamorphic tests compare related inputs when a direct oracle is difficult. If a
+known amount increases while all other facts remain fixed, a simple lower-bound
+threshold condition should not change from true to false. This monotonicity
+applies only to the stated threshold fragment. It need not hold for a default
+with an upper-bound exception or for a scope condition that changes at the same
+time. The test generator should derive its applicable domain from the property,
+not assume the property is universal.
+
+For evidence time, a carefully limited relation is useful: replaying an earlier
+\texttt{known\_at} should exclude records first recorded later. Increasing
+\texttt{known\_at} does not necessarily preserve the decision, because a correction
+or conflict may become visible. A test that demands decision monotonicity in
+knowledge time would impose a false property. The intended invariant concerns
+which records are admissible, not whether later knowledge always makes the same
+answer more certain.
+
+Fuzzing transport boundaries is a different activity. It tests duplicate keys,
+size limits, malformed timestamps, unusual Unicode and nesting limits. Its
+success criterion is controlled rejection or valid deterministic behavior, not
+legal interpretation. These tests protect the integrity of the evidence and
+execution chain and should be included in the engineering report under that role.
+% END SOURCE UNIT M07:08
+
+% BEGIN SOURCE UNIT P-03d-java-delivery:00
+\section{The earlier SPI compiler: a concrete deployment lesson}
+
+The API and commands in the next five subsections belong to the retained
+\emph{SPI-Demo1} teaching example under \path{examples/java-dry-run/}. They remain
+reproducible, but are not the current v0.1 SDK. The subsequent section on the actual
+generated interface supplies the current String/Map API. Keeping both makes the
+translation mechanism inspectable without directing an implementer to the wrong
+library.
+
+
+\label{merge:P-03d-java-delivery:00}
+
+\label{sec:java}
+
+Java is the required deployment output. The authoring workbench may use Python
+for source processing, review and reference evaluation; a transaction must be
+able to call the released Java library without running Python or contacting a
+language model. The initial integration assumption is a plain Java 17 JAR.
+This keeps the decision code independent of Spring, application servers and
+particular rule engines. A bank on another Java version needs a declared target
+and the same conformance checks before receiving a compatible build.
+% END SOURCE UNIT P-03d-java-delivery:00
+
+% BEGIN SOURCE UNIT P-03d-java-delivery:01
+\subsection{SPI-Demo1: the narrower retained demonstration}
+\label{merge:P-03d-java-delivery:01}
+
+
+The delivered \texttt{SPI-Demo1} example contains a source-anchored RuleIR bundle,
+synthetic fact snapshots, a separately written Python evaluator, a deterministic
+Java emitter, the generated class, two small Java support classes, and a separate
+host caller. Its implemented expression subset is deliberately explicit:
+Boolean, integer and HK-cent literals and facts; unconditional rule references;
+\texttt{all}, \texttt{any}, \texttt{not}; and exact numeric
+\texttt{eq}/\texttt{ge}/\texttt{gt} comparisons. The root has a Boolean scope.
+The demo compiler rejects dates, arithmetic expressions, general defaults,
+conditionals and the full obligation language. The later RuleIR implementation
+supports the specified decision operators and its finite duty profile; those
+features are outside this earlier demo API. The demonstration response is its own smaller API profile,
+not a claim to implement every field and trace node of the full RuleIR service.
+
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-01
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-01}
+% END REVISION ADDITION teach-P-03d-java-delivery-01
+The distinction matters for an implementing agent. The example demonstrates an
+actual compiler and integration path that can be extended. It does not silently
+turn the 35 general RuleIR contract fixtures into executed tests. Those fixtures were the completion target for the full interpreter and
+backend and were subsequently executed by the accepted MVP. The separate
+SPI example has 32 executed decision scenarios and eleven consent histories, with
+its own recorded evidence.
+% END SOURCE UNIT P-03d-java-delivery:01
+
+% BEGIN SOURCE UNIT P-03d-java-delivery:02
+\subsection{The SPI-Demo1 input and output boundary}
+\label{merge:P-03d-java-delivery:02}
+
+
+The public API accepts an immutable \texttt{Snapshot}, a time being assessed and
+a knowledge cutoff. A \texttt{Snapshot} binds a subject identifier to the
+declared fact map. A \texttt{Fact} carries a declared scalar type and one of
+\texttt{known}, \texttt{unknown} or \texttt{conflict}. A known Boolean is a Java
+\texttt{Boolean}; a known monetary or count value is a \texttt{BigInteger}.
+Its evidence identifiers, validity interval and recording time are mandatory.
+Unknown has a reason and no value. Conflict identifies competing evidence.
+
+The host supplies every declared field, using an explicit unknown where evidence
+is unavailable. Omitting a field or supplying the wrong type is a malformed
+request, not a legal conclusion. Validity intervals are half-open: evidence
+valid until 10:00 does not establish a fact at 10:00. Evidence recorded after
+the knowledge cutoff is unavailable to that replay. The API takes canonical UTC
+timestamps with six fractional digits; conversion from a Hong Kong business
+timestamp belongs in the host adapter and must preserve the intended instant.
+
+\begin{lstlisting}[language=Java,caption={The library API and one dated monetary input.}]
+DecisionRuntime.Result evaluate(
+    DecisionRuntime.Snapshot snapshot,
+    String validAt,
+    String knownAt);
+
+// A known value is exact and supported by dated evidence.
+Fact portfolio = Fact.known(
+    "money_hkd", new BigInteger("4000000000"),
+    List.of("valuation.lee", "ownership.lee"),
+    "2026-09-01T00:00:00.000000Z",
+    "2026-10-01T00:00:00.000000Z",
+    "2026-09-01T00:00:00.000000Z");
+
+Fact missingPortfolio = Fact.unknown("money_hkd", "MISSING");
+\end{lstlisting}
+The first amount is HK\$40 million expressed in cents. A bank adapter reading a
+decimal amount should specify the currency, use exact decimal arithmetic and
+reject an unsupported fraction of a cent after the adopted conversion. In Java,
+\texttt{amount.movePointRight(2).toBigIntegerExact()} can enforce exact cents
+after that policy has been applied. Calling \texttt{doubleValue()} first would
+discard the property the specification is trying to preserve. For a currency
+conversion, the exchange-rate source, date, direction and rounding rule are part
+of the evidence mapping.
+
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-02
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-02}
+% END REVISION ADDITION teach-P-03d-java-delivery-02
+The result contains a logical status and an operational disposition:
+\begin{center}\small
+\begin{tabularx}{\textwidth}{P{0.18\textwidth}P{0.34\textwidth}Y}
+\toprule Status & Disposition & Host meaning \\\midrule
+\texttt{TRUE} & Conditions met & Selected streamlining conditions established; continue the other controls.\\
+\texttt{FALSE} & Standard process required & At least one required condition is refuted; do not apply this streamlined route.\\
+\texttt{UNKNOWN} & Review required & Evidence can change the conclusion; show blocking inputs.\\
+\texttt{CONFLICT} & Review required & Resolve inconsistent evidence; preserve both records.\\
+\texttt{OUT\_OF\_SCOPE} & Outside profile & Select another implemented profile or the standard process.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+The demo's JSON includes \texttt{profile}, \texttt{authority}, both timestamps,
+the bundle and snapshot hashes, a postorder rule trace, missing and blocking
+input lists, and the result hash. A rule-trace entry gives its identifier,
+status, source-anchor identifiers and blocking inputs. Source anchors resolve
+through the bundle included with the release. Known values and their evidence
+remain in the preserved snapshot. The current RuleIR implementation provides expression-node traces,
+standardized diagnostics and engine identity through the different v0.1 API
+documented later in this chapter.
+
+A malformed request throws an explicit Java input exception in this small
+library. The production adapter must map that exception, a timeout or an
+unavailable release to a technical-failure result and a review/standard-process
+path. It must never catch an exception and substitute a successful Boolean.
+The demonstration result always carries \texttt{DEMONSTRATION\_ONLY}; production
+authority requires a different, approved release record and enforcement by the
+host deployment process.
+% END SOURCE UNIT P-03d-java-delivery:02
+
+% BEGIN SOURCE UNIT P-03d-java-delivery:03
+\subsection{How the compiler emits final Java rather than a suggestion}
+\label{merge:P-03d-java-delivery:03}
+
+
+The emitter first validates the JSON schema, references, identifiers, types and
+acyclic rule graph. It then assigns an internal Java method name to each rule
+and recursively emits its expression. Identifiers are validated data, never
+pieces of executable text supplied by a language model. The generated monetary
+comparison is represented by actual Java calls such as:
+\begin{lstlisting}[language=Java,caption={The generated financial method's essential body. The complete class is built and tested in the supplied example.}]
+return c.rule("spi.financial", sourceIds, () ->
+    any(
+        compare("ge", c.fact("portfolio"),
+            Value.of(new BigInteger("4000000000"))),
+        compare("ge", c.fact("net_assets_ex_home"),
+            Value.of(new BigInteger("8000000000")))
+    ));
+\end{lstlisting}
+\texttt{compare} returns a known Boolean when both operands are known, or an
+unknown with its blocking input names. \texttt{any} implements the truth table
+in Equation~\eqref{eq:or}. Java evaluates its arguments before calling the
+method, so both branches have the specified eager evaluation and evidence
+collection. Replacing this with Java's short-circuit \texttt{||} would change
+the trace and missing-input behavior even where the final Boolean agreed.
+The context memoizes referenced rules and records their results in a stable
+order. A precheck detects conflicting facts in this profile's dependency set
+before normal expression evaluation.
+
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-03
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-03}
+% END REVISION ADDITION teach-P-03d-java-delivery-03
+The production emitter should implement one mapping per supported operator,
+with an explicit error for every unsupported construct. It must not ask an LLM
+to write new Java on each regulatory change. The LLM can propose the typed
+specification; after review, a deterministic compiler performs the mechanical
+translation. This concentrates semantic review on a small language and makes
+the generation step reproducible.
+
+For the money comparison, the preservation argument is short. The IR represents
+both amounts as mathematical integers of HK cents. The Java boundary constructs
+the same integers as \texttt{BigInteger} values. The emitted comparison returns
+true exactly when \texttt{compareTo} is nonnegative, which expresses the same
+inclusive ordering. The argument depends on the input mapping preserving those
+integers. It would fail if the adapter truncated decimals, mixed currencies or
+overflowed a narrower integer before constructing the value. For a complete
+compiler, analogous local arguments must be composed for every operator,
+unknown/error case, rule reference and trace requirement. The delivered tests
+check examples of preservation; they are not that universal proof.
+% END SOURCE UNIT P-03d-java-delivery:03
+
+% BEGIN SOURCE UNIT P-03d-java-delivery:04
+\subsection{Reproduce the build and see the host result}
+\label{merge:P-03d-java-delivery:04}
+
+
+The repository retains a project-local Temurin JDK 17 for this check, verified
+against the official archive checksum. It does not change the machine's default
+Java installation. From the repository root, the single build command is:
+
+\begin{minipage}{\textwidth}
+\begin{lstlisting}
+python3 examples/java-dry-run/build_and_verify.py \
+  --jdk .localresources/java-toolchain/jdk-17.0.20.1+1
+\end{lstlisting}
+\end{minipage}
+
+The Python authoring check uses the already available JSON Schema package. The
+generated Java library itself has no third-party runtime dependencies. The build
+uses \texttt{javac --release 17 -Xlint:all -Werror}; creates the JAR; compiles
+the separate fixture and host callers against that JAR; compares complete
+reference and Java results; and runs the three mutations. The package has fixed
+ZIP timestamps to make repeated builds with the same toolchain reproducible.
+The verification record stores compiler identity, source/compiler/JAR digests,
+the executed command, results and limitations.
+
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-04
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-04}
+% END REVISION ADDITION teach-P-03d-java-delivery-04
+The delivered files below are operational copies of the design, not additional
+reading needed to understand why it works:
+\begin{center}\small
+\begin{tabularx}{\textwidth}{P{0.45\textwidth}Y}
+\toprule File under \path{examples/java-dry-run/} & Purpose \\\midrule
+\path{spec/spi-control.bundle.json} & Source-linked typed interpretation for the chosen profile.\\
+\path{spec/decision-cases.json}; \path{spec/consent-cases.json} & Independent expected statuses and synthetic evidence/history inputs.\\
+\path{reference.py}; \path{compile_java.py} & Separate reference evaluation and deterministic Java generation.\\
+\path{generated/GeneratedSpi.java} & Final generated decision class.\\
+\path{src/main/java/hk/legalmath/spi/} & Evidence, result, three-valued arithmetic/logic support and consent replay.\\
+\path{build/spi-controls-demo.jar} & Compiled library callable by a Java host.\\
+\path{generated/BankHostExample.java} & Complete synthetic host caller using the public API.\\
+\path{build/verification.json}; \path{build/host-output.txt} & Executed validation and host results.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+The separate host prints these dispositions for the synthetic history:
+\begin{lstlisting}
+BEFORE_WITHDRAWAL STREAMLINING_CONDITIONS_MET
+AFTER_WITHDRAWAL STANDARD_PROCESS_REQUIRED
+RESULT_AUTHORITY DEMONSTRATION_ONLY
+\end{lstlisting}
+This is the concrete answer to how final code reaches Java: the bank depends on
+the released library, constructs the declared evidence snapshot through its
+adapter, calls the generated class and handles its structured result. The
+compiler, public circulars and drafting tools are build-time/review-time
+components. They need not be deployed into the bank's order-processing process.
+% END SOURCE UNIT P-03d-java-delivery:04
+
+% BEGIN SOURCE UNIT M07:09
+\section{The actual generated Java interface}
+\label{merge:M07:09}
+
+
+The current emitter validates the bundle, canonicalizes it and embeds its exact
+bytes in a generated class. The class name is
+\texttt{hk.legalmath.Policy\_} followed by the first twenty hexadecimal digits of
+the bundle hash. The class exposes the full bundle hash and delegates evaluation
+to the Java semantic runtime. This is a generated, immutable policy binding; it
+is not the older proposal's imagined record-based API or a proof that each legal
+rule has been translated to hand-optimized Java control flow.
+
+The two current entry points are:
+\begin{lstlisting}[language=Java,caption={Implemented generated-policy API.}]
+public static String evaluate(
+    String snapshotJson,
+    String ruleId,
+    String validAt,
+    String knownAt,
+    String mode);
+
+public static Map<String,Object> evaluate(
+    Map<String,Object> snapshot,
+    String ruleId,
+    String validAt,
+    String knownAt,
+    String mode);
+\end{lstlisting}
+
+The string overload returns strict JSON. The map overload returns a deeply
+immutable result. The generated policy and Java runtime operate without Python,
+a language model, a solver or network retrieval. This property is important for
+a bank integration: the interpretation workbench prepares and verifies a package,
+while production decision execution can remain local and deterministic.
+
+A concrete host compiles against the actual generated class name from the build
+manifest. It supplies a validated snapshot, exact rule identifier, both assessment
+times and the requested mode. The mode does not grant authority. A caller cannot
+turn a draft into an approved control by passing the word ``production.'' The
+release service and host must establish approval and applicability separately.
+
+% BEGIN REVISION ADDITION teach-M07-09
+\input{\LegalMathRoot teaching/teach-M07-09}
+% END REVISION ADDITION teach-M07-09
+The conceptual integration looks as follows. The symbolic class name in the
+listing is replaced by the actual generated name when the integration fixture is
+built; the release lookup and transaction methods are host responsibilities.
+\begin{lstlisting}[language=Java,caption={Host responsibilities around deterministic evaluation.}]
+ApprovedRelease release = releases.resolve(profile, validAt, knownAt);
+release.verifyAuthorityAndDigests();
+ConsistentSnapshot s = adapter.readSnapshotWithVersions(subject, order);
+String resultJson = Policy_HASH.evaluate(
+    s.strictJson(), release.ruleId(), validAt, knownAt, "production");
+Decision decision = decoder.decodeStrictly(resultJson);
+HostDisposition disposition = hostPolicy.map(decision);
+transactions.commitIfVersionsUnchanged(
+    s.versions(), order.id(), order.payloadHash(),
+    release.identity(), decision, disposition);
+\end{lstlisting}
+
+\texttt{ApprovedRelease}, \texttt{ConsistentSnapshot} and the host transaction
+interfaces in this illustration are proposed integration concepts, not classes
+already supplied by the generated SDK. Their responsibilities must be implemented
+in the bank's environment. The example makes the boundary explicit so an agent
+does not mistake illustrative types for an existing dependency.
+
+The host must handle every tagged result. A true selected prohibition condition
+may require stopping the relevant offer; false permits only progression to other
+controls under the host policy. Unknown, conflict, out-of-scope and error each
+have explicit dispositions. No result string should be cast to a Boolean by a
+language's truthiness rules. The decoder rejects unknown status tags so that a
+future runtime extension cannot silently take an old default branch.
+% END SOURCE UNIT M07:09
+
+% BEGIN SOURCE UNIT M07:10
+\section{Traces are part of the delivered meaning}
+\label{merge:M07:10}
+
+
+A decision without an explanation is difficult to investigate. The runtime trace
+records node identifiers, operators, children, type, value or status, evidence
+references and source spans. Shared rule evaluations are memoized, and skipped
+branches have explicit markers. The trace is deterministic under the request and
+engine version, making it suitable for replay and comparison.
+
+Trace fidelity is a separate verification obligation. Two programs may return
+true while one omits the evidence for the exception or incorrectly claims to have
+evaluated a skipped branch. A regulator-facing explanation assembled from that
+trace could be misleading even though the Boolean result matches. The comparison
+therefore includes trace structure and evidence, not just the top-level status.
+
+% BEGIN REVISION ADDITION teach-M07-10
+\input{\LegalMathRoot teaching/teach-M07-10}
+% END REVISION ADDITION teach-M07-10
+Natural-language explanations are generated from the verified trace and approved
+source mappings. A language model may help render a readable summary, but it
+cannot alter the computed result or invent a justification. If a summary mentions
+a source that the trace and bundle do not contain, validation should reject or
+flag it. The authoritative explanation remains reconstructible without the
+summary model.
+
+The current source-span policy associates trace nodes with the owning rule's
+explicit citations and retains exception citations in the bundle. That is a
+coarser mapping than a separate legal proof for every arithmetic operation. The
+report should describe the granularity honestly. A future refinement may attach
+more precise spans, but a dense set of citations should not be mistaken for a
+formal demonstration that each mapping is legally correct.
+
+Execution hashes identify the canonical request and result under a particular
+backend version. They help detect altered bytes and reproduce behavior. They do
+not authenticate a reviewer or prove that a document came from the regulator.
+Authentication, source acquisition and approval are separate controls. Confusing
+these roles is a common source of overclaiming in systems described as auditable.
+% END SOURCE UNIT M07:10
+
+% BEGIN SOURCE UNIT M07:11
+\section{Event histories add obligations that a snapshot cannot express}
+\label{merge:M07:11}
+
+
+Some requirements concern sequences: obtain consent before an action, honor a
+withdrawal, provide a document within a period, or preserve a breach after late
+performance. A current Boolean snapshot cannot express all of these relationships.
+The existing event component replays finite attributed histories using a separately
+versioned Java entry point, \texttt{EventReplay.replay(Map<String,Object>)}.
+
+A stream header binds subject, category, actor, action, profile and inception.
+Events belong to that header; an API path cannot redirect their meaning to a
+different subject. Duplicate identical events are idempotent, while conflicting
+payloads or sequence reuse are errors. Ordering authority is explicit. If event
+order is unresolved, the system must not invent a sequence based solely on arrival.
+
+Consent illustrates why completeness matters. Absence of a grant in an incomplete
+history does not establish that no grant occurred. A completeness watermark or a
+reviewed initial state supplies the relevant observation boundary. A watermark
+cannot cover a time later than the recording instant of its assertion. A
+withdrawal ends the applicable consent generation, and a later regrant uses a new
+evidence identity rather than resurrecting a previously withdrawn record.
+
+% BEGIN REVISION ADDITION teach-M07-11
+\input{\LegalMathRoot teaching/teach-M07-11}
+% END REVISION ADDITION teach-M07-11
+For an achievement obligation, activation opens a duty with a deadline. The
+selected contract uses the interval from activation up to, but excluding, the
+deadline for timely performance. Performance exactly at the excluded endpoint is
+therefore late under that contract. This is an engineering convention that must
+match the reviewed legal timing rule; a different legal rule requires a different
+specified boundary, not a casual adjustment in the host.
+
+Late performance does not erase the historical breach. The system can record both
+that a duty was breached and that it was later fulfilled. Similarly, an observed
+action is retained even if an advisory control would have prohibited it. Deleting
+inconvenient observations would make replay describe an idealized compliant world
+rather than the bank's actual history.
+
+Each opened duty binds the source bundle that created it. A later amendment does
+not automatically migrate existing duties. Migration may be appropriate, but it
+requires an explicit legal and operational policy about which obligations change,
+which dates apply and how historical findings are retained. The current MVP has
+no automatic migration implementation. The ensemble can identify the question
+and prepare alternatives; it cannot assume the answer from the new publication
+date alone.
+% END SOURCE UNIT M07:11
+
+% BEGIN SOURCE UNIT P-03-product:04
+\subsection{Obligations and event histories}
+\label{merge:P-03-product:04}
+
+
+The decision fragment cannot represent every continuing control. For consent,
+let $s_i$ describe the recorded arrangement immediately before event $e_i$:
+its client, selected categories, agreed threshold, monitoring mode, relevant
+reviews and withdrawal status. Each event includes its timestamps and ordering
+evidence. It changes the recorded state through a
+versioned transition function,
+\begin{equation}
+ s_{i+1}=T_v(s_i,e_i).
+ \label{eq:transition}
+\end{equation}
+Here $i$ orders processed events; it does not assume equal physical time
+steps. Version $v$ identifies the adopted rules and ordering convention. A
+withdrawal event can change the availability of the streamlined arrangement for
+subsequent decisions. A new-funds event can trigger the designated-account
+checks. An annual-review event creates work that must later be evidenced as
+completed. The exact consequences require review of the cited guidance and the
+bank's operating procedure \citep{sfcspiannex1,sfcspiannex2}.
+
+% BEGIN REVISION ADDITION teach-P-03-product-04
+\input{\LegalMathRoot teaching/teach-P-03-product-04}
+% END REVISION ADDITION teach-P-03-product-04
+An obligation record should distinguish its creation, due condition, performance,
+breach and any later remediation. If a transaction occurs after a withdrawal, the
+audit view must retain the transaction and identify the issue; it cannot erase
+the event because the authorization view would have blocked it. This follows the
+useful separation of normative permission from actual occurrence in eFLINT
+\citep{eflint2026}.
+
+Time requires two histories. Legal validity time records when a source or adopted
+rule applies. System-recorded time records when the bank received and deployed
+it. These support different questions: what should have applied to an event, and
+what version did the system actually use? The same distinction applies to facts
+received late or corrected later. A reconstructed historical assessment may use
+new evidence, but it must not overwrite the original decision and its inputs.
+
+Event ordering is a material assumption. The prototype should store source
+timestamps, receipt timestamps, sequence identifiers, time zone and any uncertainty
+in ordering. A synthetic trace with a consent withdrawal and execution at the
+same timestamp is unresolved unless the available ordering or an adopted
+convention settles it. Calendar computations should identify whether they use
+anniversaries, elapsed days or another reviewed operation, drawing on the date
+semantics literature \citep{dates2024}. Neither the operating system clock nor the
+order in which messages happen to arrive establishes legal priority.
+% END SOURCE UNIT P-03-product:04
+
+% BEGIN SOURCE UNIT P-03b-event-contract:00
+\subsection{The finite event profile}
+\label{merge:P-03b-event-contract:00}
+
+
+Apply the state model to a single stream: a grant creates generation $g_1$,
+a withdrawal closes $g_1$, and a later grant creates $g_2$. A transaction carrying
+$g_1$ after the withdrawal is still an observed event, but it cannot be treated as
+an active-consent action. If the withdrawal and transaction have the same
+occurrence time and the connector supplies no ordering authority, the profile
+returns \texttt{E\_ORDER\_UNRESOLVED} rather than guessing from arrival order.
+
+The trace header binds subject, category, actor, action, profile and inception.
+Each event has an immutable identifier, occurrence and recorded timestamps, and
+an authoritative sequence number when one exists. Identical duplicate bytes are
+idempotent; reusing an identifier with different content is an error. A grant or
+withdrawal can establish the state only when the stream is complete from its
+declared inception or a reviewed initial snapshot. An incomplete export remains
+an unknown history, and observed transactions remain in the audit record even
+when the current state would have blocked streamlined treatment.
+
+% BEGIN REVISION ADDITION teach-P-03b-event-contract-00
+\input{\LegalMathRoot teaching/teach-P-03b-event-contract-00}
+% END REVISION ADDITION teach-P-03b-event-contract-00
+An obligation records actor, action, subject, source version, activation and a
+deadline or explicit absence of a deadline. Let $a$ be activation and $d$ the
+exclusive deadline. Under this proposed profile, a matching performance at time
+$p$ is timely when
+\begin{equation}
+ a\leq p<d.
+ \label{eq:timely}
+\end{equation}
+This is the chosen boundary convention for the profile, not an assertion that
+every SFC deadline has the same wording. A local due date is converted to the
+next local midnight. An anniversary requires an explicit leap-day policy; a
+reviewed choice of February 28, March 1 or rejection replaces an implicit library
+default. Business-day calendars are deferred.
+
+Absence of a timely record establishes breach only when a watermark shows that
+the observation window through $d$ is complete. The wall clock cannot create
+that evidence. Without completeness the obligation stays open. Timely performance
+produces \texttt{SATISFIED\_ON\_TIME}; a complete window without it produces
+\texttt{BREACHED}. A subsequent matching performance produces
+\texttt{PERFORMED\_LATE} and retains the breach. A deadline-free request can be
+performed but does not become overdue through an invented number of days.
+
+For example, consider a synthetic review activated at midnight UTC on September
+1 and due at midnight on September 2. A record one microsecond before the latter
+instant is timely; a record exactly at it is late. The fixtures contain both.
+These dates illustrate the runtime convention rather than an SFC-prescribed
+review deadline. If a late-arriving record later proves timely performance,
+replay produces a corrected assessment with a new knowledge cutoff; the original
+assessment remains visible. Maintenance duties, pre-emptive satisfaction,
+waivers and legal compensation require future profiles and are rejected now.
+% END SOURCE UNIT P-03b-event-contract:00
+
+% BEGIN SOURCE UNIT M07:12
+\section{Build, verification and approval form an acyclic chain}
+\label{merge:M07:12}
+
+
+A build manifest records the bundle, generated source, runtime source, toolchain,
+Java target, dependencies and JAR digest. A verification report then names the
+build and exact JAR it tested. A release manifest names that build and verification
+report, together with applicability and effective-time information. Approval
+binds the final release manifest and bundle.
+
+The direction matters. Embedding a manifest that contains the JAR's own digest
+inside that JAR creates a circular identity problem. The current design keeps
+these records external and acyclic. A reviewer approves the exact tested bytes
+through the final manifest, rather than approving a mutable directory or a
+human-readable version label.
+
+% BEGIN REVISION ADDITION teach-M07-12
+\input{\LegalMathRoot teaching/teach-M07-12}
+% END REVISION ADDITION teach-M07-12
+Candidate compilation occurs before legal approval, because reviewers need a
+concrete package and verification evidence to inspect. Compilation does not grant
+deployment authority. Export into a controlled release route occurs only after
+the required approvals and checks. This distinction lets engineers do useful
+reversible work without repeatedly asking for permission, while preserving the
+human decision at the point where it matters.
+
+Reproducible builds strengthen the identity chain. Under the same declared
+toolchain and inputs, build in separate directories with fixed archive-entry
+timestamps and compare emitted source and binary hashes. A mismatch should be
+investigated and recorded. Reproducibility does not prove semantic correctness,
+but it reduces uncertainty about which bytes correspond to the reviewed source.
+
+The local MVP uses synthetic identities and unsigned historical archives to
+exercise workflow. A bank deployment needs enterprise identity, role separation,
+key management and independently verified release signatures or equivalent
+controls. A hash proves equality of bytes under its cryptographic assumption;
+it does not prove who authorized those bytes. The manuscript's implementation
+plan keeps that integration distinct from the local demonstration.
+% END SOURCE UNIT M07:12
+
+% BEGIN SOURCE UNIT M07:13
+\section{A correct decision can still race with the transaction}
+\label{merge:M07:13}
+
+
+Suppose a control depends on consent and exposure. The host reads both, evaluates
+an order and then commits it. Between the read and commit, consent may be
+withdrawn or another order may consume the available limit. The decision was
+correct for its snapshot but is no longer valid for the transaction being
+committed. This is a concurrency problem outside the pure rule evaluator.
+
+The host should read a consistent snapshot with version identifiers, evaluate
+exposure including the proposed order, and atomically validate the versions while
+reserving the exposure and recording the decision. If the versions changed, it
+rereads and reevaluates under a bounded transaction retry policy. That policy is
+separate from interpretation-resolution retries and must not share an ambiguous
+counter called simply ``attempts.''
+
+% BEGIN REVISION ADDITION teach-M07-13
+\input{\LegalMathRoot teaching/teach-M07-13}
+% END REVISION ADDITION teach-M07-13
+Idempotency protects against duplicate submissions. Repeating the same order
+identifier and payload should recover the same committed result or reservation.
+Using the same identifier with a different payload is a conflict. The identity
+must include the legally relevant order content, not merely a user-interface
+request number. Otherwise a retry can accidentally authorize a changed transaction.
+
+Release selection has a similar race. The host records the release identity used
+for the decision and verifies that the applicable release policy permits it at
+commit. Whether an in-flight transaction can finish under a prior release is a
+bank policy requiring explicit treatment. The rule engine cannot resolve that
+question by consulting its process clock or loading whatever JAR is newest.
+
+A rollback also has legal meaning. Restoring a previous software build can repair
+an implementation defect if that build still expresses the applicable rule.
+Restoring a superseded legal regime is different. The incident procedure must
+separate software rollback, operational suspension and legal-rule selection.
+Historical packages remain available for replay even when they cannot be used for
+new decisions.
+% END SOURCE UNIT M07:13
+
+% BEGIN SOURCE UNIT P-03d-java-delivery:05
+\subsection{The bank adapter and the exposure race}
+\label{merge:P-03d-java-delivery:05}
+
+
+The adapter has four responsibilities. It selects the approved rule release for
+the legal entity, business profile and relevant time; resolves identities,
+categories and evidence into the declared inputs; obtains a consistent consent
+and exposure snapshot; and records the result alongside the transaction's other
+controls. The generated library should have no credentials for editing these
+source systems. A host record should include transaction identifier, release and
+snapshot hashes, category and consent generation, data-version identifiers,
+decision timestamps and the final disposition.
+
+Concurrency is a material part of correctness. Suppose existing gross exposure
+is HK\$8 million and two orders each add HK\$1.5 million against a HK\$10 million
+limit. If each reads HK\$8 million, both independently pass at HK\$9.5 million,
+but together they produce HK\$11 million. A perfectly correct generated formula
+does not prevent that race. The host must include reserved exposure and commit
+the new reservation under a transaction or optimistic version check. If the
+exposure or consent version changed after evaluation, it reloads and evaluates
+again. A withdrawal must invalidate a stale consent version before a new order
+can consume the decision. Market-exposure policy, release timing and retry limits
+must be agreed with the bank's order and risk owners.
+
+% BEGIN REVISION ADDITION teach-P-03d-java-delivery-05
+\input{\LegalMathRoot teaching/teach-P-03d-java-delivery-05}
+% END REVISION ADDITION teach-P-03d-java-delivery-05
+An implementable host sequence is:
+\begin{enumerate}
+\item Resolve an idempotency key from the order request. A retry with the same
+key and unchanged payload returns its recorded disposition; a changed payload
+under that key conflicts.
+\item Read the approved release and the subject/category consent generation,
+holdings, leverage and outstanding reservations with their version identifiers.
+Build the dated snapshot and calculate exposure including this order.
+\item Evaluate the generated Java library and the host's remaining controls.
+If this profile is unresolved or refuted, do not consume its streamlined route.
+\item Atomically validate the read versions, reserve the permitted exposure and
+append the decision record. On version conflict, repeat from the read step with
+a bounded retry policy; otherwise route to review.
+\item Retain the committed record for replay. A later correction creates another
+assessment linked to the old one; it does not overwrite what was known earlier.
+\end{enumerate}
+The standalone JAR demonstrates the decision step. It does not simulate this
+bank transaction protocol or certify concurrency in an unspecified host system.
+Those integration tests are required before production use.
+% END SOURCE UNIT P-03d-java-delivery:05
+
+% BEGIN SOURCE UNIT M07:14
+\section{A verification dossier that supports a release decision}
+\label{merge:M07:14}
+
+
+The final technical dossier links the accepted interpretation to its implementation
+through several kinds of evidence. Named scenarios demonstrate reviewed boundary
+behavior. Exhaustive finite checks cover declared small domains. Property and
+mutation tests examine broader classes of implementation mistakes. Symbolic
+comparison supplies domain-qualified results and replayed witnesses. Differential
+execution compares Python and Java semantics. Build records identify exact bytes.
+Host tests exercise concurrency, idempotency and release selection.
+
+These methods overlap but are not interchangeable. A compiler proof could cover
+an unbounded class of accepted expressions under stated semantics, while still
+assuming that the factual adapter and source interpretation are correct. A test
+suite can catch a concrete adapter error that lies outside that proof. An
+independent legal review can reject a perfectly verified expression because it
+misreads an exception. The dossier should state the role of each result so that
+one strong component does not hide a missing one.
+
+% BEGIN REVISION ADDITION teach-M07-14
+\input{\LegalMathRoot teaching/teach-M07-14}
+% END REVISION ADDITION teach-M07-14
+For the current project, the retained engineering evidence includes the local
+MVP test suite, the separate second-circular exercise and the later E01--E09
+scripted controller acceptance. The controller and its deterministic
+acceptance scenarios now exist. The next empirical step requires independent
+reference judgments and restricted live-provider evaluation. No implemented
+live-model product has yet established legal-interpretation performance. Declaring the entire product ready because the Java path works would
+skip the central problem this book is designed to address.
+
+A release reviewer should be able to answer four concrete questions from the
+package: what rule is being enforced; what evidence makes its inputs meaningful;
+what demonstrates that these exact bytes preserve the rule; and what happens when
+an assumption or input is uncertain. If any answer requires guessing from a model
+confidence score, the dossier is incomplete. Chapter~\ref{ch:implementation} turns
+these requirements into service records, operations and ordered implementation
+tasks.
+% END SOURCE UNIT M07:14
+

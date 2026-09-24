@@ -1,0 +1,654 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legalmath.invalid/spec/0.1/rule-bundle",
+  "type": "object",
+  "properties": {
+    "spec_version": {
+      "const": "0.1"
+    },
+    "bundle_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]*$"
+    },
+    "valid_from": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$"
+    },
+    "valid_until": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_spans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "raw_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "text_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "quote_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "id",
+          "source_id",
+          "raw_sha256",
+          "text_sha256",
+          "page",
+          "start",
+          "end",
+          "quote_sha256"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "interpretations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "basis": {
+            "enum": [
+              "source_explicit",
+              "reviewer_interpretation",
+              "bank_policy",
+              "synthetic_test"
+            ]
+          },
+          "source_span_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "minItems": 1
+          },
+          "issue_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "id",
+          "statement",
+          "basis",
+          "source_span_ids",
+          "issue_ids"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "type": {
+            "enum": [
+              "bool",
+              "integer",
+              "money_hkd",
+              "date"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "type": {
+            "enum": [
+              "bool",
+              "integer",
+              "money_hkd",
+              "date"
+            ]
+          },
+          "scope": {
+            "$ref": "#/$defs/expr"
+          },
+          "body": {
+            "$ref": "#/$defs/expr"
+          },
+          "interpretation_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "source_span_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "scope",
+          "body",
+          "interpretation_id",
+          "source_span_ids"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "spec_version",
+    "bundle_id",
+    "valid_from",
+    "valid_until",
+    "source_spans",
+    "interpretations",
+    "facts",
+    "rules"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "expr": {
+      "oneOf": [
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "node_id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "op": {
+                  "const": "literal"
+                },
+                "type": {
+                  "const": "bool"
+                },
+                "value": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "node_id",
+                "op",
+                "type",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "node_id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "op": {
+                  "const": "literal"
+                },
+                "type": {
+                  "const": "integer"
+                },
+                "value": {
+                  "type": "string",
+                  "pattern": "^(0|-?[1-9][0-9]*)$"
+                }
+              },
+              "required": [
+                "node_id",
+                "op",
+                "type",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "node_id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "op": {
+                  "const": "literal"
+                },
+                "type": {
+                  "const": "money_hkd"
+                },
+                "value": {
+                  "type": "string",
+                  "pattern": "^(0|-?[1-9][0-9]*)$"
+                }
+              },
+              "required": [
+                "node_id",
+                "op",
+                "type",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "node_id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "op": {
+                  "const": "literal"
+                },
+                "type": {
+                  "const": "date"
+                },
+                "value": {
+                  "type": "string",
+                  "format": "date"
+                }
+              },
+              "required": [
+                "node_id",
+                "op",
+                "type",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "fact"
+            },
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "rule"
+            },
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "all"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "args"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "any"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "args"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "not"
+            },
+            "arg": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "arg"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "compare"
+            },
+            "left": {
+              "$ref": "#/$defs/expr"
+            },
+            "right": {
+              "$ref": "#/$defs/expr"
+            },
+            "cmp": {
+              "enum": [
+                "eq",
+                "ge",
+                "gt"
+              ]
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "left",
+            "right",
+            "cmp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "add"
+            },
+            "left": {
+              "$ref": "#/$defs/expr"
+            },
+            "right": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "left",
+            "right"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "sub"
+            },
+            "left": {
+              "$ref": "#/$defs/expr"
+            },
+            "right": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "left",
+            "right"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "scale"
+            },
+            "arg": {
+              "$ref": "#/$defs/expr"
+            },
+            "numerator": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "denominator": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "arg",
+            "numerator",
+            "denominator"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "if"
+            },
+            "condition": {
+              "$ref": "#/$defs/expr"
+            },
+            "then": {
+              "$ref": "#/$defs/expr"
+            },
+            "else": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "condition",
+            "then",
+            "else"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "op": {
+              "const": "default"
+            },
+            "base": {
+              "$ref": "#/$defs/expr"
+            },
+            "exceptions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "exception_id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "guard": {
+                    "$ref": "#/$defs/expr"
+                  },
+                  "value": {
+                    "$ref": "#/$defs/expr"
+                  },
+                  "interpretation_id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "source_span_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_.-]*$"
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "exception_id",
+                  "guard",
+                  "value",
+                  "interpretation_id",
+                  "source_span_ids"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 0
+            }
+          },
+          "required": [
+            "node_id",
+            "op",
+            "base",
+            "exceptions"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

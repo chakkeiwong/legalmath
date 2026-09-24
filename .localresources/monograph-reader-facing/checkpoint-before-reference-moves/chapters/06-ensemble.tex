@@ -1,0 +1,1482 @@
+\chapter[An accountable ensemble with bounded resolution]{An accountable ensemble\\with bounded resolution}
+\label{ch:ensemble}
+
+Imagine five careful readers examining the same circular. If all five receive
+the same missing annex, their agreement says little about the omitted rule. If
+one reader inventories the source, another tests exceptions, and a third checks
+the consequences in a worked case, a disagreement becomes useful evidence. The
+bank can ask which reading is supported and what still needs a human decision.
+
+The ensemble proposed here is built for that kind of disagreement. It assigns
+different readers different jobs, freezes the initial readings before debate,
+and gives each discrepancy a finite investigation. The controller's success is
+a clear account of what was resolved and what remains open, not a high vote
+count.
+
+
+% BEGIN SOURCE UNIT M06:00
+\section{The design objective and its limits}
+\label{merge:M06:00}
+
+
+The proposed system must make a dangerous path difficult: a plausible reading is
+accepted, translated correctly, and released without anyone discovering that it
+omits a material qualification. Multiple generators alone do not close that path.
+They may share a source extraction, a vocabulary, a training distribution and the
+same mistaken assumption. The design therefore uses redundancy across different
+activities, not just repeated answers to one question.
+
+One activity inventories the source and its dependencies. Another identifies
+normative statements. Several candidate constructors express different readings.
+An opponent seeks a missing condition or counterexample. A formal evaluator
+checks consequences. A separate reference process supplies expected decisions
+for reviewed scenarios. A Java verifier checks preservation. Each activity has a
+defined responsibility and a defined way to fail. A failure or discrepancy is
+recorded even when every other member appears successful.
+
+The main output is an interpretation dossier. It contains the proposed control,
+the source it covers, the readings considered, the reasons for their dispositions,
+the tests and formal checks, and the uncertainty that remains. The controller
+may prepare this dossier for review. It does not acquire authority to approve
+legal meaning merely because it has completed its work.
+
+% BEGIN REVISION ADDITION teach-M06-00
+\input{\LegalMathRoot teaching/teach-M06-00}
+% END REVISION ADDITION teach-M06-00
+There are three success conditions at different levels. An engineering run
+succeeds when it follows the specified state machine and produces a complete
+report within its limits. An interpretation investigation succeeds when it
+resolves its declared questions with adequate evidence or precisely identifies
+what requires judgment. A release succeeds only after the required people approve
+the exact interpretation and executable package. A run can satisfy the first
+condition while ending with an unresolved legal question. That is a valid and
+useful outcome, not an excuse to fabricate certainty.
+
+No finite ensemble can establish that it has found every possible reading of
+unrestricted language. The operational objective is more precise: cover a
+reviewed source perimeter; require explicit treatment of every inventoried unit;
+search a declared set of interpretive dimensions; investigate every detected
+discrepancy under finite limits; and prevent a material unresolved question from
+being silently converted into release. These obligations can be implemented and
+tested. Their empirical effectiveness at discovering unknown omissions requires
+the evaluation in Chapter~\ref{ch:evaluation}.
+% END SOURCE UNIT M06:00
+
+% BEGIN SOURCE UNIT M06:01
+\section{Why diversity has to be designed}
+\label{merge:M06:01}
+
+
+Repeated sampling can reduce some random mistakes while leaving a shared mistake
+untouched. A simple probability model makes the distinction clear. Let $q$ be the
+probability of a common failure that makes every member wrong. Conditional on
+that failure not occurring, assume for this illustration that each of $m$ members
+has independent error probability $p$. The probability that all members are wrong
+is then
+\begin{equation}
+ \Pr(\text{all wrong})=q+(1-q)p^m.
+ \label{eq:common-error}
+\end{equation}
+The two events are disjoint: either the common failure occurs, or it does not and
+all residual errors occur together. This derivation is an illustrative model,
+not an estimated error law for language models or lawyers.
+
+If $q=0.02$, $p=0.1$ and $m=3$, the expression gives $0.02098$. Each
+member then has marginal error probability $r=q+(1-q)p=0.118$. A fair
+independence comparison holds that marginal probability fixed: three
+independent members would all fail with probability $r^3=0.001643032$.
+The smaller value $0.001=p^3$ describes residual errors conditional on
+the common failure being absent; it is a different comparison. Adding
+members reduces the residual term in this example, but the common failure
+remains. A missing footnote in the shared extraction is a concrete way that the
+common failure could arise. Three careful interpretations of the same incomplete
+text may agree perfectly.
+
+% BEGIN REVISION ADDITION teach-M06-01
+\input{\LegalMathRoot teaching/teach-M06-01}
+% END REVISION ADDITION teach-M06-01
+A second calculation concerns the variability of a mean of member indicators.
+Suppose $X_i$ records whether member $i$ makes a particular error. For
+$m\geq2$, assume equal nonzero variance $\sigma^2$ and common pairwise
+correlation $\rho$. These must describe an attainable joint distribution.
+In particular, its correlation matrix requires
+$-1/(m-1)\leq\rho\leq1$; Bernoulli indicators can impose further
+restrictions. There are $m$ variance terms and $m(m-1)$ ordered covariance
+terms when the squared sum is expanded, giving
+\begin{align}
+ \operatorname{Var}\!\left(\frac1m\sum_{i=1}^m X_i\right)
+ &=\frac{1}{m^2}\left(m\sigma^2+m(m-1)\rho\sigma^2\right)\notag\\
+ &=\frac{\sigma^2}{m}\{1+(m-1)\rho\}.
+ \label{eq:ensemble-variance}
+\end{align}
+The expression explains why counting correlated members exaggerates the amount
+of independent information. It does not identify their correlation in practice,
+and it does not supply a legal error probability. Its role is to motivate
+measurement of shared failure and to discourage confidence claims based on panel
+size alone.
+
+Diversity should therefore be recorded along several axes. Members may use
+different model families, prompts, representations, source acquisition routes,
+retrieval methods, factual schemas or verification methods. These differences are
+opportunities for complementary errors; they do not prove independence. Two
+vendors can share training material. Two parsers can both omit an image. Two human
+reviewers can both receive a leading case summary. The record should describe
+what differs and what remains shared.
+
+The strongest inexpensive separation is often procedural. Let source inventory
+and initial interpretation happen before either sees the other's preferred
+conclusion. Freeze the initial outputs. Only then expose disagreements for
+investigation. This preserves evidence that one member independently noticed a
+condition. If all members see the first answer before responding, later agreement
+may merely reflect anchoring. Deliberation can still be useful, but it must not
+rewrite the history of independent proposals.
+% END SOURCE UNIT M06:01
+
+% BEGIN SOURCE UNIT M06:02
+\section{The ensemble members and their responsibilities}
+\label{merge:M06:02}
+
+
+The prototype uses roles rather than assuming that every role is a language
+model. The source custodian acquires the official document, retains the exact
+bytes and metadata, and records incorporated materials. A document inventory
+process enumerates paragraphs, footnotes, tables, attachments and visible
+cross-references. A second inventory method compares the enumeration with the
+rendered document. Both methods may be automated initially, but unexplained
+mismatches remain review questions.
+
+The normative reader identifies who must or may do what, under which conditions,
+with which exceptions and dates. A controlled-language reader expresses the same
+material using a restricted template. Their outputs are compared at the level
+of actor, activity, modality, object, condition, exception, time and dependency.
+This comparison can reveal a missing phrase even when the two prose summaries
+sound similar.
+
+A counterinterpretation reader is required to propose consequential alternatives
+where the source supports them, and to say when it found none. It is not required
+to invent a controversy for every sentence. Its task includes seeking an omitted
+qualification, an alternative attachment of an exception, or a classification
+that changes a boundary case. Unsupported alternatives are preserved as such,
+which helps distinguish deliberate testing from legal disagreement.
+
+The formal checker validates types, references and explicit semantics, compares
+candidate rules over supported domains, and replays witnesses. It has no
+permission to promote a source assumption to a fact. The scenario designer
+constructs examples that separate readings and includes unknown, conflicting and
+out-of-scope evidence. Its expected outcomes come from an independent review
+process or remain labelled provisional.
+
+% BEGIN REVISION ADDITION teach-M06-02
+\input{\LegalMathRoot teaching/teach-M06-02}
+% END REVISION ADDITION teach-M06-02
+The implementation checker compares the accepted rule with the Java package and
+verifies the package's exact identity. Finally, the dossier assembler reconciles
+all required outputs and creates the review report. It may summarize, but it may
+not suppress a minority objection, change its severity or mark it resolved without
+a linked resolution record.
+
+A role can fail in several ways: unavailable, malformed output, unsupported
+claim, resource limit, incompatible source version or abstention. Abstention is
+an informative response when a role lacks the evidence needed for its question.
+It is not a vote for the majority. If a role is mandatory for the configured
+coverage claim, its missing output prevents that claim from being marked complete.
+A replacement role must be explicitly authorized by the configuration and its
+independence limits recorded.
+
+The responsibilities are easier to understand in four groups. The first group
+establishes what the bank is looking at; the second asks what the source means;
+the third tries to break the proposed reading; and the fourth checks whether the
+accepted reading survives implementation and review. The short table gives the
+route a reader needs before the detailed record in Appendix~\ref{app:detailed-tables}.
+
+\begin{table}[htbp]
+\centering
+\caption{Four jobs that must remain distinct when a circular is interpreted.}
+\label{tab:ensemble-roles}
+\begin{tabularx}{\textwidth}{P{35mm}YY}
+\toprule
+Job & Question it answers & Failure that must remain visible\\
+\midrule
+Establish the source & Which passages, annexes and definitions are in scope? & Missing or inaccessible material.\\
+Explain the meaning & Who must or may do what, under which conditions and exceptions? & Omitted actor, scope, duty or qualification.\\
+Try to break the reading & Which supported alternative would change a real decision? & Unanswered objection or untested boundary case.\\
+Check the delivered control & Does the implementation preserve the accepted meaning and its evidence? & Mismatch, stale release, unresolved reviewer disagreement or missing record.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The full record names the individual roles behind these four jobs. Keeping that
+record available matters for an audit, but the bank decision depends first on the
+questions and failures shown here.
+% END SOURCE UNIT M06:02
+
+% BEGIN SOURCE UNIT M06:03
+\section{Build a source perimeter before interpreting it}
+\label{merge:M06:03}
+
+
+The source perimeter is the set of documents and versions the investigation
+claims to cover. It begins with the named circular, but incorporated definitions,
+annexes and transition provisions may expand it. Each dependency has a reason:
+explicit incorporation, definition of a term, amendment, background explanation,
+or a proposed analogy. These relationships must not all be collapsed into a
+generic ``relevant document'' link.
+
+For 23EC46, the retained inventory has eighteen paragraphs and four footnotes.
+The executable slice covers paragraph 10. That is a legitimate prototype scope
+only if the report makes the remaining material visible and explains whether it
+is contextual, another obligation, a dependency, or outside the selected slice.
+Labelling all unimplemented paragraphs ``not applicable'' merely because the
+prototype lacks code would be wrong. Implementation capability is not a legal
+applicability test.
+
+The inventory assigns each source unit a stable locator within a particular
+source hash. It records the extracted text, its position, and whether the unit
+contains a possible normative statement or reference. The second inventory can
+use a different parser or rendered-page inspection. A mismatch creates a source
+coverage discrepancy before any interpretation ranking takes place.
+
+% BEGIN REVISION ADDITION teach-M06-03
+\input{\LegalMathRoot teaching/teach-M06-03}
+% END REVISION ADDITION teach-M06-03
+The controller expands dependencies until each required edge reaches a retained
+source, a justified out-of-scope disposition, or an unresolved dependency record.
+Cycles are legal as document relationships: a code and a guidance note can refer
+to each other. The traversal uses visited version identifiers to avoid infinite
+retrieval, while preserving both edges. A retrieval depth limit stops processing
+but leaves the unexpanded edge visible. It does not prove that the dependency is
+unimportant.
+
+Publication date, effective date and retrieval date occupy separate fields. A
+circular published today may describe a later transition or an earlier
+arrangement. The source custodian cannot infer commencement solely from the HTTP
+response time or the first date in the text. The retained source packet is a
+historical evidence object. A current applicability assessment requires a
+separate search for amendments and supersession, with its own cut-off date.
+
+This inventory is an important defense against common omissions, but it is not
+an oracle. An extractor might enumerate a footnote without understanding its
+legal effect. The requirement that each unit receives a reasoned disposition
+connects inventory to interpretation. A coverage check should fail if a unit is
+present but has no explanation, or if an explanation claims executable coverage
+without identifying the rule and verification evidence that provide it.
+% END SOURCE UNIT M06:03
+
+% BEGIN SOURCE UNIT M06:04
+\section{Freeze blind proposals before reconciliation}
+\label{merge:M06:04}
+
+
+An initial proposal request contains the frozen source packet, the selected
+activity profile, the vocabulary already approved for that profile, and the
+member's task. It excludes other members' proposed conclusions. The response is
+stored with model or tool identity, configuration, prompt-template version, source
+hashes and completion status. Raw output is retained subject to the bank's access
+and retention policy; the structured candidate is a validated derivative.
+
+A candidate cannot refer to a source version it was not given without opening a
+new retrieval request. This rule prevents a model's recalled description of an
+unseen amendment from entering as if it were inspected evidence. Recalled
+material can nominate a search, but the supporting claim remains unverified
+until the source is acquired and checked.
+
+% BEGIN REVISION ADDITION teach-M06-04
+\input{\LegalMathRoot teaching/teach-M06-04}
+% END REVISION ADDITION teach-M06-04
+The blind phase ends when every required member has responded or reached a
+terminal failure under the initial-phase budget. The controller records that
+boundary. It then compares the candidates and inventories. Later repairs may
+share all relevant evidence, because their purpose is informed resolution. The
+record must continue to distinguish the initial independent proposals from
+responses influenced by the shared discussion.
+
+This separation prevents a misleading report such as ``five independent members
+agreed'' when four were shown the first member's answer. It also makes a useful
+experiment possible: measure which defects were caught before deliberation and
+which required shared investigation. A system that produces agreement by
+suppressing dissent should look different from one that resolves an objection
+with a missing official definition.
+
+Candidate revisions are immutable. A revised rule points to its parent, states
+what changed, and links the evidence or diagnostic that motivated the change.
+The original remains available. Reviewer approvals attach to a particular
+candidate hash, not to a mutable display name such as ``latest rule.'' If a
+source, assumption or rule changes, the old approval cannot silently authorize
+the new candidate.
+% END SOURCE UNIT M06:04
+
+% BEGIN SOURCE UNIT M06:05
+\section{Detect discrepancies at the right level}
+\label{merge:M06:05}
+
+
+A discrepancy is a structured difference that may affect coverage, meaning,
+execution or evidence. It need not be a pair of contradictory prose answers.
+One member may omit an input that another requires; two members may agree on a
+rule but cite different versions; one parser may miss a footnote; the Java
+runtime may return the same decision with an incomplete audit trace. All deserve
+a recorded disposition appropriate to their consequence.
+
+The comparator first checks identity: source versions, activity profile, subject
+unit, candidate dependencies and evaluation times. Comparing answers to different
+questions creates false disagreement. A model interpreting a whole offer and one
+interpreting a single benefit must be identified as differing in subject identity
+before their truth values are compared.
+
+It then compares structured meaning: actor, action, object, modality, conditions,
+exceptions, quantifiers, temporal boundaries and references. Exact structural
+matches are cheap evidence of agreement about those fields, but source coverage
+still needs a separate check. Differences in presentation can be classified as
+nonmaterial only with an explicit rationale, such as identical canonical syntax
+or a domain-qualified equivalence result.
+
+% BEGIN REVISION ADDITION teach-M06-05
+\input{\LegalMathRoot teaching/teach-M06-05}
+% END REVISION ADDITION teach-M06-05
+Formal outcome comparison comes next. A counterexample is especially useful when
+two apparently similar rules disagree only at a boundary. For paragraph 10,
+omitting product-type linkage is exposed by $P=\False$, $T=\True$, with the other
+conditions established. Omitting the discount exception is exposed by a genuine
+fee discount. Neither example resolves whether a particular cashback is a fee
+discount; that is a different discrepancy with a different evidence need.
+
+The comparator also checks omissions against independent inventories. Every
+required source unit, dependency and ensemble role must have a disposition. An
+all-agreeing set of candidates can therefore still produce discrepancies. This
+is the intended behavior: agreement among candidates cannot erase an uncovered
+paragraph or a failed source acquisition.
+
+A discrepancy record includes its origin, affected source units, candidate
+identifiers, issue family, factual or legal question, observed difference,
+materiality, evidence needed, permitted next actions and current status. It also
+stores the consequence of leaving it unresolved. A classification issue might
+block a particular incentive category; a corrupted source hash might invalidate
+the entire run. The scope of the block must be explicit and conservative when
+impact cannot yet be determined.
+% END SOURCE UNIT M06:05
+
+% BEGIN SOURCE UNIT M06:06
+\section{An issue needs an identity that survives retries}
+\label{merge:M06:06}
+
+
+Naive retry systems often attach the attempt counter to a model response. When
+the response creates a revised candidate, a new counter starts. A difficult issue
+can then consume unlimited attempts by repeatedly changing its wording or
+creating descendants. The proposed controller attaches budgets to the run and to
+an issue root that survives candidate revisions.
+
+An issue root identifies the source context, the substantive question and the
+affected subject or rule family. It does not include a candidate hash as the only
+identity, because candidate hashes necessarily change during repair. The system
+assigns an immutable root identifier when the question is first recorded.
+Subsequent discrepancies can link to that root or create a child issue. A child
+inherits the root's budget account and the run's limits. Creating a new display
+record never creates new spending authority.
+
+% BEGIN REVISION ADDITION teach-M06-06
+\input{\LegalMathRoot teaching/teach-M06-06}
+% END REVISION ADDITION teach-M06-06
+Automatic deduplication proposes that two issues have the same root when they
+concern the same source unit, semantic dimension and consequence. A reviewer or
+strict deterministic criterion must resolve uncertain merges. An erroneous merge
+could hide a second problem; an erroneous split could waste work. Global action
+limits protect against unlimited spending even when deduplication is imperfect,
+while the report shows possible duplicates for later review.
+
+Issue identity also separates changed evidence from repeated reasoning. If an
+unavailable FAQ becomes available during the same run, the controller can attach
+the new version and continue within the remaining budget. If a later circular
+changes the applicable rule, that is a new source context and normally a new run.
+The old run remains closed with its original result. Opening the new run requires
+a recorded trigger and authorization; a worker cannot evade exhausted limits by
+automatically renaming the investigation.
+
+A candidate that depends on several issues keeps all of their identifiers. A
+resolution of one issue cannot clear the others. The dependency relation also
+supports invalidation: retracting a definition affects every candidate that used
+it, even if those candidates were reached through different search branches.
+The service must query this relation directly rather than trying to reconstruct
+it from narrative summaries.
+% END SOURCE UNIT M06:06
+
+% BEGIN SOURCE UNIT M06:07
+\section{Statuses describe evidence, not optimism}
+\label{merge:M06:07}
+
+
+The issue lifecycle begins at \texttt{OPEN}. An issued action moves it to
+\texttt{INVESTIGATING}. It may then return to \texttt{OPEN} with additional evidence,
+move to \texttt{AWAITING\_EVIDENCE}, or require \texttt{HUMAN\_REQUIRED}. These are
+unresolved states. They differ in the next useful action, not in whether the
+system may assume the preferred answer.
+
+Resolution has three main forms. \texttt{RESOLVED\_EVIDENCE} means that an inspected
+source or factual record establishes the missing premise under the accepted
+review rules. \texttt{RESOLVED\_ADJUDICATION} means that an authorized reviewer has
+made and explained the interpretive decision. \texttt{RESOLVED\_EQUIVALENCE} means
+that the apparently different executions have been shown equivalent over a
+specified domain and that no distinct source commitment remains at issue.
+These statuses require different evidence and cannot substitute for one another.
+
+For example, an SMT equivalence result cannot resolve a dispute about whether the
+word ``may'' establishes a universal classification. Both candidates may have
+been encoded with the same unjustified classification flag. Conversely, an
+explicit source passage that defeats a missing-exception candidate need not wait
+for a probabilistic vote. The source-based resolution identifies the clause,
+updates the candidate and requires the affected formal and Java checks again.
+
+% BEGIN REVISION ADDITION teach-M06-07
+\input{\LegalMathRoot teaching/teach-M06-07}
+% END REVISION ADDITION teach-M06-07
+An issue may become terminal while remaining unresolved. The terminal reason can
+be \texttt{BUDGET\_EXHAUSTED}, \texttt{DEADLINE\_REACHED}, \texttt{NO\_PROGRESS},
+\texttt{DEPENDENCY\_UNAVAILABLE}, \texttt{CANCELLED}, or an integrity failure.
+Terminality means automatic work has stopped. It says nothing favorable about
+the candidate. The report must therefore store resolution status separately from
+processing status; a single Boolean \texttt{done} is inadequate.
+
+Materiality is another separate field. An issue is material when its unresolved
+answer could change applicability, a required action, the decision, the timing,
+the explanation required for review, or the validity of the evidence chain. If
+impact is unknown, it is treated as material until assessed. Downgrading an issue
+requires a reason and authority appropriate to the configured review policy.
+A generator cannot label its own objection immaterial simply to unblock release.
+
+A resolved issue can be reopened by new evidence, a source amendment, an invalid
+witness or a discovered dependency. Reopening creates a new event and invalidates
+results that depended on the old resolution. It does not erase the earlier
+record. If the original run is already closed, the successor investigation links
+to it and states which conclusion is being reconsidered.
+% END SOURCE UNIT M06:07
+
+% BEGIN SOURCE UNIT M06:08
+\section{Choose a remedy that can answer the question}
+\label{merge:M06:08}
+
+
+Each discrepancy type has a permitted action set. A missing source calls for
+retrieval or escalation to the source custodian. A parsing disagreement calls for
+inspection of the original page, an alternative parser or manual transcription
+with provenance. A scope disagreement calls for analysis of the actor and
+activity language, incorporated definitions and the selected bank profile. A
+formal mismatch calls for a replayable witness and a correction to the relevant
+encoding or runtime component.
+
+A useful action has a question, an expected evidence type, a bounded execution
+method and a success condition. ``Ask another model'' is incomplete. ``Ask the
+alternative reader to identify source-supported reasons why the exception might
+attach to the whole offer, using only the retained paragraph and definition'' is
+a bounded interpretive task. Its result is still a proposal, but the task makes
+clear what new information it seeks.
+
+The controller should prefer actions with a plausible path to resolution. If the
+question is whether a fee was paid, querying transaction evidence may be more
+useful than sampling another legal explanation. If the question concerns the
+meaning of an incorporated term, more transaction data may be irrelevant. This
+matching of remedy to issue is where structured uncertainty becomes operationally
+valuable.
+
+% BEGIN REVISION ADDITION teach-M06-08
+\input{\LegalMathRoot teaching/teach-M06-08}
+% END REVISION ADDITION teach-M06-08
+An action can also deliberately seek a falsifier. For a proposed rule, request a
+feasible scenario in which it contradicts an express source condition. For a
+classification, request a fact pattern that the definition treats counterintuitively
+and ask which source justifies that boundary. For a claimed equivalence, ask the
+solver for a difference rather than asking a model whether the programs look
+similar. Falsification attempts must retain their domain and assumptions.
+
+Repeated actions are allowed only when their rationale changes or a bounded retry
+policy permits recovery from a technical failure. Retrying an unavailable server
+can make sense; asking the identical question with no new evidence is unlikely
+to resolve a legal ambiguity. The report should show which retries addressed
+transport failure and which explored a substantive alternative. Both consume
+resources, but they mean different things for the investigation.
+
+A repair is validated against the original discrepancy and against the unaffected
+requirements. Fixing the type-of-product omission must not remove the fee-discount
+exception. A local witness becoming consistent is necessary evidence about that
+repair, but insufficient evidence about the whole rule. The controller runs the
+dependent validation set, records any new discrepancies, and keeps the old issue
+open until its resolution criterion is actually satisfied.
+% END SOURCE UNIT M06:08
+
+% BEGIN SOURCE UNIT M06:09
+\section{A resolution matrix prevents the wrong kind of closure}
+\label{merge:M06:09}
+
+
+The controller needs a typed relationship between a discrepancy and the evidence
+that can close it. Without that relationship, every issue can eventually be
+``resolved'' by another fluent explanation. The table below gives the four
+questions that determine the next step. The complete row-by-row matrix remains
+in Appendix~\ref{app:detailed-tables} for implementers.
+
+\begin{table}[htbp]
+\centering
+\caption{Choose the evidence that can answer the question.}
+\label{tab:resolution-matrix}
+\begin{tabularx}{\textwidth}{P{38mm}P{57mm}Y}
+\toprule
+Question & Appropriate next action & Evidence that can close it\\
+\midrule
+Is the source complete and current? & Inspect the original rendering, dependencies and amendment dates. & The retained source or an attributable decision about the remaining gap.\\
+Does the rule apply to this person, product and activity? & Re-read the actor, object, exception and factual profile together. & A reviewed applicability proposition supported by the relevant facts.\\
+Do competing readings change a decision? & Construct a boundary case and identify the passage or definition that separates them. & A source-grounded choice, or an explicit unresolved review question.\\
+Does the implementation preserve the accepted reading? & Replay a feasible difference case and compare the full explanation, facts and result. & A corrected release with repeated checks, or a domain-qualified limitation.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+A new paraphrase cannot repair a missing source, and a solver equivalence check
+cannot supply a commencement date. The action has to produce the kind of evidence
+that the question requires. The appendix records the finer distinctions among
+classification, timing, conflicts, unsupported operations and approval lineage.
+
+% BEGIN REVISION ADDITION teach-M06-09
+\input{\LegalMathRoot teaching/teach-M06-09}
+% END REVISION ADDITION teach-M06-09
+Some issues need more than one row. A cashback classification can depend on an
+unavailable definition and an uncertain factual relationship to a fee. Retrieving
+the definition resolves the dependency but may leave the factual question open.
+The controller should represent these as linked issues so that progress is visible
+without overstating closure. A single combined issue can be acceptable if its
+resolution criterion explicitly requires both conditions.
+
+The matrix also guides action rejection. If a proposed action cannot produce the
+needed evidence, the scheduler should normally decline it and explain why. A new
+model paraphrase is not an appropriate remedy for a corrupted source digest. A
+solver equivalence query is not an appropriate remedy for a missing commencement
+date. This does not prohibit exploratory work; it requires that exploratory work
+be labelled as such and charged to the investigation budget rather than counted
+as resolution.
+
+Closure is evaluated against the issue's original question and current source
+context. Suppose a model responds to a component-level question with a correct
+whole-offer explanation. The response may be useful, but it has not answered the
+original question. The controller creates or links the relevant candidate and
+keeps the original issue open. This guards against a subtle form of apparent
+progress in which the task changes until the model can answer it confidently.
+% END SOURCE UNIT M06:09
+
+% BEGIN SOURCE UNIT M06:10
+\section{Resolution can reveal that the first question was wrong}
+\label{merge:M06:10}
+
+
+A structured controller must still permit substantive reframing. The initial
+question may assume a distinction that the source does not make. For example,
+the team may ask whether a cashback is a discount when the relevant provision
+instead classifies the entire arrangement through another defined concept.
+The correct response is to record the changed understanding, identify which
+source supports it and replace the candidate with a new revision. The old question
+is dispositioned as superseded by a reasoned reframing, not silently deleted.
+
+Reframing does not reset budgets. The successor issue links to the original root
+or consumes the same global account, and the report explains the relationship.
+If the reframing expands the source perimeter beyond the authorized run, the
+current investigation can end with a request for a successor run. This prevents a
+useful ability to change direction from becoming an unbounded search loophole.
+
+% BEGIN REVISION ADDITION teach-M06-10
+\input{\LegalMathRoot teaching/teach-M06-10}
+% END REVISION ADDITION teach-M06-10
+A concrete example concerns subject identity. A provider initially treats an
+offer as one benefit. The independent inventory identifies a source passage that
+requires separate treatment of components. The controller creates a component
+model, revises factual requirements and reruns affected scenarios. It also records
+that prior results used a different subject abstraction. Merely changing the
+formula while leaving the whole-offer adapter untouched would not complete the
+repair.
+
+Another example concerns modality. A candidate initially turns guidance about
+factors to consider into an unconditional prohibition. Investigation shows that
+the source requires an assessment rather than a predetermined outcome. The repair
+may need a workflow obligation, evidence of consideration and a review record,
+not another Boolean threshold. If the current runtime cannot express the accepted
+requirement, the result is a supported interpretation with an implementation gap.
+That is more accurate than forcing the source into a familiar Boolean shape.
+
+These cases explain why the issue register includes the affected decision and the
+kind of evidence required. The controller can recognize that the target has
+changed and invalidate dependent checks. A test suite for the previous target
+cannot automatically certify the new one, even if many examples happen to retain
+the same final status.
+% END SOURCE UNIT M06:10
+
+% BEGIN SOURCE UNIT M06:11
+\section{The investigation graph should preserve shared causes}
+\label{merge:M06:11}
+
+
+The following diagram separates the objects that are often collapsed into a
+single chain of model messages. Several candidates can depend on one definition,
+and several discrepancies can affect one candidate. Actions investigate issues;
+results create evidence or revisions. The final report reconciles the graph rather
+than selecting the last message as the answer.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+ box/.style={draw=teal,rounded corners,align=center,text width=43mm,minimum height=12mm,font=\small},
+ arr/.style={-{Latex[length=2mm]},thick,draw=navy},node distance=12mm and 10mm]
+\node[box] (source) {Retained source and\\reviewed inventory};
+\node[box,right=of source] (definition) {Shared definition\\or missing premise};
+\node[box,below=of source] (candidates) {Immutable competing\\candidate revisions};
+\node[box,right=of candidates] (issues) {Discrepancies and\\issue-root budgets};
+\node[box,below=of candidates] (evidence) {Validated evidence,\\witnesses and checks};
+\node[box,right=of evidence] (actions) {Reserved bounded\\resolution actions};
+\node[box,below=of evidence,xshift=26mm,text width=72mm] (report) {Complete report: resolved reasons,\\surviving alternatives and uncertainty};
+\draw[arr] (source)--(candidates);
+\draw[arr] (source)--(definition);
+\draw[arr] (definition)--(issues);
+\draw[arr] (definition)--(candidates);
+\draw[arr] (candidates)--(issues);
+\draw[arr] (issues)--(actions);
+\draw[arr] (actions)--(evidence);
+\draw[arr] (evidence)--(candidates);
+\draw[arr] (evidence)--(report);
+\draw[arr] (issues.east)--++(8mm,0)|-(report.east);
+\end{tikzpicture}
+\caption{Search creates a history, while dependencies explain what must be reconsidered.}
+\label{fig:ensemble-dependencies}
+\end{figure}
+
+% BEGIN REVISION ADDITION teach-M06-11
+\input{\LegalMathRoot teaching/teach-M06-11}
+% END REVISION ADDITION teach-M06-11
+An important consequence is that one new source can resolve several issues
+without spending a separate retrieval action for each. The action is charged once,
+and each affected issue receives a validated link to the result. Their root
+budgets do not acquire extra credits. Conversely, one failed source acquisition
+can block several candidates, and the report should identify that shared cause
+rather than presenting a long list of apparently unrelated uncertainties.
+
+The graph also prevents misleading independence claims. If four candidate members
+all rely on the same extracted definition and factual mapping, the report can
+show that common dependency. Their reasoning paths may differ, but their evidence
+base is shared. This is a more useful account of redundancy than simply displaying
+four model logos beside an agreement percentage.
+% END SOURCE UNIT M06:11
+
+% BEGIN SOURCE UNIT M06:12
+\section{Finite budgets are part of the semantics}
+\label{merge:M06:12}
+
+
+The user requires automatic processing up to a maximum number of times. To make
+that requirement implementable, we distinguish an initial proposal phase from
+resolution rounds. A resolution round consists of selecting currently open
+issues, reserving authorized actions, collecting bounded results and reconciling
+the resulting candidates. The round count increases when the controller commits
+the round's action plan, even if every external action later times out.
+
+The configuration supplies a maximum number of resolution rounds, a maximum
+number of issued actions per issue root, a maximum number of issued actions for
+the run, and an absolute deadline. It also supplies per-action timeouts, candidate
+and graph-size limits, and any token or monetary limits. None is inferred from
+the fact that the existing drafting stub happens to use three attempts. That
+stub's retry behavior addresses a different contract.
+
+A reference policy for deterministic fixtures uses three resolution rounds,
+three issued actions per issue root, and twelve external actions in total,
+including the initial proposal actions. It permits at most four initial external
+proposal actions, leaving at most eight for later investigation. These are
+engineering examples chosen to make boundary tests tractable. They are not
+empirically justified production defaults or recommendations about how much
+legal review is enough. Production configuration must be approved and evaluated
+for the selected task and cost constraints.
+
+The reference policy also sets a ten-minute run deadline and a thirty-second
+external action timeout. Deterministic local checks have separate finite input
+and execution bounds. A mandatory check is never silently skipped when its bound
+is reached: it returns an incomplete result and blocks the corresponding claim.
+Token and monetary caps are nullable only when the provider integration cannot
+supply a reliable bound; such a configuration is labelled unsuitable for an
+unattended paid run. A paid deployment must supply conservative reservations.
+
+% BEGIN REVISION ADDITION teach-M06-12
+\input{\LegalMathRoot teaching/teach-M06-12}
+% END REVISION ADDITION teach-M06-12
+Let $B$ be the configured global action cap and $a$ the number of actions already
+issued. Before dispatching any new external action, the controller must establish
+\begin{equation}
+ a+1\leq B,\qquad a_r+1\leq B_r,\qquad t<t_{\rm deadline},
+ \label{eq:budget-guard}
+\end{equation}
+where $a_r$ and $B_r$ are the issued count and cap for the affected issue root.
+For an initial proposal action, a separate initial-phase account replaces the
+issue-root account. The guard also checks the round, token, cost and action-type
+constraints. Passing one limit does not override another.
+
+Reservation occurs atomically before dispatch. The issued count increases even if
+the worker crashes before learning whether the provider accepted the request.
+This conservative accounting prevents an ambiguous network result from becoming
+free work. A reservation can be cancelled without spending only before dispatch
+is durably committed and only through an atomic state transition that proves no
+worker can still send the action.
+
+An action's effective waiting limit is the smaller of its configured timeout
+and the time remaining before the run deadline. The worker uses a monotonic clock
+for elapsed waiting, while the durable UTC deadline supports restart and audit.
+Clock adjustments cannot replenish an action budget. At the run deadline, pending
+actions receive terminal or remote-result-unknown dispositions; the controller
+does not extend the run simply because an action began a moment earlier.
+
+Provider SDK retries must be disabled or included in the same accounting. A
+single logical action that secretly makes five billable requests defeats the
+meaning of the cap. When a provider offers idempotency keys, the adapter uses the
+recorded action identifier. When it does not, the system cannot promise exactly
+once execution across a lost response; it reports the uncertainty, counts the
+attempt, and follows the configured retry policy.
+% END SOURCE UNIT M06:12
+
+% BEGIN SOURCE UNIT M06:13
+\section{No progress is a substantive stopping reason}
+\label{merge:M06:13}
+
+
+A finite global budget guarantees that external actions cannot continue forever,
+but it need not be spent in full. A no-progress condition avoids cycling through
+identical proposals. The controller computes a progress signature from accepted
+source additions, newly supported assumptions, new feasible witnesses, issue
+resolutions and genuinely distinct candidate semantics. Cosmetic wording changes
+do not count as progress.
+
+The signature is a deterministic summary of validated changes, not a model's
+claim that its answer improved. If a resolution round produces no such change,
+the controller records that fact. The reference policy stops after two successive
+rounds without progress, unless an already reserved action is still awaiting a
+result within the deadline. This is an engineering stopping rule for the fixture
+profile. A production policy may choose another threshold, but must disclose it
+and evaluate the cost of premature stopping.
+
+% BEGIN REVISION ADDITION teach-M06-13
+\input{\LegalMathRoot teaching/teach-M06-13}
+% END REVISION ADDITION teach-M06-13
+New unsupported candidates are not automatically progress. Otherwise a generator
+could prevent termination by inventing fresh interpretations indefinitely.
+Similarly, splitting one issue into several differently worded issues does not
+reset the no-progress count or any budget. The controller retains those proposals
+for review when useful, but their existence alone does not establish a reason to
+continue automatic investigation.
+
+A source becoming temporarily unavailable may justify a scheduled successor run,
+but not an endless loop in the current run. The report records the failed
+retrieval, the affected question and the conditions under which a new run would
+be useful. A human or an authorized source-change service can initiate that run
+with a new recorded budget. This preserves the distinction between bounded
+automation and an operational process that may legitimately continue over days.
+
+No-progress termination is not a judgment that the research direction has failed.
+It says that the current actions, sources and budget have not resolved the
+question. A later phase designed to obtain independent authority may still be
+justified. The system must report whether it encountered an invalid source,
+broken implementation, insufficient evidence, or simply a candidate that failed
+its checks. Those outcomes call for different next steps.
+% END SOURCE UNIT M06:13
+
+% BEGIN SOURCE UNIT M06:14
+\section{A deterministic first scheduler}
+\label{merge:M06:14}
+
+
+The first implementation needs a concrete action order before a learned search
+policy is available. The reference scheduler uses a lexicographic key rather
+than an opaque weighted score. It first handles integrity and source-coverage
+problems, then missing dependencies and applicability, then definitions and
+exception structure, then formal and Java mismatches, and finally report or
+presentation discrepancies. This order is a proposed engineering policy: earlier
+questions can invalidate the inputs to later checks. It is not a legal ranking
+of every possible issue.
+
+Within a class, unresolved material or unknown-materiality issues precede reviewed
+immaterial issues. Earlier creation sequence precedes later sequence, and the
+stable issue identifier breaks any remaining tie. Every selected action must be
+permitted for the issue kind and have remaining root and global budget. If an
+earlier issue is awaiting evidence that the available tools cannot obtain, it
+remains visible while the scheduler can make progress on another issue. Priority
+is not permission to spend the whole budget repeating an unavailable action.
+
+For each issue, action selection follows a short decision procedure. Check whether
+an already retained source or result answers the question; if so, validate and
+link it without issuing a new external request. Otherwise, retrieve a named
+missing authoritative dependency when a permitted retrieval route exists. If the
+source is present but the candidate encoding differs, request a witness or a
+source-grounded repair. If competing supported readings remain, select a
+contrasting scenario or focused argument question. If no permitted action can
+supply the required evidence, prepare the human review question and stop automatic
+work on that issue.
+
+% BEGIN REVISION ADDITION teach-M06-14
+\input{\LegalMathRoot teaching/teach-M06-14}
+% END REVISION ADDITION teach-M06-14
+Actions are not dispatched merely because the scheduler can name them. A
+pre-dispatch validator checks that their inputs differ meaningfully from a prior
+failed substantive action, unless the retry is an explicitly permitted transport
+recovery. It also checks source identity, adapter support and the remaining
+budget. Rejection is recorded as a scheduling disposition; it does not consume
+an external-action slot unless a dispatch reservation has already been committed.
+Local scheduling and validation remain bounded by graph and execution limits.
+
+Candidate breadth uses a similarly explicit rule. At initial reconciliation,
+reserve one retained slot for each supported interpretation family before
+allocating additional slots to refinements. If the number of families exceeds the
+candidate cap, retain the families in the same declared issue-priority and
+creation order, store the excluded family identifiers in the frontier, and open
+a search-incomplete issue. This policy favors reproducibility and visible
+incompleteness. It does not claim that its ordering finds the best legal theory.
+
+For the optional pair-disagreement heuristic, the first prototype uses equal
+weights in equation~\eqref{eq:disagreement-question}. It enumerates the available
+feasible contrasting scenarios within the supported comparison fragment, selects
+the scenario separating the most retained pairs, and breaks ties by stable
+scenario identifier. A cost-aware or learned weight can later replace this rule
+under a versioned evaluation. Equal weights here are a baseline convenience,
+not equal probabilities that every reading is correct.
+
+The implementation report records the scheduler version and each selection key.
+An engineer can therefore reconstruct why an issue was investigated before
+another, and a reviewer can challenge the priority policy without guessing at a
+model's hidden preference. Chapter~\ref{ch:evaluation} compares this deterministic
+baseline with enhanced search at equal resources. Both must obey the same budget,
+reporting and release constraints.
+% END SOURCE UNIT M06:14
+
+% BEGIN SOURCE UNIT M06:15
+\section{A controller that can be implemented and checked}
+\label{merge:M06:15}
+
+
+The controller is a deterministic state machine around fallible external tools.
+Its durable state contains the run configuration, source snapshot, required role
+results, candidate revisions, issue roots, action records, budgets and report
+status. External results enter through validation. They do not directly mutate
+approvals or release state.
+
+The following pseudocode specifies the main control flow. The functions named
+\texttt{commit} and \texttt{reserve} are transactions; they must either write all
+of their stated changes or none. The action worker uses the committed action
+record and cannot create additional actions on its own.
+
+\begin{lstlisting}[caption={Main controller, with explicit terminal uncertainty.}]
+start_run(source_packet, profile, required_policy):
+    validate_source_identity_and_policy()
+    commit(run = INITIALIZING, counters = 0)
+    reserve_and_issue_initial_roles_with_global_budget()
+    collect_until_complete_or_action_deadline()
+    validate_outputs_and_freeze_initial_proposals()
+    reconcile_inventory_candidates_and_required_roles()
+
+    while has_unresolved_issue():
+        if integrity_failure():
+            close_as(FAILED_INTEGRITY); break
+        if cancelled():
+            close_as(CANCELLED); break
+        if deadline_or_global_or_round_limit_reached():
+            mark_remaining_issues_with_stop_reason()
+            close_as(BLOCKED_UNRESOLVED); break
+        if no_progress_limit_reached():
+            mark_remaining_issues(NO_PROGRESS)
+            close_as(BLOCKED_UNRESOLVED); break
+
+        plan = choose_permitted_discriminating_actions()
+        if plan.is_empty():
+            mark_remaining_issues(HUMAN_REQUIRED)
+            close_as(BLOCKED_UNRESOLVED); break
+        commit_next_round_and_reserve_bounded_actions(plan)
+        dispatch_only_reserved_actions()
+        collect_results_until_each_action_is_terminal()
+        validate_results_and_create_candidate_revisions()
+        rerun_affected_checks_and_reconcile_all_open_issues()
+        record_progress_signature()
+
+    if not already_closed():
+        apply_integrity_cancellation_and_deadline_guards()
+    if not already_closed():
+        check_required_roles_coverage_and_all_mandatory_checks()
+        if any_requirement_incomplete():
+            close_as(BLOCKED_UNRESOLVED)
+        else:
+            close_as(READY_FOR_REVIEW)
+    write_complete_report_for_every_terminal_status()
+    return report_reference
+\end{lstlisting}
+
+% BEGIN REVISION ADDITION teach-M06-15
+\input{\LegalMathRoot teaching/teach-M06-15}
+% END REVISION ADDITION teach-M06-15
+Every detected discrepancy enters reconciliation, including differences later
+judged immaterial. A deterministic presentation-equivalence check can close a
+purely cosmetic issue immediately with its reason; unassessed differences remain
+unresolved and conservatively material. The loop therefore processes unresolved
+issues rather than only issues already assigned a high severity. Integrity,
+cancellation and deadline guards are checked again before final readiness, even
+when no issue remains, so an empty loop cannot bypass a terminal condition.
+
+The final coverage check is essential. If no comparator detects a disagreement,
+the loop might never run. The controller must still require complete source
+coverage, mandatory members and verification results. ``No open issue'' and
+``all required evidence present'' are separate conditions. A failed member must
+also create an issue, but the final check protects against a defect in that issue
+creation path.
+
+Actions that finish after the run deadline are retained as late observations.
+They do not reopen a closed run or retroactively change its result. A successor
+run may use them after validation. This rule makes reports stable and prevents a
+late worker from changing the package that a reviewer has already inspected.
+Late evidence can still trigger a documented follow-up when it changes risk.
+
+The controller must produce a report even when it fails. If the primary report
+writer is unavailable, the durable run and action records support recovery of a
+minimal failure report. An integrity failure prevents a positive result, but it
+must not erase the explanation of what was attempted. Report generation itself
+has bounded resource use and a recovery path; an exception thrown while rendering
+a large argument graph cannot make the investigation disappear.
+% END SOURCE UNIT M06:15
+
+% BEGIN SOURCE UNIT M06:16
+\section{Termination and the boundary of the proof}
+\label{merge:M06:16}
+
+
+We can prove a limited but useful property of the proposed controller. Assume a
+finite input packet, a finite configured action cap $B$, atomic issue accounting,
+finite local reconciliation with explicit graph limits, and an enforced timeout
+for every dispatched action. Assume also that the storage and supervisor either
+respond within their operational bounds or move the run to a recoverable failure
+state. These assumptions concern implementation and infrastructure; the proof
+does not establish them merely by listing them.
+
+Define the remaining action budget as $V=B-a$, where $a$ is the durable number of
+issued actions. Initially $V$ is a nonnegative integer. Each new dispatch requires
+an atomic reservation and reduces $V$ by one. No transition increases $V$ in the
+same run. Therefore there can be at most $B$ dispatches. Between dispatches,
+reconciliation is finite by its input and execution bounds. Waiting is finite by
+the action timeout and absolute deadline. When no permitted action remains, the
+controller enters a terminal state. Under these assumptions, automatic processing
+terminates.
+
+This argument remains valid when an action discovers additional issues. New
+issues do not replenish the global budget. It also remains valid when a worker
+restarts, provided the durable counter is authoritative and a lease does not
+authorize a second unrecorded dispatch. The per-issue cap and round cap are useful
+additional constraints, but the global cap is what prevents an unbounded stream
+of newly named issues from evading termination.
+
+% BEGIN REVISION ADDITION teach-M06-16
+\input{\LegalMathRoot teaching/teach-M06-16}
+% END REVISION ADDITION teach-M06-16
+The proof is about bounded processing, not resolution. A controller can terminate
+with every difficult issue unresolved. It is also not a proof of wall-clock
+availability under arbitrary storage failure. If the process is indefinitely
+suspended or the database never responds, no local algorithm can guarantee a
+report at a fixed real-world time without an external supervisor. The operational
+design must therefore monitor leases and deadlines independently and recover a
+failure report when infrastructure returns.
+
+A second invariant concerns release. Let $M(r)$ mean that run $r$ has an unresolved
+material issue, $C(r)$ mean that its mandatory coverage and checks are complete,
+and $A(r,b)$ mean that the required authorized reviewers approved exact bundle
+$b$ on the evidence from $r$. The release service requires
+\begin{equation}
+ \operatorname{Release}(r,b)\Longrightarrow
+ \neg M(r)\land C(r)\land A(r,b)\land\operatorname{Integrity}(r,b).
+ \label{eq:ensemble-release}
+\end{equation}
+This is a design invariant to be enforced by the release transaction. The
+controller's \texttt{READY\_FOR\_REVIEW} state supplies neither $A$ nor release
+itself. An implementation test must attempt to bypass each conjunct, including
+through a stale approval or a source update, and verify rejection.
+
+The invariant also exposes the limit of the design. If the inventory misses a
+material source and no check detects it, $C(r)$ could be incorrectly recorded.
+Formal verification of the release transaction would still prove only that it
+uses the recorded evidence correctly. Independent source review and empirical
+omission tests address the reliability of that evidence. The book's separation
+of proof claims is therefore retained inside the ensemble rather than abandoned
+at its most important decision.
+% END SOURCE UNIT M06:16
+
+% BEGIN SOURCE UNIT M06:17
+\section{Durable actions, leases and ambiguous execution}
+\label{merge:M06:17}
+
+
+An action moves through \texttt{RESERVED}, \texttt{DISPATCHED}, and one of
+\texttt{SUCCEEDED}, \texttt{FAILED}, \texttt{TIMED\_OUT}, or
+\texttt{RESULT\_UNKNOWN}. The last state is necessary when the controller cannot
+determine whether a remote service performed the action. A lost connection after
+submission is different from a request rejected before dispatch. Both can lead
+to missing results, but only the former may already have consumed remote work.
+
+The reservation transaction records the action identifier, input hashes, issue
+root, round, budget charge, adapter identity, timeout and idempotency key. An
+outbox entry is written in the same transaction. A worker claims that entry with
+a lease and a fencing token. The token increases when ownership changes, so an
+old worker cannot commit a result after a newer owner has taken responsibility.
+A valid late result can be retained as an observation without changing the closed
+action's authoritative state.
+
+The dispatch boundary requires care. If the outbox records only ``not yet sent''
+and a worker crashes after sending but before updating the database, another
+worker may send again. A provider idempotency key can make that retry refer to the
+same operation, but not every provider supports this guarantee. The adapter must
+state its capability. Without remote idempotency, a recovery policy can choose to
+leave the result unknown rather than risk another paid request, or authorize a
+new counted action. It cannot truthfully promise exactly once remote execution.
+
+% BEGIN REVISION ADDITION teach-M06-17
+\input{\LegalMathRoot teaching/teach-M06-17}
+% END REVISION ADDITION teach-M06-17
+The budget system reserves an upper bound on tokens or cost when those resources
+are capped. Settlement records actual usage when known. A refund of unused
+monetary reservation may be legitimate after a confirmed terminal response, but
+it does not decrement the issued-action count. Otherwise a sequence of failed
+requests could evade the maximum number of attempts. If actual usage exceeds a
+provider's documented bound, the run records an accounting discrepancy and stops
+new spending until the integration is investigated.
+
+A compare-and-swap version protects issue updates. The worker returns evidence
+against the issue revision it received. If the issue has changed, the controller
+revalidates whether the evidence is still relevant before applying a resolution.
+This prevents two simultaneous actions from overwriting each other's objections
+or resolving an issue using a candidate that is no longer current.
+
+Cancellation stops new reservations and attempts to cancel outstanding work.
+Remote cancellation may be best effort. The report records outstanding or late
+actions and keeps their budget charges. Cancellation cannot convert an incomplete
+run into a clean result, and it cannot delete the source of a later adverse
+finding. These details matter because regulatory evidence must survive ordinary
+operational events, including a person closing a browser or restarting a worker.
+% END SOURCE UNIT M06:17
+
+% BEGIN SOURCE UNIT M06:18
+\section{What counts as a justified repair}
+\label{merge:M06:18}
+
+
+A repair has two responsibilities: remove the identified defect and preserve the
+requirements that were already correct. For a missing product-type condition,
+the revised body must include the type route, and the previously verified gift,
+exception and scope behavior must remain intact. The repair record identifies the
+changed expression and the affected checks. It cannot simply report that a new
+model answer received a higher score.
+
+The original discrepancy remains immutable. The repair links to it and supplies
+resolution evidence: the source clause, changed candidate, witness before and
+after, regression checks and any reviewer decision. A failed repair becomes
+another candidate revision with a failed status. This is useful evidence about
+the investigation and should not be removed from the dossier merely because a
+later revision passes.
+
+A repair can be rejected at several layers. The source may not support its new
+condition. The controlled-language rendering may no longer match the formal
+rule. The formal rule may use an unsupported operation. The Java package may
+miscompute the accepted expression. These are different failures. A compiler
+rejection means the current encoding cannot be delivered through that compiler;
+it does not necessarily refute the legal reading. The next action might be a
+supported encoding or a documented implementation extension rather than a new
+interpretation.
+
+% BEGIN REVISION ADDITION teach-M06-18
+\input{\LegalMathRoot teaching/teach-M06-18}
+% END REVISION ADDITION teach-M06-18
+Reference cases require special protection. When a candidate disagrees with a
+frozen expected outcome, the system records the disagreement and investigates
+both sides. It does not assume the reference is infallible, particularly in our
+same-author 22-case exercise. But changing the reference requires an independent
+resolution record with evidence and reviewer authority. A model cannot rewrite
+the expected result and then claim that its unchanged candidate now passes.
+
+The same rule applies to formal domains. If a witness exposes a defect, narrowing
+the domain to exclude it is a substantive change. The domain change needs a
+source or operational justification, not merely a desire to eliminate the
+counterexample. Every equivalence claim includes the domain hash and assumptions,
+so an excluded scenario remains visible to reviewers.
+
+Finally, repair must preserve dissent. If one supported reading is selected after
+review, the rejected reading, its strongest argument and the reason for rejection
+remain attached. Future evidence may make that earlier objection relevant. A
+system that stores only the winning candidate forces the next team to rediscover
+the same ambiguity and cannot explain why the original team chose as it did.
+% END SOURCE UNIT M06:18
+
+% BEGIN SOURCE UNIT M06:19
+\section{Scores that assist investigation without pretending to be probabilities}
+\label{merge:M06:19}
+
+
+A single confidence number combines incompatible questions. A source can be
+authoritative while its application is ambiguous. A candidate can be internally
+consistent while missing a clause. A Java artifact can be verified against an
+unapproved rule. The proposed output therefore uses a score vector and explicit
+statuses rather than a scalar legal-confidence percentage.
+
+The vector records source coverage, dependency completeness, supported and
+unsupported assumptions, unresolved material objections, scenario agreement,
+formal-check status, implementation-preservation status and search coverage.
+Some components are counts or categorical states. Others may be empirical
+scores, such as retrieval relevance. Their definitions are stored with the run.
+A score is not allowed to compensate for a failed mandatory condition.
+
+For example, a candidate might cover eighteen of eighteen inventoried paragraphs
+with dispositions, yet have two unresolved incorporated sources and one material
+classification question. Displaying only ``100 percent coverage'' would mislead.
+The report must state that source-unit disposition is complete while dependency
+and interpretation resolution are incomplete. Conversely, a lower model ranking
+need not disqualify a candidate whose source argument remains undefeated.
+
+% BEGIN REVISION ADDITION teach-M06-19
+\input{\LegalMathRoot teaching/teach-M06-19}
+% END REVISION ADDITION teach-M06-19
+Search priority can be a weighted function of expected information gain, action
+cost and issue materiality. The weights are scheduling choices. They may be tuned
+under a declared evaluation protocol, but they are not probabilities of legal
+correctness. Every displayed numerical score includes its purpose and calibration
+status. A field named \texttt{probability\_correct} remains absent or null until an
+appropriate target-specific calibration study supports a precisely defined event.
+
+A useful shortlist can be a Pareto set. Candidate $h$ dominates candidate $j$ only
+when it is no worse on every declared comparable dimension and better on at least
+one. Even then, dominance is an aid to presentation, not legal defeat. A candidate
+with a unique source argument should not disappear merely because another has
+more completed engineering checks. Unsupported candidates can be rejected for
+specific reasons; incomparable supported candidates remain visible.
+
+Set-valued reporting is especially valuable when authority is genuinely
+incomplete. The dossier may present two conditional proposals: under definition
+$D_1$, use rule $R_1$; under definition $D_2$, use rule $R_2$. It must identify who
+can resolve the definition and what operations remain blocked. This is more
+informative than selecting one proposal with a decorative confidence interval
+whose coverage has never been established.
+% END SOURCE UNIT M06:19
+
+% BEGIN SOURCE UNIT M06:20
+\section{A complete dry run: repairing an explicit omission}
+\label{merge:M06:20}
+
+
+The following trace is a designed example for the future controller. It has not
+been executed by a live model and does not replace the retained second-circular
+results. The source packet contains the selected paragraph, its surrounding
+context and the unresolved dependency records. The activity profile and factual
+schema are fixed before proposals begin.
+
+Four initial actions are reserved. The normative reader proposes
+$G\land P\land\neg D$, omitting product-type linkage. The controlled-language
+reader proposes $G\land(P\lor T)\land\neg D$. The alternative reader agrees that
+both product and type links require examination and identifies a separate
+classification ambiguity. The inventory member confirms the paragraph and
+footnote enumeration but reports an unavailable incorporated source. The run has
+issued four actions; eight remain under the reference global cap.
+
+Reconciliation creates issue $I_1$ for the missing type route, $I_2$ for the
+classification ambiguity and $I_3$ for the unavailable dependency. The comparator
+does not average the two formulas. It constructs the known-fact scenario
+$G=\True$, $P=\False$, $T=\True$, $D=\False$, with scope established. The first
+candidate returns false and the second true. The source passage explicitly
+includes the type route, so $I_1$ has a concrete textual and behavioral basis.
+
+% BEGIN REVISION ADDITION teach-M06-20
+\input{\LegalMathRoot teaching/teach-M06-20}
+% END REVISION ADDITION teach-M06-20
+In resolution round one, the controller reserves a source-grounded repair action
+for $I_1$ and a dependency retrieval action for $I_3$. The issued count becomes
+six before either is dispatched. The repair produces a child candidate that adds
+$T$ to the disjunction. Its controlled-language rendering, type checks and witness
+replay pass. The regression set checks that fee discounts remain excluded and
+scope uncertainty retains its established behavior. The issue is resolved by
+evidence with the original discrepancy and both candidate versions retained.
+
+The dependency retrieval times out. Its action is terminal and counted; $I_3$
+remains unresolved. The run does not claim complete circular interpretation just
+because $I_1$ was repaired. If the unavailable source could affect the selected
+classification, both $I_2$ and the relevant candidate remain blocked. The report
+can still state precisely that the explicit type-of-product omission was found
+and corrected.
+
+This trace illustrates two kinds of progress. The repaired omission supplies
+positive evidence about the ensemble's ability to catch that seeded defect in
+this designed case. The timeout supplies operational evidence about the
+controller's accounting. Neither is a measured error rate on real circulars.
+The prototype acceptance test will reproduce these transitions with scripted
+members before any live-model comparison is attempted.
+% END SOURCE UNIT M06:20
+
+% BEGIN SOURCE UNIT M06:21
+\section{A complete dry run: an ambiguity that survives the budget}
+\label{merge:M06:21}
+
+
+Continue with the hypothetical cashback question. One candidate treats a later
+payment as a fee discount when it reimburses an actually paid charge and is capped
+at that charge. Another requires a reduction in the contractual fee itself.
+Their rules agree on a direct waiver and disagree on a later reimbursement.
+Neither definition is accepted merely because it produces a convenient outcome
+for the bank.
+
+The scenario designer creates three synthetic offers. Offer A waives a charge of
+HK\$100. Offer B charges HK\$100 and later pays HK\$100 back under a linked
+promotion. Offer C charges HK\$100 and pays HK\$150. The factual amounts are known,
+but the legal classification of the later payment remains disputed. The dossier
+shows the candidates' conclusions and the exact definition each requires. It
+also separates any excess payment into a proposed component analysis rather than
+silently treating the entire amount as a discount.
+
+In round one, a retrieval action seeks the incorporated definition. If the source
+is inaccessible, the result is a failed retrieval, not support for either
+reading. In round two, a bounded argument action asks each candidate to identify
+the strongest source-based reason against its own definition. Suppose both
+return plausible but unresolved explanations and no new authority. The controller
+records the arguments, but a longer explanation alone does not constitute
+resolution.
+
+% BEGIN REVISION ADDITION teach-M06-21
+\input{\LegalMathRoot teaching/teach-M06-21}
+% END REVISION ADDITION teach-M06-21
+In round three, a question-selection action prepares a focused review question
+with the contrasting offers and the missing premise. The action can successfully
+produce the question while the issue remains unresolved. After the third round,
+no further automatic resolution round is authorized. The candidate set is
+preserved, the issue receives a budget stop reason, and the run closes as
+\texttt{BLOCKED\_UNRESOLVED}.
+
+The report states which offers are affected, what the candidates agree on, where
+they differ, which sources were inspected, which source remains unavailable, and
+what an authorized reviewer must decide. It contains no assertion that three
+rounds make the leading reading probably correct. The unresolved classification
+is not replaced by a false Boolean, and the Java release route remains blocked
+for the affected control.
+
+A later authorized reviewer may establish the definition from an applicable
+source or decide that a conservative bank policy should govern the uncertain
+category. Those are distinct decisions. A bank policy that declines all cashback
+offers pending clarification can be operationally useful, but it must be labelled
+as the bank's precautionary choice. It cannot be reported as a proven SFC
+prohibition unless the source supports that proposition.
+% END SOURCE UNIT M06:21
+
+% BEGIN SOURCE UNIT M06:22
+\section{The uncertainty report is a first-class result}
+\label{merge:M06:22}
+
+
+An uncertainty report must let a reviewer reconstruct the decision without
+reading raw model transcripts. It starts with the source and activity perimeter,
+the proposed control, the run's terminal status and the operational consequence.
+A blocked report should say what is blocked. ``Low confidence'' is not enough:
+the reader needs to know whether the uncertainty concerns an incentive category,
+an effective date, a missing definition or the integrity of the entire source.
+
+The report then presents the surviving interpretations in comparable form. For
+each, give the controlled-language statement, formal rule identifier, assumptions,
+supporting sources, strongest objections and distinguishing scenarios. Use the
+same factual scenarios across candidates so that the difference is visible.
+Candidate ordering may reflect a declared presentation policy, but must not imply
+that the first row has been approved.
+
+Every detected discrepancy appears in an issue register with its processing and
+resolution states, materiality, affected decisions, attempted actions and final
+reason. Resolved issues remain present because their history explains why the
+final candidate differs from the initial one. Unresolved issues identify the
+missing evidence or human decision. A report that shows only unresolved issues
+would conceal the repairs; a report that shows only repaired issues would conceal
+the remaining risk.
+
+Coverage is reported against explicit denominators. Count source units inventoried
+and dispositioned, dependencies required and acquired, interpretation families
+identified and explored, mandatory roles completed, candidate comparisons
+attempted, and verification obligations passed or incomplete. The denominators
+must be retained even when the run exceeds a display limit. Large inventories
+can be paginated or stored as linked machine-readable records; they cannot be
+silently truncated to make the report look complete.
+
+% BEGIN REVISION ADDITION teach-M06-22
+\input{\LegalMathRoot teaching/teach-M06-22}
+% END REVISION ADDITION teach-M06-22
+The execution account records configured limits, issued actions, rounds used,
+timeouts, unknown remote results, no-progress decisions, elapsed time, token and
+cost reservations, actual usage when available, and unspent budget. A run that
+stops early because it lacks authority should not look like a run that exhausts
+its resources. Both may be blocked, but their next useful actions differ.
+
+A concise machine-readable summary might look as follows. Identifiers here are
+illustrative; the complete contract in Chapter~\ref{ch:implementation} adds
+validated references and integrity fields.
+
+\begin{lstlisting}[caption={A blocked result preserves alternatives and the next decision.}]
+{
+  "schema_version": "interpretation.v1",
+  "run_status": "BLOCKED_UNRESOLVED",
+  "source_ref": "23EC46-retained-version",
+  "selected_slice": "paragraph-10",
+  "candidate_ids": ["cashback-reimbursement", "cashback-fee-reduction"],
+  "material_unresolved_issue_ids": ["classification-cashback"],
+  "release_eligible": false,
+  "processing_stop": "ROUND_LIMIT",
+  "rounds_issued": 3,
+  "probability_of_legal_correctness": null,
+  "next_decision": "Establish the applicable fee-discount definition",
+  "next_decision_owner_role": "LEGAL_INTERPRETATION_REVIEWER"
+}
+\end{lstlisting}
+
+The report should also state the limits of its evidence. In the second-circular
+exercise, the expected cases and candidate were prepared by the same author.
+That fact belongs beside the verification summary. A reviewer should not have to
+find a footnote in a separate research note to discover that the apparent oracle
+was not independent. Similarly, a solver timeout must appear as incomplete
+verification, not disappear from an average pass rate.
+
+Reports are immutable versions. A corrected report points to its predecessor and
+explains the correction. Approval binds the exact report, candidate, source
+packet and Java bundle. The report is thus both a readable explanation and an
+index into reproducible evidence. Its human readability matters because a
+technically complete JSON object that no reviewer can understand does not solve
+the original manual-interpretation problem.
+% END SOURCE UNIT M06:22
+
+% BEGIN SOURCE UNIT M06:23
+\section{Agreement can still conceal a missed obligation}
+\label{merge:M06:23}
+
+
+The hardest example is not a disagreement. Suppose every generator ignores a
+footnote that changes applicability. All formulas, scenarios and Java results
+agree because they share the same omission. Repeated self-consistency sampling
+would reinforce that agreement. Roundtrip translation could reproduce the same
+shortened meaning. Differential execution would confirm that the wrong
+specification is implemented consistently.
+
+The independent inventory creates another opportunity to catch the omission. It
+requires a disposition for the footnote. A normative reader responsible for that
+unit may identify the qualification even if the candidate generators did not.
+A source-to-rule coverage check then opens an issue because the footnote has no
+corresponding assumption or rule. The repair propagates through candidate
+comparison and implementation checks.
+
+% BEGIN REVISION ADDITION teach-M06-23
+\input{\LegalMathRoot teaching/teach-M06-23}
+% END REVISION ADDITION teach-M06-23
+Now suppose the inventory also misses the footnote because both extraction paths
+use the same defective text layer. Rendered-document inspection or a distinct
+acquisition route may detect it. If those are absent or also fail, the system can
+still miss the obligation. This remaining possibility is why the product's
+claims must be measured against independent source review and adversarial
+omission tests. Redundancy reduces opportunities for undetected error only to
+the extent that the redundant activities can fail differently.
+
+A second common-mode failure concerns vocabulary. All members may agree that a
+payment is a discount because the prompt labels it ``fee rebate.'' The remedy is
+to distinguish observed facts from proposed classifications. Present the payment,
+charge, contractual relationship and timing without inserting the disputed label
+as an established input. Then ask what evidence supports the classification.
+Blindness to the preferred answer is useful only if the factual packet itself
+has not already embedded that answer.
+
+A third failure concerns evaluation. If the reference reviewer sees the model's
+answer before forming an expected outcome, the reference may inherit the model's
+mistake. The ensemble may then appear accurate against a contaminated oracle.
+Independent initial judgments and recorded adjudication are necessary to measure
+whether the product actually discovers errors. They are also part of a credible
+operational review process, especially for novel or high-impact controls.
+% END SOURCE UNIT M06:23
+
+% BEGIN SOURCE UNIT M06:24
+\section{Interaction between uncertainty and operational action}
+\label{merge:M06:24}
+
+
+The interpretation service should not decide every operational response. Its job
+is to state what is known, what is disputed and which controls are justified by
+the approved specification. The bank's host system then applies an explicit
+operational policy to outcomes such as unknown, conflict or blocked release.
+Those policies may include stopping an offer, routing a case to review or using
+an already approved fallback control.
+
+This separation avoids a dangerous ambiguity in ``fail closed.'' Closing an
+uncertain marketing offer may be appropriate in a particular process, but
+stopping a payment, withholding a disclosure or disabling an existing control
+could create other obligations or harms. The responsible business and control
+owners must approve the action for the relevant workflow. The interpretation
+engine supplies a reasoned status; it does not invent a universal response for
+all banking operations.
+
+% BEGIN REVISION ADDITION teach-M06-24
+\input{\LegalMathRoot teaching/teach-M06-24}
+% END REVISION ADDITION teach-M06-24
+For the selected gift rule, a true result indicates that the specified
+prohibition condition is satisfied. A false result says only that this condition
+is not established under the accepted facts and rule. It does not authorize the
+offer under every other requirement. The host must combine this result with other
+applicable controls, such as disclosure or suitability obligations, according to
+an independently reviewed orchestration policy.
+
+An unresolved interpretation can sometimes be isolated. If the disputed cashback
+definition affects only one incentive category and the system can reliably
+identify that category, a reviewer may approve a limited control for unaffected
+cases while routing the disputed category to manual review. The scope restriction
+must be explicit, tested and included in the approved bundle. It is not enough to
+state informally that the system will ``avoid edge cases.''
+
+If impact cannot be isolated, the block applies more broadly. The system should
+prefer an honest incomplete release proposal over an unsupported claim of
+separability. The uncertainty report gives the decision-makers the information
+needed to choose between narrowing scope, obtaining more evidence, retaining an
+existing control or postponing deployment.
+% END SOURCE UNIT M06:24
+
+% BEGIN SOURCE UNIT M06:25
+\section{Acceptance conditions for the central method}
+\label{merge:M06:25}
+
+
+The first implementation should be accepted against deterministic scenarios
+before live model performance is assessed. A scripted member can deliberately
+omit the type route, supply a contradictory source version, fail to respond, or
+return a malformed candidate. These fixtures isolate controller behavior from
+model variability. Passing them establishes specified engineering behavior, not
+legal translation accuracy.
+
+The controller must demonstrate that a unanimous but uncovered source unit opens
+an issue; that a supported minority candidate remains in the report; that a
+formal mismatch produces a replayable witness; that an unavailable dependency
+cannot be marked resolved by repeated explanation; and that a successful repair
+reruns affected checks. Each condition targets a concrete way an apparently
+successful ensemble could hide an error.
+
+Budget tests must reach exact boundaries. With a cap of twelve, the thirteenth
+external dispatch must be rejected even if it is proposed by a new child issue.
+A crash after dispatch must not reset the count. A timeout must consume its
+issued action. A new worker with an old lease must fail to overwrite the current
+result. A provider retry must either reuse a verified idempotency key or consume
+a separately authorized attempt.
+
+% BEGIN REVISION ADDITION teach-M06-25
+\input{\LegalMathRoot teaching/teach-M06-25}
+% END REVISION ADDITION teach-M06-25
+Report tests must verify completeness for successful, blocked, cancelled and
+failed runs. Every issue identifier must have a disposition; every unresolved
+material issue must appear in the blocking summary; every candidate revision
+must retain its parent and source references; and every displayed score must
+identify its purpose. Empty extension sets, solver unknowns and missing member
+results must remain explicit rather than being converted to success by default
+logic.
+
+The release test is adversarial. Attempt release from
+\texttt{READY\_FOR\_REVIEW} without approvals, with an approval for a different
+bundle, after a source change, with an unresolved material issue, and after an
+integrity failure. All attempts must fail. A positive release fixture requires
+complete checks and authenticated approvals for the exact package. The local
+synthetic identity mechanism is sufficient to test the state transitions, but
+enterprise authentication and role enforcement remain a deployment requirement.
+
+These conditions give an implementation agent a concrete target. They also
+preserve the intellectual purpose of the ensemble: investigate alternatives,
+expose missing evidence, and retain uncertainty when the evidence does not settle
+the question. The resulting product is useful because it makes responsibility
+and reasoning visible, not because a collection of fallible components can be
+renamed a proof of English meaning.
+% END SOURCE UNIT M06:25

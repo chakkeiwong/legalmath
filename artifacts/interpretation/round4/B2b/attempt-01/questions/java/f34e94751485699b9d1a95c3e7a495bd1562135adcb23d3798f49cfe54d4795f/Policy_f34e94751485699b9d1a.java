@@ -1,0 +1,20 @@
+package hk.legalmath;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Map;
+
+/** Generated RuleIR 0.1 policy. Authority is supplied by an external release record. */
+public final class Policy_f34e94751485699b9d1a {
+    private Policy_f34e94751485699b9d1a() {}
+    public static final String BUNDLE_HASH = "f34e94751485699b9d1a95c3e7a495bd1562135adcb23d3798f49cfe54d4795f";
+    private static final Policy POLICY = new Policy(new String(Base64.getDecoder().decode(String.join("", new String[]{
+"eyJidW5kbGVfaWQiOiJzZWFyY2guMzczNjgyYWQxMWQ1OWI3MzI4NTYiLCJmYWN0cyI6W3siZGVzY3JpcHRpb24iOiJBIGRpc3RyaWJ1dG9yIG9mZmVycyBhIGdpZnQ7IHVuaXRzOiB0cnV0aCB2YWx1ZSIsIm5hbWUiOiJnaWZ0IiwidHlwZSI6ImJvb2wifSx7ImRlc2NyaXB0aW9uIjoiVGhlIGdpZnQgaXMgYSBkaXNjb3VudCBvZiBmZWVzIG9yIGNoYXJnZXM7IHVuaXRzOiB0cnV0aCB2YWx1ZSIsIm5hbWUiOiJkaXNjb3VudCIsInR5cGUiOiJib29sIn1dLCJpbnRlcnByZXRhdGlvbnMiOlt7ImJhc2lzIjoic3ludGhldGljX3Rlc3QiLCJpZCI6InJlYWRpbmciLCJpc3N1ZV9pZHMiOltdLCJzb3VyY2Vfc3Bhbl9pZHMiOlsicy5wMSJdLCJzdGF0ZW1lbnQiOiJVbnJldmlld2VkIGludGVycHJldGF0aW9uOiBbVFJVRV9JU19QUk9ISUJJVEVEXSBSZXN1bHQgdHJ1ZSBtZWFucyBwcm9oaWJpdGVkIGdpZnQgb2ZmZXIsIHdpdGggdGhlIGZlZSBleGNlcHRpb24uIn1dLCJydWxlcyI6W3siYm9keSI6eyJuYW1lIjoiZ2lmdCIsIm5vZGVfaWQiOiJib2R5LjEiLCJvcCI6ImZhY3QifSwiaWQiOiJzZWxlY3RlZC5jb250cm9sIiwiaW50ZXJwcmV0YXRpb25faWQiOiJyZWFkaW5nIiwic2NvcGUiOnsibm9kZV9pZCI6InNjb3BlLjEiLCJvcCI6ImxpdGVyYWwiLCJ0eXBlIjoiYm9vbCIsInZhbHVlIjp0cnVlfSwic291cmNlX3NwYW5faWRzIjpbInMucDEiXSwidHlwZSI6ImJvb2wifV0sInNvdXJjZV9zcGFucyI6W3siZW5kIjo3OCwiaWQiOiJzLnAxIiwicGFnZSI6MSwicXVvdGVfc2hhMjU2IjoiYjc4YTY2MDBkM2QxMTZjM2I0NTAwMmI4YjJhMjE3ZjFjNTA3Njk1NTc3MTNmMWI1YTFlMjdhYWI5NjU5N2M3NiIsInJhd19zaGEyNTYiOiJiNzhhNjYwMGQzZDExNmMzYjQ1MDAyYjhiMmEyMTdmMWM1MDc2OTU1NzcxM2YxYjVhMWUyN2FhYjk2NTk3Yzc2Iiwic291cmNlX2lkIjoic3ludGhldGljLnN5bnRoZXRpYy50aHJlc2hvbGQiLCJzdGFydCI6MCwidGV4dF9zaGEyNTYiOiJiNzhhNjYwMGQzZDExNmMzYjQ1MDAyYjhiMmEyMTdmMWM1MDc2OTU1NzcxM2YxYjVhMWUyN2FhYjk2NTk3Yzc2In1dLCJzcGVjX3ZlcnNpb24iOiIwLjEiLCJ2YWxpZF9mcm9tIjoiMjAyNi0wOS0yM1QwMDowMDowMC4wMDAwMDBaIiwidmFsaWRfdW50aWwiOm51bGx9"
+    })), StandardCharsets.UTF_8));
+    public static String evaluate(String snapshot, String ruleId, String validAt, String knownAt, String mode) {
+        return POLICY.evaluate(snapshot, ruleId, validAt, knownAt, mode);
+    }
+    public static Map<String,Object> evaluate(Map<String,Object> snapshot, String ruleId, String validAt, String knownAt, String mode) {
+        return POLICY.evaluate(snapshot, ruleId, validAt, knownAt, mode);
+    }
+}
