@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legalmath.invalid/interpretation/v1/action",
+  "title": "Proposed interpretation.v1 action",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "interpretation.v1"
+    },
+    "action_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+    },
+    "issue_root_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "initial_role": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "round": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kind": {
+      "enum": [
+        "INITIAL_PROPOSAL",
+        "RETRIEVE",
+        "ARGUMENT",
+        "REPAIR",
+        "COMPARE",
+        "REVIEW_QUESTION"
+      ]
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "success_criterion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "input_hashes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "adapter_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+    },
+    "state": {
+      "enum": [
+        "RESERVED",
+        "DISPATCHED",
+        "SUCCEEDED",
+        "FAILED",
+        "TIMED_OUT",
+        "RESULT_UNKNOWN"
+      ]
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fencing_token": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "lease_owner": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "result_ref": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "substantive_outcome": {
+      "enum": [
+        "PENDING",
+        "PROGRESS",
+        "NO_PROGRESS",
+        "INVALID",
+        "UNAVAILABLE"
+      ]
+    },
+    "issued_charge": {
+      "const": 1
+    },
+    "token_reservation": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cost_reservation_minor_units": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "remote_idempotency": {
+      "enum": [
+        "SUPPORTED",
+        "UNSUPPORTED",
+        "NOT_APPLICABLE"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "action_id",
+    "run_id",
+    "issue_root_id",
+    "initial_role",
+    "round",
+    "kind",
+    "question",
+    "success_criterion",
+    "input_hashes",
+    "adapter_id",
+    "idempotency_key",
+    "state",
+    "issued_at",
+    "timeout_seconds",
+    "fencing_token",
+    "lease_owner",
+    "result_ref",
+    "substantive_outcome",
+    "issued_charge",
+    "token_reservation",
+    "cost_reservation_minor_units",
+    "remote_idempotency"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "INITIAL_PROPOSAL"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "initial_role": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+          },
+          "issue_root_id": {
+            "type": "null"
+          },
+          "round": {
+            "const": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "initial_role": {
+            "type": "null"
+          },
+          "issue_root_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+          },
+          "round": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  ]
+}

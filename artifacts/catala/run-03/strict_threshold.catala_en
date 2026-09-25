@@ -1,0 +1,71 @@
+# The financial condition for a sophisticated professional investor
+
+The source is the SFC and HKMA circular of 28 July 2023, Annex 1, paragraph
+3.1. Its financial condition permits either a portfolio of at least HK$40
+million or net assets, excluding the primary residence, of at least HK$80
+million. These alternatives are only one part of the SPI requirements.
+The definitions of wealth, applicability and legal effectiveness still need
+legal review. Dates in the comparison fixtures are synthetic test settings.
+
+The following program uses HKD cents. The first pair of inputs describes the
+portfolio; the second describes net assets. Each amount has a separate flag
+that says whether usable evidence is available. An unavailable amount cannot
+satisfy a threshold. One established alternative is enough; when neither is
+established, both must be known to return false. The result code is 1 for true,
+0 for false, and -1 for unresolved. The host translates these codes into named
+statuses and preserves the missing evidence.
+
+```catala
+declaration scope Financial:
+  input portfolio_known content boolean
+  input portfolio_cents content integer
+  input assets_known content boolean
+  input assets_cents content integer
+  output decision content integer
+
+scope Financial:
+  definition decision equals
+    if (portfolio_known and portfolio_cents > 4000000000) or (assets_known and assets_cents >= 8000000000)
+    then 1
+    else if portfolio_known and assets_known then 0 else -1
+```
+
+# An ambiguity test for defaults and exceptions
+
+This is a synthetic programming example, not a rule in the circular. The
+ordinary result is zero. Either of two exceptions changes it to ten.
+Catala 1.2.1 can coalesce equal exception results. RuleIR instead treats two
+applicable exceptions as a conflict, even when both say ten. We preserve the
+RuleIR interpretation by checking ambiguity explicitly. A missing guard leaves
+the outcome unresolved; the amount is used only when the result code is 3.
+Code 2 denotes a conflict and -1 denotes missing information.
+
+```catala
+declaration scope Exceptions:
+  input first_known content boolean
+  input first_applies content boolean
+  input second_known content boolean
+  input second_applies content boolean
+  output decision content integer
+  output amount content integer
+
+scope Exceptions:
+  label ordinary
+  definition amount equals 0
+
+  exception ordinary
+  definition amount under condition first_known and first_applies
+  consequence equals 10
+
+  exception ordinary
+  definition amount under condition second_known and second_applies
+  consequence equals 10
+
+  definition decision equals
+    if first_known and first_applies and second_known and second_applies then 2
+    else if first_known and second_known then 3 else -1
+```
+
+The amount alone demonstrates why compilation success is insufficient: two true
+guards produce ten natively, but the separately computed ambiguity result
+prevents the host from treating ten as an accepted decision.
