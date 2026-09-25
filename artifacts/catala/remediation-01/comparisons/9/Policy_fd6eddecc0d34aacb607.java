@@ -1,0 +1,20 @@
+package hk.legalmath;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Map;
+
+/** Generated RuleIR 0.1 policy. Authority is supplied by an external release record. */
+public final class Policy_fd6eddecc0d34aacb607 {
+    private Policy_fd6eddecc0d34aacb607() {}
+    public static final String BUNDLE_HASH = "fd6eddecc0d34aacb607dd90fbc7a4b34f103c1862f7be6713019e516d5b49fa";
+    private static final Policy POLICY = new Policy(new String(Base64.getDecoder().decode(String.join("", new String[]{
+"eyJidW5kbGVfaWQiOiJuZXQuYXNzZXRzIiwiZmFjdHMiOltdLCJpbnRlcnByZXRhdGlvbnMiOlt7ImJhc2lzIjoic3ludGhldGljX3Rlc3QiLCJpZCI6Im1lYW5pbmcubWFpbiIsImlzc3VlX2lkcyI6W10sInNvdXJjZV9zcGFuX2lkcyI6WyJzcGkuYW5uZXgxLjMuMSJdLCJzdGF0ZW1lbnQiOiJTeW50aGV0aWMgbGFuZ3VhZ2UgY29uZm9ybWFuY2UgZXhhbXBsZTsgbm90IGFuIGFkZGl0aW9uYWwgU0ZDIHJ1bGUuIn1dLCJydWxlcyI6W3siYm9keSI6eyJsZWZ0Ijp7ImxlZnQiOnsibm9kZV9pZCI6ImFzc2V0cyIsIm9wIjoibGl0ZXJhbCIsInR5cGUiOiJtb25leV9oa2QiLCJ2YWx1ZSI6IjEyMDAwMDAwMDAwIn0sIm5vZGVfaWQiOiJsZXNzX2xpYWJpbGl0aWVzIiwib3AiOiJzdWIiLCJyaWdodCI6eyJub2RlX2lkIjoibGlhYmlsaXRpZXMiLCJvcCI6ImxpdGVyYWwiLCJ0eXBlIjoibW9uZXlfaGtkIiwidmFsdWUiOiIxNTAwMDAwMDAwIn19LCJub2RlX2lkIjoibmV0Iiwib3AiOiJzdWIiLCJyaWdodCI6eyJub2RlX2lkIjoiaG9tZSIsIm9wIjoibGl0ZXJhbCIsInR5cGUiOiJtb25leV9oa2QiLCJ2YWx1ZSI6IjMwMDAwMDAwMDAifX0sImlkIjoibmV0LmFzc2V0cyIsImludGVycHJldGF0aW9uX2lkIjoibWVhbmluZy5tYWluIiwic2NvcGUiOnsibm9kZV9pZCI6InNjb3BlLnRydWUiLCJvcCI6ImxpdGVyYWwiLCJ0eXBlIjoiYm9vbCIsInZhbHVlIjp0cnVlfSwic291cmNlX3NwYW5faWRzIjpbInNwaS5hbm5leDEuMy4xIl0sInR5cGUiOiJtb25leV9oa2QifV0sInNvdXJjZV9zcGFucyI6W3siZW5kIjoyMTA3LCJpZCI6InNwaS5hbm5leDEuMy4xIiwicGFnZSI6MSwicXVvdGVfc2hhMjU2IjoiMTJlNTVkMzY4NDg5MjdmYWFkODJjNTE5YjhiM2Y3NWI3YTcxNjJjYzc5ZWZhN2MzZDBjZmZlYWE4OWJhYWRlZCIsInJhd19zaGEyNTYiOiJmODM3MTk5ODFkNzRlZDA2YmI2MmNjZjEyMWJkNzIwNGY4MGExMTQ2YWU1MDQwZjRjNGFhYjkwNWRmNTEwYzRhIiwic291cmNlX2lkIjoiMjNFQzM1L2FubmV4MSIsInN0YXJ0IjoxODU5LCJ0ZXh0X3NoYTI1NiI6IjY3ODA2MDA2MDBlNzdkMmZiZmY1ZjRhMTRiNGRiMjM3YzRjMzk0Mzc2NGE4NDg0NGFhZDhhZDljZDM0NmU1ODkifV0sInNwZWNfdmVyc2lvbiI6IjAuMSIsInZhbGlkX2Zyb20iOiIyMDIzLTA3LTI4VDAwOjAwOjAwLjAwMDAwMFoiLCJ2YWxpZF91bnRpbCI6bnVsbH0="
+    })), StandardCharsets.UTF_8), new catala.stdlib.RuleIRBackend(), "legalmath-catala-java/0.2.0");
+    public static String evaluate(String snapshot, String ruleId, String validAt, String knownAt, String mode) {
+        return POLICY.evaluate(snapshot, ruleId, validAt, knownAt, mode);
+    }
+    public static Map<String,Object> evaluate(Map<String,Object> snapshot, String ruleId, String validAt, String knownAt, String mode) {
+        return POLICY.evaluate(snapshot, ruleId, validAt, knownAt, mode);
+    }
+}
