@@ -65,7 +65,7 @@ fixed in the runner; arbitrary model-supplied commands are not executed.
 ```
 
 The current ledger is `artifacts/interpretation/round7/live-allowance.json`.
-Round eight starts from 59 consumed calls and admits at most 84 more. The earlier
+Round eight starts from 59 consumed calls and admits at most 87 more. The earlier
 97-call ledger remains frozen. Failed attempts consume allowance. Do not reset
 either ledger or modify accepted attempt directories.
 

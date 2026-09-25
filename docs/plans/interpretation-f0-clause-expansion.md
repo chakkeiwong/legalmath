@@ -160,3 +160,41 @@ reader must retain its limitation and may challenge its adequacy. Such a
 challenge blocks legal acceptance and triggers the bounded reconsideration
 procedure; it does not block recording executable consequences or preparing
 clearly labelled draft packages. No material unexamined default is promoted.
+
+
+## Executed pre-F3 repair after the live breadth pass
+
+F2 completed seven valid proposals in three Java-observed behavior groups, with
+448 matching Java/Python evaluations. Three rejected generation responses
+contained six proposals. Structural repairs changed substantive expressions and
+scope, so considering only the final valid response could lose alternatives.
+The pre-F3 repair preserves the raw rejected proposals and their manifest-bound
+validation failures without editing their scope, expressions or source quotes.
+One new bounded generation task reconsiders them alongside the valid proposals
+before the independent source critiques. All raw proposals stay in the final
+uncertainty report, even when they cannot be made executable.
+
+This repair adds at most three calls to F3, changing its ceiling to 24 calls,
+the planned increment to 87, and the absolute grant ceiling to 146. It creates
+no new allowance. The earlier plan and implementation were archived under
+.localresources/interpretation-round8/pre-f3-implementation before this change.
+A targeted adverse test verifies retention, changed-question rejection and
+source-record tamper detection. The rest of the declared comparison remains
+unchanged; no invalid proposal is promoted to a legal conclusion.
+
+
+## Executed pre-F4 repair: preserve non-executable interpretations
+
+The live first reconsideration included an explicit null formalization for a
+plausible reading outside the fixed vocabulary. Rejecting the entire response
+could pressure the repair to delete that reading or invent code. The revised
+validator accepts such a source-quoted, properly scoped proposal only with
+explicit unresolved questions and all required assumptions. It remains in the
+candidate set and source critique, contributes no Java evaluation and forces
+uncertainty. No Boolean answer is fabricated. F4 retains the original rejected
+records and exposes any now-valid verbal reading alongside the draft packages.
+
+The accepted implementation before this change is archived under
+.localresources/interpretation-round8/pre-f4-implementation. Twenty-four targeted
+tests passed after the repair. This change consumes no model calls and does not
+retroactively relabel the accepted F3 run or resolve its legal questions.

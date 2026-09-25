@@ -1,0 +1,18 @@
+{
+  "summary": "The F5 suite stalled in Starlette TestClient event-loop startup after earlier tests passed. The same API test then passed alone in both sandboxed and trusted contexts. The stalled process was terminated using its retained start-time identity. Preserve this failed attempt and repeat the suite in trusted context with a 900-second total deadline.",
+  "findings": [
+    "The stack trace shows a blocked AnyIO portal startup; it does not identify an assertion failure or establish the root cause. No claim that the sandbox caused the stall is made.",
+    "The isolated test passed in 0.76 seconds in sandbox and 1.06 seconds in trusted context; these are diagnostic observations only.",
+    "The previous 16000-second generic phase deadline was inappropriate for a regression that previously completed in about 429 seconds. The reviewed 900-second ceiling prevents another indefinite stall.",
+    "No model calls or accepted source evidence changed. If the trusted full suite stalls again, split the suite into bounded groups and investigate ordering rather than treating isolation success as full acceptance."
+  ],
+  "changes": [
+    "Stopped exact stalled test child and retained attempt-01 logs and manifest.",
+    "scripts/run_issue_plan.py sets F5 total command deadline to 900 seconds."
+  ],
+  "regression": [
+    "artifacts/interpretation/round8/f5-api-diagnostic.xml: 1 passed; complete suite still required."
+  ],
+  "verdict": "PASS_WITH_LIMITS",
+  "independent_review": false
+}
