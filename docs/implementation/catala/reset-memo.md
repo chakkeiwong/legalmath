@@ -53,3 +53,14 @@ Python: `/home/chakwong/python/legalmath/.venv/bin/python`, `PYTHONPATH=src`.
 No global environment changes, network downloads, GPU calls, or model workers
 are needed. The original compiler preparation isolated Conda flags as well as
 PATH; do not rebuild it inside the inherited Conda compiler environment.
+
+## Direct native converter continuation, 25 September 2026
+
+A separate direct source-to-native-Catala development route has now been
+implemented and exercised. Read `native-converter/reset-memo.md` and
+`native-converter/results.md` for its seven-task generated-program evidence,
+exact I/O, source-domain hardening, real scope-output observations and distinct
+host/CLI profile. It does not supersede the RuleIR backend evidence above.
+Unlike the earlier offline backend work, this extension used 22 counted model
+calls from the existing shared allowance, ending at 175/500. The default
+pipeline and production approval state have not been changed.

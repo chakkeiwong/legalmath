@@ -1,0 +1,8 @@
+{
+"portfolio": "```catala\nscope Portfolio:\n  definition exposure equals sum decimal of (map each h among holdings to if h.eligible then h.amount else 0.0)\n```",
+"bands": "```catala\nscope Bands:\n  definition charge equals money of (if amount <= threshold then amount * lowerRate else threshold * lowerRate + (amount - threshold) * upperRate)\n```",
+"deadline": "```catala\nscope Deadline:\n  date round down\n  definition due equals start + months * 1 month\n  definition late equals assessed > due\n```",
+"category": "```catala\nscope Classification:\n  definition amount equals match category with pattern\n    -- Ordinary: base\n    -- Preferred: base * 2\n    -- Excluded: 0\n```",
+"scopes": "```catala\ndeclaration scope Entitlement:\n  input age content integer\n  input rate content integer\n  output amount content integer\nscope Entitlement:\n  definition amount equals if age >= 18 then rate else 0\n\nscope Household:\n  definition total equals sum integer of (map each person among people to (output of Entitlement with { -- age: person.age -- rate: person.rate }).amount)\n```",
+"exceptions": "```catala\nscope Permission:\n  label baseRule\n  definition allowed equals false\n  label licenseRule\n  exception baseRule\n  definition allowed under condition licensed consequence equals true\n  exception licenseRule\n  definition allowed under condition suspended consequence equals false\n```"
+}

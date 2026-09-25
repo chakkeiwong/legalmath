@@ -1,0 +1,24 @@
+...........................F                                             [100%]
+=================================== FAILURES ===================================
+_______ test_equal_exception_consequences_follow_catala_conflict_policy ________
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-236/test_equal_exception_consequen0')
+
+    def test_equal_exception_consequences_follow_catala_conflict_policy(tmp_path):
+        from .reference import task,f
+        t=task('nativeconflict','NativeConflict','Either exemption supplies the same value, without declared priority.',
+               [f('first','boolean'),f('second','boolean')],[f('value','integer')])
+        c={'record_type':'NativeCatalaCandidate','task_hash':digest(t),
+           'source':'```catala\nscope NativeConflict:\n  label baseRule definition value equals 0\n  exception baseRule definition value under condition first consequence equals 1\n  exception baseRule definition value under condition second consequence equals 1\n```',
+           'interpretation':'Two same-level exceptions, no invented priority.','assumptions':[],'unresolved':[],
+           'anchors':[{'unit_id':'clause.one','quote':t['packet']['selected_slice'],'code_excerpt':'scope NativeConflict:'}]}
+        out=tmp_path/'samelevel';build(t,c,out,JDK,**TOOLCHAIN)
+        # Pinned native semantics, unlike RuleIR's explicit multiplicity status,
+        # are measured directly. Simultaneously applicable defaults raise conflict.
+>       with pytest.raises(LegalMathError): execute_values(out,{'first':True,'second':True},JDK)
+E       Failed: DID NOT RAISE <class 'legalmath.errors.LegalMathError'>
+
+tests/catala/native/test_native.py:238: Failed
+=========================== short test summary info ============================
+FAILED tests/catala/native/test_native.py::test_equal_exception_consequences_follow_catala_conflict_policy
+1 failed, 27 passed in 63.33s (0:01:03)
