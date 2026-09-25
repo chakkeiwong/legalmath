@@ -15,10 +15,21 @@ import java.util.TreeSet;
 /** Immutable compiled policy; each call creates an isolated evaluation context. */
 public final class Policy {
     public static final String ENGINE="legalmath-java/0.1.0";
+    /** Values returned by an optional compiled calculation backend. */
+    public record Scalar(String type,String status,Object value) {}
+    public interface NodeEngine {
+        Scalar calculate(String node,List<Scalar> operands);
+        int select(String node,List<Scalar> guards);
+    }
+    private final NodeEngine nodeEngine;
+    private final String engineVersion;
     private final Map<String,Object> bundle;
     private final Map<String,Map<String,Object>> rules=new HashMap<>();
     private final Map<String,String> types=new HashMap<>(), pointers=new HashMap<>(), factTypes=new HashMap<>();
-    Policy(String compiledBundle) {
+    Policy(String compiledBundle) { this(compiledBundle,null,ENGINE); }
+    public Policy(String compiledBundle,NodeEngine calculations,String version) {
+        if(version==null || (calculations==null&&!ENGINE.equals(version)))throw new IllegalArgumentException("Calculation engine required");
+        nodeEngine=calculations;engineVersion=version;
         bundle=Json.map(Json.freeze(Json.parse(compiledBundle)));
         for(Object f:Json.list(bundle.get("facts")))factTypes.put(s(m(f),"name"),s(m(f),"type"));
         for(Object r:Json.list(bundle.get("rules")))rules.put(s(m(r),"id"),m(r));
@@ -91,7 +102,7 @@ public final class Policy {
         time(validAt);time(knownAt);if(!List.of("draft","production","replay").contains(mode))throw new Json.Invalid();
         Map<String,Object> result=Json.obj("status","ERROR","type",null,"mode",mode,"diagnostics",List.of(diag("E_SCHEMA","/snapshot")),
             "reason_codes",List.of("E_SCHEMA"),"missing_inputs",List.of(),"blocking_inputs",List.of(),"trace",List.of(),
-            "bundle_hash",Json.hash(bundle),"snapshot_hash",Json.hash(snapshot),"engine_version",ENGINE,"valid_at",validAt,"known_at",knownAt);
+            "bundle_hash",Json.hash(bundle),"snapshot_hash",Json.hash(snapshot),"engine_version",engineVersion,"valid_at",validAt,"known_at",knownAt);
         result.put("result_hash",executionHash(result,ruleId));return m(Json.freeze(result));
     }
     public Map<String,Object> evaluate(Map<String,Object> input,String ruleId,String validAt,String knownAt,String mode){
@@ -114,7 +125,7 @@ public final class Policy {
         if(blocking==null)blocking=List.of("TRUE","FALSE","VALUE","OUT_OF_SCOPE").contains(value.status)?new ArrayList<>():new ArrayList<>(value.missing);
         Map<String,Object> result=Json.obj("status",value.status,"type",value.type,"mode",mode,"diagnostics",value.diags,"reason_codes",new ArrayList<>(value.reasons),
             "missing_inputs",new ArrayList<>(value.missing),"blocking_inputs",blocking,"trace",trace,"bundle_hash",Json.hash(bundle),"snapshot_hash",Json.hash(snapshot),
-            "engine_version",ENGINE,"valid_at",validAt,"known_at",knownAt);
+            "engine_version",engineVersion,"valid_at",validAt,"known_at",knownAt);
         if(value.known())result.put("value",value.value);
         result.put("result_hash",executionHash(result,ruleId));return m(Json.freeze(result));
     }
@@ -189,6 +200,22 @@ public final class Policy {
         for(V v:values){out.reasons.addAll(v.reasons);out.missing.addAll(v.missing);out.evidence.addAll(v.evidence);}
         if(bad!=null){out.reasons.clear();out.reasons.addAll(bad.reasons);out.diags.addAll(bad.diags);}return out;
     }
+    private static List<Scalar> operands(List<V> values){return values.stream().map(v->new Scalar(v.type,v.status,v.value)).toList();}
+    private V calculated(Map<String,Object> n,String type,List<V> inputs){
+        Scalar result=nodeEngine.calculate(s(n,"node_id"),operands(inputs));
+        if(result==null||!type.equals(result.type())||!List.of("TRUE","FALSE","VALUE","UNKNOWN","CONFLICT","ERROR").contains(result.status()))throw new IllegalArgumentException("Invalid calculation result");
+        boolean known=List.of("TRUE","FALSE","VALUE").contains(result.status());
+        if(known && (!scalar(type,result.value()) || !known(type,result.value()).status.equals(result.status())))throw new IllegalArgumentException("Invalid calculation value");
+        if(!known && result.value()!=null)throw new IllegalArgumentException("Unexpected calculation value");
+        V out=combine(type,inputs,result.status(),result.value());
+        // Do not silently correct a backend which loses an upstream error/conflict.
+        if(!out.status.equals(result.status()))throw new IllegalArgumentException("Calculation lost operand status");
+        if(out.status.equals("ERROR")&&inputs.stream().noneMatch(v->v.status.equals("ERROR")||v.status.equals("CONFLICT"))){
+            if(!s(n,"op").equals("scale"))throw new IllegalArgumentException("Unexpected calculation error");
+            out.reasons.clear();out.reasons.add("E_INEXACT_SCALE");out.diags.add(diag("E_INEXACT_SCALE",pointers.get(s(n,"node_id"))));
+        }
+        return out;
+    }
     private final class Context {
         final Map<String,Object> facts;final String at,cutoff;final List<Object> trace=new ArrayList<>();
         final Map<String,V> memo=new HashMap<>(),ruleMemo=new HashMap<>();
@@ -209,7 +236,7 @@ public final class Policy {
             String id=s(n,"node_id"),op=s(n,"op"),type=types.get(id);if(memo.containsKey(id))return memo.get(id);
             List<String> kids=new ArrayList<>();for(Map<String,Object> c:children(n))kids.add(s(c,"node_id"));V out;
             switch(op){
-                case "literal":out=known(type,n.get("value"));break;
+                case "literal":out=nodeEngine==null?known(type,n.get("value")):calculated(n,type,List.of());break;
                 case "fact":{
                     Map<String,Object> f=m(facts.get(s(n,"name")));
                     if(s(f,"status").equals("known")&&eligible(s(f,"valid_from"),f.get("valid_until"),at)&&s(f,"recorded_at").compareTo(cutoff)<=0){out=known(type,f.get("value"));out.evidence.addAll(strings(f.get("evidence_ids")));}
@@ -217,14 +244,24 @@ public final class Policy {
                 }
                 case "rule":out=rule(s(n,"name"));kids.clear();for(String f:List.of("scope","body"))kids.add(s(m(rules.get(s(n,"name")).get(f)),"node_id"));break;
                 case "if":{
-                    V c=node(m(n.get("condition")),r);String chosen=c.status.equals("TRUE")?"then":c.status.equals("FALSE")?"else":"";List<V> values=new ArrayList<>();values.add(c);
+                    V c=node(m(n.get("condition")),r);
+                    int selection=nodeEngine==null?(c.status.equals("TRUE")?1:c.status.equals("FALSE")?2:-1):nodeEngine.select(id,operands(List.of(c)));
+                    if(selection!=-1&&selection!=1&&selection!=2)throw new IllegalArgumentException("Invalid conditional selection");
+                    String chosen=selection==1?"then":selection==2?"else":"";List<V> values=new ArrayList<>();values.add(c);
                     for(String f:List.of("then","else")){if(f.equals(chosen))values.add(node(m(n.get(f)),r));else skip(m(n.get(f)),r);}
                     V last=values.get(values.size()-1);out=combine(type,values,chosen.isEmpty()?"UNKNOWN":last.status,chosen.isEmpty()?null:last.value);break;
                 }
                 case "default":{
                     List<V> gs=new ArrayList<>();List<Object> exceptions=Json.list(n.get("exceptions"));for(Object e:exceptions)gs.add(node(m(m(e).get("guard")),r));
                     Map<String,Object> selected=null;String state=null;
-                    if(gs.stream().anyMatch(v->v.status.equals("ERROR")||v.status.equals("CONFLICT")))state="UNKNOWN";
+                    if(nodeEngine!=null){
+                        int selection=nodeEngine.select(id,operands(gs));
+                        if(selection < -2 || selection > exceptions.size())throw new IllegalArgumentException("Invalid default selection");
+                        if(selection==-2)state="CONFLICT";
+                        else if(selection==-1)state="UNKNOWN";
+                        else selected=selection==0?m(n.get("base")):m(m(exceptions.get(selection-1)).get("value"));
+                    }
+                    else if(gs.stream().anyMatch(v->v.status.equals("ERROR")||v.status.equals("CONFLICT")))state="UNKNOWN";
                     else if(gs.stream().filter(v->v.status.equals("TRUE")).count()>1)state="CONFLICT";
                     else if(gs.stream().anyMatch(v->v.status.equals("UNKNOWN")))state="UNKNOWN";
                     else{selected=m(n.get("base"));for(int i=0;i<gs.size();i++)if(gs.get(i).status.equals("TRUE"))selected=m(m(exceptions.get(i)).get("value"));}
@@ -233,7 +270,9 @@ public final class Policy {
                     V last=values.isEmpty()?null:values.get(values.size()-1);out=combine(type,values,state==null?last.status:state,selected==null?null:last.value);if("CONFLICT".equals(state))out.reasons.add("MULTIPLE_EXCEPTIONS");break;
                 }
                 default:{
-                    List<V> vs=new ArrayList<>();for(Map<String,Object> c:children(n))vs.add(node(c,r));out=combine(type,vs,"UNKNOWN",null);
+                    List<V> vs=new ArrayList<>();for(Map<String,Object> c:children(n))vs.add(node(c,r));
+                    if(nodeEngine!=null){out=calculated(n,type,vs);break;}
+                    out=combine(type,vs,"UNKNOWN",null);
                     if(out.status.equals("ERROR")||out.status.equals("CONFLICT"))break;
                     if(op.equals("all")||op.equals("any")){
                         String target=op.equals("all")?"FALSE":"TRUE",other=op.equals("all")?"TRUE":"FALSE";

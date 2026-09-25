@@ -25,7 +25,14 @@ def toolchain(jdk):
     return root, version
 
 
-def build_candidate(bundle, output, jdk):
+def build_candidate(bundle, output, jdk, *, backend="java", catala_toolchain=None):
+    if backend == "catala":
+        from ..catala.backend import build_candidate as build_catala
+        if not catala_toolchain:
+            raise LegalMathError("E_NOT_FOUND", details="Explicit Catala toolchain required")
+        return build_catala(bundle, output, jdk, **catala_toolchain)
+    if backend != "java" or catala_toolchain is not None:
+        raise LegalMathError("E_UNSUPPORTED_PROFILE")
     jdk, version = toolchain(jdk)
     name, source = emit(bundle)
     runtime = runtime_sources()
@@ -100,7 +107,7 @@ def verify_candidate(build, cases, jdk, event_cases=None):
         exclude = {"engine_version", "result_hash"}
         if {k:v for k,v in java.items() if k not in exclude} != {k:v for k,v in python.items() if k not in exclude}:
             raise LegalMathError("E_INTEGRITY", details=c.get("id"))
-        if java["engine_version"] == python["engine_version"]:
+        if java["engine_version"] == python["engine_version"] or java["engine_version"] != manifest["decision_engine"]:
             raise LegalMathError("E_INTEGRITY")
         results.append({"id": c["id"], "python": python, "java": java})
     checks = [{"name": "full-semantic-conformance", "passed": True, "evidence_hash": digest(results)}]

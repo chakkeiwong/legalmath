@@ -24,6 +24,7 @@ public final class Runner {
                 if(!args[0].matches("hk\\.legalmath\\.Policy_[0-9a-f]{20}"))throw new IllegalArgumentException("Generated policy class required");
                 System.out.println(Class.forName(args[0]).getMethod("evaluate",String.class,String.class,String.class,String.class,String.class).invoke(null,snapshot,rule,at,cutoff,mode));
             }else{
+                if(Runner.class.getResource("/META-INF/legalmath/catala-build.json")!=null)throw new IllegalArgumentException("Catala generated policy class required");
                 Policy p=new Policy(Json.write(request.get("bundle")));
                 System.out.println(p.evaluate(snapshot,rule,at,cutoff,mode));
             }

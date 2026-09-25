@@ -15,12 +15,12 @@ class Releases:
         self.db = db
         self.lifecycle = Lifecycle(db)
 
-    def build(self, caller, key, bundle_hash, output, jdk, cases, event_cases=None):
+    def build(self, caller, key, bundle_hash, output, jdk, cases, event_cases=None, *, backend="java", catala_toolchain=None):
         with self.db.connect() as con:
             self.lifecycle.require(con, caller, "engineering")
             self.lifecycle.state(con, bundle_hash)
             bundle = self.db.get(con, bundle_hash)
-        build = build_candidate(bundle, output, jdk)
+        build = build_candidate(bundle, output, jdk, backend=backend, catala_toolchain=catala_toolchain)
         report = verify_candidate(build, cases, jdk, event_cases)
         results = loads((Path(output) / "verification-results.json").read_bytes())
 
@@ -41,7 +41,10 @@ class Releases:
             con.execute("INSERT OR IGNORE INTO verifications VALUES(?,?,?,1)", (vh, bh, bundle_hash))
             return {"build_manifest_hash": bh, "verification_report_hash": vh,
                     "jar_sha256": report["jar_sha256"], "class_name": build["class_name"]}
-        return self.db.mutate(caller, key, {"op": "build", "bundle": bundle_hash, "cases": digest(cases), "event_cases": digest(event_cases)}, op)
+        request = {"op": "build", "bundle": bundle_hash, "cases": digest(cases), "event_cases": digest(event_cases)}
+        if backend != "java":
+            request["build_manifest"] = build["manifest_hash"]
+        return self.db.mutate(caller, key, request, op)
 
     def prepare(self, caller, key, build_hash, verification_hash, applicability_hash, valid_from, valid_until):
         interval(valid_from, valid_until)

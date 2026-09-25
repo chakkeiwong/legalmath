@@ -10,7 +10,7 @@ IDENTITIES = {
 }
 
 
-def prepare_release(db, root, tmp_path, case, *, approve=True):
+def prepare_release(db, root, tmp_path, case, *, approve=True, backend="java", catala_toolchain=None):
     case = deepcopy(case)
     case["bundle"]["bundle_id"] = "synthetic.release"
     for item in case["bundle"]["interpretations"]:
@@ -29,7 +29,7 @@ def prepare_release(db, root, tmp_path, case, *, approve=True):
         "valid_from": case["bundle"]["valid_from"], "valid_until": case["bundle"]["valid_until"], "conclusion": "in_scope",
         "reason": "Public synthetic engineering scenario only", "source_span_ids": [case["bundle"]["source_spans"][0]["id"]], "reviewer_id": "meaning"}
     app = lc.assess("meaning", "scope", a)
-    build = rel.build("engineer", "build", bh, tmp_path / "build", root / ".localresources/java-toolchain/jdk-17.0.20.1+1", [case])
+    build = rel.build("engineer", "build", bh, tmp_path / "build", root / ".localresources/java-toolchain/jdk-17.0.20.1+1", [case], backend=backend, catala_toolchain=catala_toolchain)
     manifest = rel.prepare("engineer", "prepare", build["build_manifest_hash"], build["verification_report_hash"], app["applicability_hash"], a["valid_from"], a["valid_until"])["java_release_manifest_hash"]
     state = lc.transition("author", "submit", bh, "submit", state["revision"])
     if approve:

@@ -7,10 +7,16 @@ from ..errors import LegalMathError
 from ..ir.typecheck import validate_bundle
 
 
-def emit(bundle):
+def emit(bundle, *, backend="java"):
     errors = validate_bundle(bundle)
     if errors:
         raise LegalMathError(errors[0]["code"], errors[0]["pointer"])
+    extra = ""
+    if backend == "catala":
+        from ..catala.generator import ENGINE
+        extra = ', new catala.stdlib.RuleIRBackend(), "' + ENGINE + '"'
+    elif backend != "java":
+        raise LegalMathError("E_UNSUPPORTED_PROFILE")
     name = "Policy_" + digest(bundle)[:20]
     encoded = base64.b64encode(canonical(bundle)).decode()
     chunks = ",\n".join('"' + encoded[i:i + 12000] + '"' for i in range(0, len(encoded), 12000))
@@ -26,7 +32,7 @@ public final class {name} {{
     public static final String BUNDLE_HASH = "{digest(bundle)}";
     private static final Policy POLICY = new Policy(new String(Base64.getDecoder().decode(String.join("", new String[]{{
 {chunks}
-    }})), StandardCharsets.UTF_8));
+    }})), StandardCharsets.UTF_8){extra});
     public static String evaluate(String snapshot, String ruleId, String validAt, String knownAt, String mode) {{
         return POLICY.evaluate(snapshot, ruleId, validAt, knownAt, mode);
     }}

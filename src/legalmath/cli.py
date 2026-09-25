@@ -71,6 +71,10 @@ def main():
     for name in ("data-dir", "bundle-hash", "cases", "jdk", "output", "identities", "caller"):
         build.add_argument("--" + name, required=True)
     build.add_argument("--event-cases")
+    build.add_argument("--backend", choices=["java", "catala"], default="java")
+    build.add_argument("--catala", help="Pinned Catala compiler executable")
+    build.add_argument("--catala-upstream", help="Retained pinned Catala source tree")
+    build.add_argument("--catala-lock", help="Reviewed Catala toolchain lock JSON")
     sources = subs.add_parser("sources", help="Import a hash-bound retained source manifest")
     source_commands = sources.add_subparsers(dest="source_command", required=True)
     source_import = source_commands.add_parser("import")
@@ -143,7 +147,17 @@ def main():
             cases = loads(Path(args.cases).read_bytes())
             if isinstance(cases, dict): cases = cases["cases"]
             events = loads(Path(args.event_cases).read_bytes()) if args.event_cases else None
-            result = Releases(db).build(args.caller, "cli.build." + digest({"cases": cases, "events": events}), args.bundle_hash, args.output, args.jdk, cases, events)
+            catala_tools = None
+            if args.backend == "catala":
+                if not all((args.catala, args.catala_upstream, args.catala_lock)):
+                    parser.error("--backend catala requires --catala, --catala-upstream and --catala-lock")
+                catala_tools = {"compiler": args.catala, "upstream": args.catala_upstream, "lock": args.catala_lock}
+            elif any((args.catala, args.catala_upstream, args.catala_lock)):
+                parser.error("Catala tool options require --backend catala")
+            identity = {"cases": cases, "events": events}
+            if args.backend != "java":
+                identity["backend"] = args.backend
+            result = Releases(db).build(args.caller, "cli.build." + digest(identity), args.bundle_hash, args.output, args.jdk, cases, events, backend=args.backend, catala_toolchain=catala_tools)
         else:
             parser.print_help()
             return

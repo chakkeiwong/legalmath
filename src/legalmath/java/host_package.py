@@ -10,14 +10,14 @@ from ..ir.trace import verify_result
 from .manifest import build_candidate,verify_candidate,toolchain
 
 
-def prepare(bundle,cases,sources,out,jdk):
+def prepare(bundle,cases,sources,out,jdk,*,backend="java",catala_toolchain=None):
     out=Path(out)
     if out.exists():raise LegalMathError('E_IDEMPOTENCY')
     # Raw source commitments must actually be present in the package.
     hashes={raw_digest(data) for data in sources.values()}
     if not {s['raw_sha256'] for s in bundle['source_spans']}<=hashes:raise LegalMathError('E_REFERENCE')
     out.mkdir(parents=True)
-    build=build_candidate(bundle,out/'policy',jdk);verify=verify_candidate(build,cases,jdk)
+    build=build_candidate(bundle,out/'policy',jdk,backend=backend,catala_toolchain=catala_toolchain);verify=verify_candidate(build,cases,jdk)
     for h,data in ((raw_digest(data),data) for data in sources.values()):
         (out/'sources').mkdir(exist_ok=True);(out/'sources'/(h+'.bin')).write_bytes(data)
     clazz=build['class_name']
@@ -71,13 +71,13 @@ def verify_package(directory):
     return metadata,bundle
 
 
-def prepare_interpretation(reading,packet,cases,sources,out,jdk,at):
+def prepare_interpretation(reading,packet,cases,sources,out,jdk,at,*,backend="java",catala_toolchain=None):
     """Carry a proposed question and output meaning with its exact draft program."""
     from ..interpretation.outputs import descriptor
     from ..interpretation.search.formal import bundle as compile_reading
     meaning=descriptor(reading,packet['selected_slice'])
     compiled=compile_reading(reading,packet,at)
-    metadata=prepare(compiled,cases,sources,out,jdk);out=Path(out)
+    metadata=prepare(compiled,cases,sources,out,jdk,backend=backend,catala_toolchain=catala_toolchain);out=Path(out)
     metadata['output_descriptor']=meaning
     (out/'interpretation.json').write_bytes(canonical({'reading':reading,'source_packet':packet}))
     (out/'package.json').write_bytes(canonical(metadata))
