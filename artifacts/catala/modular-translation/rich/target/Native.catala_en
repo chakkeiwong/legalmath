@@ -1,0 +1,37 @@
+# Declared factual interface
+```catala
+declaration structure Entry:
+  data amount content decimal
+  data active content boolean
+
+declaration enumeration Choice:
+  -- Fixed content decimal
+  -- Empty
+
+declaration scope SharedRule:
+  input f0 content list of Entry
+  input f1 content optional of decimal
+  input f2 content Choice
+  output r0 content decimal
+  output r1 content decimal
+  output r2 content optional of decimal
+  output r3 content optional of decimal
+  output r4 content Choice
+  output r5 content decimal
+  output r6 content money
+```
+
+```catala
+scope SharedRule:
+  definition r0 equals ((sum decimal of (map each v1 among (list of v2 among f0 such that (v2).active) to (v1).amount)) + (match f1 with pattern
+ -- Present content v3: v3
+ -- Absent: (0.0 / 1.0)))
+  definition r1 equals (match f2 with pattern
+ -- Fixed content v4: v4
+ -- Empty: (0.0 / 1.0))
+  definition r2 equals (Present content (1.0 / 3.0))
+  definition r3 equals Absent
+  definition r4 equals (Choice.Fixed content (2.0 / 3.0))
+  definition r5 equals ((2.0 / 3.0) * (3.0 / 4.0))
+  definition r6 equals (sum money of [($1.01); (-$0.01)])
+```

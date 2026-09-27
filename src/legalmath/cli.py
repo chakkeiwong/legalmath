@@ -11,6 +11,8 @@ def main():
     subs = parser.add_subparsers(dest="command")
     from .catala.native.cli import configure as native_configure
     native_configure(subs.add_parser('catala-convert', help='Direct source-to-native-Catala development workflow'))
+    from .translation.cli import configure as rules_configure
+    rules_configure(subs.add_parser('rules',help='Shared interpretation, deterministic translation and target execution'))
     search = subs.add_parser('interpretation-search',help='Generate and investigate competing readings in fresh Codex contexts')
     for name in ('data-dir','identities','caller','packet','settings','jdk','at','allowance','total-calls','key'):
         search.add_argument('--'+name,required=True,type=int if name=='total-calls' else str)
@@ -91,7 +93,10 @@ def main():
     args = parser.parse_args()
     from .canonical import loads
     try:
-        if args.command == 'catala-convert':
+        if args.command == 'rules':
+            from .translation.cli import dispatch
+            result = dispatch(args)
+        elif args.command == 'catala-convert':
             from .catala.native.cli import dispatch
             result = dispatch(args)
         elif args.command == 'interpretation-assurance':

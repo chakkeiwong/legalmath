@@ -16,6 +16,8 @@ def configure(parser):
     generate.add_argument('--resume',action='store_true')
     generate.add_argument('--routing-file')
     generate.add_argument('--no-revision',action='store_true')
+    generate.add_argument('--reading',help='Select an existing shared interpretation when several readings remain')
+    generate.add_argument('--legacy-code-generation',action='store_true',help='Explicit compatibility mode for the historical target-specific generator')
     compile_cmd = commands.add_parser('build', help='Build a retained native candidate')
     for name in ('task','candidate','out'):
         compile_cmd.add_argument('--'+name,required=True)
@@ -36,6 +38,12 @@ def configure(parser):
 def dispatch(args):
     read = lambda name: loads(Path(name).read_bytes())
     if args.native_command == 'generate':
+        if not args.legacy_code_generation:
+            from ...translation.cli import provider
+            from ...translation.native_compat import convert as shared_convert
+            return shared_convert(read(args.task),args.out,provider(args),args.jdk,
+                compiler=args.compiler,upstream=args.upstream,lock=args.lock,resume=args.resume,
+                max_revisions=0 if args.no_revision else 1,reading_id=args.reading)
         ledger = Path(args.allowance).resolve()
         if not ledger.exists():
             raise LegalMathError('E_AUTHORITY',details='Supply an existing authorized allowance')
@@ -60,6 +68,29 @@ def dispatch(args):
                        resume=args.resume,max_revisions=0 if args.no_revision else 1)
     if args.native_command == 'build':
         return build(read(args.task),read(args.candidate),args.out,args.jdk,compiler=args.compiler,upstream=args.upstream,lock=args.lock)
+    if args.native_command in ('verify','execute') and (Path(args.build)/'model.json').exists():
+        from ...translation.native_compat import execute_native,snapshot
+        from ...translation.verification import verify_execution
+        from ...translation.pipeline import verify_build
+        if args.native_command=='execute':return execute_native(args.build,read(args.snapshot),args.jdk)
+        cases=read(args.cases);records=[]
+        for c in cases:
+            result=execute_native(args.build,c['snapshot'],args.jdk)
+            expected=c['expected'];value=expected.get('value')
+            if value is not None:
+                if len(value)!=1:raise LegalMathError('E_SCHEMA')
+                value=next(iter(value.values()))
+            status=expected['status']
+            if status=='VALUE' and type(value)is bool:status='TRUE' if value else 'FALSE'
+            if (result['status']!=status or result['value']!=value
+                    or ('reason' in expected and result['reason']!=expected['reason'])):raise LegalMathError('E_INTEGRITY',details=c['id'])
+            m,_,_=verify_build(args.build)
+            reference={'status':status,'value':value,**({'reason':expected['reason']} if 'reason' in expected else {})}
+            checks=verify_execution(args.build,snapshot(c['snapshot'],m),result,reference,args.jdk,compiler=args.compiler)
+            records.append({'case_id':c['id'],'result':result,'checks':checks})
+        if not records:raise LegalMathError('E_SCHEMA')
+        report={'record_type':'TranslatedRuleVerification','passed':len(records),'records':records}
+        Path(args.out).write_bytes(canonical(report));return report
     if args.native_command == 'verify':
         report = verify_cases(args.build,read(args.cases),args.jdk,compiler=args.compiler)
         Path(args.out).write_bytes(canonical(report))

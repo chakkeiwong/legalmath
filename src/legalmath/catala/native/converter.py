@@ -71,7 +71,11 @@ def _write(path, value):
 
 
 def convert(task, output, provider, jdk, *, compiler, upstream, lock, resume=False, max_revisions=1):
-    """At most two generations and two source reviews; no hidden-case feedback.
+    """Legacy target-specific generation for replaying historical experiments.
+
+    New callers use translation.frontend.interpret followed by pipeline.build;
+    the native CLI selects that shared workflow unless explicitly in legacy mode.
+    At most two generations and two source reviews; no hidden-case feedback.
 
     Provider interruptions stay counted. Resume reuses each saved completion and
     never republishes a response as a fresh independent sample.

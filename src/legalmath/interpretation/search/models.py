@@ -90,6 +90,12 @@ class Settings(Strict):
 def validate_generation(value, packet):
     p = parse(Packet,packet)
     result = parse(Generation,value)
+    return validate_generation_metadata(result, p)
+
+
+def validate_generation_metadata(result, packet):
+    """Shared provenance/coverage checks, independent of expression target/types."""
+    p = parse(Packet, packet)
     units = {u['unit_id']:u for u in p['units']}
     dimensions = [v['dimension'] for v in result['dimensions']]
     coverage = [v['unit_id'] for v in result['coverage']]

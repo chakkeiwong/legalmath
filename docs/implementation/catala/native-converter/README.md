@@ -1,6 +1,13 @@
 # Direct native Catala development profile
 
-The converter takes retained source text, a question and a factual interface,
+`catala-convert generate` now defaults to the [shared interpretation
+workflow](../modular-translation/README.md). It freezes a typed rule model before
+deterministically translating it to Catala. Both targets use the same front end
+and an explicit evidence policy. Add `--legacy-code-generation` to reproduce the
+historical target-specific generation described below. Handwritten native build
+and replay continue to use the native profiles documented here.
+
+The historical converter takes retained source text, a question and a factual interface,
 then generates a native Catala program and asks a fresh model context to review
 its reading of the source. Computation goes directly through Catala. There is no
 RuleIR translation in this route. The existing RuleIR-to-Catala backend remains
@@ -43,7 +50,7 @@ correctness or pass the separate behavioral verification.
 The public commands are:
 
 ```text
-legalmath catala-convert generate --task TASK.json --out RUN --allowance EXISTING_LEDGER.json --jdk JDK --compiler CATALA --upstream PINNED_SOURCE --lock LOCK.json
+legalmath catala-convert generate --legacy-code-generation --task TASK.json --out RUN --allowance EXISTING_LEDGER.json --jdk JDK --compiler CATALA --upstream PINNED_SOURCE --lock LOCK.json
 legalmath catala-convert build --task TASK.json --candidate CANDIDATE.json --out BUILD --jdk JDK --compiler CATALA --upstream PINNED_SOURCE --lock LOCK.json
 legalmath catala-convert verify --build BUILD --cases CASES.json --out REPORT.json --jdk JDK --compiler CATALA
 legalmath catala-convert execute --build BUILD --snapshot SNAPSHOT.json --jdk JDK
