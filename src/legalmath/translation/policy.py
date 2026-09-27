@@ -57,6 +57,9 @@ def validate_value(model, typ, value, depth=0):
 
 def prepare(model, snapshot, valid_at, known_at):
     try:
+        if model['version']=='2':
+            from .observations import prepare as prepare_observations
+            return prepare_observations(model,snapshot,valid_at,known_at)
         return _prepare(model,snapshot,valid_at,known_at)
     except (KeyError,TypeError,ValueError,AttributeError) as exc:
         raise LegalMathError('E_SCHEMA',details='Malformed shared snapshot') from exc

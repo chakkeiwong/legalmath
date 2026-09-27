@@ -14,24 +14,29 @@ def shared_type(typ):
     return {'boolean':'bool','money':'money_hkd'}.get(typ,typ)
 
 
-def task(value):
+def task(value, *, version=None):
     t=validate_task(value)
-    if len(t['outputs'])!=1: fail('E_UNSUPPORTED_PROFILE','Shared source interpretation currently selects one output; use explicit legacy generation for historical multi-output tasks')
+    if version is None: version='1' if len(t['outputs'])==1 else '2'
+    if version not in ('1','2') or (version=='1' and len(t['outputs'])!=1): fail('E_UNSUPPORTED_PROFILE')
     definitions=[]
     for d in t['types']:
         definitions.append({**d,'fields':[{**f,'type':shared_type(f['type'])} for f in d['fields']],
             'cases':[{'name':c,'type':None} if isinstance(c,str) else {**c,'type':shared_type(c['type']) if c['type'] else None} for c in d['cases']]})
     units=[u['unit_id'] for u in t['packet']['units'] if u['normative']] or [t['packet']['units'][0]['unit_id']]
-    return {'record_type':'RuleInterpretationTask','task_id':t['task_id'],'packet':t['packet'],'question':t['question'],
+    result={'record_type':'RuleInterpretationTask','task_id':t['task_id'],'packet':t['packet'],'question':t['question'],
             'facts':[{'name':f['name'],'type':shared_type(f['type']),'meaning':f['meaning'],'unit':f['unit'],
                       'source_unit_ids':units,'requires_judgment':True} for f in t['inputs']],
             'types':definitions,'result_type':shared_type(t['outputs'][0]['type']),'profile':'complete.v1',
             'valid_from':t['valid_from'],'valid_until':t['valid_until'],'bounds':t.get('bounds',[])}
+    if version=='2':
+        result.pop('result_type')
+        result.update(version='2',outputs=[{'id':f['name'],'result_type':shared_type(f['type'])} for f in t['outputs']])
+    return result
 
 
-def convert(value,output,provider,jdk,*,compiler,upstream,lock,resume=False,max_revisions=1,reading_id=None):
+def convert(value,output,provider,jdk,*,compiler,upstream,lock,resume=False,max_revisions=1,reading_id=None,shared_version=None):
     out=Path(output);front=out/'interpretation'
-    state=interpret(task(value),front,provider,resume=resume,max_revisions=max_revisions)
+    state=interpret(task(value,version=shared_version),front,provider,resume=resume,max_revisions=max_revisions)
     result={'record_type':'ModularNativeConversion','frontend':state,'status':state['status']}
     if state['status']!='INTERPRETED': return result
     rows=state['models']
@@ -74,9 +79,22 @@ def snapshot(value,model):
     return {'subject_id':value['subject_id'],'facts':facts,'evidence':value['evidence']}
 
 
-def execute_native(directory,value,jdk):
+def execute_native(directory,value,jdk,*,rule_id=None):
     model=loads((Path(directory)/'model.json').read_bytes())
-    result=execute(directory,snapshot(value,model),model['rules'][0]['id'],value['valid_at'],value['known_at'],jdk)
+    adapted=snapshot(value,model)
+    if len(model['rules'])>1 and rule_id is None:
+        results={r['id']:execute(directory,adapted,r['id'],value['valid_at'],value['known_at'],jdk) for r in model['rules']}
+        complete=all(r['status'] in ('VALUE','TRUE','FALSE') for r in results.values())
+        first=next(iter(results.values()))
+        if any(r['model_hash']!=digest(model) or r['build_hash']!=first['build_hash'] for r in results.values()):
+            fail('E_INTEGRITY','Build changed between output evaluations')
+        abstain=all(r['status']=='ABSTAIN' for r in results.values())
+        result={'record_type':'TranslatedRuleResults','model_hash':digest(model),'snapshot_hash':digest(adapted),
+                'build_hash':first['build_hash'],'status':'VALUE' if complete else 'ABSTAIN' if abstain else 'PARTIAL_RESULTS',
+                'reason':first['reason'] if abstain else None,
+                'value':{k:r['value'] for k,r in results.items()} if complete else None,'results':results}
+    else:
+        result=execute(directory,adapted,rule_id or model['rules'][0]['id'],value['valid_at'],value['known_at'],jdk)
     result['native_snapshot_hash']=digest(value)
     result['result_hash']=digest({k:v for k,v in result.items() if k!='result_hash'})
     return result

@@ -40,10 +40,14 @@ def adapt_snapshot(snapshot,names):
 
 def capabilities(model):
     m, _ = validate(model); issues = []
+    if m['profile']=='partial.v1': issues.append({'path':'/profile','reason':'RuleIR uses a static fact conflict veto; partial.v1 uses evaluated structured dependencies'})
+    if m.get('helpers'): issues.append({'path':'/helpers','reason':'RuleIR has no typed helper calculations'})
     if m['types']: issues.append({'path':'/types','reason':'RuleIR has no record or enum declarations'})
     for i, f in enumerate(m['facts']):
         if f['type'] not in CORE_TYPES: issues.append({'path':f'/facts/{i}/type','reason':'Unsupported type: '+f['type']})
     for i, r in enumerate(m['rules']):
+        if not re.fullmatch(r'[a-z][a-z0-9_.-]*',r['id']):
+            issues.append({'path':f'/rules/{i}/id','reason':'RuleIR rule identifiers require lowercase names'})
         if r['type'] not in CORE_TYPES: issues.append({'path':f'/rules/{i}/type','reason':'Unsupported type: '+r['type']})
         for key in ('scope','body'):
             for n, path in walk(r[key],f'/rules/{i}/{key}'):

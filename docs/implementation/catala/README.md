@@ -4,6 +4,9 @@ New source conversion uses a [shared typed interpretation and deterministic
 translators](modular-translation/README.md). Both RuleIR and Catala consume the
 same frozen model. The compiler described below supplies Catala's scalar
 compatibility pass; richer shared expressions lower directly to native Catala.
+[Shared model version 2](translator-completion/README.md) adds scoped rich rules,
+strict exceptions, explicit rounding, typed libraries/helpers, multiple outputs
+and partial structures.
 
 The current backend generates Catala calculations from validated RuleIR 0.1
 bundles. RuleIR remains the authored rule source. The generator covers all

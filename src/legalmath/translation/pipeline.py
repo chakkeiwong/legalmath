@@ -115,6 +115,15 @@ def execute(directory,snapshot,rule_id,valid_at,known_at,jdk,*,expected_hash=Non
         answer.update(status=raw['status'],value=raw.get('value'),reason=None,
                       missing_inputs=sorted(original.get(k,k) for k in raw['missing_inputs']),
                       blocking_inputs=sorted(original.get(k,k) for k in raw['blocking_inputs']),execution=raw)
+    elif t['output'].get('encoding')=='structured.v1':
+        from ..catala.native.runtime import execute_values
+        from .structured import inputs,result_fields
+        _,node_types=validate(m)
+        encoded,provenance=inputs(m,node_types,t['output'],boundary)
+        raw=execute_values(Path(directory)/'target',encoded,jdk)
+        raw.update(record_type='StructuredCatalaExecution',encoding='structured.v1',
+                   build_hash=b['identity']['build_hash'],inputs_hash=digest(encoded),provenance=provenance)
+        answer.update(result_fields(m,node_types,r['type'],raw['value'][t['output']['rule_names'][rule_id]],provenance),execution=raw)
     else:
         from ..catala.native.runtime import evaluate
         output=t['output'];task=output['task'];facts={};evidence={}

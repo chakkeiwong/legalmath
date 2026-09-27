@@ -1,5 +1,10 @@
 # Shared interpretation and replaceable targets
 
+This page documents version 1. [Version 2](../translator-completion/README.md)
+adds rich scope/default states, explicit rounding, library operations, helpers,
+multiple generated outputs and partial observations. Existing version-1 builds
+remain reproducible.
+
 The source is interpreted once. The resulting `LegalRuleModel` contains the
 selected reading, typed expressions, source references, assumptions, open
 questions, and the policy for incomplete evidence. A target translator receives
@@ -82,12 +87,13 @@ Task and provider fixture examples are in `tests/translation/support.py` and
 `tests/translation/test_frontend.py`. A complete retained model and executable
 build are under `artifacts/catala/modular-translation/`.
 
-`catala-convert generate` now uses this shared front end. Historical single-output
-native task files are adapted to the common interface. If several readings or an
+`catala-convert generate` uses this shared front end. Historical single-output
+native task files use version 1 by default; multiple outputs use version 2, and
+`--shared-version 2` explicitly selects it for one output. If several readings or an
 unrepresented alternative remain, the command returns `AWAITING_SELECTION`;
 `--reading ID --resume` selects a retained reading. Open questions still block the
 build. `--legacy-code-generation` explicitly selects the historical target-code
-generator, including its multi-output tasks. The old Python
+generator. The old Python
 `legalmath.catala.native.converter.convert` entry point remains that legacy API
 for frozen experiments. Handwritten native `build`, `verify` and `execute` remain
 available.

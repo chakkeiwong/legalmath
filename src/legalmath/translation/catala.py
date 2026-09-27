@@ -14,6 +14,9 @@ def native_type(typ):
 
 def capabilities(model):
     m, types = validate(model)
+    if m['version']=='2':
+        from .catala_structured import capabilities as structured_capabilities
+        return structured_capabilities(m)
     if ruleir_capabilities(m)['supported']:
         return {'target':'catala','model_hash':digest(m),'supported':True,'route':'scalar-compatibility','issues':[]}
     issues = []
@@ -40,6 +43,9 @@ def capabilities(model):
 def lower(model):
     m, types = validate(model); capability = capabilities(m)
     if not capability['supported']: fail('E_UNSUPPORTED_PROFILE', capability)
+    if m['version']=='2':
+        from .catala_structured import lower as structured_lower
+        return structured_lower(m)
     if capability['route'] == 'scalar-compatibility':
         return {'route':'scalar-compatibility','bundle':lower_ruleir(m)}
     facts = {f['name']:f'f{i}' for i,f in enumerate(m['facts'])}

@@ -18,6 +18,7 @@ CORE_OPS = {'literal', 'fact', 'rule', 'all', 'any', 'not', 'compare', 'add', 's
 CORE_TYPES = SCALARS - {'decimal'}
 FactName = Annotated[str,Field(pattern=r'^[a-z][a-zA-Z0-9_.:-]{0,127}$')]
 ModelId = Annotated[str,Field(pattern=r'^[a-z][a-z0-9_.-]*$')]
+OutputId = Annotated[str,Field(pattern=r'^[a-z][a-zA-Z0-9_.-]{0,127}$')]
 
 
 class RetainedReading(Reading):
@@ -86,6 +87,29 @@ class Model(Strict):
     review: dict
 
 
+class Parameter(Strict):
+    name: Annotated[str, Field(pattern=r'^[a-z][a-z0-9_]{0,63}$')]
+    type: Text
+
+
+class Helper(Strict):
+    name: ModelId
+    parameters: list[Parameter] = Field(max_length=20)
+    type: Text
+    body: dict
+
+
+class RuleV2(Rule):
+    id: OutputId
+
+
+class ModelV2(Model):
+    version: Literal['2']
+    profile: Literal['complete.v1', 'partial.v1']
+    helpers: list[Helper] = Field(max_length=20)
+    rules: list[RuleV2] = Field(min_length=1,max_length=40)
+
+
 def inner(typ, constructor):
     prefix = constructor + '['
     return typ[len(prefix):-1] if typ.startswith(prefix) and typ.endswith(']') else None
@@ -122,15 +146,19 @@ def validate(value):
 
 def _validate(value):
     if len(canonical(value)) > 2_000_000: fail('E_RESOURCE_LIMIT')
-    m = parse(Model, value)
+    m = parse(ModelV2 if value.get('version')=='2' else Model, value)
     interval(m['valid_from'], m['valid_until'])
     for field in ('source_spans','interpretations'):
         schema = schema_validator('rule-bundle')
         if not schema.evolve(schema=schema.schema['properties'][field]).is_valid(m[field]): fail()
     definitions = {d.get('name'): d for d in m['types']}
     if len(definitions) != len(m['types']): fail('E_DUPLICATE_ID')
+    type_visits=0
 
     def typ(t, stack=()):
+        nonlocal type_visits
+        type_visits+=1
+        if m['version']=='2' and type_visits>10000: fail('E_RESOURCE_LIMIT','Expanded type validation budget')
         if not isinstance(t, str) or len(stack) > 12: fail('E_TYPE')
         if t in SCALARS: return
         if t in stack: fail('E_CYCLE')
@@ -160,6 +188,8 @@ def _validate(value):
     for name in definitions: typ(name)
     facts = {f['name']: f['type'] for f in m['facts']}
     rules = {r['id']: r for r in m['rules']}
+    helpers = {h['name']: h for h in m.get('helpers', [])}
+    if len(helpers)!=len(m.get('helpers',[])): fail('E_DUPLICATE_ID')
     spans = {s.get('id') for s in m['source_spans']}
     readings = {r.get('id') for r in m['interpretations']}
     if len(facts) != len(m['facts']) or len(rules) != len(m['rules']) or len(spans) != len(m['source_spans']) or len(readings) != len(m['interpretations']): fail('E_DUPLICATE_ID')
@@ -169,6 +199,7 @@ def _validate(value):
     for reading in m['interpretations']:
         if not set(reading.get('source_span_ids', [])) <= spans: fail('E_REFERENCE')
     seen = set(); node_types = {}; edges = {k: set() for k in rules}
+    edges.update({'helper:'+k:set() for k in helpers})
 
     def infer(n, env, owner, depth=0):
         if depth > 128 or len(seen) >= 10000: fail('E_RESOURCE_LIMIT')
@@ -188,6 +219,9 @@ def _validate(value):
             'map': {'arg','binding','body'}, 'filter': {'arg','binding','body'}, 'sum': {'arg'},
             'some': {'arg'}, 'none': {'type'}, 'option': {'arg','binding','present','absent'},
             'variant': {'type','case','arg'}, 'match': {'arg','arms'}}
+        if m['version']=='2':
+            fields.update({'record':{'type','fields'}, 'call':{'name','args'},
+                           'library':{'name','args'}, 'round':{'arg','type','mode'}})
         if op not in fields: fail('E_UNSUPPORTED_PROFILE', 'Unknown model operation: ' + str(op))
         if set(n) != {'op','node_id'} | fields[op]: fail('E_SCHEMA', 'Unexpected fields in ' + ident)
         if op == 'literal':
@@ -200,6 +234,8 @@ def _validate(value):
                 if b <= 0 or Fraction(a, b).denominator != b: fail('E_TYPE')
             elif t not in CORE_TYPES or not scalar(t, n['value']): fail('E_TYPE')
         elif op in ('fact', 'var', 'rule'):
+            if owner.startswith('helper:') and op in ('fact','rule'):
+                fail('E_REFERENCE','Helpers use explicit parameters, not hidden facts or rules')
             table = facts if op == 'fact' else env if op == 'var' else {k: v['type'] for k,v in rules.items()}
             if n['name'] not in table: fail('E_REFERENCE', 'Unknown ' + op + ': ' + n['name'])
             t = table[n['name']]
@@ -219,6 +255,30 @@ def _validate(value):
         elif op == 'scale':
             t = take('arg')
             if t not in ('integer','money_hkd') or not scalar('integer', n['numerator']) or not scalar('integer', n['denominator']) or int(n['denominator']) <= 0: fail('E_TYPE')
+            if m['version']=='2' and max(len(n['numerator']),len(n['denominator']))>1000: fail('E_RESOURCE_LIMIT')
+        elif op == 'round':
+            from .operations import ROUNDING
+            if take('arg')!='decimal' or n['type'] not in ('integer','money_hkd') or n['mode'] not in ROUNDING: fail('E_TYPE')
+            t=n['type']
+        elif op in ('call','library'):
+            args=[infer(a,env,owner,depth+1) for a in n['args']]
+            if op=='library':
+                from .operations import result_type
+                t=result_type(n['name'],args)
+            else:
+                h=helpers.get(n['name'])
+                if h is None: fail('E_REFERENCE')
+                if args!=[p['type'] for p in h['parameters']]: fail('E_TYPE')
+                edges[owner].add('helper:'+n['name']);t=h['type']
+        elif op == 'record':
+            d=definitions.get(n['type'],{})
+            if d.get('kind')!='record': fail('E_TYPE')
+            if any(set(f)!={'name','value'} for f in n['fields']): fail()
+            fields={f['name']:f['value'] for f in n['fields']}
+            if len(fields)!=len(n['fields']) or set(fields)!={f['name'] for f in d['fields']}: fail('E_REFERENCE')
+            for f in d['fields']:
+                if infer(fields[f['name']],env,owner,depth+1)!=f['type']: fail('E_TYPE')
+            t=n['type']
         elif op == 'if':
             condition, yes, no = take('condition'), take('then'), take('else')
             if condition != 'bool' or yes != no: fail('E_TYPE')
@@ -280,6 +340,11 @@ def _validate(value):
         typ(rule['type'])
         if rule['interpretation_id'] not in readings or not set(rule['source_span_ids']) <= spans: fail('E_REFERENCE')
         if infer(rule['scope'],{},rule['id']) != 'bool' or infer(rule['body'],{},rule['id']) != rule['type']: fail('E_TYPE')
+    for h in helpers.values():
+        env={p['name']:p['type'] for p in h['parameters']}
+        if len(env)!=len(h['parameters']): fail('E_DUPLICATE_ID')
+        for t in [h['type'],*env.values()]: typ(t)
+        if infer(h['body'],env,'helper:'+h['name'])!=h['type']: fail('E_TYPE')
     visited = set()
     def acyclic(name, trail=()):
         if name in trail: fail('E_CYCLE')
@@ -287,7 +352,7 @@ def _validate(value):
         if name not in visited:
             for target in edges[name]: acyclic(target, trail + (name,))
             visited.add(name)
-    for name in rules: acyclic(name)
+    for name in edges: acyclic(name)
     review = m['review']
     if set(review) != {'origin','packet','reading','questions','coverage','dimensions','critic'}: fail()
     if review['origin'] not in ('ruleir.v1','interpretation','manual'): fail()
@@ -307,7 +372,9 @@ def _validate(value):
                 if u['span']['quote_sha256']!=raw_digest(u['text'].encode()): fail('E_HASH_MISMATCH')
     if review['reading'] is not None:
         r=parse(RetainedReading,review['reading']);f=r['formalization']
-        if set(f)-{'facts','types','scope','result','result_type'} or not {'facts','scope','result','result_type'}<=set(f): fail()
+        if m['version']=='1':
+            if set(f)-{'facts','types','scope','result','result_type'} or not {'facts','scope','result','result_type'}<=set(f): fail()
+        elif set(f)!={'version','facts','types','outputs','helpers'} or f['version']!='2': fail()
         if review['packet'] is None: fail('E_REFERENCE')
         if review['coverage'] and review['dimensions']:
             validate_generation_metadata({'readings':[r],'coverage':review['coverage'],'dimensions':review['dimensions']},review['packet'])
@@ -318,12 +385,12 @@ def _validate(value):
             span=u['span'] or make_span('s.'+u['unit_id'],'synthetic.'+review['packet']['source_key'],u['text'].encode(),u['text'],0,len(u['text']))
             expected_spans[span['id']]=span
         expected_facts=[{'name':x['name'],'type':x['type'],'description':x['meaning']+'; units: '+x['unit']} for x in f['facts']]
-        expected_rule={'id':'selected.control','type':f['result_type'],'scope':expression(f['scope'],'scope'),
-                       'body':expression(f['result'],'body'),'interpretation_id':'reading','source_span_ids':list(expected_spans)}
+        expected_rules,expected_helpers=reading_program(f,list(expected_spans))
         expected_interpretations=[{'id':'reading','statement':'Unreviewed interpretation: '+r['statement'],
             'basis':'synthetic_test' if review['packet']['authority']=='SYNTHETIC_FIXTURE' else 'reviewer_interpretation',
             'source_span_ids':list(expected_spans),'issue_ids':[]}]
-        if (m['facts']!=expected_facts or m['types']!=f.get('types',[]) or m['rules']!=[expected_rule]
+        if (m['facts']!=expected_facts or m['types']!=f.get('types',[]) or m['rules']!=expected_rules
+                or m.get('helpers',[])!=expected_helpers
                 or m['interpretations']!=expected_interpretations or m['source_spans']!=list(expected_spans.values())
                 or not set(r['questions'])<=set(review['questions'])):
             fail('E_INTEGRITY','Retained interpretation and executable model differ')
@@ -331,7 +398,7 @@ def _validate(value):
     if len({b['input'] for b in m['bounds']})!=len(m['bounds']): fail('E_DUPLICATE_ID')
     for b in m['bounds']:
         if set(b)!={'input','minimum','maximum','unit_id','quote'} or b['input'] not in facts: fail('E_REFERENCE')
-        if m['profile']!='complete.v1' or facts[b['input']] not in ('integer','money_hkd','decimal'): fail('E_UNSUPPORTED_PROFILE')
+        if m['profile'] not in ('complete.v1','partial.v1') or facts[b['input']] not in ('integer','money_hkd','decimal'): fail('E_UNSUPPORTED_PROFILE')
         if review['packet'] is None: fail('E_REFERENCE')
         units={u['unit_id']:u for u in review['packet']['units']}
         if b['unit_id'] not in units or not b['quote'] or b['quote'] not in units[b['unit_id']]['text']: fail('E_REFERENCE')
@@ -375,12 +442,31 @@ def from_reading(reading, packet, at, *, until=None, profile='ruleir.v1', covera
                             'basis':'synthetic_test' if p['authority']=='SYNTHETIC_FIXTURE' else 'reviewer_interpretation',
                             'source_span_ids':list(spans),'issue_ids':[]}],
          'facts':[{'name':x['name'],'type':x['type'],'description':x['meaning']+'; units: '+x['unit']} for x in f['facts']],
-         'rules':[{'id':'selected.control','type':f['result_type'],'scope':expression(f['scope'],'scope'),
-                   'body':expression(f['result'],'body'),'interpretation_id':'reading','source_span_ids':list(spans)}],
+         'rules':reading_program(f,list(spans))[0],
          'review':{'origin':'interpretation','packet':p,'reading':retained,
                    'questions':list(dict.fromkeys([*questions,*retained['questions']])),
                    'coverage':deepcopy(list(coverage)),'dimensions':deepcopy(list(dimensions)),'critic':deepcopy(critic)}}
+    if f.get('version')=='2':
+        m.update(version='2',helpers=reading_program(f,list(spans))[1])
     return validate(m)[0]
+
+
+def reading_program(formalization, spans):
+    """Reconstruct the entire executable program from its retained reading."""
+    f=formalization
+    if f.get('version')!='2':
+        return ([{'id':'selected.control','type':f['result_type'],'scope':expression(f['scope'],'scope'),
+                  'body':expression(f['result'],'body'),'interpretation_id':'reading','source_span_ids':spans}],[])
+    from .frontend import FormalizationV2
+    f=parse(FormalizationV2,f)
+    rules=[{'id':o['id'],'type':o['result_type'],
+            'scope':expression(o['scope'],'output.'+str(i)+'.scope',source_span_ids=spans),
+            'body':expression(o['result'],'output.'+str(i)+'.body',source_span_ids=spans),
+            'interpretation_id':'reading','source_span_ids':spans} for i,o in enumerate(f['outputs'])]
+    helpers=[{'name':h['name'],'parameters':h['parameters'],'type':h['result_type'],
+              'body':expression(h['body'],'helper.'+h['name'],parameters=[p['name'] for p in h['parameters']],
+                                source_span_ids=spans)} for h in f['helpers']]
+    return rules,helpers
 
 
 def blockers(model):
