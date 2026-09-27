@@ -12,8 +12,25 @@ inputs and outputs; nullary enums can classify records. The candidate supplies
 native calculations, reusable scopes and labelled exceptions. Version 1 rejects
 imports/includes and compiler attributes. Builtin sums are supported by the
 pinned Catala 1.2.1 compiler, although upstream marks them deprecated. Optional
-values, enum payloads, recursive types and externally imported modules need a
-separately tested profile.
+values, enum payloads and a pinned subset of imported modules are available in
+the explicit version 2 profile described below. Recursive types remain rejected.
+
+Set `native_profile` to `legalmath.catala.native.v2` on a task to opt into that
+profile. `optional[integer]`, for example, accepts known absence as JSON `null`
+and presence as `{"present":"42"}`. The surrounding fact must still be known,
+complete and temporally eligible. Payload enum cases use declarations such as
+`{"name":"Amount","type":"money"}` and values such as
+`{"case":"Amount","value":"1250"}`; a nullary case in the same enum has a
+null payload. Nested acyclic records, lists and options are supported. Existing
+version 1 tasks keep their original commitments.
+
+Version 2 permits task-declared `imports` from `Integer_en`, `Decimal_en`,
+`Money_en`, `Date_en` and `List_en`. The builder supplies aliases such as
+`Decimal` and verifies the complete dependency closure against the original
+toolchain lock. Candidate source cannot introduce imports or filesystem access.
+Representative operations from all five modules have executable probes; this is
+not validation of every standard-library function. In the pinned release,
+`List.sequence` excludes its upper bound.
 
 A source critic returns SUPPORTED, CHALLENGED or UNRESOLVED. A challenged candidate
 may undergo one revision followed by fresh criticism. Compiler errors can also
@@ -35,7 +52,9 @@ legalmath catala-convert execute --build BUILD --snapshot SNAPSHOT.json --jdk JD
 Generation defaults to at most four calls and one revision; it requires an
 existing explicitly supplied allowance. Add `--resume` to reuse a run with
 unchanged source, interface, code, model route and resource commitments. Completed
-candidate bytes can be inspected in the run's attempt directory. Draft execution
+candidate bytes can be inspected in the run's attempt directory. A candidate's
+`source` field contains executable scope definitions in closed Catala fences;
+source quotations and identifiers belong in its anchors. Draft execution
 can evaluate a separately authored candidate and is not a release approval.
 
 Integers and money minor units are canonical decimal strings. Money units and
@@ -58,25 +77,63 @@ conservative policy differs from RuleIR's partial-information evaluation.
 
 Both instrumented and uninstrumented Java programs are built into deterministic
 standalone JARs, with source/task/candidate/toolchain commitments embedded. The
-builder inserts observations at compiler-generated scope output assignments;
+version 1 builder inserts observations at compiler-generated scope output assignments;
 copy constructors are excluded. The trace records actual scope, field and value
 observations from that Java process. It does not identify every evaluated branch,
 justify why a value follows from law, or turn an inferred source anchor into an
 executed clause. Source quotations and code locations remain navigation aids.
+Version 2 additionally records source-position conditions, executed branches,
+option decisions and enum arms. A separately pinned derivative of the Catala Java
+emitter produces these observations. The original compiler performs invariant
+checking and produces the uninstrumented comparator. The derivative's trace
+transform does not pass the upstream nested-scope inversion check, so its build
+records `trace_invariant_check=untouched_compiler_only`; value preservation is
+checked through actual execution. Standard-library internals are not traced.
+
+The isolated preparation script is `scripts/prepare_catala_trace.py --out
+.localresources/catala-toolchain/native-trace-v1`, run with the project Python.
+It needs the existing pinned opam switch and source tree. It creates a separate
+compiler, patch and lock; the reviewed lock is
+`docs/implementation/catala/gap-closure/trace-toolchain.json`. A rebuilt compiler
+must match that lock or receive a new reviewed identity before use.
 Verification compares both Java variants with independent expected values and
 checks the expected values inside Catala before exporting a Boolean. This avoids
 the pinned interpreter's lossy numeric JSON output.
 
-`NativeHost` provides a separate development release store. The embedding host
-supplies authenticated identities and roles. Two distinct reviewers approve the
-exact native build; activation uses an expected-current-release check. Execution
-checks subject revision and release again before committing a receipt. Historical
-replay selects the original build and reruns the actual calculation. This is not
-the existing RuleIR release API and is not a production authorization or a
-complete deployment package.
+`NativeHost` stores immutable, content-addressed native packages containing builds,
+retained source bytes, cases, verification and review commitments. The
+`legalmath.catala.native.package` module exports and installs ZIP packages against
+an externally supplied package hash. `NativeHost.stage_package` verifies the
+import and reruns its retained cases before it can receive local approvals.
+Execution uses the packaged JAR and Java 17. Compiler/interpreter verification
+also needs the pinned native toolchain and compatible OCaml library plugins;
+this run validated that verification environment on Linux.
+
+The trusted embedding application supplies the named identity/role registry.
+External callers use `NativeAuth` bearer tokens; provisioning requires trusted
+admin authority, an expiry and roles already assigned to the named person. Plain
+string callers are an embedding API and must never be populated from untrusted
+request fields. Tokens are stored as hashes and cannot be revived or rebound.
+
+Engineering and legal approval require two distinct people. Each authenticated
+reviewer obtains `auth.review(token, release, role)` and supplies its digest to
+`auth.approve(token, release, role, expected_review=digest(review))`. Approval can
+expire or be withdrawn. Activation uses an expected-current-release comparison;
+rollback requires a previously activated package and current approvals. Release
+revocation and credential revocation persist across restarts.
+
+Before committing a transaction receipt, the host rechecks the release,
+approvals, credential validity and subject revision in one SQLite transaction.
+Historical replay verifies the original package and reruns the calculation,
+including after a release has been revoked for new use. Legacy host rows without
+package commitments require staging and approval again. The native host remains
+a separate adapter; institution-specific identity, transport and authorization
+policy still belong to the embedding application.
 
 The frozen development pilot and result note are separate from this API guide.
 Finite case agreement establishes behavior on those cases, conditional on the
-reference and declared factual abstraction. Human legal review, ambiguity across
-rival programs, richer imports/options, a representative heldout study, a paired
-comparison with RuleIR, and reviewer-time measurements remain separate work.
+reference and declared factual abstraction. The
+[gap-closure results](../gap-closure/results.md) record the executed semantic
+comparisons, source-conversion development study and reviewer collection dry run.
+Independent legal review, representative heldout evaluation and human reviewer
+measurements remain outstanding.

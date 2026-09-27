@@ -1,0 +1,46 @@
+........F............                                                    [100%]
+=================================== FAILURES ===================================
+_________ test_declared_library_closure_executes_in_all_three_backends _________
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-301/test_declared_library_closure_0')
+
+    def test_declared_library_closure_executes_in_all_three_backends(tmp_path):
+        t=task('libraries','Libraries','Return exact minima, the last calendar day and a bounded list sequence.',
+               [f('n','integer'),f('cash','money'),f('day','date')],
+               [f('integerResult','integer'),f('moneyResult','money'),f('monthEnd','date'),f('numbers','list[integer]')])
+        t.update(native_profile='legalmath.catala.native.v2',imports=['Integer_en','Money_en','Date_en','List_en'])
+        c={'record_type':'NativeCatalaCandidate','task_hash':digest(t),'source':'''```catala
+    scope Libraries:
+      definition integerResult equals Integer.min of n, 3
+      definition moneyResult equals Money.min of cash, $1.00
+      definition monthEnd equals Date.last_day_of_month of day
+      definition numbers equals List.sequence of 1, n
+    ```''','interpretation':t['question'],'assumptions':[],'unresolved':[],
+           'anchors':[{'unit_id':'clause.one','quote':t['packet']['selected_slice'],'code_excerpt':'scope Libraries:'}]}
+        cases=[{'id':'leap','snapshot':make_snapshot(t,{'n':'3','cash':'99','day':'2024-02-15'}),
+                'expected':{'status':'VALUE','value':{'integerResult':'3','moneyResult':'99','monthEnd':'2024-02-29','numbers':['1','2','3']}}}]
+>       out=tmp_path/'libs';build(t,c,out,JDK,**TOOLCHAIN)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/catala/native/test_extended.py:98: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/catala/native/runtime.py:100: in build
+    command([compiler, 'java', 'Native.catala_en', '--no-stdlib', *includes, '--check-invariants', '--output', 'Native.java'], staging)
+src/legalmath/catala/native/runtime.py:67: in command
+    return _require(r)
+           ^^^^^^^^^^^
+src/legalmath/catala/native/runtime.py:47: in _require
+    fail('E_DEPENDENCY', (record['stderr'] or record['stdout'])[-12000:])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+code = 'E_DEPENDENCY'
+detail = '┌─[ERROR]─ 1/2 ─\n│\n│  Syntax error at "day":\n│  unexpected token.\n│  Those are valid at this point: "sum", "outpu...                    ‾‾‾\n│\n│ Maybe you wanted to write: "sum", "if", "for", "let", "not", "(", "{" or\n│   "-"?\n└─\n'
+
+    def fail(code='E_SCHEMA', detail='Invalid native profile'):
+>       raise LegalMathError(code, details=detail)
+E       legalmath.errors.LegalMathError: A required dependency is unresolved.
+
+src/legalmath/catala/native/contracts.py:83: LegalMathError
+=========================== short test summary info ============================
+FAILED tests/catala/native/test_extended.py::test_declared_library_closure_executes_in_all_three_backends
+1 failed, 20 passed in 39.52s
