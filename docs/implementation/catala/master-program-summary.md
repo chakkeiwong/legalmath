@@ -2,7 +2,8 @@
 
 28 September 2026. Implementation checkpoint: `d01635dd` on
 `feature/catala-adapter`. Status: **COMPLETE for the authorized bounded
-engineering campaign**. The work is ready for the user-authorized main merge.
+engineering campaign**. Main contains the campaign through merge `5417af67`;
+the [integration record](integration-results.md) reports the additional checks.
 
 The project now has one source interpretation frontend and a typed shared model,
 followed by deterministic translators and executable target languages. RuleIR

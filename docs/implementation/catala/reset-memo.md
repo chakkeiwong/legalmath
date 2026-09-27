@@ -23,12 +23,15 @@ remain open; no default-backend change or production promotion follows. Preserve
 the distinct `partial.v1` and `ruleir.v1` evidence policies and the documented
 operator, type, source-size and runtime bounds.
 
-The user has now authorized committing the completion documents, merging this
-branch into main, fetching/merging remote main, pushing main, and synchronizing
-this branch back from main. The [integration plan](../../plans/catala-main-integration.md)
-records the audited sequence. Main has unrelated uncommitted assurance and
-monograph work; preserve it outside the Catala commits. Earlier synchronization
-statements below describe historical checkpoints only.
+Completion documents are committed as `cbfc0a03`; main contains the complete
+campaign through merge `5417af67`. The fetched `origin/main` at `9160ce72` is
+already an ancestor. Thirty focused integration tests passed, the merge tree
+matches the tested branch, and unrelated main edits were preserved. The
+[integration results](integration-results.md) record validation, preservation
+and the closing push/synchronization commands. The user authorized publishing
+main and bringing this branch to the same commit. Main's unrelated uncommitted
+assurance and monograph work remains outside these commits. Earlier
+synchronization statements below describe historical checkpoints only.
 
 ## Earlier backend checkpoint (historical)
 
