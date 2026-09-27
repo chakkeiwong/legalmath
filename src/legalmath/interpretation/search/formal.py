@@ -20,64 +20,16 @@ RULE='selected.control'
 IDENT=re.compile(r'^[a-z][a-z0-9_.-]*$')
 
 
-def expression(text, prefix):
-    tokens=re.findall(r'\(|\)|[^\s()]+',text)
-    if not tokens or len(tokens)>1000: raise LegalMathError('E_RESOURCE_LIMIT')
-    position=0;count=0
-    def node(depth=0):
-        nonlocal position,count
-        if depth>32 or position>=len(tokens): raise LegalMathError('E_SCHEMA')
-        token=tokens[position];position+=1;count+=1;ident=f'{prefix}.{count}'
-        if token!='(':
-            if token in ('true','false'):return {'node_id':ident,'op':'literal','type':'bool','value':token=='true'}
-            if not IDENT.fullmatch(token):raise LegalMathError('E_SCHEMA',details='Invalid expression atom')
-            return {'node_id':ident,'op':'fact','name':token}
-        if position>=len(tokens):raise LegalMathError('E_SCHEMA')
-        op=tokens[position];position+=1
-        if op in ('integer','money_hkd','date'):
-            if position+1>=len(tokens) or tokens[position+1]!=')':raise LegalMathError('E_SCHEMA')
-            value=tokens[position];position+=2
-            return {'node_id':ident,'op':'literal','type':op,'value':value}
-        args=[]
-        while position<len(tokens) and tokens[position]!=')':args.append(node(depth+1))
-        if position>=len(tokens):raise LegalMathError('E_SCHEMA')
-        position+=1
-        result={'node_id':ident}
-        if op in ('and','or') and args:result.update(op='all' if op=='and' else 'any',args=args)
-        elif op=='not' and len(args)==1:result.update(op='not',arg=args[0])
-        elif op=='if' and len(args)==3:result.update(op='if',condition=args[0],then=args[1],**{'else':args[2]})
-        elif op in ('=','>','>=','+','-') and len(args)==2:
-            result.update(op='compare' if op in ('=','>','>=') else 'add' if op=='+' else 'sub',left=args[0],right=args[1])
-            if result['op']=='compare':result['cmp']={'=':'eq','>':'gt','>=':'ge'}[op]
-        else:raise LegalMathError('E_UNSUPPORTED_PROFILE',details='Unsupported operator or arity: '+op)
-        return result
-    result=node()
-    if position!=len(tokens):raise LegalMathError('E_SCHEMA')
-    return result
+# Keep this public import for existing search/assurance callers. Parsing and
+# target selection now live behind the common model boundary.
+from ...translation.expressions import expression
 
 
 def bundle(reading, packet, at):
-    if reading['formalization'] is None:raise LegalMathError('E_UNSUPPORTED_PROFILE')
-    formal=parse(Formalization,reading['formalization'])
-    units={u['unit_id']:u for u in packet['units']}
-    spans={}
-    for citation in reading['citations']:
-        unit=units[citation['unit_id']]
-        if unit['text'].count(citation['quote'])!=1:raise LegalMathError('E_REFERENCE')
-        span=unit['span'] or make_span('s.'+unit['unit_id'],'synthetic.'+packet['source_key'],
-                                     unit['text'].encode(),unit['text'],0,len(unit['text']))
-        spans[span['id']]=span
-    result={'spec_version':'0.1','bundle_id':'search.'+digest(reading)[:20],
-        'valid_from':at,'valid_until':None,'source_spans':list(spans.values()),
-        'interpretations':[{'id':'reading','statement':'Unreviewed interpretation: '+reading['statement'],
-            'basis':'synthetic_test' if packet['authority']=='SYNTHETIC_FIXTURE' else 'reviewer_interpretation',
-            'source_span_ids':list(spans),'issue_ids':[]}],
-        'facts':[{'name':f['name'],'type':f['type'],'description':f['meaning']+'; units: '+f['unit']} for f in formal['facts']],
-        'rules':[{'id':RULE,'type':formal['result_type'],'scope':expression(formal['scope'],'scope'),
-            'body':expression(formal['result'],'body'),'interpretation_id':'reading','source_span_ids':list(spans)}]}
-    errors=validate_bundle(result)
-    if errors:raise LegalMathError(errors[0]['code'],details=errors)
-    return result
+    from ...translation.model import from_reading
+    from ...translation.ruleir import lower
+    parse(Formalization, reading['formalization']) if reading['formalization'] is not None else None
+    return lower(from_reading(reading, packet, at))
 
 
 def render_node(node):

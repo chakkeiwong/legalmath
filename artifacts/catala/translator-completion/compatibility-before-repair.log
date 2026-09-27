@@ -1,0 +1,41 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_version_one_large_scale_coefficients_keep_original_contract _______
+
+    def test_version_one_large_scale_coefficients_keep_original_contract():
+        case=deepcopy(loads((ROOT/'docs/specs/v0.1/fixtures/decision-cases.json').read_bytes())['cases'][0])
+        bundle=case['bundle'];rule=bundle['rules'][0]
+        rule['type']='integer'
+        rule['scope']={'op':'literal','node_id':'large.scope','type':'bool','value':True}
+        rule['body']={'op':'scale','node_id':'large.scale','numerator':'1'+'0'*1000,'denominator':'1'+'0'*1000,
+                      'arg':{'op':'literal','node_id':'large.one','type':'integer','value':'1'}}
+        assert not validate_bundle(bundle)
+>       assert lower(from_bundle(bundle))==bundle
+                     ^^^^^^^^^^^^^^^^^^^
+
+tests/translation/test_v2_edges.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/translation/model.py:425: in from_bundle
+    return validate(m)[0]
+           ^^^^^^^^^^^
+src/legalmath/translation/model.py:140: in validate
+    return _validate(value)
+           ^^^^^^^^^^^^^^^^
+src/legalmath/translation/model.py:342: in _validate
+    if infer(rule['scope'],{},rule['id']) != 'bool' or infer(rule['body'],{},rule['id']) != rule['type']: fail('E_TYPE')
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/translation/model.py:258: in infer
+    if max(len(n['numerator']),len(n['denominator']))>1000: fail('E_RESOURCE_LIMIT')
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+code = 'E_RESOURCE_LIMIT', details = 'Invalid shared rule model'
+
+    def fail(code='E_SCHEMA', details='Invalid shared rule model'):
+>       raise LegalMathError(code, details=details)
+E       legalmath.errors.LegalMathError: Input exceeds the declared resource budget.
+
+src/legalmath/translation/model.py:56: LegalMathError
+=========================== short test summary info ============================
+FAILED tests/translation/test_v2_edges.py::test_version_one_large_scale_coefficients_keep_original_contract
+1 failed in 0.27s
