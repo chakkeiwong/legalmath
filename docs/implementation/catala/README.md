@@ -1,5 +1,9 @@
 # Optional Catala backend
 
+The implementation campaign is complete through `d01635dd`. The
+[final master-program summary](master-program-summary.md) records delivered
+behavior, validation evidence and remaining limits.
+
 New source conversion uses a [shared typed interpretation and deterministic
 translators](modular-translation/README.md). Both RuleIR and Catala consume the
 same frozen model. The compiler described below supplies Catala's scalar

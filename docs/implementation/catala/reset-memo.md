@@ -1,14 +1,46 @@
 # Catala branch reset memo
 
+## Campaign completion, 28 September 2026
+
+The authorized Catala implementation campaign is complete through `d01635dd`
+on `feature/catala-adapter`. The final stage implements shared model version 2:
+rich scope/defaults, exact scaling, explicit rounding, typed libraries/helpers,
+multiple outputs and partial field/item observations. The common frontend feeds
+deterministic RuleIR and Catala translators; richer expressions can reach Catala
+without passing through RuleIR. Version-1 commitments remain reproducible.
+
+Read the [final master-program summary](master-program-summary.md), the current
+[translator reset memo](translator-completion/reset-memo.md), and the
+[results](translator-completion/results.md). Validation comprises a 792-test full
+regression, a 69-test repair run and a 35-test final fixture run: 794 distinct
+test IDs across checkpoints, not one final 794-test invocation. Retained evidence
+includes 91 exact checks, four sealed builds, 44 paired legacy cases, seven rich
+outputs and nine verified legacy builds.
+
+The bounded engineering campaign is complete. Independent legal adjudication,
+representative conversion-quality comparisons and human reviewer measurements
+remain open; no default-backend change or production promotion follows. Preserve
+the distinct `partial.v1` and `ruleir.v1` evidence policies and the documented
+operator, type, source-size and runtime bounds.
+
+The user has now authorized committing the completion documents, merging this
+branch into main, fetching/merging remote main, pushing main, and synchronizing
+this branch back from main. The [integration plan](../../plans/catala-main-integration.md)
+records the audited sequence. Main has unrelated uncommitted assurance and
+monograph work; preserve it outside the Catala commits. Earlier synchronization
+statements below describe historical checkpoints only.
+
+## Earlier backend checkpoint (historical)
+
 Worktree: `/home/chakwong/python/legalmath/.worktrees/catala`.
 Branch: `feature/catala-adapter`.
 Committed main baseline: `9160ce72a17a255242299cc8ab33046f2501f42b`.
 Synchronization merge: `5c47153f712b34dbd69fb344b74c87931c4e0b92`.
 Reviewed implementation checkpoint: `4a7ce12d`.
 
-The latest user request is to synchronize new main work, plan repairs for the
-Catala implementation gaps, review the plan, and execute it. Committed main is
-merged. The remote main reference was checked again and agrees. Its new work
+At this earlier checkpoint the user requested synchronization of new main work,
+planning and execution of repairs for the Catala implementation gaps. Committed
+main was merged. The remote main reference then agreed. Its new work
 adds interpretation-assurance workflows without changing RuleIR or Java/release
 contracts. Preserve the separate main worktree's ongoing uncommitted assurance,
 monograph and research work; the synchronization snapshot is `main-sync.json`.

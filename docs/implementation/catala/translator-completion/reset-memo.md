@@ -1,5 +1,11 @@
 # Translator completion reset memo
 
+Campaign status: **COMPLETE** for the reviewed bounded implementation and
+deterministic validation, committed as `d01635dd` on 28 September 2026. All six
+implementation stages in the plan are executed. The
+[master-program summary](../master-program-summary.md) records the final outcome,
+remaining research questions and main-integration handoff.
+
 Work is isolated in `.worktrees/catala` on `feature/catala-adapter`, from
 `507df9ac`. Main's unrelated changes and frozen earlier evidence are preserved.
 
