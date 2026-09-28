@@ -9,6 +9,9 @@ from .model import from_bundle,fail
 
 def configure(parser):
     commands=parser.add_subparsers(dest='rule_command',required=True)
+    from ..qualification.__main__ import add_execution_arguments
+    add_execution_arguments(commands.add_parser('assure',help='Machine-checked proof or explicit qualification; no human quality labels'))
+    add_execution_arguments(commands.add_parser('verify-assurance',help='Recheck proof and runtime evidence against current source and method'),verify=True)
     front=commands.add_parser('interpret',help='Shared source interpretation and criticism; no target selection')
     for name in ('task','out','allowance'):front.add_argument('--'+name,required=True)
     front.add_argument('--max-calls',type=int,choices=range(1,5),default=4)
@@ -48,6 +51,9 @@ def provider(args):
 
 def dispatch(args):
     read=lambda name:loads(Path(name).read_bytes())
+    if args.rule_command in ('assure','verify-assurance'):
+        from ..qualification.__main__ import execute as qualify
+        return qualify(args,verify=args.rule_command=='verify-assurance')
     if args.rule_command=='interpret':
         return interpret(read(args.task),args.out,provider(args),resume=args.resume,max_revisions=0 if args.no_revision else 1)
     if args.rule_command=='resources':

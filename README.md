@@ -3,6 +3,14 @@
 Turn selected Hong Kong regulatory requirements into reviewable specifications
 and generated Java controls.
 
+**Core product goal: proof-qualified generalization.** Establish a scoped
+correctness proposition with an independently executed checker, or state exactly
+what remains unproved. Preserve those guarantees on unseen inputs and test
+amendments and unfamiliar future sources under frozen protocols. Human answers,
+ratings, adjudication and approval must never be used as quality evidence.
+See the [controlling product requirement](docs/implementation/proof-qualified-generalization/product.md)
+and [reviewed execution plan](docs/plans/proof-qualified-generalization.md).
+
 - [Reusable clause-interpretation command](docs/implementation/interpretation-round10/operator-guide.md):
   isolated readers, deliberate alternative interpretations, executed Java distinctions,
   source criticism, bounded reconsideration and retained uncertainty. The command
@@ -82,8 +90,9 @@ dated evidence, consent and duty replay, source review, versioned releases,
 amendment analysis, bounded solver comparison and deterministic drafting stub.
 The complete example implements an individual-client, solicited-transaction,
 execution-monitoring profile from circular 23EC35. Public sources and synthetic
-identities exercise the workflow. Bank interpretation approval, production
-integration, live-model quality and human usability remain pending.
+identities exercise the historical workflow. Current quality work follows the
+machine-only product requirement above: source interpretation remains qualified,
+and deployment and human-benefit evaluation are outside this research increment.
 
 ```sh
 .venv/bin/legalmath serve \

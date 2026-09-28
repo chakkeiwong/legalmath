@@ -57,16 +57,31 @@ def capabilities(model):
 
 
 def lower(model):
-    m, _ = validate(model); report = capabilities(m)
+    m, node_types = validate(model); report = capabilities(m)
     if not report['supported']: fail('E_UNSUPPORTED_PROFILE', report)
     b = {'spec_version':'0.1','bundle_id':m['model_id'],
          **{k:deepcopy(m[k]) for k in ('valid_from','valid_until','source_spans','interpretations','facts','rules')}}
     names=fact_names(m)
+    used={n['node_id'] for r in b['rules'] for key in ('scope','body') for n,_ in walk(r[key])}
+    def fresh(base):
+        ident=base
+        while ident in used:ident+='x'
+        used.add(ident);return ident
     for f in b['facts']:f['name']=names[f['name']]
     for r in b['rules']:
         for field in ('scope','body'):
             for n,_ in walk(r[field]):
                 if n['op']=='fact':n['name']=names[n['name']]
+                if n['op']=='scale' and int(n['numerator'])<0:
+                    # RuleIR's scale numerator is nonnegative. Exact negative
+                    # scaling is 0 - scale(x, abs(n), d), with the same failure
+                    # on indivisibility and the same factual dependencies.
+                    ident=n['node_id'];arg=n['arg'];denominator=n['denominator']
+                    numerator=str(-int(n['numerator']));typ=node_types[ident]
+                    n.clear();n.update(node_id=ident,op='sub',
+                        left={'node_id':fresh(ident+'.zero'),'op':'literal','type':typ,'value':'0'},
+                        right={'node_id':fresh(ident+'.magnitude'),'op':'scale','arg':arg,
+                               'numerator':numerator,'denominator':denominator})
     errors = validate_bundle(b)
     if errors: fail(errors[0]['code'], errors)
     return b
