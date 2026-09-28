@@ -41,6 +41,10 @@ def test_modular_cli_interpret_translate_build_execute(monkeypatch,capsys,tmp_pa
     sf=tmp_path/'snapshot.json';sf.write_bytes(canonical(snapshot(loads(model.read_bytes()),{'months':'6'})))
     result=invoke(monkeypatch,capsys,'rules','execute','--build',built,'--snapshot',sf,'--rule','selected.control','--valid-at',AT,'--known-at',AT,'--jdk',JDK)
     assert result['status']=='TRUE' and len(p.requests)==2
+    batch=invoke(monkeypatch,capsys,'rules','execute','--build',built,'--snapshot',sf,'--all','--valid-at',AT,'--known-at',AT,'--jdk',JDK)
+    assert batch['results']['selected.control']==result
+    resources=invoke(monkeypatch,capsys,'rules','resources','--model',model,'--out',tmp_path/'resources.json')
+    assert resources['supported'] and resources['route']=='scalar-compatibility'
 
 
 def test_native_cli_defaults_to_shared_frontend(monkeypatch,capsys,tmp_path):

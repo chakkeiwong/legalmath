@@ -1,0 +1,112 @@
+--- a/compiler/scalc/to_java.ml
++++ b/compiler/scalc/to_java.ml
+@@ -453,8 +453,13 @@
+     fprintf ppf "@[<hv 2>%a.%a@;<0 -1>(%a@])"
+       (format_expression_with_paren ctx)
+       arg1 format_op op (format_expression ctx) arg2
+-  | EAppOp { op = Log _, _; _ } when Global.options.trace <> None ->
+-    Message.error "tracing is not yet supported in Java"
++  | EAppOp { op = Log (PosRecordIfTrueBool, _), _; args = [arg1]; _ }
++    when Global.options.trace <> None ->
++    let pos = Mark.get e in
++    fprintf ppf "NativeTrace.condition(%S, %d, %d, %d, %d, %a)"
++      (Pos.get_file pos) (Pos.get_start_line pos) (Pos.get_start_column pos)
++      (Pos.get_end_line pos) (Pos.get_end_column pos)
++      (format_expression ctx) arg1
+   | EAppOp { op = Log _, _; args = [arg1]; _ } ->
+     fprintf ppf "%a" (format_expression ctx) arg1
+   | EAppOp { op = (Not, _) as op; args = [arg1]; _ } ->
+@@ -545,6 +550,14 @@
+     fprintf ppf "%a.Globals.%s" VarName.format (Mark.remove modname)
+       (Mark.remove name)
+ 
++and format_native_condition ctx ppf e =
++  if Global.options.trace = None then format_expression_with_paren ctx ppf e
++  else let pos = Mark.get e in
++    fprintf ppf "NativeTrace.branch(%S, %d, %d, %d, %d, %a)"
++      (Pos.get_file pos) (Pos.get_start_line pos) (Pos.get_start_column pos)
++      (Pos.get_end_line pos) (Pos.get_end_column pos)
++      (format_expression ctx) e
++
+ and format_expression_with_paren ctx (ppf : formatter) (e : expr) : unit =
+   match Mark.remove e with
+   | EAppOp _ | EInj _ | ETupleAccess _ | EStructFieldAccess _ | EFunc _ | EVar _
+@@ -611,13 +624,13 @@
+           ];
+       } ->
+     fprintf ppf "@[<v 4>if (%a.asBoolean()) {@ %a@;<1 -4>}@]"
+-      (format_expression_with_paren ctx)
++      (format_native_condition ctx)
+       if_expr (format_block ctx) then_block
+   | SIfThenElse { if_expr; then_block; else_block } ->
+     let rec pr_else = function
+       | [(SIfThenElse { if_expr; then_block; else_block }, _)] ->
+         Format.fprintf ppf " else if (%a.asBoolean()) {@ %a@;<1 -4>}"
+-          (format_expression ctx) if_expr (format_block ctx) then_block;
++          (format_native_condition ctx) if_expr (format_block ctx) then_block;
+ 
+         pr_else else_block
+       | [(SLocalDef { expr = ELit LUnit, _; _ }, _)]
+@@ -627,7 +640,7 @@
+         Format.fprintf ppf " else {@ %a@;<1 -4>}" (format_block ctx) else_block
+     in
+     Format.fprintf ppf "@[<v 4>if (%a.asBoolean()) {@ %a@;<1 -4>}"
+-      (format_expression ctx) if_expr (format_block ctx) then_block;
++      (format_native_condition ctx) if_expr (format_block ctx) then_block;
+     pr_else else_block;
+     pp_close_box ppf ()
+   | SSwitch
+@@ -637,7 +650,13 @@
+         enum_name = _;
+         switch_cases = [none; some];
+       } ->
+-    let cond_format ppf = fprintf ppf "%a.isNone()" VarName.format switch_var in
++    let cond_format ppf =
++      if Global.options.trace = None then fprintf ppf "%a.isNone()" VarName.format switch_var
++      else let pos = Mark.get stmt in
++        fprintf ppf "NativeTrace.option(%S, %d, %d, %d, %d, %a.isNone())"
++          (Pos.get_file pos) (Pos.get_start_line pos) (Pos.get_start_column pos)
++          (Pos.get_end_line pos) (Pos.get_end_column pos) VarName.format switch_var
++    in
+     let cons_format ppf = format_block ctx ppf none.case_block in
+     let alt_format ppf =
+       (match Mark.remove typ with
+@@ -682,8 +701,16 @@
+           pp_print_space ppf ();
+           fprintf ppf "break;")
+       in
+-      fprintf ppf "@[<v 4>case %a: {@ %a%a%t@;<1 -4>}@]" EnumConstructor.format
+-        enum_cstr format_init_case
++      let observation ppf =
++        if Global.options.trace <> None then
++          let pos = Mark.get stmt in
++          fprintf ppf "NativeTrace.caseTaken(%S, %d, %d, %d, %d, %S);@ "
++            (Pos.get_file pos) (Pos.get_start_line pos) (Pos.get_start_column pos)
++            (Pos.get_end_line pos) (Pos.get_end_column pos)
++            (Format.asprintf "%a" EnumConstructor.format enum_cstr)
++      in
++      fprintf ppf "@[<v 4>case %a: {@ %t%a%a%t@;<1 -4>}@]" EnumConstructor.format
++        enum_cstr observation format_init_case
+         (enum_cstr, payload_var_name, payload_var_typ)
+         (format_block ctx) case_block format_break
+     in
+--- a/compiler/driver.ml
++++ b/compiler/driver.ml
+@@ -1139,7 +1139,8 @@
+       check_invariants
+       autotest
+       closure_conversion =
+-    let options = fix_trace options in
++    let trace = options.Global.trace in
++    let options = Global.enforce_options ~trace:None () in
+     let optimize =
+       (* javac has a limit on bytecode statement per method, without
+          optimizations we easily reach it. We mitigate by enforcing them. *)
+@@ -1168,6 +1169,7 @@
+       | None, Stdin _ -> "AnonymousClass"
+     in
+     let is_stdlib = stdlib = None in
++    let _ = Global.enforce_options ~trace () in
+     Scalc.To_java.format_program ~is_stdlib ~class_name output_file ppf prg
+ 
+   let java_cmd =

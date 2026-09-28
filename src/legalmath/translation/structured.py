@@ -10,7 +10,7 @@ def field(name, typ):
 
 
 class Layout:
-    def __init__(self, model, node_types):
+    def __init__(self, model, node_types, *, enforce_type_limit=True):
         self.defs={d['name']:d for d in model['types']}
         self.boxes={};self.payloads={};self.fields={};self.cases={};self.types=[];self.sizes={}
         self.types.append({'name':'Meta','kind':'record','fields':[
@@ -18,7 +18,7 @@ class Layout:
         required=set(node_types.values())|{f['type'] for f in model['facts']}
         required.update(p['type'] for h in model.get('helpers',[]) for p in h['parameters'])
         for typ in sorted(required): self.add(typ)
-        if len(self.types)>30: fail('E_RESOURCE_LIMIT','Generated interface exceeds 30 native types')
+        if enforce_type_limit and len(self.types)>30: fail('E_RESOURCE_LIMIT','Generated interface exceeds 30 native types')
 
     def add(self, typ):
         if typ in self.boxes: return

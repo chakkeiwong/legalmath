@@ -6,8 +6,8 @@ from ...canonical import raw_digest
 from .contracts import fail
 
 REPO = Path(__file__).resolve().parents[4]
-TRACE = REPO / '.localresources/catala-toolchain/native-trace-v1'
-TRACE_LOCK = REPO / 'docs/implementation/catala/gap-closure/trace-toolchain.json'
+TRACE = REPO / '.localresources/catala-toolchain/native-trace-v2'
+TRACE_LOCK = REPO / 'docs/implementation/catala/engineering-closure/trace-toolchain.json'
 
 
 def trace_tools():

@@ -3,7 +3,7 @@ from pathlib import Path
 from ..canonical import loads,canonical,digest
 from ..interpretation.search.providers import Allowance,CodexProvider,verify_allowance_checkpoint
 from .frontend import interpret
-from .pipeline import translate,build,execute
+from .pipeline import translate,build,execute,execute_all
 from .model import from_bundle,fail
 
 
@@ -14,6 +14,8 @@ def configure(parser):
     front.add_argument('--max-calls',type=int,choices=range(1,5),default=4)
     front.add_argument('--resume',action='store_true');front.add_argument('--no-revision',action='store_true')
     front.add_argument('--routing-file')
+    inspect=commands.add_parser('resources',help='Inspect Catala resource expansion without compiling')
+    inspect.add_argument('--model',required=True);inspect.add_argument('--out',required=True)
     for name in ('translate','build'):
         command=commands.add_parser(name)
         command.add_argument('--model',required=True);command.add_argument('--target',choices=('ruleir','catala'),required=True)
@@ -22,7 +24,9 @@ def configure(parser):
             command.add_argument('--jdk',required=True)
             for option in ('compiler','upstream','lock'):command.add_argument('--'+option)
     run=commands.add_parser('execute',help='Draft execution under the model policy; no release authorization')
-    for name in ('build','snapshot','rule','valid-at','known-at','jdk'):run.add_argument('--'+name,required=True)
+    for name in ('build','snapshot','valid-at','known-at','jdk'):run.add_argument('--'+name,required=True)
+    selection=run.add_mutually_exclusive_group(required=True)
+    selection.add_argument('--rule');selection.add_argument('--all',action='store_true')
     imp=commands.add_parser('import-ruleir',help='Wrap an existing RuleIR bundle without changing its semantics')
     for name in ('bundle','out'):imp.add_argument('--'+name,required=True)
 
@@ -46,6 +50,9 @@ def dispatch(args):
     read=lambda name:loads(Path(name).read_bytes())
     if args.rule_command=='interpret':
         return interpret(read(args.task),args.out,provider(args),resume=args.resume,max_revisions=0 if args.no_revision else 1)
+    if args.rule_command=='resources':
+        from .resources import preflight
+        value=preflight(read(args.model));Path(args.out).write_bytes(canonical(value));return value
     if args.rule_command=='translate':
         value=translate(read(args.model),args.target);Path(args.out).write_bytes(canonical(value));return value
     if args.rule_command=='build':
@@ -56,4 +63,6 @@ def dispatch(args):
         return build(read(args.model),args.target,args.out,args.jdk,catala_toolchain=toolchain)
     if args.rule_command=='import-ruleir':
         value=from_bundle(read(args.bundle));Path(args.out).write_bytes(canonical(value));return value
+    if args.all:
+        return execute_all(args.build,read(args.snapshot),args.valid_at,args.known_at,args.jdk)
     return execute(args.build,read(args.snapshot),args.rule,args.valid_at,args.known_at,args.jdk)

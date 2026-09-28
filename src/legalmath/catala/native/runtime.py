@@ -84,7 +84,7 @@ def build(task, candidate, output, jdk, *, compiler, upstream, lock):
         if trace_lock['base_compiler_sha256'] != locked['compiler_sha256']:
             fail('E_HASH_MISMATCH', 'Trace compiler base')
         core.update(trace_toolchain=trace_lock, trace_kind='SOURCE_POSITION_DECISIONS_AND_SCOPE_OUTPUTS',
-                    trace_invariant_check='untouched_compiler_only')
+                    trace_invariant_check='original_and_instrumented')
     jars = {}
     with tempfile.TemporaryDirectory(prefix='legalmath-native-') as temp:
         staging = Path(temp)
@@ -101,10 +101,8 @@ def build(task, candidate, output, jdk, *, compiler, upstream, lock):
         plain = (staging / 'Native.java').read_text()
         observed = plain
         if traced:
-            # The untouched compiler already ran invariant checking. The trace
-            # wrappers are an observation transform; rerunning inversion checks
-            # on that transformed tree rejects valid nested scopes.
-            command([tracer, 'java', 'Native.catala_en', '--no-stdlib', *includes, '--trace', '--output', 'Native.java'], staging)
+            # Observe Java emission after the ordinary invariant-checked passes.
+            command([tracer, 'java', 'Native.catala_en', '--no-stdlib', *includes, '--trace', '--check-invariants', '--output', 'Native.java'], staging)
             observed = (staging / 'Native.java').read_text()
         # Only compiler-emitted final field assignments are instrumented. The runtime
         # filters owners to declared scopes; record constructors are not scope events.
@@ -181,8 +179,8 @@ def verify_build(directory, *, expected_hash=None):
     return task, candidate, manifest
 
 
-def execute_values(directory, inputs, jdk, *, instrumented=True):
-    task, candidate, manifest = verify_build(directory)
+def execute_values(directory, inputs, jdk, *, instrumented=True, expected_hash=None):
+    task, candidate, manifest = verify_build(directory, expected_hash=expected_hash)
     if set(inputs) != {f['name'] for f in task['inputs']}:
         fail('E_SCHEMA')
     for f in task['inputs']:
@@ -224,8 +222,8 @@ def execute_values(directory, inputs, jdk, *, instrumented=True):
     return result
 
 
-def evaluate(directory, snapshot, jdk):
-    task, candidate, manifest = verify_build(directory)
+def evaluate(directory, snapshot, jdk, *, expected_hash=None):
+    task, candidate, manifest = verify_build(directory, expected_hash=expected_hash)
     boundary = prepare(task, snapshot)
     reason = 'UNRESOLVED_INTERPRETATION' if candidate['unresolved'] else boundary['reason']
     result = {'record_type': 'NativeCatalaEvaluation', 'profile': profile(task),
@@ -240,7 +238,7 @@ def evaluate(directory, snapshot, jdk):
     if 'bounds' in task:
         result['invalid_inputs'] = boundary['invalid_inputs']
     if not reason:
-        result.update(execute_values(directory, boundary['inputs'], jdk))
+        result.update(execute_values(directory, boundary['inputs'], jdk, expected_hash=digest(manifest)))
     result['result_hash'] = digest(result)
     return result
 

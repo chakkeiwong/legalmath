@@ -89,20 +89,23 @@ copy constructors are excluded. The trace records actual scope, field and value
 observations from that Java process. It does not identify every evaluated branch,
 justify why a value follows from law, or turn an inferred source anchor into an
 executed clause. Source quotations and code locations remain navigation aids.
-Version 2 additionally records source-position conditions, executed branches,
-option decisions and enum arms. A separately pinned derivative of the Catala Java
-emitter produces these observations. The original compiler performs invariant
-checking and produces the uninstrumented comparator. The derivative's trace
-transform does not pass the upstream nested-scope inversion check, so its build
-records `trace_invariant_check=untouched_compiler_only`; value preservation is
-checked through actual execution. Standard-library internals are not traced.
+Version 2 additionally records emitted branches, option decisions and enum arms
+with source positions. A separately pinned derivative of the Catala Java emitter
+adds these observations after the ordinary compiler passes. Both compilers run
+with `--check-invariants`; new builds record
+`trace_invariant_check=original_and_instrumented`. Plain Java and the original
+interpreter provide execution comparisons. Optimized-away source choices and
+external standard-library internals are not traced. The trace describes executed
+generated choices, not every step of a source-level proof.
 
 The isolated preparation script is `scripts/prepare_catala_trace.py --out
-.localresources/catala-toolchain/native-trace-v1`, run with the project Python.
+.localresources/catala-toolchain/native-trace-v2`, run with the project Python.
 It needs the existing pinned opam switch and source tree. It creates a separate
 compiler, patch and lock; the reviewed lock is
-`docs/implementation/catala/gap-closure/trace-toolchain.json`. A rebuilt compiler
+`docs/implementation/catala/engineering-closure/trace-toolchain.json`. A rebuilt compiler
 must match that lock or receive a new reviewed identity before use.
+The first derivative and its lock remain retained for historical builds; their
+`untouched_compiler_only` designation is not retroactively changed.
 Verification compares both Java variants with independent expected values and
 checks the expected values inside Catala before exporting a Boolean. This avoids
 the pinned interpreter's lossy numeric JSON output.

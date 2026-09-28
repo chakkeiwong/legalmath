@@ -11,6 +11,12 @@ are needed. The `rules` commands accept either version. `catala-convert generate
 selects version 2 for multiple native outputs; `--shared-version 2` also enables
 it for a single output. `catala-convert execute --rule NAME` selects an output;
 omitting it returns all outputs. `catala-convert verify` checks each named output.
+All-output execution now prepares one snapshot and runs the native program once.
+Each returned output keeps the individual result's status, value and evidence.
+The shared command is `legalmath rules execute --build BUILD --snapshot SNAPSHOT
+--all --valid-at TIME --known-at TIME --jdk JDK`; `--all` and `--rule` are exclusive.
+Batch verification checks every external reference and compares the whole native
+result with plain Java and the pinned interpreter.
 
 ## Interpretation and expressions
 
@@ -103,12 +109,19 @@ snapshot and actual compiled dependencies.
 
 This is a bounded shared vocabulary, not a parser for every Catala program. Helpers
 and type declarations must be acyclic. The native interface allows 40 inputs,
-40 outputs, 30 generated types, depth 12 and 64 KB candidate source. Encoding
+40 outputs, 30 generated types, depth 12 and 64,000 bytes of candidate source. Encoding
 states consumes some of that type/depth budget; capability reports reject models
 that exceed it before compiler dispatch. Source expressions retain the 1,000-token
 and depth-32 parser limits. Expanded structured types and observation trees are
 bounded; list sequence allows at most 10,000 items. Dates stay within years
 1–9999. Native process/time/log limits remain active for resource-heavy programs.
+
+Run `legalmath rules resources --model MODEL.json --out resources.json` before a
+build to inspect counts, generated type depth and source bytes. The report gives
+the measured quantity and limit for each supported dimension and names any
+overflow. It is separate from the committed translation, preserving old model
+and build identities. Passing this static check does not promise that every
+combination within the caps will fit the compiler or runtime limits.
 
 Verification compares independent expected values/statuses, replays evidence
 encoding, checks plain against instrumented Java, and asks the unmodified Catala

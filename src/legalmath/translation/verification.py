@@ -5,9 +5,31 @@ from ..canonical import digest
 from ..ir.evaluate import evaluate
 from ..ir.trace import verify_result
 from .model import fail
-from .pipeline import verify_build,execute
+from .pipeline import verify_build,execute,execute_all
 from .policy import prepare
 from .ruleir import adapt_snapshot
+
+
+def verify_executions(directory, snapshot, result, expected, jdk, *, compiler=None):
+    """Verify a complete batch; native replay/interpreter checks cover all outputs."""
+    if result.get('result_hash')!=digest({k:v for k,v in result.items() if k!='result_hash'}): fail('E_HASH_MISMATCH')
+    rows=result.get('results')
+    if not isinstance(rows,dict) or not rows or set(rows)!=set(expected): fail('E_SCHEMA')
+    first=next(iter(rows.values()))
+    replay=execute_all(directory,snapshot,first['valid_at'],first['known_at'],jdk,expected_hash=result['build_hash'])
+    if {k:v for k,v in result.items() if k not in ('result_hash','native_snapshot_hash')}!={k:v for k,v in replay.items() if k!='result_hash'}:
+        fail('E_INTEGRITY','Batch result, membership or evidence differs on replay')
+    allowed={'status','type','value','reason','missing_inputs','blocking_inputs','invalid_inputs','used_evidence','partial_value'}
+    for key,reference in expected.items():
+        if not set(reference)<=allowed: fail('E_SCHEMA')
+        if any(rows[key].get(k)!=v for k,v in reference.items()): fail('E_INTEGRITY','Reference mismatch: '+key)
+    _,_,manifest=verify_build(directory,expected_hash=result['build_hash'])
+    if manifest['identity']['kind']=='scalar':
+        return {k:verify_execution(directory,snapshot,r,expected[k],jdk) for k,r in rows.items()}
+    # One native result contains every declared output. Exact replay above binds
+    # every projection; plain Java and the interpreter compare the whole value.
+    check=verify_execution(directory,snapshot,first,expected[first['rule_id']],jdk,compiler=compiler)
+    return {k:dict(check) for k in rows}
 
 
 def verify_execution(directory, snapshot, result, expected, jdk, *, compiler=None):

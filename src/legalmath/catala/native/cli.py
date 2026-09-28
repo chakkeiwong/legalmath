@@ -72,7 +72,7 @@ def dispatch(args):
         return build(read(args.task),read(args.candidate),args.out,args.jdk,compiler=args.compiler,upstream=args.upstream,lock=args.lock)
     if args.native_command in ('verify','execute') and (Path(args.build)/'model.json').exists():
         from ...translation.native_compat import execute_native,snapshot
-        from ...translation.verification import verify_execution
+        from ...translation.verification import verify_execution,verify_executions
         from ...translation.pipeline import verify_build
         if args.native_command=='execute':return execute_native(args.build,read(args.snapshot),args.jdk,rule_id=args.rule)
         cases=read(args.cases);records=[]
@@ -88,8 +88,7 @@ def dispatch(args):
                     if not isinstance(value,dict) or set(value)!=set(result['results']):raise LegalMathError('E_SCHEMA')
                     references={k:{'status':('TRUE' if v else 'FALSE') if type(v)is bool else 'VALUE','value':v} for k,v in value.items()}
                 if set(references)!=set(result['results']):raise LegalMathError('E_SCHEMA')
-                for name,r in result['results'].items():
-                    checks[name]=verify_execution(args.build,snapshot(c['snapshot'],m),r,references[name],args.jdk,compiler=args.compiler)
+                checks=verify_executions(args.build,snapshot(c['snapshot'],m),result,references,args.jdk,compiler=args.compiler)
                 records.append({'case_id':c['id'],'result':result,'checks':checks});continue
             if value is not None:
                 if len(value)!=1:raise LegalMathError('E_SCHEMA')

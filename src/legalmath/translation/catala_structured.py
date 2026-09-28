@@ -197,7 +197,7 @@ class Compiler:
                 self.box(typ,meta=m,state=3,code=2)+' else '+self.box(typ,d,meta=m)+')')+')'
         fail('E_UNSUPPORTED_PROFILE',op)
 
-    def lower(self):
+    def source(self):
         lines=['```catala']
         for h in self.model['helpers']:
             scope=self.helpers[h['name']]
@@ -212,8 +212,11 @@ class Compiler:
                 ') else '+self.box(r['type'],meta=s)+')')
             lines+=['  definition '+self.rules[r['id']]+' equals '+body]
         lines+=['```']
+        return '\n'.join(lines)
+
+    def lower(self):
         candidate=validate_candidate(self.task,{'record_type':'NativeCatalaCandidate','task_hash':digest(self.task),
-            'source':'\n'.join(lines),'interpretation':self.model['review']['reading']['statement'] if self.model['review']['reading'] else self.model['model_id'],
+            'source':self.source(),'interpretation':self.model['review']['reading']['statement'] if self.model['review']['reading'] else self.model['model_id'],
             'assumptions':self.model['review']['reading'].get('assumptions',[]) if self.model['review']['reading'] else [],
             'unresolved':list(self.model['review']['questions']),
             'anchors':[{'unit_id':u['unit_id'],'quote':u['text'],'code_excerpt':'scope SharedRule:'} for u in self.task['packet']['units']]})

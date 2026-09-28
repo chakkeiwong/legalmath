@@ -76,6 +76,8 @@ legalmath rules translate --model MODEL.json --target catala --out CATALA.json
 legalmath rules build --model MODEL.json --target ruleir --out RULEIR_BUILD --jdk JDK
 legalmath rules build --model MODEL.json --target catala --out CATALA_BUILD --jdk JDK --compiler CATALA --upstream PINNED_SOURCE --lock LOCK.json
 legalmath rules execute --build BUILD --snapshot SNAPSHOT.json --rule selected.control --valid-at TIME --known-at TIME --jdk JDK
+legalmath rules execute --build BUILD --snapshot SNAPSHOT.json --all --valid-at TIME --known-at TIME --jdk JDK
+legalmath rules resources --model MODEL.json --out resources.json
 legalmath rules import-ruleir --bundle BUNDLE.json --out MODEL.json
 ```
 

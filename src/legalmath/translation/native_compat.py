@@ -4,7 +4,7 @@ from ..canonical import loads,digest
 from ..catala.native.contracts import validate_task
 from .frontend import interpret
 from .model import inner,fail
-from .pipeline import build,execute
+from .pipeline import build,execute,execute_all
 
 
 def shared_type(typ):
@@ -83,16 +83,7 @@ def execute_native(directory,value,jdk,*,rule_id=None):
     model=loads((Path(directory)/'model.json').read_bytes())
     adapted=snapshot(value,model)
     if len(model['rules'])>1 and rule_id is None:
-        results={r['id']:execute(directory,adapted,r['id'],value['valid_at'],value['known_at'],jdk) for r in model['rules']}
-        complete=all(r['status'] in ('VALUE','TRUE','FALSE') for r in results.values())
-        first=next(iter(results.values()))
-        if any(r['model_hash']!=digest(model) or r['build_hash']!=first['build_hash'] for r in results.values()):
-            fail('E_INTEGRITY','Build changed between output evaluations')
-        abstain=all(r['status']=='ABSTAIN' for r in results.values())
-        result={'record_type':'TranslatedRuleResults','model_hash':digest(model),'snapshot_hash':digest(adapted),
-                'build_hash':first['build_hash'],'status':'VALUE' if complete else 'ABSTAIN' if abstain else 'PARTIAL_RESULTS',
-                'reason':first['reason'] if abstain else None,
-                'value':{k:r['value'] for k,r in results.items()} if complete else None,'results':results}
+        result=execute_all(directory,adapted,value['valid_at'],value['known_at'],jdk)
     else:
         result=execute(directory,adapted,rule_id or model['rules'][0]['id'],value['valid_at'],value['known_at'],jdk)
     result['native_snapshot_hash']=digest(value)

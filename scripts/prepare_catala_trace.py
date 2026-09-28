@@ -20,8 +20,13 @@ def patch_driver(text):
     block=text[start:end]
     old='    let options = fix_trace options in\n'
     if block.count(old) != 1: raise RuntimeError('Unexpected pinned Java driver')
-    # Closure conversion still cannot preserve the trace operators.
-    block=block.replace(old, '    let options = if closure_conversion then fix_trace options else options in\n')
+    # Keep the upstream semantic passes identical to an untraced compilation.
+    # Enable observations only after invariant-checked lowering, in Java emission.
+    block=block.replace(old, '    let trace = options.Global.trace in\n'
+                        '    let options = Global.enforce_options ~trace:None () in\n')
+    emit='    Scalc.To_java.format_program ~is_stdlib ~class_name output_file ppf prg'
+    if block.count(emit) != 1: raise RuntimeError('Unexpected pinned emission call')
+    block=block.replace(emit, '    let _ = Global.enforce_options ~trace () in\n'+emit)
     return text[:start]+block+text[end:]
 
 
@@ -77,46 +82,14 @@ def patch(text):
 
 '''
     text=text[:point]+helper+text[point:]
-    # The trace pass changes some higher-order scope calls into direct
-    # ``Scope.apply`` calls. Add a forwarding method outside each constructor.
-    anchor = "  if List.length out_fields >= 255 then"
-    declaration = """  let in_struct_name = match sbody.scope_body_func.func_params with
-  | [(_, (TStruct sn, _))] -> sn
-  | _ -> assert false
-  in
-  let in_fields = StructName.Map.find in_struct_name ctx.decl_ctx.ctx_structs in
-  let pp_apply ppf =
-    if Global.options.trace <> None then
-      let format_arg ppf (field, typ) =
-        fprintf ppf "final %a %a" (format_typ ctx) typ StructField.format field
-      and format_call_arg ppf (field, _typ) = StructField.format ppf field in
-      let fields = StructField.Map.bindings in_fields in
-      fprintf ppf
-        "@,@[<v 4>public static %a apply(@[<hov>%a@]) {@,return new %a(@[<hov>%a@]);@]@,}"
-        format_scope sbody.scope_body_name
-        (pp_print_list ~pp_sep:pp_comma format_arg) fields
-        format_scope sbody.scope_body_name
-        (pp_print_list ~pp_sep:pp_comma format_call_arg) fields
-    else ()
-  in
-"""
-    if anchor not in text: raise RuntimeError('scope anchor missing')
-    text=text.replace(anchor,declaration+anchor,1)
-    marker = '    format_scope sbody.scope_body_name\n    (format_scope_output_parameters ctx sbody)'
-    pos = text.index(marker)
-    fmt_start = text.rfind('     %t@]@', 0, pos)
-    if fmt_start < 0: raise RuntimeError('scope format string missing')
-    fmt_end = text.index('"', fmt_start) + 1
-    text = text[:fmt_start] + text[fmt_start:fmt_end].replace('%t@]@', '%t@ %t@]@', 1) + text[fmt_end:]
-    args = '    pp_out_struct\n'
-    args_pos = text.index(args, pos)
-    text = text[:args_pos] + text[args_pos:].replace(args, '    pp_out_struct\n    pp_apply\n', 1)
     return text
 
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--out',required=True);a=p.parse_args()
-    out=Path(a.out).resolve();out.mkdir(parents=True,exist_ok=True)
+    out=Path(a.out).resolve()
+    if out.exists() and any(out.iterdir()): raise RuntimeError('Use a fresh trace toolchain directory')
+    out.mkdir(parents=True,exist_ok=True)
     base=ROOT/'.localresources/catala-toolchain'
     locked=json.loads((ROOT/'docs/implementation/catala/toolchain-lock.json').read_text())
     upstream=base/('catala-'+locked['upstream_commit']);source=out/'source'
@@ -139,7 +112,9 @@ def main():
     began=time.monotonic()
     with (out/'build.log').open('wb') as log:
         result=subprocess.run(command,cwd=source,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=600)
-    record={'command':command,'exit_code':result.returncode,'wall_ms':int((time.monotonic()-began)*1000),
+    record={'trace_profile':'java-emitter.v2','invariants':'original_and_instrumented',
+            'coverage':'Emitted Java branches, options, variants and scope outputs; external library internals excluded',
+            'command':command,'exit_code':result.returncode,'wall_ms':int((time.monotonic()-began)*1000),
             'base_compiler_sha256':locked['compiler_sha256'],'upstream_commit':locked['upstream_commit'],
             'patch_sha256':hashlib.sha256(diff.encode()).hexdigest(),
             'changed_files':changed,'script_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
