@@ -24,7 +24,10 @@ Resource ceilings, recursion/arbitrary imports, unfamiliar-source adjudication,
 human studies and institution-specific deployment remain separate questions.
 The main worktree contains unrelated assurance and manuscript edits; preserve
 those files when integrating this branch. The current manuscript revision has
-not been committed as part of this engineering checkpoint.
+not been committed as part of this engineering checkpoint. Main now contains
+`09a81a31` and evidence commit `64889253`; the fast-forward preserved all 88
+previously modified tracked files byte for byte. Twenty focused main tests passed
+with no skips. See `engineering-closure/integration.md` for the closing record.
 
 ## Earlier campaign completion, 28 September 2026
 
