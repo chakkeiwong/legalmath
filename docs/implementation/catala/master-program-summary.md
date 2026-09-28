@@ -5,6 +5,14 @@
 engineering campaign**. Main contains the campaign through merge `5417af67`;
 the [integration record](integration-results.md) reports the additional checks.
 
+An engineering follow-up is committed as `09a81a31`. It adds batch execution,
+checks compiler invariants on both Java variants, and reports generated resource
+use before compilation. The [follow-up results](engineering-closure/results.md)
+record 186 unchanged frozen results across 13 builds and an exact 1/8/20/40-output
+ladder. Its consolidated full regression passed **807 tests with zero skips in
+1,038.44 seconds**, all against the unchanged final implementation checkpoint.
+This closes the earlier gap in final-suite accounting.
+
 The project now has one source interpretation frontend and a typed shared model,
 followed by deterministic translators and executable target languages. RuleIR
 and Catala consume the same retained reading and explicit evidence policy.
@@ -32,7 +40,7 @@ The optional `partial.v1` policy follows evaluated dependencies. It differs from
 RuleIR's static whole-fact conflict veto and is explicitly unsupported by that
 target. Comparing the two policies as if they were the same would be wrong.
 
-## Final validation accounting
+## Earlier campaign validation accounting
 
 The [validation manifest](translator-completion/validation.json) binds commands,
 source hashes, logs, test identities and compiled records. The full trusted
@@ -58,8 +66,8 @@ source hashes match the implementation checkpoint. Pinned Catala 1.2.1 and JDK
 
 Remaining implementation bounds are the closed operation/library vocabulary,
 acyclic helpers and types, generated type/depth/source budgets and bounded
-collection/runtime resources. The compatibility API evaluates the sealed program
-once per returned output; batching remains a possible optimization. Prior live
+collection/runtime resources. Batch execution now invokes the sealed native
+program once for all returned outputs, preserving individual results. Prior live
 conversion studies were small and conditional; the shared-frontend completion
 does not provide a new statistical ranking of conversion quality.
 

@@ -137,3 +137,14 @@ Collection interaction checks use complete/partial evidence with exact rational
 references. Static overflow probes include 41 manually declared inputs, 32
 generated types, encoded nesting over 12 and source expansion over 64,000 bytes.
 These probes test rejection/diagnostics; they are not supported language examples.
+
+## Execution outcome
+
+Implemented as `09a81a31`. The trace derivative rebuilt successfully; focused
+semantic and CLI checks passed after correcting explicitly recorded test-fixture
+errors. The size ladder passed at 1/8/20/40 outputs; frozen replay preserved all
+186 records across 13 builds. One final trusted regression passed 807 tests,
+zero skipped, in 1,038.44 seconds, with source hashes unchanged. Results, review,
+limitations and exact manifests are in `docs/implementation/catala/engineering-closure/`.
+No default backend or source-quality claim changed. Manuscript changes update
+these engineering results while preserving the prior local revision.

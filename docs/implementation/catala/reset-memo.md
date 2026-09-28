@@ -1,6 +1,32 @@
 # Catala branch reset memo
 
-## Campaign completion, 28 September 2026
+## Engineering closure follow-up, 28 September 2026
+
+The implementation is committed as `09a81a31` on `feature/catala-adapter`.
+The reviewed plan is `docs/plans/catala-engineering-closure.md`; current evidence
+is in `engineering-closure/results.md`. Batch execution now prepares one snapshot
+and invokes the native program once for all outputs. Scalar targets use one JVM
+for the request batch. Single-output result records remain unchanged. New traced
+builds use `native-trace-v2`, with ordinary invariant checks on both compilers;
+tracing is added at Java emission. Keep the first trace compiler and historical
+lock unchanged. `rules resources` reports generated resource use independently
+of translation commitments.
+
+The 1/8/20/40-output ladder passed exact individual/plain-Java/interpreter checks.
+Frozen replay passed 186 checks over 13 old builds with unchanged complete result
+records. The full regression passed 807 tests with zero skips in 1,038.44 seconds against
+`09a81a31`, with Hypothesis seed `20260928` and unchanged before/after source
+hashes. `engineering-closure/validation.json` records this single final run. Two early focused failures were invalid new fixtures;
+corrected binder syntax and an explicit manual-reading declaration resolved them.
+
+There are no live model calls, new numerical defaults or default-backend changes.
+Resource ceilings, recursion/arbitrary imports, unfamiliar-source adjudication,
+human studies and institution-specific deployment remain separate questions.
+The main worktree contains unrelated assurance and manuscript edits; preserve
+those files when integrating this branch. The current manuscript revision has
+not been committed as part of this engineering checkpoint.
+
+## Earlier campaign completion, 28 September 2026
 
 The authorized Catala implementation campaign is complete through `d01635dd`
 on `feature/catala-adapter`. The final stage implements shared model version 2:

@@ -1,0 +1,87 @@
+....F.F....                                                              [100%]
+=================================== FAILURES ===================================
+____________ test_scalar_batch_uses_one_jvm_and_original_reference _____________
+
+tmp_path = PosixPath('/home/chakwong/python/legalmath/.worktrees/catala/artifacts/catala/engineering-closure/batch-probe/test_scalar_batch_uses_one_jvm0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x782cd0b979d0>
+
+    def test_scalar_batch_uses_one_jvm_and_original_reference(tmp_path,monkeypatch):
+        m=model();m['review'].update(origin='manual',reading=None)
+        m['rules'].append({**deepcopy(m['rules'][0]),'id':'second'})
+        # Node identities are shared globally; give the copied expression fresh IDs.
+        def rename(value):
+            if isinstance(value,dict):
+                if 'node_id' in value:value['node_id']+='second'
+                for child in value.values():rename(child)
+            elif isinstance(value,list):
+                for child in value:rename(child)
+>       rename(m['rules'][1]);out=tmp_path/'scalar'
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/translation/test_batch_execution.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/translation/pipeline.py:36: in build
+    m,_=validate(model);t=translate(m,target)
+        ^^^^^^^^^^^^^^^
+src/legalmath/translation/model.py:140: in validate
+    return _validate(value)
+           ^^^^^^^^^^^^^^^^
+src/legalmath/translation/model.py:396: in _validate
+    fail('E_INTEGRITY','Retained interpretation and executable model differ')
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+code = 'E_INTEGRITY'
+details = 'Retained interpretation and executable model differ'
+
+    def fail(code='E_SCHEMA', details='Invalid shared rule model'):
+>       raise LegalMathError(code, details=details)
+E       legalmath.errors.LegalMathError: Persistent records fail an integrity check.
+
+src/legalmath/translation/model.py:56: LegalMathError
+______ test_helper_collection_partial_exception_and_rounding_interaction _______
+
+tmp_path = PosixPath('/home/chakwong/python/legalmath/.worktrees/catala/artifacts/catala/engineering-closure/batch-probe/test_helper_collection_partial0')
+
+    
+>   def test_helper_collection_partial_exception_and_rounding_interaction(tmp_path):
+          ^^^^^^^^^^^^^^^^^^^
+
+tests/translation/test_batch_execution.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/translation/test_batch_execution.py:81: in interaction_model
+    def interaction_model():
+tests/translation/v2_support.py:26: in as_model
+    return from_reading(g['readings'][0],t['packet'],AT,profile=t['profile'],
+src/legalmath/translation/model.py:445: in from_reading
+    'rules':reading_program(f,list(spans))[0],
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/translation/model.py:466: in reading_program
+    helpers=[{'name':h['name'],'parameters':h['parameters'],'type':h['result_type'],
+src/legalmath/translation/model.py:467: in <listcomp>
+    'body':expression(h['body'],'helper.'+h['name'],parameters=[p['name'] for p in h['parameters']],
+src/legalmath/translation/expressions.py:111: in expression
+    return node(parsed, frozenset(parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/translation/expressions.py:97: in node
+    children = [node(a, bound) for a in args]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/translation/expressions.py:97: in <listcomp>
+    children = [node(a, bound) for a in args]
+                ^^^^^^^^^^^^^^
+src/legalmath/translation/expressions.py:73: in node
+    binding = atom(args[0])
+              ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+value = ['filter', 'xs', 'e', ['field', 'e', 'active']]
+
+    def atom(value):
+        if not isinstance(value, str) or not re.fullmatch(r'[a-zA-Z_][a-zA-Z0-9_.:\[\]-]*', value):
+>           raise LegalMathError('E_SCHEMA', details='Invalid expression identifier')
+E           legalmath.errors.LegalMathError: Input does not conform to the schema.
+
+src/legalmath/translation/expressions.py:33: LegalMathError
+=========================== short test summary info ============================
+FAILED tests/translation/test_batch_execution.py::test_scalar_batch_uses_one_jvm_and_original_reference
+FAILED tests/translation/test_batch_execution.py::test_helper_collection_partial_exception_and_rounding_interaction
+2 failed, 9 passed in 39.64s
