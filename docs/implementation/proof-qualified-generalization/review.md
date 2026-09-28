@@ -54,3 +54,11 @@ That attempt also exposed a result-manifest serialization error: repository
 canonical JSON forbids floating-point values. Wall time is now recorded as an
 integer number of milliseconds. Its results.json was already retained; the
 incomplete manifest is not passed off as a completed run.
+
+Final validation passed 284 tests in one regression invocation, with no failures,
+errors or skips and unchanged qualification-method hashes. Three separately
+executed observation tests passed. The final authored-source/document whitespace
+check passed. The broader check flags whitespace emitted by the pinned Catala
+Java generator in retained evidence; those bytes are intentionally preserved
+because build and campaign identities bind them. They are not authored-source
+formatting defects and were not normalized after execution.
