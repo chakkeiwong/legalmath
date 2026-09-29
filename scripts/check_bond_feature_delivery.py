@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 
 from legalmath.prospectus.common import ROOT, now, read, sha, write
 from legalmath.prospectus.loss_absorption import decide, explain
-from legalmath.prospectus.loss_absorption_reader import analyze_issue, joined, load_document, WATCH
+from legalmath.prospectus.loss_absorption_reader import analyze_issue, joined, load_document, definition_scope, WATCH
 
 DIRECTORY=ROOT/'docs/implementation/bond-loss-absorption-classification'
 RUNS=DIRECTORY/'execution'
@@ -26,6 +26,9 @@ def report_witness(row):
     """
     if row['answer'] is None:
         return None
+    if 'derivation' in row:
+        identity=row['derivation']['evidence_ids'][0]
+        return next(e for e in row['evidence'] if e['id']==identity)
     candidates=[e for e in row['evidence'] if e['disposition']=='applicable'
                 and e['scope']=='operative']
     if row['answer']:
@@ -47,6 +50,12 @@ def report_witness(row):
 
 
 def report_reason(row, documents):
+    if 'derivation' in row:
+        from legalmath.prospectus.loss_absorption_derivation import render
+        reason=render(row)
+        for key,doc in documents.items():
+            if doc.get('kind')=='html':reason=reason.replace(key+', PDF p.1',key+', HTML text unit 1')
+        return reason,row['derivation']['evidence_ids'][:1]
     witness=report_witness(row)
     if witness is None:
         return row['summary_reason'], []
@@ -98,9 +107,17 @@ def verify():
         normalized={key:joined(doc) for key,(doc,_) in cached.items()}
         texts={key:value[0] for key,value in normalized.items()}
         rows=read(directory/'classification.json')['results']
+        if manifest['dirty_source_hashes']!={p:sha((ROOT/p).read_bytes()) for p in manifest['dirty_source_hashes']}:
+            raise ValueError('Run used another method: '+run_name)
         if {r['id'] for r in rows}!={r['id'] for r in inventory['issues']}:
             raise ValueError('Missing/extra issue rows')
         for row in rows:
+            if 'derivation' in row:
+                from legalmath.prospectus.loss_absorption_derivation import check
+                issue=next(i for i in inventory['issues'] if i['id']==row['id'])
+                verified={s['id']:{'text':texts[s['id']], 'sha256':cached[s['id']][0]['source_sha256'],
+                    'definition_text':definition_scope(*normalized[s['id']],s)} for s in issue['documents']}
+                check(row,verified)
             decision=decide(row['facts'])
             if any(row[k] != decision[k] for k in ('answer','classification','status')):
                 raise ValueError('Decision/report mismatch')
@@ -127,7 +144,7 @@ def verify():
         reports.append({'run':run_name,**read(directory/'summary.json')})
 
     # Faults use copied real documents. The archived originals are never edited.
-    development=inventories['classification-additions']
+    development=inventories.get('classification-additions') or read(ROOT/'docs/prospectus/classification-additions/issue-inventory.json')
     tesco=next(r for r in development['issues'] if r['id']=='tesco-2033')
     faults=[]
     with tempfile.TemporaryDirectory(prefix='bond-feature-source-faults-') as tmp:
@@ -155,7 +172,8 @@ def verify():
         docs=deepcopy(development['documents']);row=docs['tesco-2025-base']
         row['original']=docs['veolia-2026-base']['original']
         check('different_issuer_original_substitution',tesco,docs)
-        held=inventories['classification-holdout'];issue=held['issues'][0];docs=deepcopy(held['documents'])
+        held=inventories.get('classification-holdout') or read(ROOT/'docs/prospectus/classification-holdout/issue-inventory.json')
+        issue=held['issues'][0];docs=deepcopy(held['documents'])
         wrong=next(r for r in read(ROOT/'docs/prospectus/classification-holdout/manifest.json')['documents'] if r['id']=='compass-2026-base')
         docs['compass-2025-base']={**wrong,'id':'compass-2025-base'}
         check('newer_base_with_consistent_hashes_but_wrong_named_edition',issue,docs)
@@ -173,6 +191,7 @@ def verify():
         'real_document_faults':faults,'native_runs':[{k:r[k] for k in ('run','native')} for r in reports],
         'tests_passed':test_count,'classifier_tests':config['classifier_tests'],
         'fresh_transfer_bonds':[{'id':r['id'],'answer':r['answer']} for r in fresh],
+        'derivation_checks':sum(r.get('derivation_check',{}).get('status')=='CHECKED' for r in all_results),
         'wall_seconds':time.monotonic()-started,'legal_entailment':'NOT_PROVED','human_quality_labels':False,
         'unknown_future_generalization':'NOT_PROVED','verification_scope':'Source integrity, finite declared-premise logic, native execution and limited conditional transfer. English relevance/completeness is not independently proved.'}
     write(RUNS/'delivery-verification.json',report)
@@ -217,7 +236,8 @@ def verify():
         f"RuleIR/Java and Catala executed the same {len(all_results)} bond input sets, plus 24 formal challenge cases in each of {len(reports)} runs, for {native_count} native executions. "
         'Kernel-checked lowering and source integrity establish conditional software properties, not legal interpretation.', '',
         f"Every one of the {quotation_count:,} emitted evidence records was rebound to its preserved source text. Six faults involving actual PDFs/text were rejected or left unresolved. "
-        'Version 1 failed an edition-substitution challenge and was repaired; Compass and ING became development cases. '
+        'The reader repairs were checked against action, polarity, issue, definition, source and monetary-relation challenges. '
+        'Previously inspected documents are development cases. '
         + ('The new frozen version processed these fresh cases: '+', '.join(r['id']+' ('+('yes' if r['answer'] is True else 'no' if r['answer'] is False else 'unresolved')+')' for r in fresh)+'. ' if fresh else 'No fresh transfer claim is made in this interim report. ')
         + 'No source-answer labels were used.', '',
         '## Qualifications and remaining work', '',
@@ -232,14 +252,16 @@ def verify():
         'Lloyds uses a retained final filing mirror: official issuer-PDF acquisition failed, and byte identity with EDGAR is not established. '
         'Some US/HSBC series use filing/series identities because their ISINs were not independently resolved. '
         'Issuer names, domicile and rank are metadata, never classification rules.', '',
-        'The fresh Shell example remains unresolved because the current reader does not bind its stated cash redemption amount '
-        'to the calculation unit. That is an identified implementation limit, not evidence that the bond absorbs capital losses. '
-        'The fresh-family challenge is therefore incomplete: one positive transfer and one safe abstention, with no supported legal-accuracy score.', '',
+        'Shell now has an exact repayment derivation: £1,000 final redemption per £1,000 calculation amount. '
+        'The definitions and money fields, source positions, selected issue and generated explanation are checked together. '
+        'A separate checker evaluates the decision and rejects inconsistent or altered evidence. '
+        'It shares the bounded English constructions with the reader; it is independent of the decision implementation, '
+        'not an independent proof of natural-language interpretation.', '',
         'Next work: strengthen semantic subject/condition resolution, close incorporated-document and amendment dependencies, '
         'validate authoritative language alignment, and run further frozen document-family challenges. '
         'Treat future source or law changes as reasons to re-acquire and re-evaluate. A negative here does not mean low investment risk or transaction permission.', '',
         '[Machine-readable results](results.json) · [CSV](results.csv) · [verification](execution/delivery-verification.json) · '
-        '[reviewed execution plan](../../plans/bond-classification-execution.md) · [source freeze](execution/'+config['freeze']+')', '']
+        '[reviewed execution plan](../../plans/bond-reader-repair-program.md) · [source freeze](execution/'+config['freeze']+')', '']
     review=DIRECTORY/'source-review.md'
     if review.exists():
         lines += [review.read_text().strip(), '']

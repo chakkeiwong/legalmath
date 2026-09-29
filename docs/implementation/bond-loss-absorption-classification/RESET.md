@@ -1,9 +1,29 @@
-# Bond feature classifier: execution handoff
+# Bond feature classifier: current handoff
 
-Campaign checkpoint authorised for commit and synchronization on 29 September
-2026. Delivery is complete as qualified engineering evidence; the semantic
-reader is not generally validated. The next [reviewed repair program](../../plans/bond-reader-repair-program.md)
-executes the diagnosed repairs after the repository checkpoint.
+Integration note: a separate assurance-gap-closure campaign began changing this
+shared main checkout during final staging. Its unfinished files are preserved
+and excluded. Only the Catala worktree can be certified clean; main branch refs
+can still be committed, pushed and synchronized without discarding that work.
+
+30 September 2026: reader repair and the two-family frozen challenge are complete
+as bounded engineering work. Current outputs cover 28 bonds: 12 qualified
+positives, 14 qualified negatives, two abstentions. Shell now has exact repayment
+unit support; Santander has unsupported copular conversion wording and Unilever
+has a missing named base memorandum. 529 tests and 152 native executions pass.
+The seven-page [PDF](results.pdf), [JSON](results.json), [CSV](results.csv) and
+[verification](execution/delivery-verification.json) are current.
+
+Use the [final repair results](../bond-reader-repair/RESULTS.md),
+[reviewed plan](../../plans/bond-reader-repair-program.md) and
+[current delivery config](execution/delivery-config.json). Fresh abstentions
+do not establish successful transfer. No human answer labels or legal-accuracy
+score were used. The final repair is ready for the authorised commit/push and
+Catala fast-forward after the already synchronized checkpoint.
+
+## Historical v1 campaign and diagnosis
+
+The following records describe the protected pre-repair baseline. Their old
+counts, Shell limitation and future-tense repair instructions are historical.
 
 Recorded 29 September 2026. Current outputs:
 [readable results](results.md), [CSV](results.csv), [JSON with evidence](results.json),

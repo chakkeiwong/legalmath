@@ -7,7 +7,7 @@ from itertools import product
 
 FACTS = ('debt', 'principal_write_down', 'mandatory_common_conversion', 'coverage_complete')
 LABELS = {True: 'loss absorption', False: 'non loss absorption'}
-POLICY = 'prospectus-loss-absorption.v1'
+POLICY = 'prospectus-loss-absorption.v2'
 
 
 def total(facts):

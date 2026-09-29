@@ -1,60 +1,54 @@
-## Correctness review — 29 September 2026
+## What the repairs establish
 
-The source review supports the reported feature distinction, with qualified
-negative readings and one unresolved case. It does not establish that the
-reader interprets every prospectus correctly. Reading a repayment clause
-cannot, by itself, prove that a different clause never permits a write-down.
-The negative decisions still depend on the declared document selection and
-the bounded clause recogniser. Test and quotation counts do not measure legal
-accuracy.
+The repaired reader distinguishes an obligation to report a possible conversion
+from an obligation to convert the bond. It also keeps negation attached to the
+action and rejects principal-loss evidence belonging to a different named
+series. These repairs remove the recorded counterexamples. They do not prove
+that every unfamiliar sentence will be interpreted correctly.
 
-Two supporting explanations needed correction. Standard Chartered's previous
-summary cited a Newco reorganisation provision on PDF page 55. That provision
-alone does not establish the mandatory trigger. Condition 7(a)(i) on PDF page
-41 explicitly provides automatic conversion into ordinary shares after a
-Conversion Trigger Event; Condition 7(a)(vi), spanning PDF pages 42–43, also
-provides a full principal write-down after a Non-Qualifying Relevant Event
-followed by a Conversion Trigger Event. The revised generated summary cites
-the latter clause, already present in the retained evidence. Its positive
-answer remains supported. Duke's 2054 senior issue previously cited the 2034
-series' redemption clause. The revised summary selects the clause for the
-2054 Notes on PDF page 15. The negative answer remains qualified by the same
-document-completeness limits.
+A positive reason now comes from the same source witness as the decision.
+Standard Chartered's reason uses the conditional principal write-down in its
+executed deed, on PDF pages 42–43. The Newco reorganisation provision cannot
+supply that witness. Duke's 2054 repayment reason must refer to that series;
+the 2034 clause cannot establish its repayment terms. Cancellation after
+ordinary-share delivery and language about other securities reducing recovery
+are no longer treated as principal write-downs.
 
-These are real explanation defects despite the passing tests. The summary
-selection was repaired and tested. The frozen reader still contains the
-overbroad source candidates; they remain visible in JSON and require a future
-semantic repair. The presentation correction is not evidence that these
-underlying interpretation defects have been eliminated.
+Shell's final terms specify a £1,000 calculation amount on PDF page 2 and
+£1,000 final redemption per calculation amount on page 3. The reader now
+compares those exact amounts and their currencies. That closes the known
+repayment-unit gap. Tesco's uncompleted forms on pages 36–58 of its base
+circular are searched as programme options, while the selected final terms
+supply the issue's completed terms. Both changes depend on explicit document
+structure and source fields, rather than an expected negative answer.
 
-For the requested corporate examples, Tesco and Compass specify repayment at
-100% of nominal amount. Veolia's two final terms specify €100,000 redemption
-per €100,000 note (PDF page 5), consistent with the base prospectus's nominal
-repayment provision. No qualifying principal-loss mechanism was identified
-in their declared offering terms. NatWest and BPCE differ: their cited terms
-explicitly allow statutory bail-in to reduce principal, so their senior status
-does not make the feature negative. CBA's negative depends in particular on
-excluding ordinary creditor-approved restructuring: its Condition 13 permits
-collective modifications that can bind dissenting holders. That exclusion is
-an explicit working assumption, not a proof that principal can never be lost.
+NatWest and BPCE remain positive because their terms disclose regulatory
+powers to reduce principal. BPCE's definition of Amounts Due is necessary:
+it expressly includes principal. A definition covering only interest would
+not establish the requested feature. CBA's negative continues to exclude
+ordinary creditor-approved restructuring from this feature test. That
+exclusion does not mean that principal can never be lost.
 
-Shell remains unresolved in the programme. Its final terms give a £1,000
-calculation amount on PDF page 2 and £1,000 final redemption per calculation
-amount on page 3. Those amounts agree, but the frozen reader does not compose
-the two fields. The abstention reports an implementation limit; it supplies
-no evidence of a loss-absorption feature. No answer has been forced merely to
-meet an expected negative.
+The report answers whether the selected offering documents identify principal
+write-down or compulsory conversion to common shares. It does not decide
+SFC product complexity, client suitability, sanctions compliance or transaction
+permission. A subordinated bond can have a qualified negative feature result
+while other selling restrictions still apply.
 
-This feature test is separate from the SFC's overall product-complexity and
-selling rules. The [SFC's examples of complex products](https://www.sfc.hk/en/Rules-and-standards/Suitability-requirement/Non-complex-and-complex-products)
-also include perpetual and subordinated bonds and other special features.
-Thus a junior bond can receive a negative result here and still be complex
-under those rules. The [SFC's 2018 circular](https://apps.sfc.hk/edistributionWeb/api/circular/list-content/circular/suitability/doc?lang=EN&refNo=18EC89)
-describes capital-ratio and government/regulatory triggers for non-viability
-loss absorption. This report does not decide transaction eligibility.
+The independent checks establish the formal decision, backend agreement and
+integrity of source-to-explanation links. The English constructions are shared
+between extraction and witness checking, so that agreement cannot prove their
+meaning. All real-document answers remain qualified. Document completeness,
+authoritative-language equivalence, later amendments and performance on
+unknown future instruments remain unresolved. No human answer labels or legal
+accuracy score are used.
 
-The independent formal checks establish the decision and translation logic
-under the supplied premises. Source completeness, unrestricted language
-interpretation and performance on all future instruments remain unproved.
-No human quality labels or source-answer accuracy score were used in this
-review.
+The post-freeze challenge exposes the remaining limits directly. Santander's
+circular uses the construction “are mandatorily and irrevocably convertible”
+on its cover. The frozen reader leaves this construction unresolved instead
+of asserting a negative. Unilever's final terms refer to a base memorandum
+that could not be retained after two issuer downloads returned HTTP 403.
+That missing dependency blocks a binary answer. Neither abstention is a
+successful demonstration of classification across new issuer families.
+Further construction support needs new tests and another freeze; changing
+the reader and rescoring Santander would be development evidence.

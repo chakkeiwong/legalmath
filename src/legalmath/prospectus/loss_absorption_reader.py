@@ -9,6 +9,8 @@ import re
 
 from .common import digest, read, sha
 from .loss_absorption import FACTS, decide, explain
+from .loss_absorption_witnesses import (RISK, semantic_features, validate_semantic_witness,
+                                       series_binding, exact_repayment)
 
 
 def norm(text):
@@ -21,6 +23,12 @@ def joined(document):
         text = norm(page['text'])
         starts.append(cursor); parts.append(text); cursor += len(text) + 1
     return ' '.join(parts), starts
+
+
+def definition_scope(text,starts,selection):
+    selected=selection.get('operative_pages',[[1,len(starts)]])
+    return ''.join(text[a:b] if any(lo<=i+1<=hi for lo,hi in selected) else ' '*(b-a)
+                   for i,(a,b) in enumerate(zip(starts,starts[1:]+[len(text)])))
 
 
 def quote_valid(evidence, document):
@@ -43,7 +51,7 @@ def match(pattern, text):
     return re.search(pattern, text, re.I | re.S)
 
 
-def clause_features(text, *, scope='operative', definitions='', context=''):
+def _candidate_features(text, *, scope='operative', definitions='', context=''):
     """Recognized lexical/structural constructions, not an English theorem."""
     text = re.sub(r'(?<=\w)\s*-\s*(?=\w)', '-', text)
     result = []
@@ -139,6 +147,38 @@ def clause_features(text, *, scope='operative', definitions='', context=''):
     return result
 
 
+def clause_features(text, *, scope='operative', definitions='', context=''):
+    """Retrieve broadly, then require an action-bound witness for mechanism facts."""
+    candidates=_candidate_features(text,scope=scope,definitions=definitions,context=context)
+    if scope=='foreign':return candidates
+    ordinary=[r for r in candidates if r['kind'] not in
+              {'principal_write_down','mandatory_common_conversion','no_write_down','no_conversion'}]
+    # Unselected form fields are not a repayment promise for a selected issue.
+    if '[' in text and ']' in text:
+        ordinary=[r for r in ordinary if r['kind']!='cash_repayment']
+        if scope=='shelf':
+            return ordinary+[{'kind':'candidate','disposition':'unselected_shelf_option','origin':None}]
+    exempt={'creditor_amendment','unselected_shelf_option','holder_optional_conversion',
+            'preferred_share_conversion','foreign_document_section','other_security',
+            'corporate_issuance_authorisation','tax_consequence_of_hypothetical_mechanism',
+            'principal_repaid_in_partial_redemption','repurchase_or_redemption_cancellation',
+            'distribution_only','unresolved_statutory_scope'}
+    if any(r['disposition'] in exempt for r in candidates):return ordinary
+    semantic=semantic_features(text,definitions)
+    if semantic:
+        return [r for r in ordinary if r['kind']!='candidate']+semantic
+    mechanism_candidates=[r for r in candidates if r['kind'] in
+                          {'principal_write_down','mandatory_common_conversion','no_write_down','no_conversion'}]
+    if mechanism_candidates:
+        return ordinary+[{'kind':'candidate','disposition':'unresolved_action_or_polarity','origin':None}]
+    alternative_loss=match(r'\b(?:forfeit\w*|extinguish\w*|haircut)\b',text)
+    alternative_loss=alternative_loss or match(r'waiv\w*\s+(?:(?:their|the|all|any|rights?|claims?|to|for|of)\s+)*(?:principal|repayment)',text)
+    missing_dependency=match(r'\b(?:schedule|appendix|supplement|incorporated document|conditions)\b.{0,100}\b(?:unavailable|not (?:provided|included|supplied)|missing)\b',text)
+    if RISK.search(text) and (alternative_loss or missing_dependency):
+        ordinary.append({'kind':'candidate','disposition':'unresolved_operative_wording','origin':None})
+    return ordinary
+
+
 def segments(text):
     # Join page boundaries before segmenting so a page split cannot hide a clause.
     start = 0
@@ -151,7 +191,7 @@ def segments(text):
         yield start, len(text)
 
 
-def analyze_document(row, document, selection):
+def analyze_document(row, document, selection, issue=None):
     text, starts = joined(document)
     evidence = []
     selected = selection.get('operative_pages', [[1, len(starts)]])
@@ -159,6 +199,8 @@ def analyze_document(row, document, selection):
     priority = selection.get('evidence_priority_pages', [])
     def page_scope(page):
         return 'operative' if any(a <= page <= b for a, b in selected) else 'shelf' if any(a <= page <= b for a, b in shelf) else 'foreign'
+    # Preserve offsets but exclude definitions belonging to unselected pages.
+    definition_text=definition_scope(text,starts,selection)
     # Never assign a sentence spanning two distinct document sections solely
     # by its first page. Preserve joins only within the same scope.
     cuts = [0] + [starts[i] for i in range(1, len(starts)) if page_scope(i) != page_scope(i+1)] + [len(text)]
@@ -169,16 +211,35 @@ def analyze_document(row, document, selection):
         page = bisect_right(starts, start)
         scope = page_scope(page)
         previous = text[max(0,start-1200):start]
-        for feature in clause_features(clause, scope=scope, definitions=text, context=previous):
+        for feature in clause_features(clause, scope=scope, definitions=definition_text, context=previous):
+            binding=series_binding(clause,issue or {})
+            if binding=='other_issue':
+                feature={**feature,'disposition':'other_issue'}
             item = {'document': row['id'], 'source_sha256': document['source_sha256'],
                     'start': start, 'end': end, 'page': page, 'end_page': bisect_right(starts, end - 1),
                     'quote': clause, 'scope': scope,
                     'priority': 0 if any(a <= page <= b for a,b in priority) else 1 if scope == 'operative' else 2,
-                    **feature}
+                    'issue_id':(issue or {}).get('id'),'issue_binding':binding,**feature}
             item['id'] = digest(item)[:24]
             if text[start:end] != item['quote'] or not (0 <= start < end <= len(text)):
                 raise ValueError('Invalid quotation location')
             evidence.append(item)
+    repayment=exact_repayment(text)
+    if repayment and repayment['status']=='equal':
+        fields=repayment['fields'];start=min(f['start'] for f in fields);end=max(f['end'] for f in fields)
+        if all(page_scope(bisect_right(starts,f['start']))=='operative' for f in fields):
+            item={'document':row['id'],'source_sha256':document['source_sha256'],'start':start,'end':end,
+                  'page':bisect_right(starts,start),'end_page':bisect_right(starts,end-1),'quote':text[start:end],
+                  'scope':'operative','priority':0,'kind':'cash_repayment','disposition':'applicable','origin':None,
+                  'issue_id':(issue or {}).get('id'),'issue_binding':'selected_document_fields',
+                  'repayment_derivation':repayment}
+            item['id']=digest(item)[:24];evidence.append(item)
+    elif repayment:
+        issues={'document':row['id'],'source_sha256':document['source_sha256'],'start':0,'end':len(text),
+                'page':1,'end_page':len(starts),'quote':text,'scope':'operative','priority':0,
+                'kind':'candidate','disposition':'unresolved_repayment_units','origin':None,
+                'issue_id':(issue or {}).get('id'),'issue_binding':'selected_document_fields'}
+        issues['id']=digest(issues)[:24];evidence.append(issues)
     return evidence
 
 
@@ -220,7 +281,7 @@ def load_document(row, root):
 
 
 def analyze_issue(issue, documents, root):
-    evidence, issues, coverage = [], [], []
+    evidence, issues, coverage, checked_documents = [], [], [], {}
     for selection in issue['documents']:
         key = selection['id']
         if key not in documents:
@@ -228,7 +289,9 @@ def analyze_issue(issue, documents, root):
         row = documents[key]
         try:
             document = load_document(row, root)
-            text, _ = joined(document)
+            text, starts = joined(document)
+            checked_documents[key]={'text':text,'sha256':row['sha256'],
+                                    'definition_text':definition_scope(text,starts,selection)}
             if any(norm(marker).lower() not in text.lower() for marker in selection.get('required_markers', [])):
                 raise ValueError('Issue/edition link is not present in ' + key)
             for locator in selection.get('required_page_markers', []):
@@ -236,7 +299,7 @@ def analyze_issue(issue, documents, root):
                 if (type(page) is not int or not 1 <= page <= len(document['pages']) or
                         norm(locator['text']).lower() not in norm(document['pages'][page-1]['text']).lower()):
                     raise ValueError('Issue/edition marker missing from its required page in ' + key)
-            evidence.extend(analyze_document(row, document, selection))
+            evidence.extend(analyze_document(row, document, selection, issue))
             coverage.append({'document': key, 'pages_read': len(document['pages']), 'sha256': row['sha256'],
                              'operative_pages': selection.get('operative_pages', [[1, len(document['pages'])]]),
                              'required_page_markers': selection.get('required_page_markers', []),
@@ -274,9 +337,31 @@ def analyze_issue(issue, documents, root):
         facts = dict.fromkeys(FACTS, None)
     decision = decide(facts)
     evidence.sort(key=evidence_order)
+    for item in evidence:
+        if item['disposition']=='applicable' and item['kind'] in ('principal_write_down','mandatory_common_conversion','no_write_down','no_conversion'):
+            definition_text=checked_documents[item['document']]['definition_text']
+            if not validate_semantic_witness(item,definition_text):
+                raise ValueError('Invalid semantic witness: '+item['id'])
+    used=[e['id'] for e in evidence if e['disposition']=='applicable' and
+          ((decision['answer'] is True and e['kind'] in ('principal_write_down','mandatory_common_conversion')) or
+           (decision['answer'] is False and e['kind']=='cash_repayment'))]
+    derivation={'version':'bond-feature-derivation.v2','issue_id':issue['id'],'facts':dict(facts),
+                'answer':decision['answer'],'evidence_ids':used,'coverage_basis':'DECLARED_SOURCES_AND_BOUNDED_CONSTRUCTIONS',
+                'english_entailment':'NOT_PROVED','absence_proof':'NOT_PROVED',
+                'source_dependencies':[{'document':c['document'],'sha256':c['sha256']} for c in coverage]}
+    derivation['sha256']=digest(derivation)
     explanation = explain(decision, evidence, issues=issues,
                           ordinary_features=[ordinary[e['disposition']] for e in evidence if e['disposition'] in ordinary])
-    return {**{k: v for k, v in issue.items() if k != 'documents'}, **decision, 'summary_reason': explanation,
-            'facts': facts, 'evidence': evidence, 'coverage': coverage, 'open_issues': issues,
+    result={**{k: v for k, v in issue.items() if k != 'documents'}, **decision, 'summary_reason': explanation,
+            'facts': facts, 'evidence': evidence, 'coverage': coverage, 'open_issues': issues,'derivation':derivation,
+            'certified_legal_answer':None,
             'qualification': 'Conditional on the declared issue/document scope and bounded English analysis. Source meaning, relevance of omitted material and later amendments are not independently proved.',
             'legal_entailment': 'NOT_PROVED', 'human_quality_evidence': False}
+    from .loss_absorption_derivation import check, render
+    result['summary_reason']=render(result)
+    result['summary_evidence_ids']=derivation['evidence_ids'][:1]
+    if not hard_failure:
+        result['derivation_check']=check(result,checked_documents)
+    else:
+        result['derivation_check']={'status':'SOURCE_INCOMPLETE','source_meaning':'NOT_PROVED'}
+    return result

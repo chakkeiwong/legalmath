@@ -1,9 +1,25 @@
 # Prospectus master reset memo
 
-29 September 2026 checkpoint: bounded campaigns and the complete 26-bond report
-are delivered; three counterexamples reject general reader correctness. See
-[FINAL-SUMMARY.md](FINAL-SUMMARY.md) and the [authorised repair plan](../../plans/bond-reader-repair-program.md).
-Older run facts below remain historical evidence, not the current inventory.
+Integration note: a separate assurance-gap-closure campaign began changing this
+shared main checkout during final staging. Its unfinished files are preserved
+and excluded. Only the Catala worktree can be certified clean; main branch refs
+can still be committed, pushed and synchronized without discarding that work.
+
+30 September 2026: the bounded repair program is complete. The final report
+covers 28 bonds (12 positive, 14 negative, two unresolved), with 529 tests and
+152 native executions. The fresh Santander/Unilever cases abstain; broad
+transfer and legal correctness remain unproved. See [FINAL-SUMMARY.md](FINAL-SUMMARY.md)
+and [repair results](../bond-reader-repair/RESULTS.md).
+
+The original checkpoint was pushed and the Catala worktree synchronized.
+Final repair changes are ready for the authorised commit/push and second
+fast-forward. After completion, use the clean git refs and session receipt
+for exact final commit identity; do not rerun historical campaign commands
+merely because this memo contains their original instructions.
+
+## Historical original master record
+
+The facts below describe earlier phases, not the latest inventory or reader.
 
 Retain the implementation as a conditional, checked engineering path; do not promote to autonomous legal certification
 

@@ -28,7 +28,7 @@ def run(inventory, output, checks=False):
         'git_commit': subprocess.check_output(['git','rev-parse','HEAD'], cwd=ROOT, text=True).strip(),
         'dirty_source_hashes': versions, 'inventory': str(inventory), 'inventory_sha256': sha(inventory.read_bytes()),
         'cpu_gpu': 'CPU only; no GPU framework imported', 'seeds': 'N/A: deterministic',
-        'plan': 'docs/plans/bond-classification-execution.md', 'policy': POLICY,
+        'plan': 'docs/plans/bond-reader-repair-program.md', 'policy': POLICY,
         'data_versions': {k: {'original':v['sha256'], 'text':v['text_sha256']} for k,v in metadata['documents'].items()},
         'human_quality_labels': False, 'status': 'RUNNING'}
     write(output/'run-manifest.json', manifest)
@@ -72,7 +72,8 @@ def run(inventory, output, checks=False):
         checkpoint('L2', summary, 'L3: run controlled integrity/parser tests, independent formal obligations and identical native RuleIR/Catala cases. Repair failures before freezing.')
         if checks:
             from legalmath.prospectus.loss_absorption_checks import native, prove
-            completed = subprocess.run([sys.executable,'-m','pytest','tests/prospectus/test_loss_absorption.py','-q',
+            completed = subprocess.run([sys.executable,'-m','pytest','tests/prospectus/test_loss_absorption.py',
+                'tests/prospectus/test_loss_absorption_repair.py','tests/prospectus/test_bond_report_presentation.py','-q',
                 '--junitxml='+str(output/'tests.xml')],cwd=ROOT,capture_output=True,text=True,timeout=120)
             (output/'tests.log').write_text(completed.stdout+completed.stderr)
             if completed.returncode: raise ValueError('Controlled tests failed; see tests.log')
