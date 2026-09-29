@@ -89,3 +89,14 @@ Initial commands: `.venv/bin/python -m compileall -q src scripts`, targeted
 JUnit output. The campaign CLI will record exact new replay/native commands
 before they execute. A successful checklist is not the deliverable: actual
 code, reports, counterexample outcomes and git synchronization are required.
+
+## Execution result, 30 September 2026
+
+Phases 1–5 executed. Repair commit `dffd5805` is pushed and synchronized with
+the clean Catala worktree. See [results](../implementation/bond-reader-repair/RESULTS.md)
+and [integration receipt](../implementation/bond-reader-repair/integration-receipt.json).
+529 tests, 152 native executions and the seven-page report are complete. The
+fresh challenge yielded two abstentions, which reject a broad coverage claim
+but do not invalidate the harness or formal decision. Main worktree cleanliness
+is the sole integration exception: a separate assurance campaign began writing
+concurrently, and its unfinished changes were preserved outside this commit.

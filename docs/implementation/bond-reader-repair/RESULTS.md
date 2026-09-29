@@ -104,9 +104,9 @@ time and artifact hashes. Native execution is serial within each run.
 
 The original checkpoint, including prior Catala and compliance work, was
 pushed as `374e07d54d4745004f6f8c146b9eb82647570775`; the Catala worktree was
-fast-forwarded to it. The final repair commit is followed by the authorised
-fetch/merge/push and a second Catala fast-forward, with clean-state and remote
-verification recorded in the session's final result.
+fast-forwarded to it. Repair commit `dffd5805` was pushed after fetching/merging origin/main, then
+fast-forwarded into Catala. All implementation refs were verified equal; see
+[integration-receipt.json](integration-receipt.json).
 
 Concurrent-work boundary: a new assurance-gap-closure campaign began writing
 files during final staging. Its unfinished source, monograph and run changes

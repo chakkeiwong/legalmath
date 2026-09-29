@@ -2,8 +2,8 @@
 
 30 September 2026, Hong Kong. The authorised documentation, repository
 checkpoint, reader repairs, regression, native execution and reporting phases
-are complete. The final repair is ready for the authorised final commit and
-synchronization. Autonomous legal interpretation remains unproved.
+are complete. The repair commit `dffd5805` is pushed to origin/main and synchronized
+with the clean Catala worktree. Autonomous legal interpretation remains unproved.
 
 The original master run retained 21 sources, generated 1,728 contract/event
 combinations and 2,187 partial SPI states, checked six Lean theorems and twelve
@@ -51,6 +51,9 @@ and its JSON/CSV preserve each bond's evidence.
 Repository integration: the existing Catala branch was already an ancestor of
 main. Checkpoint commits `ba7f6ba2` and `374e07d5` preserved the documentation
 and all pending campaign work, were pushed to `origin/main`, and were
-fast-forwarded into `feature/catala-adapter`. Final repair integration follows
-the same fetch/merge/push/fast-forward procedure, with clean-state and remote
-commit checks. No force-push or overwritten work is part of the procedure.
+fast-forwarded into `feature/catala-adapter`. Repair commit `dffd5805` followed
+the same fetch/merge/push/fast-forward procedure; all three branch refs and
+the remote were verified equal. The Catala worktree is clean. The shared main
+checkout has concurrent assurance work, preserved outside this delivery. No force-push or overwritten work is part of the procedure.
+
+See the [integration receipt](../bond-reader-repair/integration-receipt.json).

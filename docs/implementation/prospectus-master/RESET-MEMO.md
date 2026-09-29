@@ -12,9 +12,9 @@ transfer and legal correctness remain unproved. See [FINAL-SUMMARY.md](FINAL-SUM
 and [repair results](../bond-reader-repair/RESULTS.md).
 
 The original checkpoint was pushed and the Catala worktree synchronized.
-Final repair changes are ready for the authorised commit/push and second
-fast-forward. After completion, use the clean git refs and session receipt
-for exact final commit identity; do not rerun historical campaign commands
+Repair commit `dffd5805` was pushed to origin/main and fast-forwarded into
+the clean Catala worktree. The [receipt](../bond-reader-repair/integration-receipt.json)
+records equal implementation refs; do not rerun historical campaign commands
 merely because this memo contains their original instructions.
 
 ## Historical original master record

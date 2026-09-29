@@ -17,8 +17,8 @@ Use the [final repair results](../bond-reader-repair/RESULTS.md),
 [reviewed plan](../../plans/bond-reader-repair-program.md) and
 [current delivery config](execution/delivery-config.json). Fresh abstentions
 do not establish successful transfer. No human answer labels or legal-accuracy
-score were used. The final repair is ready for the authorised commit/push and
-Catala fast-forward after the already synchronized checkpoint.
+score were used. Repair commit `dffd5805` is pushed and synchronized with the clean Catala
+worktree; see the [receipt](../bond-reader-repair/integration-receipt.json).
 
 ## Historical v1 campaign and diagnosis
 
