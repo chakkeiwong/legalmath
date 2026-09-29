@@ -7,6 +7,47 @@ case, while the legal team is asking whether that adopted rule is a justified
 reading of the circular. Those questions meet at the same example but they do
 not share a proof.
 
+\section{The vocabulary before the proof chain}
+\label{sec:proof-vocabulary}
+
+Before asking whether a translation is correct, we need to identify what it
+translates. In the gift example, the circular supplies the wording, a reviewer
+proposes which benefits and exceptions it covers, and a program computes that
+proposal for a particular offer. A \emph{controlled natural-language
+specification} (CNL) expresses a rule using a limited set of sentences with
+declared computational meanings. LegalMath's shared frontend records a proposed
+reading, its source passages, assumptions and required facts in a
+\emph{LegalRuleModel}. This is a typed model: each quantity has a declared kind,
+such as a Boolean condition, an amount of money or a date. It also states how
+missing evidence affects the answer.
+
+\emph{RuleIR}, short for rule intermediate representation, is LegalMath's
+small executable rule language. Its Python and Java implementations calculate
+individual values and conditions, retain missing or conflicting evidence, and
+support a bounded set of duties. \emph{Catala} is another programming language
+for legal rules, with its own compiler. A translator can express the same
+supported RuleIR rule in Catala; a second route translates a richer shared
+model directly, including calculations over lists of records. A record groups
+fields about one item, such as a holding's amount and classification. These
+routes fix the proposed meaning before choosing how to execute it.
+
+\emph{Stipula} names a different kind of formal object. It models a contract as
+parties, resources, actions and state transitions, so its natural question is
+how a permitted action changes a contract over time. The Java Modeling Language
+(JML) states properties of Java programs, and KeY is a verifier for those
+programs and properties. The studied Stipula-to-Java translation uses them to
+check a model of a contract. LegalMath does not currently compile Stipula
+contracts. Chapter~\ref{ch:languages}
+introduces the language families in detail, including Catala in
+Section~\ref{sec:languages-catala} and Stipula in
+Section~\ref{sec:languages-stipula}; Chapter~\ref{ch:implementation} records
+the executed RuleIR and Catala routes.
+
+This vocabulary fixes the order of the claims that follow. First the source and
+interpretation are reviewed; then a typed shared model is translated; then
+each target is executed and checked against its declared reference. A proof of
+the last step cannot establish the first.
+
 % BEGIN SOURCE UNIT M03:00
 \section{Giving a correctness claim a precise target}
 \label{merge:M03:00}
@@ -73,6 +114,14 @@ Java decision merely because an intermediate translation kept only the
 specific-product route. Chapter~\ref{ch:verification} makes the result comparison
 concrete. Equation~\eqref{eq:preservation-chain} is a proposed target for the
 supported language, not a theorem already proved about the entire application.
+
+The Catala comparison uses the same idea with the shared model as its source of
+execution. On the common scalar profile, a Catala result can be compared with
+the RuleIR/Python and Java results for the same cases. On a richer model, the
+Catala result is evidence that the native target executed that model, while a
+RuleIR capability failure is evidence that the RuleIR target does not accept it.
+Those observations cannot be folded into the equality above, because the
+targets do not claim the same input language or incomplete-evidence policy.
 
 The claim that $S$ is justified by $E$ remains a separate interpretation claim.
 It can be supported by source anchors, explicit alternatives, reviewed
@@ -259,7 +308,7 @@ source packets often do not provide the completeness needed for that move.
 Explicit permission, lack of evidence of prohibition and a bank's operational
 choice should therefore have different representations. The normative-language
 literature examined in Chapter~\ref{ch:languages} provides several treatments;
-RuleIR's narrow condition results do not choose a universal deontic logic.
+RuleIR's narrow condition results do not define a complete logic of duties and permissions.
 
 The words ``unless'' and ``except'' also require a structural decision. A simple
 propositional rewriting may express an exception as a negated condition, while a
@@ -960,6 +1009,13 @@ means that the search did not finish.
 % BEGIN REVISION ADDITION teach-P-01a-language-lesson-05
 \input{\LegalMathRoot teaching/teach-P-01a-language-lesson-05}
 % END REVISION ADDITION teach-P-01a-language-lesson-05
+Two names distinguish a reasoning engine from its legal application. s(CASP)
+is a logic-programming system that can return the assumptions and rule steps
+supporting an answer. s(LAW) uses that kind of reasoning to represent legal
+rules and explore their consequences. Here a logic program consists of facts
+and rules for deriving conclusions, rather than a sequence of instructions
+for updating a client record.
+
 A justification engine answers a related question: which rules and facts support
 a conclusion? In a rule program, \texttt{eligible(C) :- financial(C), consent(C)}
 means that both supporting predicates are needed to derive eligibility for the
@@ -970,11 +1026,14 @@ be written back as an observed agreement \citep{slaw2024}.
 
 Search over interpretations sits above these calculations. An agent may propose
 two readings of a clause, retrieve a referenced definition, and ask a solver for
-a case that separates them. A Monte Carlo tree or UCB scheduler can choose which
-investigation to try next. Its score measures usefulness under the chosen search
+a case that separates them. A tree search can use an upper-confidence-bound
+(UCB) score to choose which investigation to try next, balancing promising
+branches against less-explored ones. Its score measures usefulness under the chosen search
 objective; it does not certify the resulting legal reading. The adopted meaning
-must come from source-based adjudication. The existing MCP projects can assist
-these bounded jobs, as explained in Section~\ref{merge:P-04-prototype:03}.
+must come from source-based adjudication. Model Context Protocol (MCP) provides
+an interface through which an agent can call tools, such as a solver or a
+document retriever. The available integrations can assist these bounded jobs,
+as explained in Section~\ref{merge:P-04-prototype:03}.
 % END SOURCE UNIT P-01a-language-lesson:05
 
 % BEGIN SOURCE UNIT M03:10

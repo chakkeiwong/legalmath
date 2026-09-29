@@ -1,0 +1,491 @@
+{
+  "$defs": {
+    "ConcernDisposition": {
+      "additionalProperties": false,
+      "properties": {
+        "concern_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Concern Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "RETAINED_UNRESOLVED",
+            "PROPOSED_SOURCE_EXPLANATION"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Quote"
+          },
+          "maxItems": 12,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "rationale": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "concern_id",
+        "status",
+        "evidence",
+        "rationale"
+      ],
+      "title": "ConcernDisposition",
+      "type": "object"
+    },
+    "Control": {
+      "additionalProperties": false,
+      "properties": {
+        "control_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Control Id",
+          "type": "string"
+        },
+        "question": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        },
+        "unit_of_assessment": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Unit Of Assessment",
+          "type": "string"
+        },
+        "actor": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Actor",
+          "type": "string"
+        },
+        "temporal_basis": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Temporal Basis",
+          "type": "string"
+        },
+        "result_kind": {
+          "enum": [
+            "REQUIREMENT_APPLIES",
+            "REQUIREMENT_SATISFIED",
+            "PROHIBITED",
+            "COMPLIANT",
+            "DUTY_TRIGGER",
+            "DUTY_STATE",
+            "CLASSIFICATION"
+          ],
+          "title": "Result Kind",
+          "type": "string"
+        },
+        "true_means": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "True Means",
+          "type": "string"
+        },
+        "false_means": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "False Means",
+          "type": "string"
+        },
+        "source_evidence": {
+          "items": {
+            "$ref": "#/$defs/Quote"
+          },
+          "maxItems": 12,
+          "minItems": 1,
+          "title": "Source Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "control_id",
+        "question",
+        "unit_of_assessment",
+        "actor",
+        "temporal_basis",
+        "result_kind",
+        "true_means",
+        "false_means",
+        "source_evidence"
+      ],
+      "title": "Control",
+      "type": "object"
+    },
+    "FactDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "bool",
+            "integer",
+            "money_hkd",
+            "date"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "meaning": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Meaning",
+          "type": "string"
+        },
+        "unit": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "source_unit_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Source Unit Ids",
+          "type": "array"
+        },
+        "requires_judgment": {
+          "title": "Requires Judgment",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "meaning",
+        "unit",
+        "source_unit_ids",
+        "requires_judgment"
+      ],
+      "title": "FactDefinition",
+      "type": "object"
+    },
+    "Formalization": {
+      "additionalProperties": false,
+      "properties": {
+        "facts": {
+          "items": {
+            "$ref": "#/$defs/FactDefinition"
+          },
+          "maxItems": 30,
+          "title": "Facts",
+          "type": "array"
+        },
+        "scope": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Scope",
+          "type": "string"
+        },
+        "result": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Result",
+          "type": "string"
+        },
+        "result_type": {
+          "enum": [
+            "bool",
+            "integer",
+            "money_hkd",
+            "date"
+          ],
+          "title": "Result Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "facts",
+        "scope",
+        "result",
+        "result_type"
+      ],
+      "title": "Formalization",
+      "type": "object"
+    },
+    "Interpretation": {
+      "additionalProperties": false,
+      "properties": {
+        "reading": {
+          "$ref": "#/$defs/Reading"
+        },
+        "reading_question_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Reading Question Id",
+          "type": "string"
+        },
+        "questions": {
+          "items": {
+            "$ref": "#/$defs/Control"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Questions",
+          "type": "array"
+        },
+        "uncertainty": {
+          "items": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 40,
+          "title": "Uncertainty",
+          "type": "array"
+        }
+      },
+      "required": [
+        "reading",
+        "reading_question_id",
+        "questions",
+        "uncertainty"
+      ],
+      "title": "Interpretation",
+      "type": "object"
+    },
+    "QuestionDisposition": {
+      "additionalProperties": false,
+      "properties": {
+        "question_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Question Id",
+          "type": "string",
+          "enum": [
+            "gift.question",
+            "second.duty"
+          ]
+        },
+        "question_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Question Hash",
+          "type": "string",
+          "enum": [
+            "6ec1d11d48960e45dc0b385876315feab76d59767cf0ae0599eb0bce71433c01",
+            "abde796f086664b6f9fd6c83ac1aa8418ff4f5eb770663f9e58e0773060a5cce"
+          ]
+        },
+        "status": {
+          "enum": [
+            "EXECUTABLE_PROPOSAL",
+            "NON_EXECUTABLE_PROPOSAL",
+            "UNRESOLVED"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question_id",
+        "question_hash",
+        "status",
+        "rationale"
+      ],
+      "title": "QuestionDisposition",
+      "type": "object"
+    },
+    "Quote": {
+      "additionalProperties": false,
+      "properties": {
+        "unit_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Unit Id",
+          "type": "string"
+        },
+        "quote": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit_id",
+        "quote"
+      ],
+      "title": "Quote",
+      "type": "object"
+    },
+    "Reading": {
+      "additionalProperties": false,
+      "properties": {
+        "local_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Local Id",
+          "type": "string"
+        },
+        "family": {
+          "enum": [
+            "scope",
+            "definitions",
+            "exceptions",
+            "modality",
+            "time",
+            "dependencies"
+          ],
+          "title": "Family",
+          "type": "string"
+        },
+        "subject": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Subject",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "distinction": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Distinction",
+          "type": "string"
+        },
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/Quote"
+          },
+          "maxItems": 30,
+          "minItems": 1,
+          "title": "Citations",
+          "type": "array"
+        },
+        "assumptions": {
+          "items": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "questions": {
+          "items": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Questions",
+          "type": "array"
+        },
+        "formalization": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Formalization"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "local_id",
+        "family",
+        "subject",
+        "statement",
+        "distinction",
+        "citations",
+        "assumptions",
+        "questions",
+        "formalization"
+      ],
+      "title": "Reading",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "packet_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Packet Hash",
+      "type": "string"
+    },
+    "interpretation_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Interpretation Hash",
+      "type": "string"
+    },
+    "coverage_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Coverage Hash",
+      "type": "string"
+    },
+    "concerns": {
+      "items": {
+        "$ref": "#/$defs/ConcernDisposition"
+      },
+      "maxItems": 65,
+      "title": "Concerns",
+      "type": "array",
+      "minItems": 65
+    },
+    "questions": {
+      "items": {
+        "$ref": "#/$defs/QuestionDisposition"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "title": "Questions",
+      "type": "array"
+    },
+    "revised_interpretation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Interpretation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "remaining_uncertainty": {
+      "items": {
+        "maxLength": 20000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 100,
+      "title": "Remaining Uncertainty",
+      "type": "array"
+    }
+  },
+  "required": [
+    "packet_hash",
+    "interpretation_hash",
+    "coverage_hash",
+    "concerns",
+    "questions",
+    "revised_interpretation",
+    "remaining_uncertainty"
+  ],
+  "title": "Reconciliation",
+  "type": "object"
+}

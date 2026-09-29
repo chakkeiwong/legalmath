@@ -434,10 +434,12 @@ who implements one switch for both has changed the model
 The generic distinction now has a concrete test. In the SPI packet, the request
 flag is true and the material-query flag is false, so the combined guard selects
 the exception. If the request flag is true while the query flag is unknown, the
-result is unresolved: a separate sibling exception may still be active. If both
-flags are true, two separately written exceptions conflict even when both return
-``explanation required''. A single guard containing their OR expresses one
-reviewed exception and avoids that sibling conflict.
+combined OR guard is still true: the request alone establishes the condition.
+Writing the flags as two sibling exceptions would change that result. One true
+guard with an unknown competitor leaves that default unresolved; two true
+sibling guards conflict even when both return ``explanation required''.
+A single guard containing their OR expresses one reviewed exception and avoids
+that sibling conflict.
 
 This is the difference between borrowing Catala's organization and implementing
 Catala itself. Catala distinguishes an empty applicable value from a conflict;
@@ -448,6 +450,19 @@ SPI-Demo1 Java example uses the equivalent explicit Boolean condition and reject
 the general default operator. The subsequently completed v0.1 runtime implements
 that operator with its own conformance tests; the two compiler profiles remain
 distinct.
+
+The completed Catala implementation preserves this distinction deliberately.
+The compatibility backend and the version-2 shared translator encode the
+declared strict exception policy, including conflict when two guards are true
+and their consequences agree. Directly authored native Catala has a separate
+development record: the pinned compiler coalesced identical literal
+consequences in a checked example, while distinct competing consequences raised
+an execution error. That observation describes the tested native program and
+compiler, not a new priority rule for a banking specification. The shared
+translator emits explicit selection and result states to preserve the policy
+chosen in the shared model. Section~\ref{sec:implementation-shared-front-end}
+explains that model and Section~\ref{sec:evaluation-catala-comparison} compares
+the resulting execution evidence.
 % END SOURCE UNIT P-01a-language-lesson:02
 
 % BEGIN SOURCE UNIT M04:04
@@ -1068,6 +1083,21 @@ This matches the difference between a bank's pre-transaction advice and its
 post-event audit. A system that refuses to represent an unauthorized observed
 action cannot explain what happened after a control failure.
 
+To understand a stable model, consider the two rules ``accept if rejection is
+not established'' and ``reject if acceptance is not established''. One
+self-consistent interpretation contains acceptance; another contains rejection.
+Selecting the first answer chooses between them without additional legal
+authority. In answer-set programming (ASP), a solver enumerates such stable
+interpretations after accounting for the program's default-negation rules.
+Absence of a stable model can indicate inconsistent constraints, while several models can leave
+the answer dependent on the chosen interpretation. This miniature example
+explains the backend issue without equating stable-model semantics with the
+three-valued fact evaluation used by LegalMath.
+
+Clingo is an answer-set solver: given a logic program, it searches for stable
+models satisfying that program. It is the execution engine used by the eFLINT
+translation discussed below.
+
 % BEGIN REVISION ADDITION teach-M04-08
 \input{\LegalMathRoot teaching/teach-M04-08}
 % END REVISION ADDITION teach-M04-08
@@ -1183,17 +1213,6 @@ that problem by rejecting recursive definitions and defining unknowns directly.
 Richer semantics remain an option when the selected regulatory scope requires
 them. Pinning a package name alone does not pin the meaning of a rule.
 
-To understand a stable model, consider the two rules ``accept if rejection is
-not established'' and ``reject if acceptance is not established''. One
-self-consistent interpretation contains acceptance; another contains rejection.
-Selecting the first answer chooses between them without additional legal
-authority. In answer-set programming (ASP), a solver enumerates such stable
-interpretations after accounting for the program's default-negation rules.
-Absence of a stable model can indicate inconsistent constraints, while several models can leave
-the answer dependent on the chosen interpretation. This miniature example
-explains the backend issue without equating stable-model semantics with the
-three-valued fact evaluation used by LegalMath.
-
 The accompanying eFLINT release makes these limits inspectable: it separates
 tests expected to agree from tests expected to differ, and documents excluded
 cases involving cyclic aggregation and unsatisfied models. The compiler's
@@ -1221,6 +1240,12 @@ and legal powers require an extension to the MVP's simpler profile.
 \label{merge:M04:09}
 
 \label{sec:languages-tables}
+Decision Model and Notation (DMN) is a standard for describing decisions,
+including decision tables. A table row associates input conditions with an
+output; its \emph{hit policy} specifies what to do when more than one row
+matches. These definitions let us ask whether the table preserves the intended
+exception priority.
+
 Decision tables remain useful when their rows and hit policy have a precise
 meaning. A table can show, for example, that a known discount exception changes
 the selected trigger while an unknown exception leaves a material question.
@@ -1294,6 +1319,11 @@ Solvers and proof assistants & Find counterexamples or establish specified mathe
 % BEGIN REVISION ADDITION teach-P-02-literature-08
 \input{\LegalMathRoot teaching/teach-P-02-literature-08}
 % END REVISION ADDITION teach-P-02-literature-08
+L4 is a language and software environment for expressing legal rules. Its
+authoring tools help people write and inspect a rule; its execution tools
+evaluate that rule on supplied facts. That separation makes it relevant to
+both the reviewer's task and the engineer's task.
+
 L4 is a serious alternative to building the authoring environment from scratch.
 Its inspected repository exposes a parser, type checker, evaluator, IDE,
 decision service, generated schemas and graphical traces. Its regulative

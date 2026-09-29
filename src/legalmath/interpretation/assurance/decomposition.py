@@ -93,13 +93,24 @@ def apply_cross(inventory,cross,packet):
     return validate_inventory(result,packet)
 
 
-def compact_request(request):
+def compact_request(request, *, profile='v1'):
     """Retain exact legal text/IDs; repeated storage locators stay in local records."""
+    if profile not in ('v1','v2'):raise LegalMathError('E_SCHEMA')
     value=deepcopy(request)
     def walk(node):
         if isinstance(node,dict):
             for key,child in list(node.items()):
                 if key=='source_packet' and isinstance(child,dict) and 'units' in child:
+                    # Preserve document identity once, instead of repeating its
+                    # URI and storage hashes on every extracted line.
+                    locations={}
+                    for unit in child['units']:
+                        locator=unit['locator'].rsplit(' chars ',1)[0]
+                        prefix=unit['unit_id'].split('.u',1)[0]
+                        if locator!=unit['unit_id']:
+                            locations.setdefault(prefix,set()).add(locator)
+                    if locations and profile=='v2':
+                        node['source_packet_document_locators']={k:sorted(v) for k,v in sorted(locations.items())}
                     node[key]={**child,'units':[{'unit_id':u['unit_id'],'text':u['text'],
                         'locator':u['unit_id'],'normative':u['normative'],'span':None} for u in child['units']]}
                 else:walk(child)

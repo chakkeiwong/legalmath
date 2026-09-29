@@ -1,0 +1,39 @@
+........................................................F............... [ 13%]
+........................................................................ [ 26%]
+........................................................................ [ 40%]
+........................................................................ [ 53%]
+........................................................................ [ 66%]
+........................................................................ [ 80%]
+........................................................................ [ 93%]
+....................................                                     [100%]
+=================================== FAILURES ===================================
+_______________ test_fixed_vectors_and_authorisation_are_audited _______________
+
+    def test_fixed_vectors_and_authorisation_are_audited():
+>       report = master.audit()
+                 ^^^^^^^^^^^^^^
+
+/home/chakwong/python/legalmath/tests/assurance/test_closure_master.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def audit():
+        plan = read(DOC/'master-plan.json'); allow = read(DOC/'allowlist.json')
+        review = read(DOC/'design-review.json')
+        if tuple(p['id'] for p in plan['phases']) != PHASES or len(review['findings']) < 12:
+            raise ValueError('Incomplete phase plan or skeptical review')
+        if review['verdict'] != 'PASS_WITH_EXPLICIT_EVIDENCE_LIMITS' or plan['release_eligible']:
+            raise ValueError('Unreviewed plan')
+        for specification in plan['phases']:
+            bound = specification.get('max_failed_attempts', plan['max_failed_attempts_per_phase'])
+            if type(bound) is not int or not 1 <= bound <= 4:
+                raise ValueError('Invalid declared phase-attempt bound')
+        for phase in PHASES:
+            for _, argv in commands(phase, OUT/phase/'audit'):
+>               if argv[0] not in allow['interpreters']: raise ValueError('Interpreter denied')
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               ValueError: Interpreter denied
+
+scripts/run_closure_master.py:86: ValueError
+=========================== short test summary info ============================
+FAILED tests/assurance/test_closure_master.py::test_fixed_vectors_and_authorisation_are_audited
+1 failed, 539 passed in 293.46s (0:04:53)

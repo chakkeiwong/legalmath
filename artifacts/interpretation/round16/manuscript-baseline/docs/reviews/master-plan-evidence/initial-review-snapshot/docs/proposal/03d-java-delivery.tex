@@ -1,0 +1,269 @@
+\section{Delivering a control to the bank's Java system}
+\label{sec:java}
+
+Java is the required deployment output. The authoring workbench may use Python
+for source processing, review and reference evaluation; a transaction must be
+able to call the released Java library without running Python or contacting a
+language model. The initial integration assumption is a plain Java 17 JAR.
+This keeps the decision code independent of Spring, application servers and
+particular rule engines. A bank on another Java version needs a declared target
+and the same conformance checks before receiving a compatible build.
+
+\subsection{What has actually been built for this proposal}
+
+The delivered \texttt{SPI-Demo1} example contains a source-anchored RuleIR bundle,
+synthetic fact snapshots, a separately written Python evaluator, a deterministic
+Java emitter, the generated class, two small Java support classes, and a separate
+host caller. Its implemented expression subset is deliberately explicit:
+Boolean, integer and HK-cent literals and facts; unconditional rule references;
+\texttt{all}, \texttt{any}, \texttt{not}; and exact numeric
+\texttt{eq}/\texttt{ge}/\texttt{gt} comparisons. The root has a Boolean scope.
+Dates, arithmetic expressions, general defaults, conditionals and the full
+obligation language remain part of the proposed RuleIR implementation; the demo
+compiler rejects them. The demonstration response is its own smaller API profile,
+not a claim to implement every field and trace node of the full RuleIR service.
+
+The distinction matters for an implementing agent. The example demonstrates an
+actual compiler and integration path that can be extended. It does not silently
+turn the 35 general RuleIR contract fixtures into executed tests. Those fixtures
+remain the completion target for the full interpreter and backend. The separate
+SPI example has 32 executed decision scenarios and eleven consent histories, with
+its own recorded evidence.
+
+\subsection{The input and output boundary}
+
+The public API accepts an immutable \texttt{Snapshot}, a time being assessed and
+a knowledge cutoff. A \texttt{Snapshot} binds a subject identifier to the
+declared fact map. A \texttt{Fact} carries a declared scalar type and one of
+\texttt{known}, \texttt{unknown} or \texttt{conflict}. A known Boolean is a Java
+\texttt{Boolean}; a known monetary or count value is a \texttt{BigInteger}.
+Its evidence identifiers, validity interval and recording time are mandatory.
+Unknown has a reason and no value. Conflict identifies competing evidence.
+
+The host supplies every declared field, using an explicit unknown where evidence
+is unavailable. Omitting a field or supplying the wrong type is a malformed
+request, not a legal conclusion. Validity intervals are half-open: evidence
+valid until 10:00 does not establish a fact at 10:00. Evidence recorded after
+the knowledge cutoff is unavailable to that replay. The API takes canonical UTC
+timestamps with six fractional digits; conversion from a Hong Kong business
+timestamp belongs in the host adapter and must preserve the intended instant.
+
+\begin{lstlisting}[language=Java,caption={The library API and one dated monetary input.}]
+DecisionRuntime.Result evaluate(
+    DecisionRuntime.Snapshot snapshot,
+    String validAt,
+    String knownAt);
+
+// A known value is exact and supported by dated evidence.
+Fact portfolio = Fact.known(
+    "money_hkd", new BigInteger("4000000000"),
+    List.of("valuation.lee", "ownership.lee"),
+    "2026-09-01T00:00:00.000000Z",
+    "2026-10-01T00:00:00.000000Z",
+    "2026-09-01T00:00:00.000000Z");
+
+Fact missingPortfolio = Fact.unknown("money_hkd", "MISSING");
+\end{lstlisting}
+The first amount is HK\$40 million expressed in cents. A bank adapter reading a
+decimal amount should specify the currency, use exact decimal arithmetic and
+reject an unsupported fraction of a cent after the adopted conversion. In Java,
+\texttt{amount.movePointRight(2).toBigIntegerExact()} can enforce exact cents
+after that policy has been applied. Calling \texttt{doubleValue()} first would
+discard the property the specification is trying to preserve. For a currency
+conversion, the exchange-rate source, date, direction and rounding rule are part
+of the evidence mapping.
+
+The result contains a logical status and an operational disposition:
+\begin{center}\small
+\begin{tabularx}{\textwidth}{P{0.18\textwidth}P{0.34\textwidth}Y}
+\toprule Status & Disposition & Host meaning \\\midrule
+\texttt{TRUE} & Conditions met & Selected streamlining conditions established; continue the other controls.\\
+\texttt{FALSE} & Standard process required & At least one required condition is refuted; do not apply this streamlined route.\\
+\texttt{UNKNOWN} & Review required & Evidence can change the conclusion; show blocking inputs.\\
+\texttt{CONFLICT} & Review required & Resolve inconsistent evidence; preserve both records.\\
+\texttt{OUT\_OF\_SCOPE} & Outside profile & Select another implemented profile or the standard process.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+The demo's JSON includes \texttt{profile}, \texttt{authority}, both timestamps,
+the bundle and snapshot hashes, a postorder rule trace, missing and blocking
+input lists, and the result hash. A rule-trace entry gives its identifier,
+status, source-anchor identifiers and blocking inputs. Source anchors resolve
+through the bundle included with the release. Known values and their evidence
+remain in the preserved snapshot. The full RuleIR implementation additionally
+provides expression-node traces, standardized diagnostics and engine identity
+as specified in Section~\ref{sec:product}.
+
+A malformed request throws an explicit Java input exception in this small
+library. The production adapter must map that exception, a timeout or an
+unavailable release to a technical-failure result and a review/standard-process
+path. It must never catch an exception and substitute a successful Boolean.
+The demonstration result always carries \texttt{DEMONSTRATION\_ONLY}; production
+authority requires a different, approved release record and enforcement by the
+host deployment process.
+
+\subsection{How the compiler emits final Java rather than a suggestion}
+
+The emitter first validates the JSON schema, references, identifiers, types and
+acyclic rule graph. It then assigns an internal Java method name to each rule
+and recursively emits its expression. Identifiers are validated data, never
+pieces of executable text supplied by a language model. The generated monetary
+comparison is represented by actual Java calls such as:
+\begin{lstlisting}[language=Java,caption={The generated financial method's essential body. The complete class is built and tested in the supplied example.}]
+return c.rule("spi.financial", sourceIds, () ->
+    any(
+        compare("ge", c.fact("portfolio"),
+            Value.of(new BigInteger("4000000000"))),
+        compare("ge", c.fact("net_assets_ex_home"),
+            Value.of(new BigInteger("8000000000")))
+    ));
+\end{lstlisting}
+\texttt{compare} returns a known Boolean when both operands are known, or an
+unknown with its blocking input names. \texttt{any} implements the truth table
+in Equation~\eqref{eq:or}. Java evaluates its arguments before calling the
+method, so both branches have the specified eager evaluation and evidence
+collection. Replacing this with Java's short-circuit \texttt{||} would change
+the trace and missing-input behavior even where the final Boolean agreed.
+The context memoizes referenced rules and records their results in a stable
+order. A precheck detects conflicting facts in this profile's dependency set
+before normal expression evaluation.
+
+The production emitter should implement one mapping per supported operator,
+with an explicit error for every unsupported construct. It must not ask an LLM
+to write new Java on each regulatory change. The LLM can propose the typed
+specification; after review, a deterministic compiler performs the mechanical
+translation. This concentrates semantic review on a small language and makes
+the generation step reproducible.
+
+For the money comparison, the preservation argument is short. The IR represents
+both amounts as mathematical integers of HK cents. The Java boundary constructs
+the same integers as \texttt{BigInteger} values. The emitted comparison returns
+true exactly when \texttt{compareTo} is nonnegative, which expresses the same
+inclusive ordering. The argument depends on the input mapping preserving those
+integers. It would fail if the adapter truncated decimals, mixed currencies or
+overflowed a narrower integer before constructing the value. For a complete
+compiler, analogous local arguments must be composed for every operator,
+unknown/error case, rule reference and trace requirement. The delivered tests
+check examples of preservation; they are not that universal proof.
+
+\subsection{Reproduce the build and see the host result}
+
+The repository retains a project-local Temurin JDK 17 for this check, verified
+against the official archive checksum. It does not change the machine's default
+Java installation. From the repository root, the single build command is:
+
+\begin{minipage}{\textwidth}
+\begin{lstlisting}
+python3 examples/java-dry-run/build_and_verify.py \
+  --jdk .localresources/java-toolchain/jdk-17.0.20.1+1
+\end{lstlisting}
+\end{minipage}
+
+The Python authoring check uses the already available JSON Schema package. The
+generated Java library itself has no third-party runtime dependencies. The build
+uses \texttt{javac --release 17 -Xlint:all -Werror}; creates the JAR; compiles
+the separate fixture and host callers against that JAR; compares complete
+reference and Java results; and runs the three mutations. The package has fixed
+ZIP timestamps to make repeated builds with the same toolchain reproducible.
+The verification record stores compiler identity, source/compiler/JAR digests,
+the executed command, results and limitations.
+
+The delivered files below are operational copies of the design, not additional
+reading needed to understand why it works:
+\begin{center}\small
+\begin{tabularx}{\textwidth}{P{0.45\textwidth}Y}
+\toprule File under \path{examples/java-dry-run/} & Purpose \\\midrule
+\path{spec/spi-control.bundle.json} & Source-linked typed interpretation for the chosen profile.\\
+\path{spec/decision-cases.json}; \path{spec/consent-cases.json} & Independent expected statuses and synthetic evidence/history inputs.\\
+\path{reference.py}; \path{compile_java.py} & Separate reference evaluation and deterministic Java generation.\\
+\path{generated/GeneratedSpi.java} & Final generated decision class.\\
+\path{src/main/java/hk/legalmath/spi/} & Evidence, result, three-valued arithmetic/logic support and consent replay.\\
+\path{build/spi-controls-demo.jar} & Compiled library callable by a Java host.\\
+\path{generated/BankHostExample.java} & Complete synthetic host caller using the public API.\\
+\path{build/verification.json}; \path{build/host-output.txt} & Executed validation and host results.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+The separate host prints these dispositions for the synthetic history:
+\begin{lstlisting}
+BEFORE_WITHDRAWAL STREAMLINING_CONDITIONS_MET
+AFTER_WITHDRAWAL STANDARD_PROCESS_REQUIRED
+RESULT_AUTHORITY DEMONSTRATION_ONLY
+\end{lstlisting}
+This is the concrete answer to how final code reaches Java: the bank depends on
+the released library, constructs the declared evidence snapshot through its
+adapter, calls the generated class and handles its structured result. The
+compiler, public circulars and drafting tools are build-time/review-time
+components. They need not be deployed into the bank's order-processing process.
+
+\subsection{The bank adapter and the exposure race}
+
+The adapter has four responsibilities. It selects the approved rule release for
+the legal entity, business profile and relevant time; resolves identities,
+categories and evidence into the declared inputs; obtains a consistent consent
+and exposure snapshot; and records the result alongside the transaction's other
+controls. The generated library should have no credentials for editing these
+source systems. A host record should include transaction identifier, release and
+snapshot hashes, category and consent generation, data-version identifiers,
+decision timestamps and the final disposition.
+
+Concurrency is a material part of correctness. Suppose existing gross exposure
+is HK\$8 million and two orders each add HK\$1.5 million against a HK\$10 million
+limit. If each reads HK\$8 million, both independently pass at HK\$9.5 million,
+but together they produce HK\$11 million. A perfectly correct generated formula
+does not prevent that race. The host must include reserved exposure and commit
+the new reservation under a transaction or optimistic version check. If the
+exposure or consent version changed after evaluation, it reloads and evaluates
+again. A withdrawal must invalidate a stale consent version before a new order
+can consume the decision. Market-exposure policy, release timing and retry limits
+must be agreed with the bank's order and risk owners.
+
+An implementable host sequence is:
+\begin{enumerate}
+\item Resolve an idempotency key from the order request. A retry with the same
+key and unchanged payload returns its recorded disposition; a changed payload
+under that key conflicts.
+\item Read the approved release and the subject/category consent generation,
+holdings, leverage and outstanding reservations with their version identifiers.
+Build the dated snapshot and calculate exposure including this order.
+\item Evaluate the generated Java library and the host's remaining controls.
+If this profile is unresolved or refuted, do not consume its streamlined route.
+\item Atomically validate the read versions, reserve the permitted exposure and
+append the decision record. On version conflict, repeat from the read step with
+a bounded retry policy; otherwise route to review.
+\item Retain the committed record for replay. A later correction creates another
+assessment linked to the old one; it does not overwrite what was known earlier.
+\end{enumerate}
+The standalone JAR demonstrates the decision step. It does not simulate this
+bank transaction protocol or certify concurrency in an unspecified host system.
+Those integration tests are required before production use.
+
+\subsection{Release contents, extension tasks and acceptance}
+
+A production change package must contain the approved source and dependency
+register, provision dispositions, rule bundle, reviewer records, supported
+profile and effective interval, generated Java source, runtime library, binary
+JAR, dependency/toolchain manifest, data-mapping contract, tests and verification
+report. The report names the exact JAR tested. The bank's deployment process
+verifies these digests and authorization, performs its security and change checks,
+then switches the active release atomically. A signature can authenticate the
+release authority; a digest alone only identifies content.
+
+The implementation backlog adds a mandatory Java package, W03J, immediately
+after the full reference evaluator. It owns the Java domain/API classes, one
+emitter per RuleIR operator, result serialization, exact numeric/date behavior,
+compiled conformance harness, JAR manifest and host adapter contract. Its pass
+condition is equivalence of the complete supported responses on the full
+conformance suite, source-derived scenarios and distinguishing mutations,
+plus reproducible generation and a separately compiled caller. A backend that
+accepts an operator but approximates its meaning fails the package.
+
+W04 must bind release evidence to both the rule bundle and the resulting JAR.
+W05 must extend the demonstration's consent replay to the full event contract,
+including obligation instances and the adopted calendar policy. W06 must show
+the source, interpretation, test case and Java result together. W10 must include
+host concurrency, idempotency, stale release and replay tests in its engineering
+checks, then separately measure review effort and material errors in the pilot.
+This sequencing produces a Java deliverable early while keeping legal
+adjudication and production authority explicit.

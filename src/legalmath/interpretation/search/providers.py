@@ -1,5 +1,6 @@
 """Fresh structured Codex calls with bounded processes and an optional shared allowance."""
 from dataclasses import dataclass
+from contextlib import contextmanager
 import fcntl
 import json
 import os
@@ -103,15 +104,45 @@ class CodexProvider:
                 command+=['-c','model_providers.'+name+'.'+key+'=0']
         return command+['-']
 
+    @contextmanager
+    def _workspace(self,issued,request_hash):
+        """New granted campaigns retain transport evidence even on interruption."""
+        with tempfile.TemporaryDirectory(prefix='legalmath-codex-') as temporary:
+            directory=Path(temporary)
+            try:yield directory
+            finally:
+                if getattr(self.allowance,'grant_path',None) is not None:
+                    target=self.allowance.path.parent/'provider-evidence'/f'{issued:04}-{request_hash[:16]}'
+                    target.mkdir(parents=True,exist_ok=False)
+                    manifest={'allowance_slot':issued,'request_hash':request_hash,'files':{},
+                              'complete_output_present':(directory/'result.json').exists(),
+                              'note':'Transport evidence only; a file is not a validated response or legal judgment'}
+                    for name in ('request.json','schema.json','events.jsonl','stderr.txt','result.json'):
+                        p=directory/name
+                        if not p.exists():continue
+                        original=p.read_bytes();data=original
+                        if name=='stderr.txt':
+                            clean=re.sub(r'(?i)(bearer\s+|(?:api[_-]?key|token)\s*[=:]\s*)[^\s,\"]+',
+                                         r'\1[REDACTED]',data.decode(errors='replace'))
+                            data=clean.encode()
+                        (target/name).write_bytes(data)
+                        manifest['files'][name]={'retained_sha256':raw_digest(data),'original_sha256':raw_digest(original),
+                                                'redacted':original!=data,'bytes':len(data)}
+                    temporary_manifest=target/'manifest.json.tmp'
+                    temporary_manifest.write_bytes(canonical(manifest))
+                    temporary_manifest.replace(target/'manifest.json')
+
     def complete(self, request, schema, settings):
         if self.allowance is None:
             raise LegalMathError('E_AUTHORITY',details='Live calls require a persistent authorized allowance')
+        from .schema import validate_output_schema
+        validate_output_schema(schema)
         payload=canonical(request)
         if len(payload)>settings.max_input_bytes: raise LegalMathError('E_RESOURCE_LIMIT',details='Input byte cap')
         issued=self.allowance.reserve(digest(request))
         began=time.monotonic()
-        with tempfile.TemporaryDirectory(prefix='legalmath-codex-') as temporary:
-            directory=Path(temporary);shape=directory/'schema.json';output=directory/'result.json'
+        with self._workspace(issued,digest(request)) as directory:
+            shape=directory/'schema.json';output=directory/'result.json'
             shape.write_bytes(canonical(schema));(directory/'request.json').write_bytes(payload)
             logs=[directory/'events.jsonl',directory/'stderr.txt']
             command=self.command(directory,shape,output)

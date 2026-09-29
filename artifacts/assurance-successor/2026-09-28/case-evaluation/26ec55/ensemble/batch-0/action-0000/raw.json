@@ -1,0 +1,977 @@
+{
+  "provenance": {
+    "allowance_slot": 451,
+    "cli_version": "codex-cli 0.153.4",
+    "compact_request": {
+      "candidates": {
+        "node.11d4e8e1976eb5b2900022be": {
+          "assumptions": [
+            "The assessment concerns one fund at one identified distribution assessment time; listed closed-ended alternative asset funds are excluded.",
+            "Direct exposure, indirect exposure and positive NAV are supplied as exact integers in the same valuation unit at that time, under a separately established aggregation methodology.",
+            "Indirect exposure covers all relevant instruments and underlying private credit or private equity; the listed examples are not an exhaustive instrument whitelist.",
+            "A designation input records an actual SFC decision applicable at the assessment time; scrutiny, risk characteristics and home-regulator restrictions do not themselves establish designation.",
+            "The result answers whether a classification basis under this circular is present. It does not determine historical classification persistence, overall distribution compliance or legal approval."
+          ],
+          "citations": [
+            {
+              "quote": "This circular provides guidance to management companies of funds that are authorised by the SFC for offering to the public in Hong Kong (Funds)6 in this regard.",
+              "unit_id": "d4148dd852cee.u4.564"
+            },
+            {
+              "quote": "A Fund will be considered as a complex product if its total direct and indirect exposures to private market assets amount to 50% or more of the Fund\u2019s NAV. On a case-by-case basis, the SFC may also designate a Fund as a complex product, taking into account factors including, without limitation:",
+              "unit_id": "d4148dd852cee.u21.3779"
+            },
+            {
+              "quote": "In assessing whether the complex product designation is warranted7, the SFC will adopt a holistic approach taking into account the specific circumstances of the case.",
+              "unit_id": "d4148dd852cee.u29.4630"
+            },
+            {
+              "quote": "In cases where the Fund\u2019s aggregate direct and indirect exposures to private market assets are less than 50% of the Fund\u2019s NAV.",
+              "unit_id": "d4148dd852cee.u64.8910"
+            },
+            {
+              "quote": "Except for listed closed-ended alternative asset funds (LAFs).",
+              "unit_id": "d4148dd852cee.u63.8691"
+            },
+            {
+              "quote": "The examples of indirect exposures set out in paragraph 1 above are non-exhaustive, and subject to review and update by the SFC from time to time in view of market developments.",
+              "unit_id": "d4148dd852cee.u59.7979"
+            },
+            {
+              "quote": "A Fund classified as a complex product will be subject to the SFC\u2019s prevailing requirements for the sale of complex products8 including but not limited to ensuring the suitability of the Fund for its investors irrespective of whether solicitation or recommendation is involved.",
+              "unit_id": "d4148dd852cee.u32.4805"
+            }
+          ],
+          "distinction": "Inspection of both prior models found that they already distinguish the relevant actors, underlying assets, intermediate instruments, fund-wide aggregation, exclusions and operative designation. No source-supported rival threshold rule was identified. The consequential remaining distinction is between a contemporaneous classification basis and an enduring classification status: a below-threshold snapshot without an operative designation does not resolve the effect of an earlier threshold crossing. Missing evidence also differs from evidence that a classification basis is absent. The proposal therefore retains the two classification routes while expressly limiting the question answered.",
+          "family": "time",
+          "formalization": {
+            "facts": [
+              {
+                "meaning": "The assessed fund is authorised by the SFC for offering to the public in Hong Kong at the assessment time.",
+                "name": "authorised_public_fund",
+                "requires_judgment": false,
+                "source_unit_ids": [
+                  "d4148dd852cee.u4.564"
+                ],
+                "type": "bool",
+                "unit": "Boolean per fund and assessment time"
+              },
+              {
+                "meaning": "The assessed fund is a listed closed-ended alternative asset fund within footnote 6's exclusion.",
+                "name": "is_laf",
+                "requires_judgment": true,
+                "source_unit_ids": [
+                  "d4148dd852cee.u63.8691"
+                ],
+                "type": "bool",
+                "unit": "Boolean per fund and assessment time"
+              },
+              {
+                "meaning": "Aggregate direct exposure to private credit and private equity at the assessment time under the established measurement methodology.",
+                "name": "direct_exposure",
+                "requires_judgment": true,
+                "source_unit_ids": [
+                  "d4148dd852cee.u1.5",
+                  "d4148dd852cee.u21.3779"
+                ],
+                "type": "integer",
+                "unit": "Exact common valuation units"
+              },
+              {
+                "meaning": "Aggregate indirect exposure to private credit and private equity through all relevant holdings and instruments at the assessment time, measured under the established methodology without unintended overlap with direct exposure.",
+                "name": "indirect_exposure",
+                "requires_judgment": true,
+                "source_unit_ids": [
+                  "d4148dd852cee.u1.5",
+                  "d4148dd852cee.u21.3779",
+                  "d4148dd852cee.u59.7979"
+                ],
+                "type": "integer",
+                "unit": "Exact common valuation units"
+              },
+              {
+                "meaning": "The assessed fund's NAV measured contemporaneously with both exposure amounts.",
+                "name": "nav",
+                "requires_judgment": true,
+                "source_unit_ids": [
+                  "d4148dd852cee.u21.3779"
+                ],
+                "type": "integer",
+                "unit": "Exact common valuation units"
+              },
+              {
+                "meaning": "An actual case-specific SFC designation of this fund as a complex product applies at the assessment time. Lack of designation evidence leaves this input unknown.",
+                "name": "operative_designation",
+                "requires_judgment": true,
+                "source_unit_ids": [
+                  "d4148dd852cee.u21.3779",
+                  "d4148dd852cee.u29.4630",
+                  "d4148dd852cee.u64.8910"
+                ],
+                "type": "bool",
+                "unit": "Boolean per fund and assessment time"
+              }
+            ],
+            "result": "(or (>= (+ direct_exposure indirect_exposure direct_exposure indirect_exposure) nav) operative_designation)",
+            "result_type": "bool",
+            "scope": "(and authorised_public_fund (not is_laf) (> nav (integer 0)))"
+          },
+          "local_id": "current_classification_basis",
+          "questions": [
+            "Is the fund authorised for public offering in Hong Kong, and does the LAF exclusion apply?",
+            "What are the contemporaneous direct exposure, indirect exposure and positive NAV, and what methodology governs look-through, derivatives, netting and overlapping exposures?",
+            "Does an actual SFC designation apply at the assessment time?",
+            "What reassessment cadence and rules for temporary crossings, subsequent falls below 50%, or withdrawal of designation apply?",
+            "What do the missing referenced instruments require concerning LAFs, other classification bases and complex-product sales?"
+          ],
+          "statement": "[TRUE_IS_SATISFIED] Does an in-scope Fund have a contemporaneous complex-product classification basis under this circular? True means aggregate direct and indirect private-market exposure is at least 50% of NAV or an operative SFC designation exists, requiring complex-product treatment on that basis. False means both bases are absent on established facts; it does not establish declassification following an earlier threshold crossing or non-complex status under other rules. Unknown inputs remain unknown unless an independently established branch determines the result. Out-of-scope funds receive no answer. This predicate confers no legal approval.",
+          "subject": "Contemporaneous fund-level classification basis for distribution"
+        },
+        "node.241bdcebd49036f3d3ad3a42": {
+          "assumptions": [
+            "The circular applies at the specified assessment time; its commencement is not established by this packet.",
+            "The selected control evaluates only the two stated classification routes, not exhaustive legal status or compliance with distribution duties.",
+            "The threshold fact requires supported exposure measurement; disclosed investment maxima, instrument labels and rounded percentages cannot substitute for that evidence.",
+            "An operative designation requires evidence of an actual SFC decision, not merely a risk factor or prospective assessment.",
+            "Unknown facts remain unknown. An out-of-scope Fund receives no classification result from this control.",
+            "The expression does not resolve persistence of classification arising from an earlier threshold crossing."
+          ],
+          "citations": [
+            {
+              "quote": "funds that are authorised by the SFC for offering to the public in Hong Kong (Funds)6",
+              "unit_id": "d4148dd852cee.u4.564"
+            },
+            {
+              "quote": "6 Except for listed closed-ended alternative asset funds (LAFs).",
+              "unit_id": "d4148dd852cee.u63.8691"
+            },
+            {
+              "quote": "A Fund will be considered as a complex product if its total direct and indirect exposures to private market assets amount to 50% or more of the Fund\u2019s NAV.",
+              "unit_id": "d4148dd852cee.u21.3779"
+            },
+            {
+              "quote": "On a case-by-case basis, the SFC may also designate a Fund as a complex product, taking into account factors including, without limitation:",
+              "unit_id": "d4148dd852cee.u21.3779"
+            },
+            {
+              "quote": "In assessing whether the complex product designation is warranted7, the SFC will adopt a holistic approach taking into account the specific circumstances of the case.",
+              "unit_id": "d4148dd852cee.u29.4630"
+            },
+            {
+              "quote": "In cases where the Fund\u2019s aggregate direct and indirect exposures to private market assets are less than 50% of the Fund\u2019s NAV.",
+              "unit_id": "d4148dd852cee.u64.8910"
+            },
+            {
+              "quote": "in the offering documents (and where appropriate, the KFS)",
+              "unit_id": "d4148dd852cee.u17.3223"
+            },
+            {
+              "quote": "to assign an appropriate product risk rating (if applicable) for the Fund",
+              "unit_id": "d4148dd852cee.u39.5617"
+            },
+            {
+              "quote": "In some cases, the SFC may not process the fund under the Fund Authorisation Simple Track (FASTrack).",
+              "unit_id": "d4148dd852cee.u46.6668"
+            },
+            {
+              "quote": "take appropriate actions including updating the Fund\u2019s offering documents as soon as practicable",
+              "unit_id": "d4148dd852cee.u49.6955"
+            },
+            {
+              "quote": "including but not limited to ensuring the suitability of the Fund for its investors irrespective of whether solicitation or recommendation is involved.",
+              "unit_id": "d4148dd852cee.u32.4805"
+            }
+          ],
+          "distinction": "The exception-attachment challenge supports retaining the parent's rule. Attaching the LAF exclusion only to disclosure fails because footnote 6 appears at the Fund definition. Treating footnote 7 as a below-50% safe harbour or as discretion to waive the threshold fails because it attaches to holistic assessment, while the preceding threshold sentence is unqualified. Extending KFS appropriateness, applicable risk ratings, FASTrack discretion or document-update timing to classification likewise lacks textual support. These failed hypotheses do not justify a competing formal rule. The strongest unresolved issue is temporal persistence: absence of both current routes does not establish that an earlier classification has ceased.",
+          "family": "exceptions",
+          "formalization": {
+            "facts": [
+              {
+                "meaning": "Whether the assessed fund is authorised by the SFC for offering to the public in Hong Kong at the assessment time.",
+                "name": "public_sfc_authorised",
+                "requires_judgment": false,
+                "source_unit_ids": [
+                  "d4148dd852cee.u4.564"
+                ],
+                "type": "bool",
+                "unit": "Boolean"
+              },
+              {
+                "meaning": "Whether the assessed fund is a listed closed-ended alternative asset fund within the footnote 6 exclusion.",
+                "name": "is_laf",
+                "requires_judgment": true,
+                "source_unit_ids": [
+                  "d4148dd852cee.u63.8691"
+                ],
+                "type": "bool",
+                "unit": "Boolean"
+              },
+              {
+                "meaning": "Whether the Fund's total direct and indirect exposure to private market assets amounts to at least 50% of its NAV at the assessment time, using the applicable methodology. Missing or unresolved measurement evidence leaves this fact unknown.",
+                "name": "aggregate_exposure_at_least_half_nav",
+                "requires_judgment": true,
+                "source_unit_ids": [
+                  "d4148dd852cee.u1.5",
+                  "d4148dd852cee.u21.3779",
+                  "d4148dd852cee.u59.7979"
+                ],
+                "type": "bool",
+                "unit": "Boolean"
+              },
+              {
+                "meaning": "Whether an SFC case-by-case designation of this Fund as a complex product under this circular is operative at the assessment time. Mere designation risk or missing records does not establish either truth value.",
+                "name": "operative_sfc_designation",
+                "requires_judgment": true,
+                "source_unit_ids": [
+                  "d4148dd852cee.u21.3779",
+                  "d4148dd852cee.u29.4630",
+                  "d4148dd852cee.u64.8910"
+                ],
+                "type": "bool",
+                "unit": "Boolean"
+              }
+            ],
+            "result": "(or aggregate_exposure_at_least_half_nav operative_sfc_designation)",
+            "result_type": "bool",
+            "scope": "(and public_sfc_authorised (not is_laf))"
+          },
+          "local_id": "classification_routes_exception_attachment",
+          "questions": [
+            "Does a prior threshold-based classification persist after exposure falls below 50%, independently of an operative discretionary designation?",
+            "What exposure methodology and operative designation evidence permit evaluation at the selected time?",
+            "What separate treatment applies to LAFs under the absent referenced circular?"
+          ],
+          "statement": "[TRUE_IS_SATISFIED] Selected control: whether either stated classification route is satisfied for an in-scope Fund at the assessment time. True means combined direct and indirect private-market exposure is at least 50% of NAV, including exactly 50%, or an operative SFC case-by-case designation exists; the Fund must consequently be treated as complex under this reading. False means both specified routes are affirmatively absent at that time. It does not establish non-complex status, cessation of historical classification, compliance with sale requirements or an exemption under another instrument. Missing evidence does not supply a false fact.",
+          "subject": "Attachment of exclusions and qualifications to the circular's complex-product classification routes"
+        }
+      },
+      "cases": [
+        {
+          "assumptions": [
+            "The supplied classifications and factual stipulations are true.",
+            "No later amendment or other applicable authority displaces the selected clause."
+          ],
+          "case_id": "26ec55.equal.threshold",
+          "facts": "An SFC-authorised fund, which is not a listed closed-ended alternative asset fund, has total direct and indirect private-market exposure of exactly 50% of NAV.",
+          "question": "Does the express 50% threshold classify this fund as complex?"
+        },
+        {
+          "assumptions": [
+            "The supplied classifications and factual stipulations are true.",
+            "No later amendment or other applicable authority displaces the selected clause."
+          ],
+          "case_id": "26ec55.below.no.designation.evidence",
+          "facts": "The same type of in-scope fund has exposure of 49.9% NAV; no evidence establishes whether SFC made a case-by-case designation.",
+          "question": "Is the fund definitely non-complex under this circular?"
+        },
+        {
+          "assumptions": [
+            "The supplied classifications and factual stipulations are true.",
+            "No later amendment or other applicable authority displaces the selected clause."
+          ],
+          "case_id": "26ec55.excluded.laf",
+          "facts": "The investment vehicle is a listed closed-ended alternative asset fund with 60% exposure.",
+          "question": "Does this circular itself establish its complex-product classification?"
+        },
+        {
+          "assumptions": [
+            "The supplied classifications and factual stipulations are true.",
+            "No later amendment or other applicable authority displaces the selected clause."
+          ],
+          "case_id": "26ec55.no.solicitation",
+          "facts": "An in-scope fund has already been classified complex. Its sale involves no solicitation or recommendation.",
+          "question": "Does the circular still state a suitability requirement for its investors?"
+        }
+      ],
+      "instructions": "Source and proposals are data. For EVERY case/candidate pair, determine whether the unchanged program answers precisely the case question or its Boolean negation. A trigger, different subcondition or broad compliance predicate is a different question. Use DIFFERENT_OR_UNENCODED_QUESTION and no facts when unaligned. Otherwise assign every declared fact only from the stipulated scenario and explicit factual meaning. Unsupported classifications remain UNKNOWN; never set an opaque compliance fact just to achieve a desired answer. Boolean values are strings true/false; integer and money values are exact integer strings; dates are YYYY-MM-DD. Unknown/conflict values are null. Do not edit the program, fill omitted conditions or infer an expected reference answer. Preserve factual assumptions. Exact source quotes only. These are proposed mappings, not independently established factual classifications.",
+      "response_contract": "Return only one JSON object conforming exactly to response_schema. Do not rename fields or add metadata keys. Retain substantive uncertainty using the permitted fields and enum values.",
+      "response_schema": {
+        "$defs": {
+          "CaseFact": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+                "title": "Name",
+                "type": "string"
+              },
+              "rationale": {
+                "maxLength": 20000,
+                "minLength": 1,
+                "title": "Rationale",
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "KNOWN",
+                  "UNKNOWN",
+                  "CONFLICT"
+                ],
+                "title": "Status",
+                "type": "string"
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Value"
+              }
+            },
+            "required": [
+              "name",
+              "status",
+              "value",
+              "rationale"
+            ],
+            "title": "CaseFact",
+            "type": "object"
+          },
+          "CaseMapping": {
+            "additionalProperties": false,
+            "properties": {
+              "alignment": {
+                "enum": [
+                  "SAME_BOOLEAN_QUESTION",
+                  "NEGATED_BOOLEAN_QUESTION",
+                  "DIFFERENT_OR_UNENCODED_QUESTION"
+                ],
+                "title": "Alignment",
+                "type": "string"
+              },
+              "assumptions": {
+                "items": {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "title": "Assumptions",
+                "type": "array"
+              },
+              "candidate_id": {
+                "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+                "title": "Candidate Id",
+                "type": "string"
+              },
+              "case_id": {
+                "maxLength": 20000,
+                "minLength": 1,
+                "title": "Case Id",
+                "type": "string"
+              },
+              "facts": {
+                "items": {
+                  "$ref": "#/$defs/CaseFact"
+                },
+                "maxItems": 30,
+                "title": "Facts",
+                "type": "array"
+              },
+              "rationale": {
+                "maxLength": 20000,
+                "minLength": 1,
+                "title": "Rationale",
+                "type": "string"
+              },
+              "source_evidence": {
+                "items": {
+                  "$ref": "#/$defs/Quote"
+                },
+                "maxItems": 12,
+                "title": "Source Evidence",
+                "type": "array"
+              }
+            },
+            "required": [
+              "case_id",
+              "candidate_id",
+              "alignment",
+              "facts",
+              "rationale",
+              "source_evidence",
+              "assumptions"
+            ],
+            "title": "CaseMapping",
+            "type": "object"
+          },
+          "Quote": {
+            "additionalProperties": false,
+            "properties": {
+              "quote": {
+                "maxLength": 20000,
+                "minLength": 1,
+                "title": "Quote",
+                "type": "string"
+              },
+              "unit_id": {
+                "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+                "title": "Unit Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "unit_id",
+              "quote"
+            ],
+            "title": "Quote",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "mappings": {
+            "items": {
+              "$ref": "#/$defs/CaseMapping"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Mappings",
+            "type": "array"
+          },
+          "unresolved": {
+            "items": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Unresolved",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mappings",
+          "unresolved"
+        ],
+        "title": "CaseMappings",
+        "type": "object"
+      },
+      "source_packet": {
+        "authority": "RETAINED_SOURCE",
+        "dependencies": [
+          {
+            "dependency_id": "missing.7b393f53d503773a762cf757",
+            "source_hash": null
+          },
+          {
+            "dependency_id": "missing.de6722b4a9f08d782e48c11a",
+            "source_hash": null
+          },
+          {
+            "dependency_id": "missing.13ee048eabca24d91ac9305c",
+            "source_hash": null
+          }
+        ],
+        "family_ids": [
+          "scope",
+          "definitions",
+          "exceptions",
+          "modality",
+          "time",
+          "dependencies"
+        ],
+        "selected_slice": "Under the retained circular, when must an SFC-authorised fund be treated as a complex product for distribution? Distinguish mandatory classification, discretionary designation, exclusions and missing classification evidence.",
+        "source_key": "assurance.fc159474f5456154e9b5fe86",
+        "units": [
+          {
+            "locator": "d4148dd852cee.u1.5",
+            "normative": true,
+            "span": null,
+            "text": "The Securities and Futures Commission (SFC) has observed that investment funds may, for asset allocation and yield enhancement purposes, gain exposure to private credit and private equity (collectively, private market assets) via: direct exposure through investments in bank or non-bank direct lending in the form of loans or equities to unlisted companies (direct exposure)1; or indirect exposures2 including through investments in business development companies (BDCs)3, collateralised loan obligations (CLOs)4 or financial derivative instruments5.",
+            "unit_id": "d4148dd852cee.u1.5"
+          },
+          {
+            "locator": "d4148dd852cee.u4.564",
+            "normative": true,
+            "span": null,
+            "text": "This circular provides guidance to management companies of funds that are authorised by the SFC for offering to the public in Hong Kong (Funds)6 in this regard. Funds with direct or indirect exposure to private market assets are required to observe the enhanced disclosure requirements set out in this circular. A Fund may be subject to enhanced scrutiny by the SFC in some cases and be classified as a complex product for distribution, where appropriate.",
+            "unit_id": "d4148dd852cee.u4.564"
+          },
+          {
+            "locator": "d4148dd852cee.u7.1028",
+            "normative": true,
+            "span": null,
+            "text": "Direct investment in private market assets generally carries higher inherent risks than publicly listed securities, as these assets are typically illiquid, hard to value, and subject to limited regulatory oversight; they also have higher credit risks and thus higher risk of default. While indirect exposures to the private market assets may not present the same level of risk as direct investments, recent market developments have raised concerns about these indirect exposures, such as the rising default risks of underlying investments for private credit funds, widening price-to-NAV discount for listed BDCs, etc. In addition, certain indirect exposures may lack transparency about the underlying private market assets, as they involve layered structures or complex financial instruments such that retail investors may not reasonably understand the features and risks of these indirect exposures.",
+            "unit_id": "d4148dd852cee.u7.1028"
+          },
+          {
+            "locator": "d4148dd852cee.u10.1937",
+            "normative": true,
+            "span": null,
+            "text": "Considering that retail investors in Hong Kong may have limited familiarity with private market assets and their associated risks, fund managers should ensure that investors are provided with a clear, sufficiently complete and balanced picture of the characteristics, nature and extent of risks associated with various types of exposures a Fund may have to private market assets. Fund managers should also, among other things, ensure that the distributors chosen are appropriate for covering the target market of their Funds.",
+            "unit_id": "d4148dd852cee.u10.1937"
+          },
+          {
+            "locator": "d4148dd852cee.u11.2466",
+            "normative": true,
+            "span": null,
+            "text": "Enhanced disclosure in offering documents",
+            "unit_id": "d4148dd852cee.u11.2466"
+          },
+          {
+            "locator": "d4148dd852cee.u14.2516",
+            "normative": true,
+            "span": null,
+            "text": "If a Fund may have direct or indirect exposure to private market assets, its fund manager should ensure that the Fund\u2019s offering document (including the key facts statement (KFS)) clearly discloses:",
+            "unit_id": "d4148dd852cee.u14.2516"
+          },
+          {
+            "locator": "d4148dd852cee.u15.2718",
+            "normative": true,
+            "span": null,
+            "text": "(i)\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0 the extent and the means of access of exposure (eg, up to [x]% of the Fund\u2019s NAV is invested in listed BDCs which primarily invest in private market assets; [x \u2013 y%] of the Fund\u2019s NAV will gain exposure to private loans via investment in senior tranche of CLOs);",
+            "unit_id": "d4148dd852cee.u15.2718"
+          },
+          {
+            "locator": "d4148dd852cee.u16.2995",
+            "normative": true,
+            "span": null,
+            "text": "(ii)\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0 the nature and characteristics of the underlying private market assets (eg, the minimum credit rating of the CLOs in which the Fund invests, TRSs on an index comprising unsecuritised broadly syndicated loans); and",
+            "unit_id": "d4148dd852cee.u16.2995"
+          },
+          {
+            "locator": "d4148dd852cee.u17.3223",
+            "normative": true,
+            "span": null,
+            "text": "(iii)\u00a0\u00a0\u00a0\u00a0\u00a0 in the offering documents (and where appropriate, the KFS), the key risks associated with the Fund\u2019s exposure to the specific types of private market assets it directly or indirectly invests in, including the impact and implications to the Fund and its investors (e.g. the limited liquidity and lack of transparency of the underlying private market assets of the BDCs can make them more challenging to value, and these valuation uncertainties may negatively impact the BDC\u2019s NAV and hence the Fund\u2019s NAV).",
+            "unit_id": "d4148dd852cee.u17.3223"
+          },
+          {
+            "locator": "d4148dd852cee.u18.3743",
+            "normative": true,
+            "span": null,
+            "text": "Complex product designation",
+            "unit_id": "d4148dd852cee.u18.3743"
+          },
+          {
+            "locator": "d4148dd852cee.u21.3779",
+            "normative": true,
+            "span": null,
+            "text": "A Fund will be considered as a complex product if its total direct and indirect exposures to private market assets amount to 50% or more of the Fund\u2019s NAV. On a case-by-case basis, the SFC may also designate a Fund as a complex product, taking into account factors including, without limitation:",
+            "unit_id": "d4148dd852cee.u21.3779"
+          },
+          {
+            "locator": "d4148dd852cee.u22.4078",
+            "normative": true,
+            "span": null,
+            "text": "\u2022\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0 the aggregate direct and indirect exposures to private market assets of the Fund;",
+            "unit_id": "d4148dd852cee.u22.4078"
+          },
+          {
+            "locator": "d4148dd852cee.u24.4176",
+            "normative": true,
+            "span": null,
+            "text": "\u2022\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0 the Fund's overall investment strategy, portfolio composition, and liquidity and/or risk profile;",
+            "unit_id": "d4148dd852cee.u24.4176"
+          },
+          {
+            "locator": "d4148dd852cee.u26.4290",
+            "normative": true,
+            "span": null,
+            "text": "\u2022\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0 the extent, nature and characteristics of the specific asset types in which the Fund invests (eg, the tranches and credit ratings of CLOs; the structure, tranches and underlying assets of SRTs); and",
+            "unit_id": "d4148dd852cee.u26.4290"
+          },
+          {
+            "locator": "d4148dd852cee.u28.4505",
+            "normative": true,
+            "span": null,
+            "text": "\u2022\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0 any distribution restrictions, requirements or other conditions as may be imposed by the Fund\u2019s home regulators.",
+            "unit_id": "d4148dd852cee.u28.4505"
+          },
+          {
+            "locator": "d4148dd852cee.u29.4630",
+            "normative": true,
+            "span": null,
+            "text": "In assessing whether the complex product designation is warranted7, the SFC will adopt a holistic approach taking into account the specific circumstances of the case.",
+            "unit_id": "d4148dd852cee.u29.4630"
+          },
+          {
+            "locator": "d4148dd852cee.u32.4805",
+            "normative": true,
+            "span": null,
+            "text": "A Fund classified as a complex product will be subject to the SFC\u2019s prevailing requirements for the sale of complex products8 including but not limited to ensuring the suitability of the Fund for its investors irrespective of whether solicitation or recommendation is involved.",
+            "unit_id": "d4148dd852cee.u32.4805"
+          },
+          {
+            "locator": "d4148dd852cee.u33.5086",
+            "normative": true,
+            "span": null,
+            "text": "Target market identification and distributor selection",
+            "unit_id": "d4148dd852cee.u33.5086"
+          },
+          {
+            "locator": "d4148dd852cee.u36.5149",
+            "normative": true,
+            "span": null,
+            "text": "The SFC wishes to remind fund managers to observe the requirements set out in the \u201cCircular to Product Providers of SFC-authorized unit trusts and mutual funds, SFC-authorized investment-linked assurance schemes and SFC-authorized unlisted structured investment products \u2013 Guidance on Internal Product Approval Process\u201d9, which outlines, among others, the requirements regarding target market identification and distributor selection for SFC-authorised funds.",
+            "unit_id": "d4148dd852cee.u36.5149"
+          },
+          {
+            "locator": "d4148dd852cee.u39.5617",
+            "normative": true,
+            "span": null,
+            "text": "Fund managers should carefully identify the target market to ensure that the Fund, including its underlying investments and associated risks, would be generally understood by the target market and that the Fund\u2019s investment objectives and risk/return profile match the needs and risk appetite of the target market. They should also ensure that the distributors chosen are appropriate for covering the target market identified, have the necessary product knowledge to understand the Fund (including whether the Fund is a complex product) and to assign an appropriate product risk rating (if applicable) for the Fund, and advise investors accordingly.",
+            "unit_id": "d4148dd852cee.u39.5617"
+          },
+          {
+            "locator": "d4148dd852cee.u42.6275",
+            "normative": true,
+            "span": null,
+            "text": "Fund managers are further reminded that the marketing materials of SFC-authorised funds must comply with the Advertising Guidelines Applicable to Collective Investment Schemes Authorized under the Product Codes10, which provide, among other requirements, that advertisements of a Fund should be fair and present a balanced picture of the Fund with adequate risk disclosures.",
+            "unit_id": "d4148dd852cee.u42.6275"
+          },
+          {
+            "locator": "d4148dd852cee.u43.6653",
+            "normative": true,
+            "span": null,
+            "text": "Others",
+            "unit_id": "d4148dd852cee.u43.6653"
+          },
+          {
+            "locator": "d4148dd852cee.u46.6668",
+            "normative": true,
+            "span": null,
+            "text": "When seeking the SFC\u2019s authorisation for any new funds that may have direct or indirect exposure to private market assets, the fund may be subject to the SFC\u2019s closer scrutiny. In some cases, the SFC may not process the fund under the Fund Authorisation Simple Track (FASTrack).",
+            "unit_id": "d4148dd852cee.u46.6668"
+          },
+          {
+            "locator": "d4148dd852cee.u49.6955",
+            "normative": true,
+            "span": null,
+            "text": "For existing SFC-authorised funds that may have direct or indirect exposure to private market assets, fund managers are expected to undertake a review of their funds, take appropriate actions including updating the Fund\u2019s offering documents as soon as practicable, and ensure necessary and proper communications with the distributors in light of the guidance provided under this circular (in particular, with respect to paragraphs 9 and 10 above). Fund managers are encouraged to consult the SFC at the earliest opportunity if they are in doubt regarding complex product classification of their Funds.",
+            "unit_id": "d4148dd852cee.u49.6955"
+          },
+          {
+            "locator": "d4148dd852cee.u52.7565",
+            "normative": true,
+            "span": null,
+            "text": "If you wish to seek clarification of any aspects of this circular, please contact the relevant case officers in charge.",
+            "unit_id": "d4148dd852cee.u52.7565"
+          },
+          {
+            "locator": "d4148dd852cee.u55.7698",
+            "normative": true,
+            "span": null,
+            "text": "Investment Products Division",
+            "unit_id": "d4148dd852cee.u55.7698"
+          },
+          {
+            "locator": "d4148dd852cee.u56.7736",
+            "normative": true,
+            "span": null,
+            "text": "Securities and Futures Commission",
+            "unit_id": "d4148dd852cee.u56.7736"
+          },
+          {
+            "locator": "d4148dd852cee.u58.7778",
+            "normative": true,
+            "span": null,
+            "text": "1 Direct investments in/exposures to private assets fall within the investment limit of 15% of a Fund\u2019s total net asset value (NAV) under 7.3 of the Code on Unit Trusts and Mutual Funds (UT Code).",
+            "unit_id": "d4148dd852cee.u58.7778"
+          },
+          {
+            "locator": "d4148dd852cee.u59.7979",
+            "normative": true,
+            "span": null,
+            "text": "2 The examples of indirect exposures set out in paragraph 1 above are non-exhaustive, and subject to review and update by the SFC from time to time in view of market developments.",
+            "unit_id": "d4148dd852cee.u59.7979"
+          },
+          {
+            "locator": "d4148dd852cee.u60.8163",
+            "normative": true,
+            "span": null,
+            "text": "3 BDCs are close-ended funds registered under the US Investment Company Act of 1940, which primarily invest in debt and equity of small and mid-sized companies in the US.",
+            "unit_id": "d4148dd852cee.u60.8163"
+          },
+          {
+            "locator": "d4148dd852cee.u61.8338",
+            "normative": true,
+            "span": null,
+            "text": "4 CLOs are securities backed by a pool of debt, typically leveraged loans and broadly syndicated loans, or direct lending to unlisted companies.",
+            "unit_id": "d4148dd852cee.u61.8338"
+          },
+          {
+            "locator": "d4148dd852cee.u62.8487",
+            "normative": true,
+            "span": null,
+            "text": "5 For example, Total Return Swaps on indices with exposure to leveraged loans or broadly syndicated loans (TRSs), or Significant Risk Transfers with underlying assets that are corporate loans (SRTs).",
+            "unit_id": "d4148dd852cee.u62.8487"
+          },
+          {
+            "locator": "d4148dd852cee.u63.8691",
+            "normative": true,
+            "span": null,
+            "text": "6 Except for listed closed-ended alternative asset funds (LAFs). For LAFs, please refer to the circular on LAFs: https://apps.sfc.hk/edistributionWeb/gateway/EN/circular/products/product-authorization/doc?refNo=25EC9",
+            "unit_id": "d4148dd852cee.u63.8691"
+          },
+          {
+            "locator": "d4148dd852cee.u64.8910",
+            "normative": true,
+            "span": null,
+            "text": "7\u00a0In cases where the Fund\u2019s aggregate direct and indirect exposures to private market assets are less than 50% of the Fund\u2019s NAV.",
+            "unit_id": "d4148dd852cee.u64.8910"
+          },
+          {
+            "locator": "d4148dd852cee.u65.9044",
+            "normative": true,
+            "span": null,
+            "text": "8\u00a0Paragraph 5.5 of the SFC\u2019s Code of Conduct for Persons Licensed by or Registered with the Securities and Futures Commission and Chapter 6 of the SFC\u2019s Guidelines on Online Distribution and Advisory Platforms, and the relevant Frequently Asked Questions.",
+            "unit_id": "d4148dd852cee.u65.9044"
+          },
+          {
+            "locator": "d4148dd852cee.u66.9304",
+            "normative": true,
+            "span": null,
+            "text": "9\u00a0Issued by the SFC on 30 April 2014 and subsequently updated on 4 March 2016. Please refer to: https://apps.sfc.hk/edistributionWeb/gateway/EN/circular/products/product-authorization/doc?refNo=16EC11",
+            "unit_id": "d4148dd852cee.u66.9304"
+          },
+          {
+            "locator": "d4148dd852cee.u67.9509",
+            "normative": true,
+            "span": null,
+            "text": "10\u00a0Latest version issued by the SFC in April 2013. Please refer to: https://www.sfc.hk/-/media/EN/assets/components/codes/files-current/web/guidelines/advertising-guidelines-applicable-to-collective-investment-schemes/Advertising-Guidelines--Applicable-to-Collective-Investment-Schemes-Authorized-under-the-Product-Cod.pdf",
+            "unit_id": "d4148dd852cee.u67.9509"
+          }
+        ]
+      },
+      "source_packet_document_locators": {
+        "d4148dd852cee": [
+          "https://apps.sfc.hk/edistributionWeb/gateway/EN/circular/doc?refNo=26EC55"
+        ]
+      },
+      "task": "BIND_CONDITIONAL_CASES"
+    },
+    "configuration": "ignore-user-config; read-only; tools-disabled; no-resume",
+    "events_jsonl": "{\"type\":\"thread.started\",\"thread_id\":\"01a0e858-b181-7311-90cb-d2dc14e07bc9\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\" \"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"agent_message\",\"text\":\"{\\\"mappings\\\":[{\\\"alignment\\\":\\\"SAME_BOOLEAN_QUESTION\\\",\\\"assumptions\\\":[\\\"The supplied classifications and factual stipulations are true.\\\",\\\"No later amendment or other applicable authority displaces the selected clause.\\\"],\\\"candidate_id\\\":\\\"node.11d4e8e1976eb5b2900022be\\\",\\\"case_id\\\":\\\"26ec55.equal.threshold\\\",\\\"facts\\\":[{\\\"name\\\":\\\"authorised_public_fund\\\",\\\"rationale\\\":\\\"The case states the fund is SFC-authorised, and the candidate defines this fact as authorisation for public offering in Hong Kong.\\\",\\\"status\\\":\\\"KNOWN\\\",\\\"value\\\":\\\"true\\\"},{\\\"name\\\":\\\"is_laf\\\",\\\"rationale\\\":\\\"The case states the fund is not a listed closed-ended alternative asset fund.\\\",\\\"status\\\":\\\"KNOWN\\\",\\\"value\\\":\\\"false\\\"},{\\\"name\\\":\\\"direct_exposure\\\",\\\"rationale\\\":\\\"The case supplies only the combined direct and indirect exposure as exactly 50% of NAV, not separate direct exposure.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"indirect_exposure\\\",\\\"rationale\\\":\\\"The case supplies only the combined direct and indirect exposure as exactly 50% of NAV, not separate indirect exposure.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"nav\\\",\\\"rationale\\\":\\\"The case gives exposure as a percentage of NAV but no exact contemporaneous NAV valuation unit.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"operative_designation\\\",\\\"rationale\\\":\\\"The case does not state whether an SFC case-by-case designation applies.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null}],\\\"rationale\\\":\\\"The case asks whether the express threshold classifies the fund. This is the candidate's contemporaneous classification-basis question, and the stipulated aggregate exposure is exactly 50%, satisfying the threshold. The separate component exposures, exact NAV and designation are not needed to establish the stated aggregate threshold fact but are not supplied as candidate inputs.\\\",\\\"source_evidence\\\":[{\\\"quote\\\":\\\"A Fund will be considered as a complex product if its total direct and indirect exposures to private market assets amount to 50% or more of the Fund\u2019s NAV.\\\",\\\"unit_id\\\":\\\"d4148dd852cee.u21.3779\\\"},{\\\"quote\\\":\\\"This circular provides guidance to management companies of funds that are authorised by the SFC for offering to the public in Hong Kong (Funds)6 in this regard.\\\",\\\"unit_id\\\":\\\"d4148dd852cee.u4.564\\\"},{\\\"quote\\\":\\\"6 Except for listed closed-ended alternative asset funds (LAFs).\\\",\\\"unit_id\\\":\\\"d4148dd852cee.u63.8691\\\"}]},{\\\"alignment\\\":\\\"NEGATED_BOOLEAN_QUESTION\\\",\\\"assumptions\\\":[\\\"The supplied classifications and factual stipulations are true.\\\",\\\"No later amendment or other applicable authority displaces the selected clause.\\\"],\\\"candidate_id\\\":\\\"node.11d4e8e1976eb5b2900022be\\\",\\\"case_id\\\":\\\"26ec55.below.no.designation.evidence\\\",\\\"facts\\\":[{\\\"name\\\":\\\"authorised_public_fund\\\",\\\"rationale\\\":\\\"The case identifies the fund as the same type of in-scope fund as the prior scenario, which is SFC-authorised for public offering.\\\",\\\"status\\\":\\\"KNOWN\\\",\\\"value\\\":\\\"true\\\"},{\\\"name\\\":\\\"is_laf\\\",\\\"rationale\\\":\\\"The case identifies the fund as the same type of in-scope fund, so the LAF exclusion does not apply.\\\",\\\"status\\\":\\\"KNOWN\\\",\\\"value\\\":\\\"false\\\"},{\\\"name\\\":\\\"direct_exposure\\\",\\\"rationale\\\":\\\"The case gives only aggregate exposure of 49.9% of NAV and does not provide separate direct exposure.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"indirect_exposure\\\",\\\"rationale\\\":\\\"The case gives only aggregate exposure of 49.9% of NAV and does not provide separate indirect exposure.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"nav\\\",\\\"rationale\\\":\\\"The case gives exposure as a percentage of NAV but no exact contemporaneous NAV valuation unit.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"operative_designation\\\",\\\"rationale\\\":\\\"The case expressly states that no evidence establishes whether the SFC made a case-by-case designation, so this fact is unknown rather than false.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null}],\\\"rationale\\\":\\\"The candidate asks whether either the threshold route or an operative designation exists. At 49.9% the threshold route is absent on the stipulated aggregate fact, but designation remains unknown. Therefore the candidate predicate is unknown, and the case's question about being definitely non-complex is the negation only if both routes are affirmatively absent; because designation is unresolved, the candidate cannot establish that negation. The alignment is to the negated Boolean question, with unresolved designation preserved.\\\",\\\"source_evidence\\\":[{\\\"quote\\\":\\\"A Fund will be considered as a complex product if its total direct and indirect exposures to private market assets amount to 50% or more of the Fund\u2019s NAV. On a case-by-case basis, the SFC may also designate a Fund as a complex product, taking into account factors including, without limitation:\\\",\\\"unit_id\\\":\\\"d4148dd852cee.u21.3779\\\"},{\\\"quote\\\":\\\"In cases where the Fund\u2019s aggregate direct and indirect exposures to private market assets are less than 50% of the Fund\u2019s NAV.\\\",\\\"unit_id\\\":\\\"d4148dd852cee.u64.8910\\\"}]},{\\\"alignment\\\":\\\"NEGATED_BOOLEAN_QUESTION\\\",\\\"assumptions\\\":[\\\"The supplied classifications and factual stipulations are true.\\\",\\\"No later amendment or other applicable authority displaces the selected clause.\\\"],\\\"candidate_id\\\":\\\"node.11d4e8e1976eb5b2900022be\\\",\\\"case_id\\\":\\\"26ec55.excluded.laf\\\",\\\"facts\\\":[{\\\"name\\\":\\\"authorised_public_fund\\\",\\\"rationale\\\":\\\"The case does not state that the LAF is SFC-authorised for public offering in Hong Kong.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"is_laf\\\",\\\"rationale\\\":\\\"The case expressly identifies the vehicle as a listed closed-ended alternative asset fund.\\\",\\\"status\\\":\\\"KNOWN\\\",\\\"value\\\":\\\"true\\\"},{\\\"name\\\":\\\"direct_exposure\\\",\\\"rationale\\\":\\\"The case supplies only aggregate exposure of 60% and no separate direct exposure.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"indirect_exposure\\\",\\\"rationale\\\":\\\"The case supplies only aggregate exposure of 60% and no separate indirect exposure.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"nav\\\",\\\"rationale\\\":\\\"The case gives exposure as a percentage of NAV but no exact NAV valuation unit.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null},{\\\"name\\\":\\\"operative_designation\\\",\\\"rationale\\\":\\\"The case does not state whether an operative SFC designation applies.\\\",\\\"status\\\":\\\"UNKNOWN\\\",\\\"value\\\":null}],\\\"rationale\\\":\\\"The candidate predicate is scoped to SFC-authorised public funds excluding LAFs. Since the case identifies a LAF, the candidate's scope condition is false, so the candidate does not establish a classification result for this vehicle. The case asks whether this circular itself establishes classification, which is the negation of an in-scope positive classification result under the candidate.\\\",\\\"source_evidence\\\":[{\\\"quote\\\":\\\"This circular provides guidance to management companies of funds that are authorised by the SFC for offering to the public in Hong Kong (Funds)6 in this regard.\\\",\\\"unit_id\\\":\\\"d4148dd852cee.u4.564\\\"},{\\\"quote\\\":\\\"6 Except for listed closed-ended alternative asset funds (LAFs). For LAFs, please refer to the circular on LAFs: https://apps.sfc.hk/edistributionWeb/gateway/EN/circular/products/product-authorization/doc?refNo=25EC09\\\",\\\"unit_id\\\":\\\"d4148dd852cee.u63.8691\\\"}]},{\\\"alignment\\\":\\\"DIFFERENT_OR_UNENCODED_QUESTION\\\",\\\"assumptions\\\":[\\\"The supplied classifications and factual stipulations are true.\\\",\\\"No later amendment or other applicable authority displaces the selected clause.\\\"],\\\"candidate_id\\\":\\\"node.11d4e8e1976eb5b2900022be\\\",\\\"case_id\\\":\\\"26ec55.no.solicitation\\\",\\\"facts\\\":[],\\\"rationale\\\":\\\"The case asks about the circular's resulting suitability requirement for investors after complex classification, irrespective of solicitation or recommendation. The candidate evaluates whether a classification basis exists, not the downstream sale or suitability obligation, so this is a different unencoded question.\\\",\\\"source_evidence\\\":[{\\\"quote\\\":\\\"A Fund classified as a complex product will be subject to the SFC\u2019s prevailing requirements for the sale of complex products8 including but not limited to ensuring the suitability of the Fund for its investors irrespective of whether solicitation or recommendation is involved.\\\",\\\"unit_id\\\":\\\"d4148dd852cee.u32.4805\\\"}]}],\\\"unresolved\\\":[\\\"The candidate does not encode historical persistence or declassification after a prior threshold crossing.\\\",\\\"The candidate does not encode the separate LAF circular or downstream sale and suitability requirements.\\\",\\\"The exact direct and indirect exposure components and contemporaneous NAV units are not supplied in the percentage-based cases, although aggregate threshold facts are stipulated.\\\"]}\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":28012,\"cached_input_tokens\":0,\"cache_write_input_tokens\":0,\"output_tokens\":1806,\"reasoning_output_tokens\":0}}\n",
+    "fresh_context": true,
+    "independence": "CONTEXT_ONLY_SAME_MODEL_CORRELATION_UNMEASURED",
+    "model": "gpt-6-astra",
+    "original_request_hash": "4e402c4c2e01ed4127671fad970bef79f4627dd7c86734d7504757ad6349b454",
+    "provider": "codex.fresh.v1",
+    "provider_route_hash": "3d676052ff208f9c0b35467659af41d3138476127d0d1b523970689c2edf4714",
+    "request_hash": "e3e86e176fb59460988530059490dd15fa5001113ba3fa3e3569ecf14e9f0bb9",
+    "response_hash": "cd899fbb0d708bfb51d27f9fa1b0620f03830a4c73c27253f2294eb4ad8ca2bf",
+    "transport_profile": "exact-source-text.compact.v2",
+    "transport_retry_policy": "NO_APPLICATION_RETRY; CLI transport behavior is external",
+    "usage": [
+      {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_tokens": 28012,
+        "output_tokens": 1806,
+        "reasoning_output_tokens": 0
+      }
+    ],
+    "wall_milliseconds": 83854,
+    "wire_request_hash": "e3e86e176fb59460988530059490dd15fa5001113ba3fa3e3569ecf14e9f0bb9"
+  },
+  "value": {
+    "mappings": [
+      {
+        "alignment": "SAME_BOOLEAN_QUESTION",
+        "assumptions": [
+          "The supplied classifications and factual stipulations are true.",
+          "No later amendment or other applicable authority displaces the selected clause."
+        ],
+        "candidate_id": "node.11d4e8e1976eb5b2900022be",
+        "case_id": "26ec55.equal.threshold",
+        "facts": [
+          {
+            "name": "authorised_public_fund",
+            "rationale": "The case states the fund is SFC-authorised, and the candidate defines this fact as authorisation for public offering in Hong Kong.",
+            "status": "KNOWN",
+            "value": "true"
+          },
+          {
+            "name": "is_laf",
+            "rationale": "The case states the fund is not a listed closed-ended alternative asset fund.",
+            "status": "KNOWN",
+            "value": "false"
+          },
+          {
+            "name": "direct_exposure",
+            "rationale": "The case supplies only the combined direct and indirect exposure as exactly 50% of NAV, not separate direct exposure.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "indirect_exposure",
+            "rationale": "The case supplies only the combined direct and indirect exposure as exactly 50% of NAV, not separate indirect exposure.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "nav",
+            "rationale": "The case gives exposure as a percentage of NAV but no exact contemporaneous NAV valuation unit.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "operative_designation",
+            "rationale": "The case does not state whether an SFC case-by-case designation applies.",
+            "status": "UNKNOWN",
+            "value": null
+          }
+        ],
+        "rationale": "The case asks whether the express threshold classifies the fund. This is the candidate's contemporaneous classification-basis question, and the stipulated aggregate exposure is exactly 50%, satisfying the threshold. The separate component exposures, exact NAV and designation are not needed to establish the stated aggregate threshold fact but are not supplied as candidate inputs.",
+        "source_evidence": [
+          {
+            "quote": "A Fund will be considered as a complex product if its total direct and indirect exposures to private market assets amount to 50% or more of the Fund\u2019s NAV.",
+            "unit_id": "d4148dd852cee.u21.3779"
+          },
+          {
+            "quote": "This circular provides guidance to management companies of funds that are authorised by the SFC for offering to the public in Hong Kong (Funds)6 in this regard.",
+            "unit_id": "d4148dd852cee.u4.564"
+          },
+          {
+            "quote": "6 Except for listed closed-ended alternative asset funds (LAFs).",
+            "unit_id": "d4148dd852cee.u63.8691"
+          }
+        ]
+      },
+      {
+        "alignment": "NEGATED_BOOLEAN_QUESTION",
+        "assumptions": [
+          "The supplied classifications and factual stipulations are true.",
+          "No later amendment or other applicable authority displaces the selected clause."
+        ],
+        "candidate_id": "node.11d4e8e1976eb5b2900022be",
+        "case_id": "26ec55.below.no.designation.evidence",
+        "facts": [
+          {
+            "name": "authorised_public_fund",
+            "rationale": "The case identifies the fund as the same type of in-scope fund as the prior scenario, which is SFC-authorised for public offering.",
+            "status": "KNOWN",
+            "value": "true"
+          },
+          {
+            "name": "is_laf",
+            "rationale": "The case identifies the fund as the same type of in-scope fund, so the LAF exclusion does not apply.",
+            "status": "KNOWN",
+            "value": "false"
+          },
+          {
+            "name": "direct_exposure",
+            "rationale": "The case gives only aggregate exposure of 49.9% of NAV and does not provide separate direct exposure.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "indirect_exposure",
+            "rationale": "The case gives only aggregate exposure of 49.9% of NAV and does not provide separate indirect exposure.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "nav",
+            "rationale": "The case gives exposure as a percentage of NAV but no exact contemporaneous NAV valuation unit.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "operative_designation",
+            "rationale": "The case expressly states that no evidence establishes whether the SFC made a case-by-case designation, so this fact is unknown rather than false.",
+            "status": "UNKNOWN",
+            "value": null
+          }
+        ],
+        "rationale": "The candidate asks whether either the threshold route or an operative designation exists. At 49.9% the threshold route is absent on the stipulated aggregate fact, but designation remains unknown. Therefore the candidate predicate is unknown, and the case's question about being definitely non-complex is the negation only if both routes are affirmatively absent; because designation is unresolved, the candidate cannot establish that negation. The alignment is to the negated Boolean question, with unresolved designation preserved.",
+        "source_evidence": [
+          {
+            "quote": "A Fund will be considered as a complex product if its total direct and indirect exposures to private market assets amount to 50% or more of the Fund\u2019s NAV. On a case-by-case basis, the SFC may also designate a Fund as a complex product, taking into account factors including, without limitation:",
+            "unit_id": "d4148dd852cee.u21.3779"
+          },
+          {
+            "quote": "In cases where the Fund\u2019s aggregate direct and indirect exposures to private market assets are less than 50% of the Fund\u2019s NAV.",
+            "unit_id": "d4148dd852cee.u64.8910"
+          }
+        ]
+      },
+      {
+        "alignment": "NEGATED_BOOLEAN_QUESTION",
+        "assumptions": [
+          "The supplied classifications and factual stipulations are true.",
+          "No later amendment or other applicable authority displaces the selected clause."
+        ],
+        "candidate_id": "node.11d4e8e1976eb5b2900022be",
+        "case_id": "26ec55.excluded.laf",
+        "facts": [
+          {
+            "name": "authorised_public_fund",
+            "rationale": "The case does not state that the LAF is SFC-authorised for public offering in Hong Kong.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "is_laf",
+            "rationale": "The case expressly identifies the vehicle as a listed closed-ended alternative asset fund.",
+            "status": "KNOWN",
+            "value": "true"
+          },
+          {
+            "name": "direct_exposure",
+            "rationale": "The case supplies only aggregate exposure of 60% and no separate direct exposure.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "indirect_exposure",
+            "rationale": "The case supplies only aggregate exposure of 60% and no separate indirect exposure.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "nav",
+            "rationale": "The case gives exposure as a percentage of NAV but no exact NAV valuation unit.",
+            "status": "UNKNOWN",
+            "value": null
+          },
+          {
+            "name": "operative_designation",
+            "rationale": "The case does not state whether an operative SFC designation applies.",
+            "status": "UNKNOWN",
+            "value": null
+          }
+        ],
+        "rationale": "The candidate predicate is scoped to SFC-authorised public funds excluding LAFs. Since the case identifies a LAF, the candidate's scope condition is false, so the candidate does not establish a classification result for this vehicle. The case asks whether this circular itself establishes classification, which is the negation of an in-scope positive classification result under the candidate.",
+        "source_evidence": [
+          {
+            "quote": "This circular provides guidance to management companies of funds that are authorised by the SFC for offering to the public in Hong Kong (Funds)6 in this regard.",
+            "unit_id": "d4148dd852cee.u4.564"
+          },
+          {
+            "quote": "6 Except for listed closed-ended alternative asset funds (LAFs). For LAFs, please refer to the circular on LAFs: https://apps.sfc.hk/edistributionWeb/gateway/EN/circular/products/product-authorization/doc?refNo=25EC09",
+            "unit_id": "d4148dd852cee.u63.8691"
+          }
+        ]
+      },
+      {
+        "alignment": "DIFFERENT_OR_UNENCODED_QUESTION",
+        "assumptions": [
+          "The supplied classifications and factual stipulations are true.",
+          "No later amendment or other applicable authority displaces the selected clause."
+        ],
+        "candidate_id": "node.11d4e8e1976eb5b2900022be",
+        "case_id": "26ec55.no.solicitation",
+        "facts": [],
+        "rationale": "The case asks about the circular's resulting suitability requirement for investors after complex classification, irrespective of solicitation or recommendation. The candidate evaluates whether a classification basis exists, not the downstream sale or suitability obligation, so this is a different unencoded question.",
+        "source_evidence": [
+          {
+            "quote": "A Fund classified as a complex product will be subject to the SFC\u2019s prevailing requirements for the sale of complex products8 including but not limited to ensuring the suitability of the Fund for its investors irrespective of whether solicitation or recommendation is involved.",
+            "unit_id": "d4148dd852cee.u32.4805"
+          }
+        ]
+      }
+    ],
+    "unresolved": [
+      "The candidate does not encode historical persistence or declassification after a prior threshold crossing.",
+      "The candidate does not encode the separate LAF circular or downstream sale and suitability requirements.",
+      "The exact direct and indirect exposure components and contemporaneous NAV units are not supplied in the percentage-based cases, although aggregate threshold facts are stipulated."
+    ]
+  }
+}

@@ -9,10 +9,11 @@ Engineering makes the approved meaning executable. A later incident may require
 all four people to reconstruct one client or product decision.
 
 This chapter follows that responsibility through one change. It starts with the
-reviewer's view of the decision, then follows the evidence into a tested Java
-control and a release. The detailed service paths, storage rules and task history
-remain in Appendix~\ref{app:full-implementation-record} of the technical companion; they are reference
-material for people who must build or audit the route.
+reviewer's view of the decision, then follows the evidence into a shared typed
+model, tested RuleIR/Java and Catala targets, and a release. The detailed service
+paths, storage rules and task history remain in Appendix~\ref{app:full-implementation-record}
+of the technical companion; they are reference material for people who must
+build or audit the route.
 
 \section{Begin with the decision a person needs to make}
 
@@ -30,6 +31,154 @@ Engineering needs the precise values and histories used to execute the rule. An
 auditor needs to replay the result later. One maintained decision record can
 support all four views if the reader starts with the conclusion and can open the
 reason behind it.
+
+\section{The shared frontend and the Catala routes}
+\label{sec:implementation-shared-front-end}
+
+Suppose the bank wants to calculate an amount from a client's holdings. The
+earlier scalar rule can compare a supplied total with a threshold, but someone
+must calculate that total first. A rule that selects eligible holdings and sums
+their amounts needs the individual items as inputs. Moving the calculation
+outside the rule would move its classification and completeness assumptions
+outside the comparison too.
+
+The shared frontend records the proposed calculation, its source passages,
+scope, factual meanings and treatment of missing evidence in a
+\emph{LegalRuleModel}. Each target translator receives that fixed model without
+making another language-model call. It first checks which operations it
+supports. The resulting \emph{capability report} either permits translation or
+identifies the unsupported expression. A missing operation therefore remains
+visible before a smaller program can be mistaken for the reviewed rule.
+
+The two Catala routes serve different needs. The compatibility route translates
+the supported RuleIR rules into Catala while keeping the existing decision,
+explanation, evidence, transaction and release interfaces. The native route
+translates the shared model directly. For the holdings calculation, a
+\emph{record} groups each item's inclusion flag and amount; a \emph{list} holds
+the records; filtering selects the included items; and summation adds their
+amounts. The RuleIR target reports this collection model as unsupported, while
+the native Catala target can execute it.
+
+Two further types prevent information from being forced into an uninformative
+flag. An \emph{option} represents either a present value or a known absence.
+A \emph{payload variant} combines a category with the data appropriate to that
+category, such as a tagged kind of holding with its associated amount. Neither
+known absence nor a known category means that missing evidence has been found.
+Version~1 already supports these richer values under a complete-input policy.
+Version~2 adds scope conditions, explicit result states, defaults and exceptions,
+exact scaling, separately chosen rounding, and typed calendar and collection
+operations. It also supports pure reusable calculations, called helpers, and
+several named results from one interpretation. Helper calls and type definitions
+must have no circular dependencies.
+
+Exactness and rounding answer different questions. Half of 101 monetary minor
+units is 50.5 units. An exact scaling operation reports that the result is not
+an integer number of units. A separately declared nearest rounding operation,
+with ties away from zero, returns 51. Keeping those operations distinct prevents
+the compiler from choosing a monetary policy implicitly. Calendar operations
+likewise have named conventions: adding a month with month-end clamping uses
+the final day of the destination month when the original day does not exist.
+
+The input policy is part of the meaning. The \texttt{complete.v1} profile
+requires every declared input to be usable. Version~2 also supports
+\texttt{partial.v1}, which follows the observations actually used in the
+calculation. Consider the retained synthetic example of a record whose amount
+is known to be one-third but whose inclusion flag is unknown. Reading the
+amount returns one-third. Returning the whole record gives a partial result
+with the two field states preserved. Filtering on the inclusion flag leaves
+membership unresolved, so the sum is unknown. A complete empty list, by
+contrast, sums to zero; an incomplete list cannot establish that no further
+items exist.
+
+RuleIR checks for conflicts across the facts in a rule's static dependency set
+before evaluating its expression. The partial Catala policy can inspect an
+unaffected field without inspecting another field's conflict. These are different
+policies, so the RuleIR target rejects \texttt{partial.v1}. The compatibility
+route retains RuleIR's original policy. In both native profiles, Python
+validates and encodes observations and decodes results; Catala performs the
+arithmetic, selection and propagation of known, unknown, conflict and other
+declared result states.
+
+\begin{table}[htbp]
+\centering
+\caption{The executable layers used by the completed comparison.}
+\label{tab:shared-executable-layers}
+\begin{tabularx}{\textwidth}{P{34mm}YY}
+\toprule
+Layer & Responsibility & Evidence boundary\\
+\midrule
+Shared frontend & Retain sources and scope; record one typed interpretation, evidence policy and outputs & Common model and interpretation hashes\\
+\addlinespace[0.4em]
+RuleIR target & Execute the bounded scalar and finite-duty profile through Python and Java & Existing RuleIR semantics, traces and release checks\\
+\addlinespace[0.4em]
+Catala target & Lower the common profile or emit richer native Catala with declared policies & Catala build, interpreter, Java and exact-reference checks\\
+\addlinespace[0.4em]
+Host boundary & Validate facts and evidence, decode outputs and preserve provenance & Input, result, package and transaction invariants\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Freezing the model makes a disagreement introduced by translation easier to
+isolate. A missing source qualification can still be present in that common
+model. The source checks in Chapter~\ref{ch:ensemble} address this earlier
+opportunity for error.
+
+\subsection{What the completed checks establish}
+\label{sec:implementation-catala-evidence}
+
+The retained evidence has several scopes. The modular replay sent the same
+frozen model and evidence policy through both targets for 44 paired cases. Each
+pair preserved the model and interpretation hashes, and each compiled result
+matched the original RuleIR evaluator's complete semantic trace. Seven richer
+outputs executed as native Catala, uninstrumented Java and exact checks inside
+the pinned Catala interpreter; the RuleIR target reported those models as
+unsupported. These checks establish finite translation and execution behavior
+for the declared controls. They do not establish that the source readings are
+legally correct.
+
+Version~2 received a separate set of 91 exact checks for the extended semantics.
+Section~\ref{sec:evaluation-catala-comparison} distinguishes these checks from
+the earlier backend tests and source-generation study.
+Appendix~\ref{app:catala-reproduction} in the technical companion identifies
+the commands, source versions, logs and detailed regression accounting.
+
+The common fragment retained its checked behavior, and the native target
+executes the documented richer models. Whether that additional expressiveness
+improves interpretation or review is a separate empirical question. The
+completed engineering tests do not supply a performance or legal-quality
+ranking, human review evidence or production approval.
+
+\subsection{The bounds that remain part of the interface}
+\label{sec:implementation-catala-bounds}
+
+The native profile is a closed typed vocabulary with acyclic helper and type
+graphs. The generated interface enforces declared limits on native types,
+expression depth, inputs and outputs, candidate source size, observations and
+expanded types. Imported modules outside the pinned library set, recursive
+types, arbitrary Catala operators and unbounded collections remain unsupported.
+All-output execution now evaluates the sealed program once and returns each
+output with the same value, status and evidence as an individual call. A resource
+report exposes the type and depth expansion introduced by state encoding before
+compilation. The earlier directly
+authored native programs could raise an execution failure for conflicting
+consequences. That historical behavior must be distinguished from the completed
+shared translator, which encodes strict exceptions and structured result states.
+Two active exceptions conflict there even when their consequences agree.
+
+The current native trace records branches emitted into Java and their source
+positions. Observation hooks are added after the ordinary compiler passes, so
+both the original and instrumented compilers run the invariant checks, including
+the nested-scope check that the first tracing implementation could not pass.
+Standard-library internals and source choices removed by optimization are not
+observed. Comparing plain Java, instrumented Java and the original Catala
+interpreter helps expose changes introduced by tracing, but those finite checks
+do not prove that the instrumentation preserves every program.
+
+These limits are useful precisely because they are visible. An unsupported
+construct produces a capability report or a reviewable build failure. It is not
+silently rewritten as a smaller rule. A bank release would still require the
+source, interpretation, evidence mappings, identity controls and approvals
+described later in this chapter.
 
 \section{Follow one change from source to release}
 

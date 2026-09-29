@@ -1,0 +1,391 @@
+\section{Checking executable quotations and calendar comparisons}
+\label{sec:executable-dates}
+
+The processing repairs leave two precise engineering questions. Can an
+interpretation proposal point to the exact executable expression it discusses?
+Can the date comparisons in the retained UCITS proposals receive a formal
+preservation check? Both questions can be addressed without making a model's
+legal judgment an answer key. They require different evidence: one concerns
+the identity of a quotation, the other a declared mathematical meaning.
+
+\subsection{A quotation must identify the actual expression}
+
+A source quotation and a program quotation have different subjects. The first
+identifies words in a circular. The second identifies the expression proposed
+to implement a reading of those words. A model may quote the right circular
+while describing a formula that was never encoded, or quote an older formula
+after its exception changed. Neither quotation supports a claim about the
+current executable expression.
+
+The first optional executable-reference protocol, version~1, binds each
+selectable passage to the complete request, candidate reading, exact question
+and representation. It provides separate references for the scope expression,
+result expression and complete representation. That first design leaves a
+subtle problem: the representation also contains freely written fact
+descriptions. A description containing a line headed \texttt{Scope:} can look
+like the start of a second program expression to a text-matching routine.
+Accurately quoting that description would still fail to identify the proposed
+program. Likewise, a hash supplied alongside a representation cannot establish
+that the representation came from the retained reading. Both can be changed
+together.
+
+Version~2 therefore starts with the reading and question retained by the
+investigation, independently of the request being checked. It parses the
+reading's scope and result, renders those two expressions using the existing
+controlled language, and locates their program block after the fact
+descriptions. Only these expressions receive selectable references. The entire
+representation remains visible so that fact meanings and qualifications are
+available for reasoning, but explanatory prose does not become executable
+evidence merely by resembling a heading. The transmitted reading hash,
+question and representation must match the retained originals before a model
+is called and again when its response is resolved.
+
+Each reference records its expression kind, the reading and question hashes,
+the formalization and representation hashes, and the exact Unicode character
+positions of the quoted expression. The model selects the identifier;
+deterministic software retrieves the original text. Changing the request,
+reading, question or expression invalidates the old selections, even when a
+short expression looks identical. An expression owned by another candidate
+cannot be borrowed. The parser and renderer remain software assumptions in
+this transport check; the separate preservation proofs address their stated
+formal boundaries.
+
+Exact identity includes the type of each recorded value. An integer character
+offset of zero and the Boolean value false are different JSON values, although
+Python's ordinary equality treats them as equal. A reference-table check based
+on that equality can accept altered metadata while returning the same quotation.
+The source and version~2 executable resolvers therefore compare canonical
+serializations, which preserve this distinction and reject floating-point
+offsets. The regression challenges these substitutions before any text is
+selected. This check protects the evidence record; it adds no support to the
+interpretation attached to that evidence.
+
+An unencoded reading has no executable references. Its correspondence must
+remain unassessed, or be declared inapplicable to the question with the
+separately required justification. Software rejects a preserving, conflicting
+or omitting executable judgment for such a reading. It does not repair a
+response by relabelling its substantive judgment. After references are
+resolved, the original source, question and correspondence checks still apply.
+Exact quotation establishes what was discussed, not whether the discussion
+is right.
+
+The investigation uses source references while extracting claims, proposing
+readings and defining questions. It adds executable references at the later
+correspondence stage, when both a particular reading and its question exist.
+This routing is part of the recorded method. The resolver changes quotation
+identifiers into text; it preserves every status, rationale, follow-up question
+and additional concern. The existing semantic validator then checks source
+quotations, question identity and compatibility between the proposed judgments.
+For example, an exact result quotation still cannot support a preserving
+judgment when the same response says source support is unestablished.
+
+A rejected response retains its original batch, perspective and reservation.
+The next bounded attempt receives the diagnostic and prior-round evidence;
+the two perspectives in one round receive the same earlier evidence. Failure
+at the attempt limit leaves the required pairs unresolved. Version~1 records
+remain historical records rather than being silently converted into successful
+version~2 observations. Replaying a response under the new selection rules is
+possible only where its original quotation names an available expression
+exactly. A longer prose quotation or a malformed paraphrase is reported as
+unselectable, not replaced with evidence the model never supplied.
+
+\subsection{What a calendar comparison means}
+
+The retained UCITS readings use a date to delimit a proposed regulatory
+condition. The legal selection of that date remains a separate question,
+but its mathematical comparison can be specified independently. We use valid
+dates in the proleptic Gregorian calendar, from year 1 through year 9999.
+``Proleptic'' means applying the same calendar rule throughout this range,
+without reconstructing historical national changes of calendar. The accepted
+spelling is the fixed-width form \texttt{YYYY-MM-DD}.
+
+Let $y$, $m$ and $d$ be a valid year, month and day. A Gregorian leap year is
+divisible by four, except for a year divisible by one hundred unless it is
+also divisible by four hundred. Thus 1900 has 365 days and 2000 has 366.
+The number of days before the start of year $y$ is
+\[
+ Y(y)=365(y-1)
+       +\left\lfloor\frac{y-1}{4}\right\rfloor
+       -\left\lfloor\frac{y-1}{100}\right\rfloor
+       +\left\lfloor\frac{y-1}{400}\right\rfloor.
+\]
+The first term counts ordinary days in preceding years. The remaining terms
+add four-year leap days, remove century exceptions and restore four-hundred-year
+exceptions. Let $M(y,m)$ count the days in the completed months of year $y$;
+it is zero in January and includes 29 February after February in a leap year.
+The zero-based ordinal of the date is
+\[
+ O(y,m,d)=Y(y)+M(y,m)+d-1.
+\]
+Consequently, 1 January in year 1 has ordinal zero. Moving to the next valid
+day increases the ordinal by one, including across month and year boundaries.
+
+The checked proposition equates strict comparison of these ordinals with
+lexicographic comparison of valid year, month and day triples. The proof first
+checks that successive year starts differ by the correct 365 or 366 days.
+Month lengths and starting offsets put every valid day inside its year, with
+each month ending before the next begins. Dates in different years are
+therefore ordered by their year starts; dates within one year are ordered by
+their months and then days. The integer rank $372y+31(m-1)+d$ has the same
+order: it reserves 31 positions for each month and 372 for each year, enough
+to prevent overlap between components. Those deliberately padded positions
+express component ordering; they are not elapsed-day counts.
+
+The independent formal-expression parser now accepts canonical date literals
+and date facts in supported comparison expressions. It reconstructs the same
+constructor tree as the shared model, and Lean checks that equality. The
+calendar theorem supplies a declared meaning for date order; the constructor
+theorem checks preservation of the expression using it. Neither theorem
+chooses the date intended by a legal provision. Evidence timestamps,
+business-day calendars and date-arithmetic library functions remain separate.
+
+The implementation also checks the representation boundary. Java compares
+canonical date strings, while the Catala adapter uses a day count relative to
+1970. Subtracting the same epoch from two ordinals preserves their comparison.
+An independent calendar implementation is compared exhaustively with accepted
+canonical spellings and the production Python date codec throughout the
+declared range. Native challenges exercise equality, inclusive and strict
+comparison, leap days, century exceptions and both endpoints through the
+actual RuleIR/Java and Catala routes. These are checks of the codecs and
+selected runtime cases. The Lean theorem does not prove the Python libraries,
+string comparator, Java compiler or Catala compiler.
+
+\subsection{Stronger formal evidence with legal questions retained}
+
+All eight encoded UCITS readings received constructor-preservation certificates.
+Their sources, readings and questions are unchanged; the ninth remains
+unencoded. The replay supplies no invented dates. Pending-application,
+incorporated-authority and legal-date questions remain unresolved.
+
+A later audit reproduced the three Gregorian propositions, all 3,652,059 valid
+dates in the declared range and preservation evidence for the eight encoded
+readings. Its 49 known-date cases ran on each target, giving 98 native
+executions. Eight additional requests with unknown or conflicting inputs
+abstained at the shared input boundary before either target executed. These
+requests check the common boundary and cannot count as independent native
+results. Their behavior also supplies no theorem for arithmetic on unknown or
+conflicting dates.
+
+Independent Boolean relations also check the HKMA calculations of
+Section~\ref{sec:joined-eligibility} over their full Boolean domains. Omitting
+each broker-exception condition produces a counterexample. Both backends
+execute the proposals and abstain on incomplete or conflicting input. The
+earlier eligibility increment passed 338 affected tests and completed 234 product
+and date executions. Every real-document report retains missing bank and legal premises.
+
+These results close specific software and mathematical gaps. Program agreement
+does not establish legal correctness. Theorems cannot supply private bank
+mandates or account records. Future rules require new observations under a
+frozen method, before further repairs. Development cases remain development
+evidence; future failures and qualifications must be preserved.
+
+\subsection{Continuing an investigation without erasing its failures}
+\label{sec:continued-investigation}
+
+An additional computing allowance can help investigate an unresolved reading,
+but it changes neither the source nor the evidence already obtained. The UCITS
+investigation illustrates the distinction. Its earlier ensemble had reserved
+92 requests under a 120-request task limit. A later allowance of 500 requests
+therefore left 28 requests available for that original task. Failed requests
+were already included in the 92. Counting only successful answers would make
+an unreliable method appear less expensive and give it more opportunities to
+produce a convenient result.
+
+The software keeps the old allowance unchanged and records the additional
+grant separately. Before dispatch, it checks the original task balance and the
+history of the particular source claim, proposed program, question and reader
+perspective. Repacking the same question into a smaller batch does not create
+a new issue. Nor does adding an executable-reference identifier: that identifier
+helps locate evidence but contributes no new substantive question. In contrast,
+an amended source must be retained as a new edition whose relationship to the
+old reading is investigated explicitly.
+
+Time limits also belong to the original issue. During the continuation, one
+pair's deadline expired after the initial eligibility inventory but before
+dispatch. The guard stopped the request before charging a model call. This
+case requires checking eligibility immediately before dispatch as well as
+during planning. The excluded pair remains in the report. It cannot disappear
+from the denominator merely because the other pairs can still be processed.
+
+The first live version~2 batch supplied two validated proposals for eleven
+pairs; one pair was excluded by that deadline. The two responses retained an
+unresolved correspondence assessment: one of the eleven pairs concerned a
+reading that had no executable formalization.
+These are distinct observations: a response can obey the evidence protocol,
+two perspectives can both be present, and the substantive question can remain
+unresolved. The same model supplied both fresh contexts, so these observations
+do not measure independence or accuracy. The subsequent execution record keeps
+the pair counts, disagreements, invalid responses and expenditure separately.
+
+The broader continuation supplied both perspectives for another 47 pairs.
+Together, these runs added 58 pairs with two validated responses to the earlier
+165, leaving two of the original 225 pairs outside that coverage because their
+original deadlines had expired. Among the 58 newly processed pairs, 42 had all
+four dimensions assessed by both perspectives. Twenty unresolved or disputed
+pairs remained in these new results, including four with differing dimension
+judgments. An unassessed dimension and a disagreement are different reasons
+for retaining a question. The earlier 42 disputes remain in their original
+record; the new totals do not erase them.
+
+A later follow-up lost its upstream connection. Its reservation remained
+spent, bringing the continuation to 17 requests and the original task to
+109 of its 120-request allowance. Concurrent work also changed the shared
+package while this run was active, so the controller refused to certify a
+stable method identity for the run. Every returned response was subsequently
+rechecked against its unchanged source, reading and question without another
+model request. That rechecking establishes the retained reference and response
+checks, not a retrospective method freeze. Later phases execute copied source
+trees so that work on another module cannot silently change their method.
+
+\subsection{When a correct transport still cannot finish the task}
+
+Exact reconstruction of a compressed request answers a software question:
+did the model receive the intended material? It does not answer whether the
+model can return the required result within the available time. The
+authentication-source diagnostic made this distinction concrete. Its input
+contained all 263 source units and 263 deliberately unresolved synthetic
+concerns. Both fresh attempts to return a disposition for every concern hit
+the five-minute deadline, although the request itself fitted the byte limit.
+The concerns were constructed to test accounting; their existence was not
+evidence of 263 defects in the circular.
+
+The repair partitions the requested answer while retaining the whole input.
+Four groups contain 66, 66, 66 and 65 concerns. Every request still contains
+the entire source, the interpretation, all questions and all concerns, so an
+exception outside the requested group remains available to the model. Each
+answer must account for its selected concerns exactly once and retain the
+original questions. The joining check rejects repeated or foreign concerns,
+lists missing groups and retains differing question dispositions or proposed
+revisions. Accounting for every identifier does not prove that cross-group
+legal interactions were understood; that remains an explicit qualification.
+
+The first smaller answers exposed a separate error. The response format
+required a cryptographic hash for each question, but the request supplied no
+such mapping. A model with no calculation tools could copy a supplied hash
+but could not reliably compute the required digest from the question's JSON.
+One response substituted zeros. The validator correctly rejected it. Earlier
+synthetic tests had calculated the hashes inside their test provider, concealing
+the missing input that the actual model faced.
+
+The corrected transport calculates each question's digest before dispatch and
+supplies the mapping explicitly. The output schema permits only these supplied
+hashes, and the validator still checks which question owns each one. Supplying
+this deterministic bookkeeping value introduces no legal answer key: the
+question's status, rationale, evidence and uncertainty remain the model's
+proposal. The changed request contract also changes the cache identity, so an
+old result cannot silently stand for execution of the repaired request.
+
+Both full-output timeouts and both smaller invalid responses remain in the
+record. The first 66 concerns have consumed two attempts per perspective;
+the repair has only their remaining third attempt. Later groups retain the
+attempt spent on the original full response. A failure stops further expansion
+of that perspective and leaves every missing concern visible. This example
+shows why a repair must address the observed cause while preserving the
+history that made the cause visible.
+
+The final bounded run returned eight validated responses, one per group and
+perspective. Each perspective accounted for all 263 concerns; the joining
+check found no differing question statuses between that perspective's batches
+and no proposed replacement interpretation. The twelve-call diagnostic budget
+includes the earlier four failed requests. The result demonstrates complete
+response accounting for these synthetic concerns under the repaired input
+contract. It supplies neither a legal accuracy estimate nor evidence that
+the two perspectives are independent.
+
+\subsection{New source evidence changes a particular premise}
+
+The earlier tokenised-securities experiment in
+Section~\ref{sec:invariant-decisions} received circular 23EC52 without its
+separate appendix. A later source revision joined the retained circular and
+the acquired three-page appendix into a 177-unit packet. The revision preserves
+the predecessor's six authority questions and its extraction findings. It does
+not copy an earlier model judgment into the enlarged context and call the
+question settled.
+
+Both fresh first-round proposals distinguished the newly available appendix
+from legislation still absent from the packet. They proposed that the appendix
+references could now be inspected directly, while complete legislative
+provisions, exemptions, relevant editions and transaction applicability remained
+missing premises. Their precise explanations and alternative readings were
+retained alongside exact source selections. These are proposed answers from
+the configured model, rather than a finding that the English meaning has been
+proved. The source revision closes an availability gap within this packet;
+it does not close all the legal questions that motivated retrieval.
+
+The first follow-up could not be sent within the unchanged 200,000-byte bound.
+It contained both earlier proposals as well as the entire revised source.
+Lossless table encoding reduced that exact request from 209,707 to 190,946
+bytes and reconstructed it without a change. Subsequent processing retains
+the original role spending and deadline. If later proposals make the context
+too large again, the system reports that limit; it does not discard an
+inconvenient reading to make the request fit. Neither successful retrieval nor
+successful compression supplies the still-missing legislative premise.
+
+The encoded follow-up returned another proposal from each perspective, leaving
+four retained proposals in total. All four reported partial source support and
+missing premises. The next round exceeded the byte limit again as the retained
+proposal history grew; both requests stopped before a model call. The source
+question therefore remains qualified with an explicit processing limit. It
+does not become resolved merely because both perspectives named similar gaps.
+
+\subsection{A future observation belongs to the whole interpretation method}
+\label{sec:whole-method-observation}
+
+Consider two programs that produce the same formal expression. One receives
+the full appendix; the other receives a text extraction that omits an exception.
+A proof checker may accept both instances of that expression. Identifying only
+the checker and expression would conceal the difference that matters most to
+the legal question. A prospective observation must identify how the source
+became an interpretation, as well as how the interpretation became Java.
+
+The full method therefore records the extraction software and model locks,
+the configured model route, generation and search settings, the mechanisms
+for proposing questions and investigating authority, the source and executable
+reference protocols, the issue limits, and the qualification software and
+toolchains. The dispatcher derives this record from its actual configuration
+before beginning an investigation. Each completed investigation carries it
+alongside the raw source editions, selected question and individual stage
+records. A later verifier compares those records with the frozen method and
+rechecks the qualification attached to every retained candidate.
+
+This comparison serves a specific purpose. A changed extractor, search budget
+or reference protocol makes the result evidence about a changed method.
+Missing authority processing cannot be concealed by a successful Java build.
+A different source edition or question cannot borrow another investigation's
+qualification. Every claim--candidate pair remains accounted for, and an
+unencoded candidate remains visible. A missing stage or failed verification
+leaves the submitted task pending or explicitly incomplete; it does not become
+a successful observation through a summary label.
+
+Selection precedes observation. The study freezes its method, source families,
+publication window and development-source identities. It retains every
+submitted task, including an ineligible submission or an unfinished
+investigation. The raw primary document identifies the source even when
+additional background documents are attached. The retained stage times must
+follow admission into the study; a previously completed run cannot count as
+a new observation simply because its hashes still match. If observations
+motivate a repair, that window becomes
+development evidence. The revised method needs a later window whose sources
+were not used to make the repair. An older window that bound only the final
+qualification checker retains that narrower meaning; it cannot be relabelled
+as a study of the entire interpreter.
+
+A first encounter after the frozen window closes remains outside that study,
+even if the document was published earlier. Renaming a task does not turn the
+same source and question into another eligible observation. Different
+questions about one circular may still be investigated, so the report also
+counts distinct primary sources. Neither count establishes independence of
+legal questions or of circulars issued under the same regulatory regime.
+
+The resulting record can establish that a stated method processed particular
+retained inputs and that its mathematical and executable qualifications passed
+their registered checks. Locally retained hashes do not authenticate remote
+model execution or a fixed remote model revision, establish the publisher's
+clock, or prove that every eligible
+publication was submitted. Binding dependency lock records also does not
+attest the installed contents of every third-party package. Those limits
+accompany the study report. Most
+fundamentally, an unchanged method and checked program do not establish that
+the legal premise was correctly understood. The value of the record is that
+future failures remain attributable and challengeable, while the propositions
+actually proved keep their precise mathematical scope.

@@ -1,0 +1,754 @@
+{
+  "$defs": {
+    "ConcernDisposition": {
+      "additionalProperties": false,
+      "properties": {
+        "concern_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Concern Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "RETAINED_UNRESOLVED",
+            "PROPOSED_SOURCE_EXPLANATION"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Quote"
+          },
+          "maxItems": 12,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "rationale": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "concern_id",
+        "status",
+        "evidence",
+        "rationale"
+      ],
+      "title": "ConcernDisposition",
+      "type": "object"
+    },
+    "Control": {
+      "additionalProperties": false,
+      "properties": {
+        "control_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Control Id",
+          "type": "string"
+        },
+        "question": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        },
+        "unit_of_assessment": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Unit Of Assessment",
+          "type": "string"
+        },
+        "actor": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Actor",
+          "type": "string"
+        },
+        "temporal_basis": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Temporal Basis",
+          "type": "string"
+        },
+        "result_kind": {
+          "enum": [
+            "REQUIREMENT_APPLIES",
+            "REQUIREMENT_SATISFIED",
+            "PROHIBITED",
+            "COMPLIANT",
+            "DUTY_TRIGGER",
+            "DUTY_STATE",
+            "CLASSIFICATION"
+          ],
+          "title": "Result Kind",
+          "type": "string"
+        },
+        "true_means": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "True Means",
+          "type": "string"
+        },
+        "false_means": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "False Means",
+          "type": "string"
+        },
+        "source_evidence": {
+          "items": {
+            "$ref": "#/$defs/Quote"
+          },
+          "maxItems": 12,
+          "minItems": 1,
+          "title": "Source Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "control_id",
+        "question",
+        "unit_of_assessment",
+        "actor",
+        "temporal_basis",
+        "result_kind",
+        "true_means",
+        "false_means",
+        "source_evidence"
+      ],
+      "title": "Control",
+      "type": "object"
+    },
+    "FactDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "bool",
+            "integer",
+            "money_hkd",
+            "date"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "meaning": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Meaning",
+          "type": "string"
+        },
+        "unit": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "source_unit_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Source Unit Ids",
+          "type": "array"
+        },
+        "requires_judgment": {
+          "title": "Requires Judgment",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "meaning",
+        "unit",
+        "source_unit_ids",
+        "requires_judgment"
+      ],
+      "title": "FactDefinition",
+      "type": "object"
+    },
+    "Formalization": {
+      "additionalProperties": false,
+      "properties": {
+        "facts": {
+          "items": {
+            "$ref": "#/$defs/FactDefinition"
+          },
+          "maxItems": 30,
+          "title": "Facts",
+          "type": "array"
+        },
+        "scope": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Scope",
+          "type": "string"
+        },
+        "result": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Result",
+          "type": "string"
+        },
+        "result_type": {
+          "enum": [
+            "bool",
+            "integer",
+            "money_hkd",
+            "date"
+          ],
+          "title": "Result Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "facts",
+        "scope",
+        "result",
+        "result_type"
+      ],
+      "title": "Formalization",
+      "type": "object"
+    },
+    "Interpretation": {
+      "additionalProperties": false,
+      "properties": {
+        "reading": {
+          "$ref": "#/$defs/Reading"
+        },
+        "reading_question_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Reading Question Id",
+          "type": "string"
+        },
+        "questions": {
+          "items": {
+            "$ref": "#/$defs/Control"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Questions",
+          "type": "array"
+        },
+        "uncertainty": {
+          "items": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 40,
+          "title": "Uncertainty",
+          "type": "array"
+        }
+      },
+      "required": [
+        "reading",
+        "reading_question_id",
+        "questions",
+        "uncertainty"
+      ],
+      "title": "Interpretation",
+      "type": "object"
+    },
+    "QuestionDisposition": {
+      "additionalProperties": false,
+      "properties": {
+        "question_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Question Id",
+          "type": "string"
+        },
+        "question_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Question Hash",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "EXECUTABLE_PROPOSAL",
+            "NON_EXECUTABLE_PROPOSAL",
+            "UNRESOLVED"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question_id",
+        "question_hash",
+        "status",
+        "rationale"
+      ],
+      "title": "QuestionDisposition",
+      "type": "object"
+    },
+    "Quote": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "span_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "enum": [
+              "span.8f7dfe912285b928944aa811cfe965550afcb33902101aa4fde7a18bea9f8d32",
+              "span.4807a72e859c26321c3c52c1db89ee6b3f552bedbb7d8801f0b7895032cd5b36",
+              "span.0847c1636bbe48c399d19591284c4376f1d11e6620350a23652a9e7d787fa804",
+              "span.ba7bff42b88d1b899881f6ae5d497867bfdc0e3dbd7fc5611d5fac456bd32cfe",
+              "span.2aeee7bc644eb5d37e53e8ef0d75375c0a5efb86fb8129cff5121a119dcadbc4",
+              "span.9d388146a971e4811e9465bb04fed3d0b6b1aced13b466163729273086b688cb",
+              "span.e5e3317e6a7470d95e59f540455a702ff09c19d04fcbdcb1869087b19a3b2e58",
+              "span.0e49f68bfed5581a5db519eea3e474f1d5dad6599f63a31a2af3706f9031525a",
+              "span.79fab58a59c58a4cefefbf08ef81de0b48cf9eb033ba88518fa29a283694ab07",
+              "span.bb900179141b832b54af90ef4cceb2694484e0711c7562c72459d2d1a94c0554",
+              "span.e5d3eaec7a300e43cbb5c297eaf064d3e3a4ec80552fb9f5eb130dfd9196b3cf",
+              "span.e73124ad6a0f9393268860c3322db9c0d840ff0bbf1a747842aec4ffa70f2368",
+              "span.3d58d20b7ad12152aabf6bd525a412990dc19e5c8c4bb4d5bf37450f05f1499e",
+              "span.b2cdb202a821e9bddb4cb5e30020d5137b89078923cdbcaef60aac596010ab72",
+              "span.f6ec7ec45ad931777c639d2fccaea19cdc0603281fc8fb93b67c7fea0849b2a4",
+              "span.9dff5c5ca4d189a3e776a25b753f58956cde786bc0e3a678ca8a923a33902645",
+              "span.523a6a05473b855340eec86b2c9569f695c1560db11b851fd0c86096084bae60",
+              "span.370ac341e1693c2b37d8a7d614e26d646def96770a6554ceb1c4e38367987ec6",
+              "span.112aed68fd6e459625b410e3ecbbcb70fd5b5c42925e935f689a3bc9b49433e4",
+              "span.355f15ea1065308e7e564b4a20eb81d096a7070cc8e287dcc3b1aae16536f524",
+              "span.4ea963699cd17a7a78304cf3e31872d38d8f19109703f948c98b78338303e956",
+              "span.2634db7a0de552c7bc181b83f965b0836fd6ce1bed77ce8759be6bc3cf37dfc3",
+              "span.30e314903cc7605da269a7c9aa301bf22db304a48c3385e1aff26bae1d956b65",
+              "span.5467c86bfc2ddd9d94c51f66864e406521a421a853405ed056ec8d182229b480",
+              "span.01b0ca65438ed015345571859bcf06d67fa7a0553919f2878644d8880e5a313f",
+              "span.38145919acaaa2c72fbb3d7096ccd4d44a798b989bc627811cad7e5ec9b26502",
+              "span.5c14988cd0d5d88db72c11992054fc938c602a9e6d99e5cfeee47d17308b9c43",
+              "span.b8ce956a777ec81af7816ec91edd7b754e93c7ba50deb694fa9ac348931857d3",
+              "span.43b1e0caeab1daade4e2a3dea8f750546c9e2f41098964a8749d7789192119a9",
+              "span.f8287b7bf08dc318f201bd8d1958a28d3264d0242e1e45339b9288120c02f42b",
+              "span.15c0f7d0e75945417078952ef9a372613c2d8c7a0c3c287bc76d253b9be9ef3f",
+              "span.cb82dc1a8366db9fad9e3dede9e0d17a18c4a1ed1437f62a6aa4ecd48152de5e",
+              "span.7c8f3ec317c6a4ef930b076b8bcde5333ce46e400c5b9a33c91887202bc16540",
+              "span.3368328096461c6f98b821f7383ce8c4c2c4c2f4261b79693ae9bfbd74b37ee8",
+              "span.4d498277938e9ec1c5e1b1c3d4dc2525114822f340594f79974a1a4d789e604c",
+              "span.b306343166a573da17b4f44ddd65bc95816b9773d4394aa107ccbe6d87d4ce06",
+              "span.4d3af2ddaa2618d5e0bb8cb8280354445949e64cccf75d7f968ddbdd161682d2",
+              "span.6ecfb63bef0da206b9ceeb1f1d3776436a10f0090f1950508201c184bfb4a288",
+              "span.2621aed2f2c6acb7372a01c377bf3a27e35daf1ffd013bf0334474516e7d316c",
+              "span.fc8f1445002ee22196344ba276c0a73cc94b851ff46d5f9d28e328bbfd097f56",
+              "span.ed487f9346f3022b72f27bd289c6719e6b643bd11b06b4b16a7fbf5d8610830d",
+              "span.953129f996c5a9d9b22dc4e710da56c15e91a7ee896ec52f14be4b12bbe99a8c",
+              "span.a8df140ded2149a54452d26237eb6c340bad7fe6c7039c522fb93a2a2015d7e1",
+              "span.6bfe0ebf8a746a0c7cb4be5b23393262f836c2fc2bfe65f10fd8aaf1669c164b",
+              "span.5ad8477e5ec4986b03557ce728b3723c42ac874f046679bc82dd81c311191834",
+              "span.cd65967190e9becbaa83bb5c51dc79b8d887f47bf12eb4c0db43e0d244ab7e1b",
+              "span.ffd525edd4034b8b191af2a434f63c0dfc33fdf882942cd5d50ba6174c4c0c33",
+              "span.05dc15947d2807530b298df80153307defc6afb7d9012001e203687669f1ce0e",
+              "span.46c8423f80ed7cdd5c450e2ad109b8ddaf9ae6bc6ee53f1a97ad82fe6bb578be",
+              "span.1fe4ffbcaddd04c47c2e6257953e6254626b1150e27fc80a41518c8ba756f741",
+              "span.4691106f0ba326923f0e9dd2d9343d566985301432b323fccda888a18341e1f6",
+              "span.185d40e05a1efe95c11f4d86846c0b56d4bd0607bcd4952dae3d1536fc589dcf",
+              "span.077a7b13d76087edca62b2838dc2722d0f69379079676f63f5831fed037d0a83",
+              "span.e38d7247f248d58b7070813f46a64a77efb0658bd787464968e89d9ffc45b4fa",
+              "span.ac4a4fdb6ffa9e57b18e45d515c203922db29f97673cd0e9653ed80a06b127d6",
+              "span.9f87b6770198d5b0850d5d22388d803bd9f0d3a3049b77538abdd2ad3a58a71d",
+              "span.167c150ba17295f77220ac8168b610408a2316bebe8348e4516eb21115bf0fef",
+              "span.4d3146c96e52481911d585d2dcccee8daba7927b27279bcc6a9c00a96075b581",
+              "span.8a57a31b996fe88802b5bf2b1bd41e15989f6b717512d46109fe6ef607ba7f0f",
+              "span.8df33dcb3e771e92862616818f7533f430ba4b3fbe637a2cd58b0fcd3e8f0483",
+              "span.1fa7ee896992685df815c9c1472cfc45950ad3231ed7d94b76bb85a38ff68cc0",
+              "span.b3ec48d9e6fe31ca5df4034e7598e8b8ea36fd85355225881a8221dfb5d15c89",
+              "span.b1d5b6cfc655595b6e708ad39433a85a138d4279f387a7460258377c5c5f94db",
+              "span.6a2bd73b9ca04575d14ead9341025e5db091ee757c0f5b1f2506d375a344d220",
+              "span.91ec1c8d4c03b7177566eb5699a1dba72e08001249c7a007f6fc5ac7c4ca882a",
+              "span.e7da205b2c72051bec88e22cbdb646b44fdca684e6f79bb52530a895bc7be3c7",
+              "span.fcb4805c346c94ce5ab364f39e69770a7c3b8750fabf1ecb5ada9676d3a1d993",
+              "span.b3eafea4b4eb6211f3b8255dcb823cf0c16c0868cc8fc20cb417abe445a0625a",
+              "span.6088c8ca9b4ac1adac94b86cdf2ca8737b5066d83106c2a8412dd7771257669f",
+              "span.9db82ab9cdbb492f5ef305735a5057cd67b907c742848491dda10f4c99eafb54",
+              "span.30240fba598d99ca70ad94825330f2ea587675e0459815f587d74593a586a5b1",
+              "span.fe8ac69dec3ac847617122bbbaef5962e05032a6512d3141428af4aa064274db",
+              "span.1028119e4ff4de3e37eda8c08169519bd150e79145a0ffc4cf3c0adcf7b1ed38",
+              "span.16b2adc1cbaa61859e96b08e4aef8bba4365efeaf945ed513f0c49db5a74cd88",
+              "span.1314ad89af15ca4ff1c20d1f77fa211cb96ac49709fe10d91a00f32646ae56e9",
+              "span.3edd50beb7204a063ed7ae0ea7d2974b051d9fbc3f9f5b1377fb2759513f1a1e",
+              "span.8503c4eaf96be14f2438132413e0409e3b4b7cc82faa19becd07d45e8b3bc663",
+              "span.e3e69dea4824d23ac4459fa6c62b88475fe1ac39a38bbe7ab059c88bb6de3036",
+              "span.6d6e1bf89e3d3d9be7f247c85f46392589f5758d182b76242c9cba46726360ef",
+              "span.1f82d73d1039edbec2a9104397176b19be84c4e010b715d2a7eadfbd19fc0010",
+              "span.ba3fb315690b32fda34533c417017b507902c207c535f3d0663b48d1d8957099",
+              "span.78439806a370fcf2127a3b07de4d61af31da0a52793aecd9234f796410bc4a94",
+              "span.9859ff9a151bd7cab29a002d761e9a48f8e4688aeaf1aa5a93710b9635410cf0",
+              "span.294820b8c66d56433d272a7f46c88ea3a03ce82aef7dec508708207867c0e186",
+              "span.d30c2c6a75a6b3428f617fc611d3a7b4156e2e1ef4e7d76c4446ff16aa1c0a5f",
+              "span.de77d0b5accf3e847dd0b070e4503ee3b0c84b66f00659fb3760931b79f0828d",
+              "span.fa6d0b41f49281ea1ee1a2ce8bd8c1f34507464f48549ceaffe251c1f56fdfbd",
+              "span.e74f2b1963209d08235d16bf457fdf52eb1c6d0839d94bb70bde6a3cec355f8c",
+              "span.072090c870dbba013e74906beaa069e629d1e17b13f4bdf99532f62f8c911b61",
+              "span.af21d6981382ee3c7e28aff867e6ffd774ec158e22f8fd865730e5f108dcaed2",
+              "span.48c5918614e7ec291990ffc66e0d09a70b70a5c143588ab5e71ec6f4fd6e2402",
+              "span.a56090a512f8db90d61564efc232d37fed16c7bd36dec43123c5ab60e5b3c632",
+              "span.acafee1e1feabc8416cc4f9c92d06500e21554675193f6dec68f5e82137c9b4f",
+              "span.18709be5805233487d49a464cf099ca1db5796ae59253a727da6fbbbb9ed2f9a",
+              "span.6a5c8d5a6042f15d4243700ad55c086cd200610989ed4ab1c5b8defde1fa7e01",
+              "span.806e9d9e0925f996263ff18bf4183c508c8b935514f42e6e97772991e8a84afc",
+              "span.64f67e3278be95beeb88ce057b6a3a702725dc56271630a79cbbdc7404045f10",
+              "span.10ad84fb297267bb6a7afdfc8fe71337cbbe0743d6a7828a88b80e80793a5a7f",
+              "span.feee752c316edff6045482c728c386fb6b7edb022bcd52a0672f4745a9c04f0b",
+              "span.068e340d4ba4012be92a269b7251bb158abf347a177b4ce2372c1e24dc25396d",
+              "span.ba94a9ef2823bb8e211073b6f8db01c4f86f99e5521b19596d69aec449a74b95",
+              "span.e3c4a248692e6378bf1d83a664a1044f97a33448a9d89c03792f5e383ce160a3",
+              "span.f9dfd87916a0cfde141193231805c3df1c03c8d9a94d57452ae0ef68bdfcd46f",
+              "span.5835adddef4e77b39765a9212282f4e8c73407df870127bb055f7e8ea7d3a8d3",
+              "span.7f032d40a8c589cc828066a7618ebbac1253b6fcbea3b3560671eb8fa171f451",
+              "span.1d2ab64dc919246de1b428ba5e27aeb5f11b81a06312d05ecfa8313425171b21",
+              "span.8794157a7c3ba866ade5242550ea16d96fb3cef361c6f261dec9d6ce5c055b93",
+              "span.b70f8fa6d2158fe29d8d7a58cb77f9f39bdded36785af72ababeca482a7fb803",
+              "span.24a88166ed824373db19d6793aa4b8d20eb3e726ffe2a95f09891c3a7c56d424",
+              "span.b57e632a898d2c030c8a7a1b11295da3092a9605b65dd470ffbe554e3c4f30f3",
+              "span.8ae8ee37e4a360cd13733b41f4af2164718fc0d6eae123be1707f2abc490ad33",
+              "span.57aa706e6a1e2a0767583c235d55166cfd6718c71709ef6461757549e6b65300",
+              "span.721d9cf6d5b6e8bb1bdfa617b3f4c89a6063173c51fba395b7449c8754e8633b",
+              "span.9cf8be5008270eaf14c60227243eaeb146442c3d2843bdcfeb3b9dad62a11b8d",
+              "span.2ca6c7d6f49efde3cb6c5a2a1aedd500d94a67319e7ec133ccd5bc9550ddf753",
+              "span.d6e2bbb839176f4cbe8124b5f46dc8b404bf93ed05c39c9887605f769faba157",
+              "span.a197664c66096e4c87ef65c9b67d817ed59eeaa78b493f4b91056c77d625b7f7",
+              "span.3bc11c17dfdf76ddf8db9cfba7457fba1684c633189ed320dedf662b83b6e03b",
+              "span.17262933bd8f159cdfac8b84760613a37240a38a9f0ab0fe00b69b3eaec49ee0",
+              "span.076dbe51d648576ebde21994d36dfb494fdbdbb21585c41e229aefd82155edf1",
+              "span.9b54960521dc9c9fe78187960333d2795ee98386e362f242ae22f1f201adbc8d",
+              "span.5d8b4e935b42233a330c10fbf54218061a1c827b60b6119faa3b77acd602adff",
+              "span.2b13b9ca856f1e9d9ac0b7a7d4c4934e4488256b71277f8972aad06dda52ffb3",
+              "span.85f1bc574ef902fbe52ccde7842ceb7eef3620d65391bef597858ee3d5169bf7",
+              "span.c2b55f2605b105103b26d15655f9cc7e68f17c255398a132dab573af6f75ada0",
+              "span.e815428fe8e390b43daf4e07153e22a2879786ea2ee82d6f629ef57450898a45",
+              "span.cc2aff673f14b1c5b3a723864fbb6f96bd72a75133429971b1da82fbe3580373",
+              "span.5f0359e5ce88b229c6383aaca14d88482e36d16747e671affd142dac444ff09d",
+              "span.50a12d1d90ae23ceedf929c376d6a5bdf88efc4df593aad188d7111608bf0ea4",
+              "span.47946c8518869bedb62b502a421dbbeb14ef1fe4d18c61df8b0a7a6c1af184b3",
+              "span.b7aa9a7efa3d338f9a5afa841567d78c150dfdc167b76991c66b96f84e31a8a2",
+              "span.1a33b4e758097bd8694c5db7dc59459634b033166f83cc6c6eb19493beb0efb3",
+              "span.4465eb08789c55df75379390e9806636311f303b76be15f60b1561e9fc229b0a",
+              "span.e47314d5da2c812a6124fdbe0fb96c3798bd23af20d9c7436b166eddd2c79a13",
+              "span.afae0d6ade1e417085e73eb345fbbf91c7f4f530efe75e862e2a52d7fe4bfde9",
+              "span.af49cd5368ccc6521dc6ddb6f32a864a1b8fd7905798d091fb87eed17eba20ae",
+              "span.7c605c5e420826300ce117f7083f194f9f5d3959a0bf67297cde236c13e5702c",
+              "span.f9b05d5bb9ea261213ea7baa839098589feba06a59ff8078747a0c6f5aa688fa",
+              "span.d4ed0d08e7edf831c237cda0be2f445a1941c5bf18c1082c515b502dc2a1018d",
+              "span.9e116faa9c68858dd670af0865f90e67bb62ea89e74daf1074c72822c686b1ed",
+              "span.0bbbde30d89c66bbb82057eb1d091c4ab83b8d9417379954f9d927ad4a170444",
+              "span.b4272cfffb94e6b6c185510cb9562e98b1b6fb5e675270c471ebb32c93e3bf56",
+              "span.f82543575ea991113d3d495d75225f7db300ba1cd1bc5cbaec284bcc3e54d461",
+              "span.518873745300dbc5a025eb55da8f70f1ebe910d9edb6dd21be78debe78eee3d6",
+              "span.d92c2a0b7362bc3c4f747fe26d5825c7c26d6bd4886650a3be786a44b2401247",
+              "span.6a181816cace20f87b3f51f29533dec89baeab08c072714df91250ffc0dbbed2",
+              "span.2fb26ffa3e58558304d3b68f59d14e0d9e7d7ae987d56fe36968be7aac14a231",
+              "span.3a607047961dfbcc5ebe3eca5ecde602dc1427b4086206f441051175a3fa90cd",
+              "span.9494bfc5bea868da0879b1f960555cf74c893042bb6ff276fc6db14c9eae472b",
+              "span.84913e6e01e4bc2bcb861c544b8975038bdae6c98ea501ed5598de7b4f18bfb8",
+              "span.6591fb6b746a4b0f12d76d973e0f34ed2c4633744ecc546ece0501df42e0be0c",
+              "span.bf9d88ecfdce297773a75e8b30c1702a5815fad1863bd3ed2c2813be615623ed",
+              "span.69689034ba193483cbccce2cd9bd92ba1992db01831aa81ddd40a7cd4c19169c",
+              "span.fcab10beb3f589fc9a9d0583ee54773d25421c9f77bd97eb75255f588ec6baf3",
+              "span.1426370220f01e864cf2e42a613693babc9a4764e9ee2d24f9380e5d9bed915a",
+              "span.2ad32601b1fffe0a4c0b799c24dc49431fa845e647b1db3499f187776746b369",
+              "span.892178c40fae7f2cf77663f1b60f61236bb8923ae2caf3122a586e699bb597d8",
+              "span.0a17262c35c9679197b13b1b4be090a56e23a70199b0c5684bff34a704a2f61e",
+              "span.ff6d2f90e2e285fbe6d96709e3d71f3af65b17ab089acb79ee315a43a8a392aa",
+              "span.a898d7c42a22492c6f51f0b8b9c942a7fcb8543ce9745e8126cd01be797e83cb",
+              "span.4aea91e6d026c207aa106d4cc0528f21c2460d44faa87c4f48d25613ed5ec4cc",
+              "span.6e8c9f8f15580ffa977a0fea881a7c06c167cf7ccd7dbb154c1a3185aed5f916",
+              "span.d3451a8107d6d436f6991ac29fcbf33229f61def81fd4470d5e3765e349f01e2",
+              "span.33cd10d9628237571c670eeb6df43f6f51888bd30120240808e88db0684f6872",
+              "span.9605ddd963376e4302db1ee1ef732c2d54d1d0ad379816f4bc7bfc899f21c5cc",
+              "span.a759130bdf2d95d77b53f743c06cd06fce77e38faddf8964309f66336d6da789",
+              "span.98184d4b0204a444e35e23d29ecbf977210c24c5e8dbf5889cce74693c5ef54d",
+              "span.5f60a77da2ab86717fd068e21c6bdab167aca45660932f1f2c5e5f2397dbb43c",
+              "span.0588b114f3f2532d4af337fade690dd109070abbee8360c99a045f84e2ccb8e0",
+              "span.599cfeee5a65f4dad5228ce0cfcca7036120c6cd5a6a3c29742d3086a5428e67",
+              "span.a949f2ab82323b1677c5280acd87206da064fd83f02a108ae4fa6cf5e8b2bd0e",
+              "span.f3a114feefb9c60f48c1140389c85ff361b145cca13b34b7511de4e518ef69d8",
+              "span.3570dfb458f698407e601701ed2a9235f8d907837b16a3f9f9822fb5fe6e384a",
+              "span.9f2461efe95bb973968af3880c674b9fcc9e3e96113fe89178e9d3b0e9c48a24",
+              "span.e2f95ff82753d8295268066bc5076878392e0b1b0513b265645d6db75dc3496b",
+              "span.dc25f48c10be5f2fc4dd60643d807106cdf99e86e8e820ab40e5a784ff02e466",
+              "span.33ed8fd505e9b9813215bdaa40daae033a27fa234ef1ae86183eccdd1e23395e",
+              "span.4f82e193429226931d4b43624b5ca8b6ebd39b1a1ba3bca371bdc604fad56f4c",
+              "span.2311ba940e523f85b24a855707a03aaa3730439879302374ad8e0376b075518e",
+              "span.f4e1bd62e487291e7ef82cde199320ee91de5b5693d741f75b456bbd81097f75",
+              "span.0687e1c6ff876ce4121972f30df2d79eca0dcea728b58a5f0718f71940f02afc",
+              "span.f56824fa01108119d45517edfcb6058ab682a8fe8af56b7d63481a859c35e718",
+              "span.38cffee935690e08efbaeb8111bbe7f4a267aca9d51bdb5daa23084ab6ba7c85",
+              "span.a1c776c8776ec255d7394a1aa7e24d685719c691a6adca06c4130f95b2e607c5",
+              "span.d4277ef8c24e42f69a5d2e69b045375f1465dc19cb2a7e9b68af02a77fea5ba6",
+              "span.a397184bdd0bd6360140e93bf7534d4c1cef597b3f5bb2aed2312058a98cc453",
+              "span.b19d8ab93fca9f440677ccc55461b0708a5ce2a889453747345ecc159dbe46e9",
+              "span.ce8b571dfb2508780c4ab4bd59c1fa43760a2859560412561ba7855edd473fa3",
+              "span.5149e62e5a5cd650cdc63cce80c036fef1dd756ca467fd35ebd4778d4f8fe3b7",
+              "span.a7af903c2e37feb7e11be978196fa61c04c58acca1ff655688b385a87f8e2ff6",
+              "span.947729b251dbc2002de2cad6947171b9d79a22004c4a85968aa47564ef1a66d4",
+              "span.db40eefb78d2677a027703f720a25936e78df6a7f9c3b45247151fb42d63b09e",
+              "span.0f4241bc41dbd4d7e0407565d1bc2765c60107077acaaec555aaf810e462a851",
+              "span.927e5e6a3857940c74abf1459626b3a24f803c6ab9a6aa879d085eb407c93c99",
+              "span.c58dc279939556d146c80638f4b1ae35e752aaa8844b0a6b011620cb7d01ab95",
+              "span.44df8c3151a1248fc4f26b6f1686c7a13f531737c8843dfaeb55e23bef5e2054",
+              "span.b87d20b8f640d65bdcd92ae1a8c1ddb0cc5e2208824170b92d7cc523a9956c89",
+              "span.859376bb9a0a881921bf54747a5580553f779b6039b2fe21e99c61e45c2b59b7",
+              "span.acb95eb75ee75d6f9ef4dd32293f32a8792ad1b53e5677a0b33d5d49d335aece",
+              "span.24d8dc524bce446ffa34fba47ba02d696b5fd8524c4a39a652c68adfdd61fbc3",
+              "span.ae3faf34fc00ecccec9cdcecac76eede3f2c01dd9fc17cd7f825a0a6d95844a7",
+              "span.eb6c1f81eb9b24464e79a277c13a9d12d24f261665bbc75f3d61803b61167546",
+              "span.8992514fa23018e0e1d60499b21e4e6380e717f28c3d6668f99826f6c90b716e",
+              "span.2e76809c6c4995901b908b36419f0875fdd48de4ac4650f02b8d585bf33d782b",
+              "span.709e09c873ad72f082450f768f7ac9053057499117ce3e8e87e7797edb2ef9bc",
+              "span.6638ba492404ef8ad21a7e3274093df5b3ce54ca1c944b7b2c382d561be86d79",
+              "span.c6bc66b3c0b092c02eae7978b64100663e909fbe4026c04ea4c4cb64ae24cee6",
+              "span.cc6a31950e3053eebd2b8713b0bc85fedf718dcf77759d4f6b3e23090eea08af",
+              "span.3b7721767dd041cf956d32c9d8bb93d6163f8ee0d40736407735a476fc14ff4b",
+              "span.b30b9da02a8905bd9aeefb84d67782fd5328cdb344a5d0b3c6e6b29099ecdb04",
+              "span.75d991f7dd0c54786025e1c08b1260dcb1524d6b93dd636b7204767c8097c9af",
+              "span.82ed3a8e0fa34c685b229914627dbb08964b28ed7c7efc1fc3d229e9da9138fe",
+              "span.9ca230c15ec345107aa84484120a5585b5a712adfb72d7013ae6d5347e62475d",
+              "span.b1ae24eb3ec4427938ba63453f8f3b147afc55479367e4e177c2a64665333ef2",
+              "span.d9faff8f77d47302907fa823db552d9b4b0305d1957fb3e792098f2e3d480ffd",
+              "span.cbc97778e7c879662cf04bf148e01dacb58848973e629f294468f4f18de0e8cd",
+              "span.81ffe681e57c90f51530a0dcf8e699609e58f42a5a803de39be61f0184afd2bd",
+              "span.c7ef607a7317b8ec9c783f90253ff92ac21ec137aadd805277f91da43df7a0d5",
+              "span.3c524860e5425fcd2751f29b070b6a924f74a9a99035189bc31283cc721e7cc6",
+              "span.424432f9043fb1d716ed67583f951156a0cb344ad14e8bc701816a213e8b8c5d",
+              "span.f218cfef95c1c736f66b294ec57d73b33ffdba69bb7970a96549893e9d8a2056",
+              "span.04646e7dab1e90f6885baf2f984f5f00cb45cb4538fafd210e784e18bbcb8974",
+              "span.4698f22a20484bf78d0365a9e52f61b3e42946e0b31c5091296225ba8a5af0bc",
+              "span.5287e50fffa8785e33eb56f9f829dfada936b837089585e3113605f9ccfa6311",
+              "span.566d0e16f5697ed6d6ea1e6e151a91d859ded7474e74fb20b2f2e6e6cf35bb3e",
+              "span.ccde559f9879cb1e92761012ff2b8a518b29602630d1087bbffd68282b9772fe",
+              "span.80f5655181fbbb6dc47c7df163048c2dc836d3272e178e8a3c670a4a95b9ab63",
+              "span.5479da054068d2e02d1a6e7cf8ce7ca7d4dc69618c5c163d455f9920e9a6100d",
+              "span.09dbf459434eb4f5648f7742b47a813160661e98821361e7bf22e3bade128ae1",
+              "span.a906201c8412a27b973e3d7dda1bd28804f6f6d805b36a0c1b3db4c2a929e563",
+              "span.d6a03265a33b0e8d3bf1db8fa5c63af875cb66e6340f1974fa5e55ce5565e0cf",
+              "span.b4623126afbebb8e20b9838753dccb8cf4f3d7c415fa9842c01a8efae7f45ea3",
+              "span.26ee2209f3063ab8c80972b1849b482853a9941fa2c675146dcd48b170905c2c",
+              "span.d2194a70ae33a03b8cdf225c837e74912461d8737dcdc98aee01a3281540fc35",
+              "span.ac5fde67182459e21455e6f87c04526124dbb49c5dc952f1bc96f69316d4ef04",
+              "span.cc393792efa335874d77efb16ca5aaf939e1f701532ba37252dba1a4cf4afbfe",
+              "span.1be05b19ed6c342ff1d8720158aad942f4454d3727c516aa5e11e3264c59f25d",
+              "span.666a408d7dd23a2842dde4272d404a0d1ad0674129e4f49a15256094b5f3e86b",
+              "span.d21fa86c546f163705191fcde28597de9eee1e65c03dfc7bef65d80112553393",
+              "span.855c003b8669c752c91d6da5fb97d7c58d2219accafb51548b6515d126930908",
+              "span.957b4462b5f8ef993e59fd2ef3bbe56e62c63a7f9aff5dadbe2c867dc35bf7d7",
+              "span.b0becd9613fa2028d83f2d9b70eac60ff501f05829f8e8079eac2e7382c91c98",
+              "span.39e87f9a8b0868c387f10ad7bfcda7a170d306c975d6c4c5db7606a3ac8e2c6f",
+              "span.5817a3b62c63d8e186801e389c740b60b865775c9275a1d828b3eacd95af6a0f",
+              "span.ebc26403954f8d9712ceaa73a051075fa46baec4422071189959197d19d029cc",
+              "span.5f684b98bb8dca35474396b2152ed2c83f02c532d1be21e2c73c31aa5ab8008f",
+              "span.98d5598b0da27fa999d93ec90b60a1768e629bf6ce3bf2831b854949109b84f6",
+              "span.0355ed90330fe478f62af281feefc1839ba8e41d8dd99ae4482d0fe8eb490063",
+              "span.43827ec0412c351659eb267afb6b50467dcf77acae5f4a94ebeb0a2c9d0bae06",
+              "span.057b251a8ad059eb9030c25af559db026d5855c933a2588efd05c37236286773",
+              "span.ffa5ce4aab1820ea5604edc00d04516eeaf1dbdf6c67e9137364dc8813430d38",
+              "span.0b99485c81358bd1dd7614ae6b605098d9c76ac0ba5ad8d9e7073d7565edf23d",
+              "span.d661bea014b79da647da84a222511bfb57b2c7dd44f12b19d901e3da03bef107",
+              "span.53809bf6e54a35124181e71025e56b568847748c8c8de4ae2270505f0fe434ff",
+              "span.84d5a37686a5c671c381dc4a0e24d50cc97642ebd210574cd127fe54ca639bba",
+              "span.e85469888cba93811557d190bd0d2fef5594db5d43f8398c7754f293bcf3b8d5",
+              "span.3f70ad7bf36e9ea6c42ce13fd0f7bde397985f7fabf3cb0921ef0f1ede341ec7",
+              "span.06c6c6ab389b93760ccdfc28497a9129e92e3da7d7551f482030d35854be770d",
+              "span.ef06efb181d60ce17fa29e985416137d9e14d4a2913c192596f13ea6d16589f5",
+              "span.7907e86ad1e196d11ffe544a583b537ad971858f11e34e88fb24b40c85ba95d0",
+              "span.3e755841b134b6b41728533b2edd2c15ccfdef3200bccdcff64bdaacc251bef5",
+              "span.f945d4403fd5e3ba9a7fcffe9425d1f8114a0830dbc2a375579c000082f4a904",
+              "span.d769a041770c3894d258b464e1728d1d53a6c4eddc60040b497f2cb8af3ae2d0",
+              "span.19f64c23f68a6b5c68f91c7c4d7011c6ff8d493085f299c60b0fdb831dde7a22",
+              "span.0f1a40df432d56ea08eb5e28246787bbb531a6a8c3a4c4db83b938ce62053128",
+              "span.3e8ddffc748cedcaed6c81b4cda290b5780b8b4f4300553854992a9486ed7821",
+              "span.eb74a5142dab53a3357705f5c45ff61f8179b0f77025c609f637ba021e339b87",
+              "span.c3d8e37445074c35be3da2ca9b5dc0c6dec28e6c1b77a28bf89c9b1f3b564180",
+              "span.08b787227e099250942f7935675a77bafa4c1089c89513acf1dc6b2128870dfa",
+              "span.45aa279f3c8d5c9dc0313334d9497c0a9fff1b0aaccf3ea081118a335bdd294c",
+              "span.ffc9f79ca283a4de00f295e82270fecf7d5ccad6acc59a1dc1b88fb61ddfd329",
+              "span.2c6535ad9cbb9c460e317ff75d068e7d6775557fd98c17096c97f4d54f342035",
+              "span.d5809411b2a4c5a74fab5b2726b237cee44857d4588a38ac83af841ac8a946c0",
+              "span.3e753779cf55e89c108c8f0dd263cf41ebd4350482b38269901aec1187db46a6",
+              "span.97fc0820a662f76f2eca8ac2deb3e7589ae5cecbdf88ec845b5060b62fa0721b"
+            ]
+          }
+        }
+      },
+      "required": [
+        "span_ids"
+      ]
+    },
+    "Reading": {
+      "additionalProperties": false,
+      "properties": {
+        "local_id": {
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+          "title": "Local Id",
+          "type": "string"
+        },
+        "family": {
+          "enum": [
+            "scope",
+            "definitions",
+            "exceptions",
+            "modality",
+            "time",
+            "dependencies"
+          ],
+          "title": "Family",
+          "type": "string"
+        },
+        "subject": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Subject",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "distinction": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Distinction",
+          "type": "string"
+        },
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/Quote"
+          },
+          "maxItems": 30,
+          "minItems": 1,
+          "title": "Citations",
+          "type": "array"
+        },
+        "assumptions": {
+          "items": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "questions": {
+          "items": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Questions",
+          "type": "array"
+        },
+        "formalization": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Formalization"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "local_id",
+        "family",
+        "subject",
+        "statement",
+        "distinction",
+        "citations",
+        "assumptions",
+        "questions",
+        "formalization"
+      ],
+      "title": "Reading",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "packet_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Packet Hash",
+      "type": "string"
+    },
+    "interpretation_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Interpretation Hash",
+      "type": "string"
+    },
+    "coverage_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Coverage Hash",
+      "type": "string"
+    },
+    "concerns": {
+      "items": {
+        "$ref": "#/$defs/ConcernDisposition"
+      },
+      "maxItems": 500,
+      "title": "Concerns",
+      "type": "array"
+    },
+    "questions": {
+      "items": {
+        "$ref": "#/$defs/QuestionDisposition"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "title": "Questions",
+      "type": "array"
+    },
+    "revised_interpretation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Interpretation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "remaining_uncertainty": {
+      "items": {
+        "maxLength": 20000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 100,
+      "title": "Remaining Uncertainty",
+      "type": "array"
+    }
+  },
+  "required": [
+    "packet_hash",
+    "interpretation_hash",
+    "coverage_hash",
+    "concerns",
+    "questions",
+    "revised_interpretation",
+    "remaining_uncertainty"
+  ],
+  "title": "Reconciliation",
+  "type": "object"
+}

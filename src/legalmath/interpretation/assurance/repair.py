@@ -86,6 +86,17 @@ class DerivedMapping(Strict):
     evidence: list[Quote] = Field(min_length=1, max_length=12)
 
 
+def mapping_output_schema(left,right):
+    schema=DerivedMapping.model_json_schema()
+    for side,reading in (('left',left),('right',right)):
+        names=[fact['name'] for fact in reading['formalization']['facts']]
+        if len(names)!=len(set(names)):raise LegalMathError('E_REFERENCE')
+        schema['properties'][side]={'type':'object',
+            'properties':{name:{'type':'string','minLength':1} for name in names},
+            'required':names,'additionalProperties':False}
+    return schema
+
+
 def normalized_result(result, convention):
     result = project(result)
     if convention not in ('TRUE_IS_COMPLIANT', 'TRUE_IS_PROHIBITED'):

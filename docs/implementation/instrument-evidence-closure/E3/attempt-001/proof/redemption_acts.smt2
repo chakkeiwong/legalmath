@@ -1,0 +1,15 @@
+; benchmark generated from python API
+(set-info :status unknown)
+(declare-fun notice_complete () Bool)
+(declare-fun regulator_approval () Bool)
+(declare-fun funds_available () Bool)
+(declare-fun issuer_elected () Bool)
+(assert
+ (let ((?x44 (ite notice_complete 1 0)))
+(let ((?x39 (ite regulator_approval 1 0)))
+(let ((?x56 (ite funds_available 1 0)))
+(let ((?x47 (ite issuer_elected 1 0)))
+(let (($x19 (= (+ ?x47 ?x56 ?x39 ?x44) 4)))
+(let (($x53 (and issuer_elected funds_available regulator_approval notice_complete)))
+(and (distinct $x53 $x19) true))))))))
+(check-sat)

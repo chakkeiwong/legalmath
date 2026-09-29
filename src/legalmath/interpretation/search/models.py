@@ -129,7 +129,9 @@ def commitment(reading):
 GRAMMAR = '''Formal expressions use parenthesized prefix notation, never Java or Python:
 true, false, a declared fact name; (integer 6), (money_hkd 100), (date 2024-11-30);
 (and EXPR EXPR ...), (or EXPR EXPR ...), (not EXPR), (if CONDITION THEN ELSE),
-(= LEFT RIGHT), (> LEFT RIGHT), (>= LEFT RIGHT), (+ LEFT RIGHT), (- LEFT RIGHT).
+(= LEFT RIGHT), (> LEFT RIGHT), (>= LEFT RIGHT), (+ EXPR EXPR ...), (- LEFT RIGHT).
+Addition needs at least two operands and is an ordered exact left fold. Retain
+all operands, including repeated ones; expanded expression depth is bounded.
 Dates are Gregorian YYYY-MM-DD, numeric literals are exact integer strings.
 Use the same type on both sides of a comparison. Unknown facts remain unknown.
 scope is Boolean; result has result_type. Never invent a fact's truth value.

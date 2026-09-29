@@ -20,7 +20,7 @@ def named_destination(document, name):
 def main():
     with fitz.open(BOOK / "monograph.pdf") as source, fitz.open() as guide:
         start = next(row[2] - 1 for row in source.get_toc()
-                     if row[:2] == [1, "From the circular to Java"])
+                     if row[:2] == [1, "From source documents to transaction decisions"])
         end = next(i for i in range(start + 1, len(source))
                    if source[i].get_text().lstrip().startswith("Contents\n"))
         # Rebuild annotations explicitly: a normal slice drops named internal
@@ -57,7 +57,7 @@ def main():
                     outgoing.update(kind=fitz.LINK_GOTOR, file="monograph.pdf",
                                     page=page, to=point)
                 guide[original_page - start].insert_link(outgoing)
-        guide.set_metadata({"title": "LegalMath: From the circular to Java",
+        guide.set_metadata({"title": "LegalMath: From source documents to transaction decisions",
                             "author": "Chak Wong",
                             "subject": "Illustrated process and technology guide"})
         guide.save(BOOK / "process-guide.pdf", garbage=4, deflate=True)

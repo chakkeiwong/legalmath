@@ -75,10 +75,11 @@ class RetainedProvider:
             # preserves the original source mapping. Recompute the transform;
             # never trust a caller-supplied alias for a counted request.
             wire_hash=rh
-            compact=status.get('provider','').endswith('.compact.v1')
+            provider_name=status.get('provider','')
+            compact=provider_name.endswith(('.compact.v1','.compact.v2'))
             if compact:
                 from .decomposition import compact_request
-                wire_hash=digest(compact_request(request))
+                wire_hash=digest(compact_request(request,profile='v2' if provider_name.endswith('.compact.v2') else 'v1'))
             slots=[i+1 for i,c in enumerate(ledger['calls']) if c['request_hash']==wire_hash]
             if status['request_hash']!=rh or not slots:raise LegalMathError('E_INTEGRITY')
             record={'status':status,'origin':str(path),

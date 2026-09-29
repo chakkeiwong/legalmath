@@ -1,0 +1,68 @@
+{
+  "source": {
+    "key": "stipulacode",
+    "title": "Stipula implementation and workbench",
+    "author_filename": "Stipula contributors",
+    "year": "2026",
+    "path": "docs/papers/Stipula implementation and workbench_Stipula contributors(2026).zip",
+    "sha256": "f6e3113c87bd125c9c363786af5218c12f96a8e100c3fc3a473ad0e419ab5c47",
+    "source_url": "https://github.com/stipula-language/stipula-workbench",
+    "retained_inputs": [
+      ".localresources/literature-review/stipula-workbench-README.md",
+      ".localresources/literature-review/stipula-README.md",
+      ".localresources/literature-review/metadata/stipula-workbench-tree.json",
+      ".localresources/monograph-revision/sources/stipula-liquidity-README.md",
+      ".localresources/monograph-revision/sources/stipula-liquidity-analyzer.py"
+    ],
+    "status": "local_copy_retained",
+    "claim_support": "not_reaudited",
+    "currentness": "historical_snapshot_not_current_authority_determination",
+    "scope": "Retained inspected documentation/source files; not a full repository clone."
+  },
+  "claims": [
+    {
+      "id": "docs/monograph/chapters/04-languages.tex:1068:stipulacode",
+      "key": "stipulacode",
+      "source": "docs/monograph/chapters/04-languages.tex",
+      "line": 1068,
+      "context_tex": "The platform paper describes a visual editor, interpreter, type inference,\nunreachable-clause analysis and liquidity analysis\n\\citep[secs.~3--7]{stipulaplatform2026}. Its liquidity property concerns resources\nthat might remain trapped in a program. The underlying type analysis represents\nasset effects symbolically; cheaper sufficient tests differ from more precise\nbounded exploration \\citep[secs.~4--5 and proof appendices]{liquidity2023}.\nThis is program-resource liquidity, not market or funding liquidity. The platform\naccount assumes cooperative, strategyless behavior for the discussed property\nand states that the liquidity implementation is still being developed.\nThat is the paper's historical status: the separately retained workbench\nrepository includes a Python liquidity analyzer and a configurable bound\non function repetitions \\citep{stipulacode}. Source inspection confirms\nits presence, but neither its correctness nor production suitability has\nbeen established by execution here. Borrowing\neditor and explanation ideas is therefore a different commitment from claiming\na production verifier for all bank workflows.\n",
+      "support_status": "not_checked"
+    },
+    {
+      "id": "docs/monograph/chapters/04-languages.tex:1311:stipulacode",
+      "key": "stipulacode",
+      "source": "docs/monograph/chapters/04-languages.tex",
+      "line": 1311,
+      "context_tex": "Stipula; Stipula--KeY & Contract states, permissions, scheduled events and a Java/JML proof experiment. & Research adapter for a small workflow; document event abstraction and loop restrictions. \\citep{stipulacode,stipulakeycode}",
+      "support_status": "not_checked"
+    }
+  ],
+  "candidate_passages": [
+    {
+      "location": ".localresources/literature-review/stipula-workbench-README.md",
+      "word_offset": 0,
+      "text": "# Stipula Full-Stack Project This project provides a full-stack environment for generating and analyzing Stipula legal contracts, featuring a React frontend, a Node.js backend server, and a Python analyzer. Prerequisites To run this project, you must have the following installed on your system: - Node.js & npm - Python 3.x - Java Development Kit (JDK) 19 or later (required for the Stipula Interpreter). ## Getting Start Getting Started Follow these steps to set up and launch the entire application stack. ### Step 1: Initial Setup and Installation (npm install) Run the following command from the root directory to install all necessary packages for the entire project (Node.js/npm dependencies). ``` bash npm install ``` ### Step 2: Launch the Application Run the launch command: ``` bash npm start ``` ## Stipula Workbench Tool ### How to Run the Editor 1. Enter a name for your contract at the top. 2. Add assets, fields, and parties using the corresponding input boxes and **Add** buttons. 3. Define agreements by selecting fields and parties, then click the plus icon to add them. 4. Define the initial status of the contract through the input box under the agreement panel. 5. To create a function, click **New Function** under an agreement, fill in states, parameters, assets, and guards, then click **Add Function**. 6. The contract code updates automatically in the output panel as you make changes. Alternatively: - You can load an existing `.json` contract from",
+      "passage_id": 0
+    },
+    {
+      "location": ".localresources/monograph-revision/sources/stipula-liquidity-analyzer.py",
+      "word_offset": 0,
+      "text": "from classes.data.abstract_computation import AbsComputation from classes.data.visitor_entry import FunctionVisitorEntry, EventVisitorEntry from classes.data.liquidity_expression import LiqExpr, LiqConst class LiquidityAnalyzer: def __init__(self, function_frequency): # maximum number of times a function can appear in the same abstract computation (k-canonical) self.K = function_frequency self.Q0 : str = '' # initial state self.global_assets: list[str] = list() self.functions: set[FunctionVisitorEntry] = set() self.events: set[EventVisitorEntry] = set() self.abs_computations: set[AbsComputation] = set() self.states: set[str] = set() self.reachable_states: set[str] = set() self.Tqk : dict[str, set[AbsComputation]] = dict() self.Qq : dict[str, set[FunctionVisitorEntry | EventVisitorEntry]] = dict() # unused (not in the thesis) self.has_events: bool = False self.has_guards: bool = False # region compute results def compute_verbose_results(self) -> None: print(\"VERBOSE INFORMATION\\n\\tFunction Liquidity Types:\") for entry in (self.functions | self.events): entry_env = entry.get_env() print(f\"\\t\\t{entry}\") print(f\"\\t\\t\\tLIQUIDITY TYPE:\") print(f\"\\t\\t\\t\\t{entry_env['start']} -> {entry_env['end']}\") print(f\"\\t\\t\\tASSET TYPES:\") print(f\"\\t\\t\\t\\t{entry.get_asset_types()}\") if isinstance(entry, FunctionVisitorEntry): print(f\"\\t\\t\\tEVENTS LIST:\") print(f\"\\t\\t\\t\\t{entry.events_list}\") print(\"\\tAbstract Computations:\") for abs_computation in self.abs_computations: abs_comp_env = abs_computation.get_env() print(f\"\\t\\t{abs_computation}\") print(f\"\\t\\t\\tLIQUIDITY TYPE:\") print(f\"\\t\\t\\t\\t{abs_comp_env['start']} -> {abs_comp_env['end']}\") print(f\"\\t\\t\\tASSET TYPES:\") print(f\"\\t\\t\\t\\t{abs_computation.get_asset_types()}\") print(f\"\\t\\t\\tARE ALL ASSET TYPES SINGLETON:\") print(f\"\\t\\t\\t\\t{abs_computation.get_are_all_types_singleton()}\") print(\"================================================================================================\") def compute_results(self) -> tuple[dict, tuple[bool, str], bool, bool, bool]: self.compute_states() # Computes abs_comps before local_liq, so abs_comps are always already available in verbose self.compute_abs_computations() are_all_types_singleton = all( abs_computation.get_are_all_types_singleton() for abs_computation in self.abs_computations ) function_local_liquidity = self.compute_function_local_liquidity() if not function_local_liquidity[0]: k_separate_result = {k: function_local_liquidity for k in self.global_assets} return (k_separate_result, function_local_liquidity, self.has_events, self.has_guards, not are_all_types_singleton) self.compute_reachable_states() self.compute_tqk() result_liquidity = self.costly_algorithm_complete() if result_liquidity[0]: result_k_separate = {k: (True, \"\") for k in self.global_assets} else: result_k_separate = self.costly_algorithm_k_separate() return (result_k_separate, result_liquidity, self.has_events, self.has_guards, not are_all_types_singleton) #",
+      "passage_id": 22
+    },
+    {
+      "location": ".localresources/monograph-revision/sources/stipula-liquidity-analyzer.py",
+      "word_offset": 180,
+      "text": "verbose self.compute_abs_computations() are_all_types_singleton = all( abs_computation.get_are_all_types_singleton() for abs_computation in self.abs_computations ) function_local_liquidity = self.compute_function_local_liquidity() if not function_local_liquidity[0]: k_separate_result = {k: function_local_liquidity for k in self.global_assets} return (k_separate_result, function_local_liquidity, self.has_events, self.has_guards, not are_all_types_singleton) self.compute_reachable_states() self.compute_tqk() result_liquidity = self.costly_algorithm_complete() if result_liquidity[0]: result_k_separate = {k: (True, \"\") for k in self.global_assets} else: result_k_separate = self.costly_algorithm_k_separate() return (result_k_separate, result_liquidity, self.has_events, self.has_guards, not are_all_types_singleton) # endregion compute results # region getter, setter def set_q0(self, state_id): self.Q0 = state_id def add_visitor_function(self, visitor_entry: FunctionVisitorEntry, has_guard: bool = False): self.functions.add(visitor_entry) self.has_guards = self.has_guards | has_guard def add_visitor_event(self, visitor_entry: EventVisitorEntry): self.events.add(visitor_entry) self.has_events = True def add_global_asset(self, asset): self.global_assets.append(asset.text) def get_global_asset(self) -> list[str]: return self.global_assets # endregion setter def compute_function_local_liquidity(self) -> tuple[bool, str]: \"\"\" Compute local liquidity for each function. Checks if all the local assets are emptied to respond to Definition 1 - Constraint 1 :return: True if all the functions are liquid, otherwise False \"\"\" for entry in self.functions: par = entry.compute_local_liquidity() if par: return False, f\"{entry} is NOT local liquid for {par}\" return True, \"\" def compute_states(self): \"\"\" Computes all the states \"\"\" self.states = set() for entry in self.events | self.functions: # fill states set self.states.add(entry.start_state) self.states.add(entry.end_state) def compute_abs_computations(self) -> None: \"\"\" Compute abstract computations starting from Q0 \"\"\" for function in self.functions: if function.start_state == self.Q0: # create an abs_computation formed only by the function if function starts in Q0 abs_computation = AbsComputation() abs_computation.insert_configuration(function) for event in function.events_list: abs_computation.add_available_event(event) self.abs_computations.add(abs_computation) is_change = True while is_change:",
+      "passage_id": 23
+    },
+    {
+      "location": ".localresources/monograph-revision/sources/stipula-liquidity-analyzer.py",
+      "word_offset": 360,
+      "text": "entry in self.events | self.functions: # fill states set self.states.add(entry.start_state) self.states.add(entry.end_state) def compute_abs_computations(self) -> None: \"\"\" Compute abstract computations starting from Q0 \"\"\" for function in self.functions: if function.start_state == self.Q0: # create an abs_computation formed only by the function if function starts in Q0 abs_computation = AbsComputation() abs_computation.insert_configuration(function) for event in function.events_list: abs_computation.add_available_event(event) self.abs_computations.add(abs_computation) is_change = True while is_change: is_change = False computations_to_add : set[AbsComputation] = set() for abs_computation in self.abs_computations: for function in self.functions: if function.start_state == abs_computation.get_last_state(): new_abs_computation = abs_computation.copy_abs_computation() if abs_computation.count(function) < self.K: new_abs_computation.insert_configuration(function) for event in function.events_list: new_abs_computation.add_available_event(event) computations_to_add.add(new_abs_computation) for event in abs_computation.get_available_events(): if event.start_state == abs_computation.get_last_state(): new_abs_computation = abs_computation.copy_abs_computation() new_abs_computation.remove_available_event(event) new_abs_computation.insert_configuration(event) computations_to_add.add(new_abs_computation) is_change = is_change or bool(computations_to_add.difference(self.abs_computations)) self.abs_computations.update(computations_to_add) def compute_reachable_states(self) -> None: \"\"\" Computes the set of states reachable from the initial state Q0 and saves them in self.reachable_states. The method performs a depth-first search (DFS) over the automaton transitions, treating states as nodes and transitions as directed edges. Only reachability is considered; transition labels are ignored. \"\"\" visited = { self.Q0 } stack = [ self.Q0 ] while stack: q = stack.pop() for entry in (self.functions | self.events): if entry.start_state == q: q_next = entry.end_state if q_next not in visited: visited.add(q_next) stack.append(q_next) self.reachable_states = visited def compute_tqk(self) -> None: for state in self.states: self.Tqk[state] = set() for abs_computation in self.abs_computations: for configuration in abs_computation: self.Tqk[configuration.start_state].add(abs_computation.copy_abs_computation(configuration.start_state)) # region efficient algorithm (unused) def compute_qq(self) -> None: for state in self.states: self.Qq[state] = set() for entry",
+      "passage_id": 24
+    }
+  ],
+  "status": "RETRIEVAL_ONLY_NOT_READING_EVIDENCE",
+  "selection": "Two lexical matches per occurrence; inspect broader sections and equations as needed."
+}

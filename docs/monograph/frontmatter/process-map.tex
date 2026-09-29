@@ -1,6 +1,6 @@
-\chapter*{From the circular to Java}
-\addcontentsline{toc}{chapter}{From the circular to Java}
-\markboth{From the circular to Java}{}
+\chapter*{From source documents to transaction decisions}
+\addcontentsline{toc}{chapter}{From source documents to transaction decisions}
+\markboth{Process guide}{}
 \label{map:overview}
 \begingroup
 \tikzset{
@@ -16,38 +16,282 @@
 \newenvironment{MapDiagram}{\par\noindent\begin{minipage}{\linewidth}\centering}{\par\end{minipage}\par}
 \newcommand{\MapCaption}[1]{\par{\small\itshape #1\par}\vspace{2mm}}
 
-A circular supplies words; a Java program needs precise decisions. Between
-them lie questions about meaning, evidence and execution. The eight steps
-below locate that work. Each numbered box links to a closer view on the next
-pages, where the technology is introduced through the job it performs.
+A prospectus can permit a particular purchaser without establishing that a
+bank may execute the purchase. The bank must also establish which laws apply,
+who owns the account, whether sanctions restrict the transaction, and what its
+own mandate and settlement arrangements permit. LegalMath keeps these questions
+separate so that an answer to one cannot silently answer the others.
 
+The running example compares two real contingent convertible securities, or
+\emph{CoCos}: Barclays' February 2025 issue and Standard Chartered's January
+2025 issue. These securities can absorb losses through conversion into shares
+and other contractual or regulatory measures. The same hypothetical US
+individual passes one selected purchaser condition and fails the other. Both
+complete bank assessments remain qualified because essential evidence and
+legal coverage are missing. The following charts trace that distinction.
+
+There are two kinds of layer to keep apart. The \emph{software stages} turn
+source documents and proposed meanings into executable calculations. The
+\emph{seven assessment categories} organise the different legal and factual
+questions about a transaction. Every category uses evidence and scoped rules;
+it is not a separate programming language. The eight-step overview links to
+both the worked CoCo case and the implementation details.
+
+The first software stage, called the \emph{frontend}, proposes a meaning for the
+passage and records its sources, assumptions and required facts. A
+\emph{translator} then turns that fixed proposal into an executable language.
+LegalMath has two such targets. \emph{RuleIR}, its own small rule language,
+expresses conditions such as a financial threshold and the effect of missing
+evidence. \emph{Catala} is a programming language designed for legal rules,
+with a compiler that translates those rules into executable code. Both targets
+can receive the same proposed meaning; Catala also supports the implemented
+calculations over structured collections described in Chapter~\ref{ch:implementation}.
+
+\emph{Stipula} answers a different question: how does a contract change when a
+party takes an action? It describes parties, resources and states. For example,
+a request available while an agreement is active may become unavailable after
+withdrawal. The book studies Stipula's verification methods as a comparison;
+LegalMath does not currently compile Stipula contracts.
+
+\clearpage
+\MapSubheading{Eight steps from documents to a qualified decision}
 \begin{MapDiagram}
 \begin{tikzpicture}[node distance=5mm]
-\node[mapwide] (a) {\hyperref[map:source]{\textbf{1. Retain the circular}}\\Original document and usable text};
-\node[mapwide,below=of a] (b) {\hyperref[map:context]{\textbf{2. Read it in context}}\\Related sources, dates and business scope};
+\node[mapwide] (a) {\hyperref[map:source]{\textbf{1. Retain the source documents}}\\Prospectuses, laws, circulars and factual evidence};
+\node[mapwide,below=of a] (b) {\hyperref[map:context]{\textbf{2. Fix context and applicable questions}}\\Entities, accounts, actions, dates and seven assessment categories};
 \node[mapwide,below=of b] (c) {\hyperref[map:readings]{\textbf{3. Develop possible interpretations}}\\Duties, exceptions and required facts};
 \node[mapwide,below=of c] (d) {\hyperref[map:challenge]{\textbf{4. Challenge the interpretations}}\\Omissions, alternative readings and revealing cases};
-\node[mapwide,below=of d] (e) {\hyperref[map:rules]{\textbf{5. Express the proposed rules precisely}}\\Separate duties and alternative meanings};
-\node[mapwide,below=of e] (f) {\hyperref[map:java]{\textbf{6. Generate Java and check its behaviour}}\\Execution tests and scoped mathematical checks};
-\node[mapwide,below=of f] (g) {\hyperref[map:delivery]{\textbf{7. Deliver a reviewable Java program}}\\Program, sources, results and open questions};
-\node[mapwide,dashed,fill=white,below=of g] (h) {\hyperref[map:operation]{\textbf{8. Approve and supervise bank use}}\\Institution decisions, operating controls and source review};
+\node[mapwide,below=of d] (e) {\hyperref[map:rules]{\textbf{5. Construct the shared formal model}}\\Typed facts, scoped rules and explicit uncertainty};
+\node[mapwide,below=of e] (f) {\hyperref[map:java]{\textbf{6. Generate executable targets and check behaviour}}\\RuleIR/Java and Catala execution tests};
+\node[mapwide,below=of f] (g) {\hyperref[map:delivery]{\textbf{7. Assemble the transaction assessment}}\\All declared obligations, conditional results and remaining gaps};
+\node[mapwide,below=of g] (h) {\hyperref[map:operation]{\textbf{8. Reassess when evidence or events change}}\\Invalidate stale findings; retain duties and earlier decisions};
 \foreach \x/\y in {a/b,b/c,c/d,d/e,e/f,f/g,g/h}
   \draw[maparr] (\x)--(\y);
 \draw[maparr] (d.east)--++(12mm,0)|- node[pos=.25,mapnote,rotate=90]{Revise} (c.east);
 \draw[maparr] (f.west)--++(-12mm,0)|- node[pos=.25,mapnote,rotate=90]{Repair} (e.west);
 \end{tikzpicture}
 \end{MapDiagram}
-\MapCaption{A tested program is a reviewable result. The dashed final step
-requires the bank's own authority and operating evidence.}
+\MapCaption{A failure or an unknown remains part of the assessment. Completing
+the software steps does not establish complete legal coverage or permission to
+execute a transaction.}
 
-The implemented route can produce draft controls while interpretations remain
-unresolved. It can also stop before code generation when a proposal cannot be
-expressed or evidence is missing. In the running example, whether a rebate is
-a fee discount can remain open even after its proposed rule runs correctly.
-The later charts show how that question stays attached to the result.
+The next pages expand the \hyperref[map:layers]{seven assessment categories}
+and follow the \hyperref[map:coco-terms]{two CoCo purchaser conditions} into the
+\hyperref[map:coco-assessment]{complete bank assessment}. Later pages explain
+each software step. Unsupported expressions prevent translation; missing facts
+can prevent execution even when a program has compiled. A different proposed
+interpretation remains a different model, with its own evidence.
 
 \clearpage
-\MapHeading{1. Retain the circular}{map:source}
+\MapHeading{The seven layers of a transaction assessment}{map:layers}
+Begin with a proposed action by a specified entity for a specified account.
+The bank's brand does not identify its booking branch, capacity or the client's
+status. Follow all seven categories: an adverse or unresolved finding remains
+in the assessment while the other questions are considered.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=4mm]
+\node[mapwide,text width=132mm] (a) {\textbf{1. Scope: whose action, where and when?}\\Legal entities, branches, principal or intermediary capacity;\\jurisdictions, activity, assessment date and source editions};
+\node[mapwide,text width=132mm,below=of a] (b) {\textbf{2. Sanctions: which restrictions reach the transaction?}\\Issuer and owner identity, designated programs, ownership,\\covered securities, licences and effective dates};
+\node[mapwide,text width=132mm,below=of b] (c) {\textbf{3. Bank: may this entity provide this service?}\\Activity and licensing rules; selected US Bank Secrecy Act\\program controls where their applicability is established};
+\node[mapwide,text width=132mm,below=of c] (d) {\textbf{4. Client: which account duties apply?}\\Beneficial owners, account purpose and required diligence;\\other anti-money-laundering and client requirements};
+\node[mapwide,text width=132mm,below=of d] (e) {\textbf{5. Product: which terms and selling rules apply?}\\Prospectus, issuer law and loss absorption; purchaser restrictions;\\Hong Kong product and sophisticated-investor conditions};
+\node[mapwide,text width=132mm,below=of e] (f) {\textbf{6. Internal policy: what does the actual mandate permit?}\\Versioned bank policies and account restrictions;\\missing private documents remain missing inputs};
+\node[mapwide,text width=132mm,below=of f] (g) {\textbf{7. Operations: can this route satisfy its obligations?}\\Custody, intermediaries, currency and settlement;\\distinct rejection, blocking, reporting and disclosure duties};
+\node[mapwide,text width=132mm,below=of g] (h) {\textbf{Retain every declared obligation and its evidence}\\Conditional result, conflict, missing input or unsupported rule};
+\foreach \x/\y in {a/b,b/c,c/d,d/e,e/f,f/g,g/h}\draw[maparr](\x)--(\y);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{The current inventory has fourteen obligations across these seven
+categories. Five have conditional rule models; nine retain missing rule families
+or unresolved coverage. None may be removed by the caller.}
+
+The five calculated obligations concern selected sanctions, bank program
+controls, private-account diligence, sophisticated professional investor
+conditions and reporting. Supporting calculations bring the collection to
+eleven shared models. Complete discovery of applicable law remains unproved.
+Section~\ref{sec:bank-compliance} explains the provisions and their limits.
+
+\clearpage
+\MapHeading{The CoCo example: from terms to purchaser conditions}{map:coco-terms}
+Assume one individual, resident and located in the United States, buys
+USD~200,000 principal for their own account and benefit. The individual is not
+a \emph{qualified institutional buyer} (QIB), an institutional and account
+category used by Rule~144A. Wealth alone does not turn an individual into a
+QIB. Regulation~S supplies a different offshore distribution route; its
+US-person and account definitions must also be considered.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=8mm and 8mm]
+\tikzset{pair/.style={mapbox,text width=62mm,minimum height=22mm}}
+\node[pair] (a) {\textbf{Barclays PLC, 7.625\%}\\Supplement: 18 February 2025\\Issue: 25 February 2025};
+\node[pair,right=of a] (b) {\textbf{Standard Chartered PLC, 7.625\%}\\Offering: 8 January 2025\\Issue: 16 January 2025};
+\node[pair,below=of a] (c) {Retained public US\\distribution terms\\Minimum: USD 200,000};
+\node[pair,below=of b] (d) {Retained US QIB or\\non-US offshore terms\\Minimum: USD 200,000};
+\node[pair,below=of c] (e) {Apply the selected public-offer\\purchaser condition to\\the declared individual};
+\node[pair,below=of d] (f) {US QIB condition: fails\\Non-US offshore condition: fails\\Same individual and account};
+\node[pair,below=of e] (g) {\textbf{Selected condition: PASS}\\No failure of this purchaser\\condition in the declared model};
+\node[pair,below=of f] (h) {\textbf{Selected condition: FAIL}\\Do not use this original\\distribution route for this buyer};
+\node[mapwide,text width=132mm,below=8mm of $(g.south)!0.5!(h.south)$] (i) {\hyperref[map:coco-assessment]{\textbf{Carry both results into the complete bank assessment}}\\A purchaser condition does not decide the remaining layers};
+\foreach \x/\y in {a/c,b/d,c/e,d/f,e/g,f/h}\draw[maparr](\x)--(\y);
+\draw[maparr](g.south)--++(0,-4mm)-|(i.north);
+\draw[maparr](h.south)--++(0,-4mm)-|(i.north);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Both are real original offerings with the same minimum denomination.
+The difference is the selected purchaser restriction. Their offer dates differ;
+the comparison does not assert simultaneous live availability.}
+
+Both instruments can expose holders to conversion and regulatory loss
+absorption. A favourable purchaser result therefore says nothing about
+principal protection. The two prospectuses and the retained 2025 legal
+definitions support explicit interpretation proposals; page and file hashes
+identify that evidence without proving the proposals correct.
+
+Changing the actual purchaser can change the answer. A QIB buying for itself
+can satisfy Standard Chartered's selected condition. A QIB bank acting for a
+non-QIB client cannot use its own status to satisfy that client-account
+condition. Moving an order offshore does not by itself remove US-person or
+US-benefit restrictions. Section~\ref{sec:coco-purchaser-cases} derives the
+formal rule and identifies the exact instruments and source passages.
+
+\clearpage
+\MapHeading{The CoCo example: the complete bank result}{map:coco-assessment}
+The conditional purchaser finding supplements the existing bank investigation;
+it does not close the broader product-law obligation. A \emph{qualified} result
+explains why the evidence cannot support a complete transaction decision.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm and 8mm]
+\tikzset{pair/.style={mapbox,text width=62mm,minimum height=19mm}}
+\node[pair] (a) {Barclays\\Selected purchaser condition passes};
+\node[pair,right=of a] (b) {Standard Chartered\\Selected purchaser condition fails};
+\node[mapwide,text width=132mm,below=6mm of $(a.south)!0.5!(b.south)$] (c) {\textbf{Preserve all seven categories and fourteen obligations}\\Scope, sanctions, bank, client, product, internal policy, operations};
+\node[mapwide,text width=132mm,below=of c] (d) {\textbf{Keep the actual missing evidence visible}\\Booking entity and service authority; client and beneficial owners;\\sanctions identity; other product rules; policy and settlement route};
+\node[pair,below=6mm of d,xshift=-38mm] (e) {\textbf{Barclays: QUALIFIED}\\Purchaser pass retained;\\remaining gaps prevent clearance};
+\node[pair,below=6mm of d,xshift=38mm] (f) {\textbf{Standard Chartered: QUALIFIED}\\Same unresolved bank layers;\\additional declared-route failure};
+\node[mapwide,text width=132mm,below=6mm of $(e.south)!0.5!(f.south)$] (g) {\textbf{Neither result authorizes transaction execution}\\Preserve reasons and sources; reassess on changed evidence};
+\draw[maparr](a.south)--++(0,-3mm)-|(c.north);
+\draw[maparr](b.south)--++(0,-3mm)-|(c.north);
+\draw[maparr](c)--(d);
+\draw[maparr](d.south)--++(0,-3mm)-|(e.north);
+\draw[maparr](d.south)--++(0,-3mm)-|(f.north);
+\draw[maparr](e.south)--++(0,-3mm)-|(g.north);
+\draw[maparr](f.south)--++(0,-3mm)-|(g.north);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{The implemented attachment preserves the bank investigation and adds
+the purchaser finding. It cannot turn a partial pass into bank or regulatory
+approval. The negative result concerns the declared original distribution.}
+
+Issuer law is part of the product investigation even when the prospectus
+contains no decisive contractual trigger. The CoCo survey in
+Chapter~\ref{ch:circular} follows Swiss regulatory write-down powers and their
+dated legal and litigation context. That survey informs required source checks;
+it is not a completed executable model of every issuer jurisdiction. Swiss
+provisions cannot be applied to these UK issues merely because all are CoCos.
+
+Sanctions require their own analysis of the issuer, beneficial ownership,
+program, activity and date. Chinese state ownership alone is not the selected
+sanctions trigger. A name match supplies a candidate identity; no match does
+not supply clearance. Restrictions on a US bank acting for a client also need
+the bank's actual capacity and the client's status. These questions remain
+separate from the US offering categories in the preceding chart.
+
+The paired run reuses retained interpretation proposals; it does not conduct a
+fresh model investigation of every prospectus clause. The
+\hyperref[map:certificates]{formal and execution checks} support the stated
+calculation without proving its English interpretation or supplying missing
+bank evidence.
+
+\clearpage
+\MapHeading{Join the product conditions to the bank investigation}{map:joined-product}
+The joined calculation keeps contractual loss, issuer powers and selling
+requirements distinct. Section~\ref{sec:joined-eligibility} explains the
+implemented conditions and their remaining premises.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapwide] (a) {Retained prospectus and dated legal sources\\Identify the issue, mechanism, service and purchaser};
+\node[mapbox,text width=56mm,below=7mm of a,xshift=-34mm] (b) {Contract and issuer powers\\Write-down or conversion;\\authority, order, implementation};
+\node[mapbox,text width=56mm,below=7mm of a,xshift=34mm] (c) {Hong Kong product scope\\Direct debt or related product;\\legal form and exclusions};
+\node[mapwide,below=7mm of $(b.south)!0.5!(c.south)$] (d) {Specific intermediary arrangement\\Check every broker-exception condition; retain missing facts};
+\node[mapwide,below=of d] (e) {PI restriction and separate duties\\Exemptions do not erase the PI test; portfolio handling does not prove performance};
+\node[mapwide,below=of e] (f) {Recompute the complete declared bank inventory\\All seven categories and fourteen obligations remain present};
+\node[mapwide,below=of f] (g) {Qualified result with exact dependencies\\No execution permission from a partial pass; changes require reassessment};
+\draw[maparr](a.south)--++(0,-3mm)-|(b.north);
+\draw[maparr](a.south)--++(0,-3mm)-|(c.north);
+\draw[maparr](b.south)--++(0,-3mm)-|(d.north);
+\draw[maparr](c.south)--++(0,-3mm)-|(d.north);
+\draw[maparr](d)--(e);\draw[maparr](e)--(f);\draw[maparr](f)--(g);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{A conversion can cancel debt principal while delivering shares.
+Neither zero debt principal nor a PI classification settles the entire bank decision.}
+
+The retained UBS issue converts under its specified conditions. The next chart
+follows its implemented notice and share calculations. Swiss regulatory provisions do not
+establish powers over the UK issues. The actual account, mandate, bank entities
+and transaction route also remain necessary evidence. The joined reports for
+all three prospectuses retain these gaps.
+
+\clearpage
+\MapHeading{Follow one UBS issue from publication to shares}{map:ubs-terms}
+Section~\ref{sec:ubs-terms} uses Annex A of the June 2024 SGD notes. Source
+proposals populate the product analysis; actual client and event facts remain
+separate inputs.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapwide] (a) {Identify the exact issue and source edition\\Retain terms, incorporated dependencies and amendments};
+\node[mapbox,text width=56mm,below=7mm of a,xshift=-34mm] (b) {Capital-ratio branch\\Add higher-trigger capital;\\compare strictly below 7 percent};
+\node[mapbox,text width=56mm,below=7mm of a,xshift=34mm] (c) {Viability branch\\FINMA and support premises;\\check alternative-loss notice};
+\node[mapbox,text width=56mm,below=of b] (d) {Ordinary or extraordinary notice\\Restoration exception;\\higher-trigger postponement};
+\node[mapbox,text width=56mm,below=of c] (e) {Three calendar days for notice\\Twenty Business Days\\from the viability event};
+\node[mapwide,below=7mm of $(d.south)!0.5!(e.south)$] (f) {Retrieve actual notices and covered calendars\\A deadline does not establish an event};
+\node[mapwide,below=of f] (g) {Reconstruct the price through the notice date\\Qualify missing history, source anomalies and unresolved rounding};
+\node[mapwide,below=of g] (h) {Aggregate one holder's principal, then discard share fractions\\Check share creation and depository receipt separately};
+\node[mapwide,below=of h] (i) {Join HKMA conditions and all fourteen bank obligations\\Preserve missing client, legal, sanctions and transaction evidence};
+\draw[maparr](a.south)--++(0,-3mm)-|(b.north);
+\draw[maparr](a.south)--++(0,-3mm)-|(c.north);
+\draw[maparr](b)--(d);\draw[maparr](c)--(e);
+\draw[maparr](d.south)--++(0,-3mm)-|(f.north);
+\draw[maparr](e.south)--++(0,-3mm)-|(f.north);
+\draw[maparr](f)--(g);\draw[maparr](g)--(h);\draw[maparr](h)--(i);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{The printed extraordinary-distribution formula has an unresolved
+denominator anomaly. Its literal calculation is retained; no replacement price
+or bank clearance is inferred.}
+
+\clearpage
+\MapHeading{Compare conversion notes with preferred shares}{map:preferred-evidence}
+Section~\ref{sec:preferred-evidence} follows the Series SS preferred share.
+Its non-cumulative dividend and redemption terms require different calculations
+from the UBS conversion note. Both still enter the same bank assessment.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=6mm]
+\node[mapwide] (a) {Identify the issue, controlling terms and missing agreements\\Check source content, dates and amendment coverage};
+\node[mapbox,text width=56mm,below=8mm of a,xshift=-34mm] (b) {UBS conversion note\\Event, notice and price history\\Conditional share entitlement};
+\node[mapbox,text width=56mm,below=8mm of a,xshift=34mm] (c) {Series SS preferred share\\Declared dividends\\Redemption or liquidation};
+\node[mapbox,text width=56mm,below=of b] (d) {Separate exchange calendars\\Scoped price determinations\\Custody and registration};
+\node[mapbox,text width=56mm,below=of c] (e) {Cash allocation and taxes\\Controlling certificate's dates\\Actual payment evidence};
+\node[mapwide,below=8mm of $(d.south)!0.5!(e.south)$] (f) {Match instrument, client and bank\\Check the same service and route\\Reject stale facts; preserve conflicts};
+\node[mapwide,below=of f] (g) {Retain all fourteen bank obligations\\Missing law, sanctions or account evidence\\keeps the result qualified};
+\node[mapwide,below=of g] (h) {Changed source or transaction\\Reassess the affected conclusions\\Retrieval alone does not prove legal force};
+\draw[maparr](a.south)--++(0,-3mm)-|(b.north);\draw[maparr](a.south)--++(0,-3mm)-|(c.north);
+\draw[maparr](b)--(d);\draw[maparr](c)--(e);
+\draw[maparr](d.south)--++(0,-3mm)-|(f.north);\draw[maparr](e.south)--++(0,-3mm)-|(f.north);
+\draw[maparr](f)--(g);\draw[maparr](g)--(h);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Different instruments use different contractual calculations.
+Evidence about a distribution, conversion or delivery remains separate from
+permission for the bank to carry out the transaction.}
+
+\clearpage
+\MapHeading{1. Retain the source documents}{map:source}
 The first task is to give every later reading the same inspectable source.
 For PDFs, \texttt{pypdf} and Poppler's \texttt{pdftotext} are two different text
 extractors. Web pages have two parsing paths. Comparing their text can expose
@@ -56,7 +300,7 @@ extractor has read.
 
 \begin{MapDiagram}
 \begin{tikzpicture}[node distance=7mm and 5mm]
-\node[mapbox] (a) {Official circular\\PDF or web document};
+\node[mapbox] (a) {Source document\\Circular, law or prospectus};
 \node[mapbox,right=of a] (b) {Keep the original\\Locate pages and passages};
 \node[mapbox,right=of b] (c) {Extract the text\\Two extraction paths};
 \node[mapbox,below=of b] (d) {Compare the extractions\\Inspect visual warnings};
@@ -68,10 +312,11 @@ extractor has read.
 \draw[maparr] (d)--(f);
 \end{tikzpicture}
 \end{MapDiagram}
-\MapCaption{Agreement between extractors helps find discrepancies; it does not
-read a scanned exception. Automatic reading of scanned text is not implemented.}
+\MapCaption{Agreement between text extractors cannot reveal an exception present
+only in an image. The additional source checks in Chapter~\ref{ch:ensemble}
+read page images and compare the recognised text with the embedded text.}
 
-\MapHeading{2. Read it in context}{map:context}
+\MapHeading{2. Fix context and applicable questions}{map:context}
 A gift restriction may refer to the Code of Conduct and a frequently asked
 question (FAQ). A retained authority catalog connects those references to
 document editions and passages. A dependency search follows explicit official
@@ -92,10 +337,14 @@ identifies the people, products, activities and dates being assessed.
 what its dated answer supports.}
 
 The retained FAQ page has later answer updates. Its older page date therefore
-does not establish everything a historical reader could have seen. A catalog
-match records useful evidence while preserving that uncertainty.
-Chapter~\ref{ch:circular} follows the actual Code and FAQ example;
-the companion's Appendix~\ref{app:current-interpretation} gives the source tools.
+does not establish everything a historical reader could have seen. Prospectus
+work adds issue-specific supplements, incorporated documents, issuer law,
+regulatory notices and the applicable selling rules. The transaction registry
+binds factual documents, policy and settlement-route records to their retained
+bytes and declared dates. Acquisition time does not establish legal force.
+Missing or conflicting evidence remains explicit. Chapter~\ref{ch:circular}
+develops these source questions; Appendix~\ref{app:current-interpretation} gives
+the source tools.
 
 \clearpage
 \MapHeading{3. Develop possible interpretations}{map:readings}
@@ -149,32 +398,84 @@ Agreement still cannot establish complete source coverage.
 Chapters~\ref{ch:search} and~\ref{ch:ensemble} develop these checks.
 
 \clearpage
-\MapHeading{5. Express the proposed rules precisely}{map:rules}
-A program needs the meaning of each fact and operation fixed. LegalMath's rule
-intermediate representation, \textbf{RuleIR}, is its small executable rule
-language. It records typed facts, conditions, exceptions and scope. Type checks
-reject such mistakes as adding a date to money; dependency checks reject
-missing or circular rule references.
+\MapSubheading{4 continued. Investigate the exact disagreement}
+The continuing investigation separates source support, relevance to the selected
+question, correspondence with the executable rule and availability of required
+authority. Two initial contexts work without peer answers. A later round can
+then address the precise disagreement, or repair an invalid response, within
+the same fixed allowance.
 
 \begin{MapDiagram}
-\begin{tikzpicture}[node distance=5mm]
-\node[mapwide] (a) {Proposed interpretation\\Identify each duty, fact and exception};
-\node[mapwide,below=of a] (b) {RuleIR expressions\\Precise operations with known, unknown and conflicting facts};
-\node[mapwide,below=of b] (c) {Validate types and dependencies\\Unsupported expressions remain explicit gaps};
-\node[mapwide,below=of c] (d) {Compose separately scoped controls\\Keep rival selections in separate draft packages};
-\foreach \x/\y in {a/b,b/c,c/d}\draw[maparr](\x)--(\y);
+\begin{tikzpicture}[node distance=6mm]
+\node[mapwide] (q) {Fix the question\\Actor, assessment unit, time and meaning of the result};
+\node[mapwide,below=of q] (p) {Two blind initial assessments\\Source support, relevance, code correspondence, authority};
+\node[mapwide,below=of p] (v) {Check identities, quotations and required evidence\\Retain both proposed explanations};
+\node[mapwide,below=of v] (r) {Disagreement or missing evidence?\\Investigate the smallest consequential question};
+\node[mapwide,below=of r] (o) {Retain supported proposals and unresolved alternatives\\Declared round limit; every dispatch consumes allowance};
+\foreach \x/\y in {q/p,p/v,v/r,r/o}\draw[maparr](\x)--(\y);
+\draw[maparr](r.east)--++(12mm,0)|-node[pos=.25,mapnote,rotate=90]{bounded follow-up}(p.east);
 \end{tikzpicture}
 \end{MapDiagram}
-\MapCaption{The current Java route starts from validated RuleIR. Successful
-construction does not decide which legal interpretation the bank should adopt.}
+\MapCaption{A repaired response is another proposal. Agreement cannot supply a
+missing source or prove an interpretation.}
+
+Rival factual models retain different actors, objects and assessment times.
+A proposed mapping permits a conditional comparison only after those
+distinctions and its assumptions are stated. Changed source bytes or methods
+start a new revision; the old program remains evidence for its old source.
+Section~\ref{sec:successor-assurance} follows the implemented distinctions
+through a contact history for a suspicious transaction report and the
+unfamiliar-circular study.
+
+Capacity is checked separately from meaning. Smaller source or comparison
+batches retain the complete set of obligations and the original retry counts.
+The optional incremental check admits each validated part only while total
+retained size remains within its limit. A failed repair preserves earlier
+claims; it cannot replace them with an empty inventory. If the work still
+cannot finish, its missing checks remain in the final report.
+
+\clearpage
+\MapHeading{5. Construct one shared model before choosing a target}{map:rules}
+A program needs the meaning of each fact and operation fixed. The shared
+frontend records sources, proposed interpretations, typed facts, scoped rules
+and uncertainty before a target language is selected. Type and dependency
+checks expose invalid combinations and missing or circular references.
+Separate translators then report which parts they can express.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=8mm]
+\node[mapwide,text width=132mm] (a) {\textbf{Shared frontend}\\Source evidence, proposed meanings, factual observations and scope};
+\node[mapwide,text width=132mm,below=of a] (b) {\textbf{Shared typed model}\\Rules, dependencies, assessment times and uncertainty policy};
+\node[mapbox,text width=60mm,below=of b,xshift=-38mm] (c) {\textbf{RuleIR translator}\\Check the declared capability profile};
+\node[mapbox,text width=60mm,below=of b,xshift=38mm] (d) {\textbf{Native Catala translator}\\Check the declared capability profile};
+\node[mapbox,text width=60mm,below=of c] (e) {RuleIR rules\\Java emitter and runtime};
+\node[mapbox,text width=60mm,below=of d] (f) {Catala program\\Catala compiler and execution};
+\node[mapwide,text width=132mm,below=8mm of $(e.south)!0.5!(f.south)$] (g) {\hyperref[map:java]{\textbf{Execute supported models with the same declared facts}}\\Unsupported translation stays an explicit capability failure};
+\draw[maparr](a)--(b);
+\draw[maparr](b.south)--++(0,-4mm)-|(c.north);
+\draw[maparr](b.south)--++(0,-4mm)-|(d.north);
+\draw[maparr](c)--(e);\draw[maparr](d)--(f);
+\draw[maparr](e.south)--++(0,-4mm)-|(g.north);
+\draw[maparr](f.south)--++(0,-4mm)-|(g.north);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{RuleIR is one target of the shared model. Native Catala does not
+need to pass through RuleIR. A different proposed meaning requires a different
+model, not merely a different target.}
 
 For example, a gift restriction and a separately specified disclosure duty can
 both belong in a package. Two rival readings of the restriction remain
 alternative packages. The proposed grouping and each unresolved question are
-preserved. Catala's treatment of definitions and exceptions informs the book's
-design discussion; the current emitter does not invoke the Catala compiler.
+preserved. There are two Catala routes. The compatibility route
+lowers a supported RuleIR profile and retains the existing result, trace and
+release checks. The native route consumes the shared model directly, so rich
+records, lists, options, payload variants and typed operations can be reported
+as executable Catala even when the RuleIR target returns an explicit capability
+failure. These routes share the frontend and evidence policy; they do not make
+different interpretations agree by construction.
 
-\MapSubheading{Where Stipula belongs}
+\clearpage
+\MapSubheading{5 continued. Where Stipula belongs}
 Stipula describes contracts through parties, resources, actions and state
 changes. It is relevant when consent can be granted and withdrawn. The
 published translation studied in Chapter~\ref{ch:languages} constructs a Java
@@ -199,47 +500,46 @@ Chapter~\ref{ch:languages} details those limits; Chapter~\ref{ch:verification}
 explains the implemented rule language.
 
 \clearpage
-\MapHeading{6. Generate Java and check its behaviour}{map:java}
+\MapHeading{6. Generate executable targets and check their behaviour}{map:java}
 The Java emitter embeds the fixed RuleIR rules in a generated policy class
 that calls a shared Java evaluator. The Java compiler, \texttt{javac}, compiles
 that class and its supporting runtime. A separately written Python evaluator
-supplies another execution of the same proposed rule. Both receive the same
-facts and assessment times.
+supplies another execution of the same proposed rule. The Catala translators
+take the same shared model when their capability report permits it: the
+compatibility route lowers supported RuleIR, while the native route emits richer
+Catala directly. Each target receives the same declared facts and assessment
+times for the cases in its profile.
 
 \begin{MapDiagram}
-\begin{tikzpicture}[node distance=9mm and 5mm]
-\node[mapbox] (a) {Validated RuleIR\\Fixed proposed rule};
-\node[mapbox,right=of a] (b) {Java emitter\\Policy class and shared evaluator};
-\node[mapbox,right=of b] (c) {Java compiler\\Compiled program};
-\node[mapbox,below=of a] (d) {Python evaluation\\Same facts and times};
-\node[mapbox,below=of c] (e) {Java evaluation\\Same facts and times};
-\node[mapbox,below=of d] (f) {Compare results\\Decision and explanation\\Required evidence};
-\node[mapbox,right=of f] (g) {Keep test results\\Repair disagreements};
-\draw[maparr](a)--(b);\draw[maparr](b)--(c);
-\draw[maparr](a)--(d);\draw[maparr](c)--(e);\draw[maparr](d)--(f);
-\draw[maparr](e.south)--++(0,-4mm)-|(f.north);
-\draw[maparr](f)--(g);
+\begin{tikzpicture}[node distance=7mm]
+\node[mapwide,text width=132mm] (a) {\textbf{Same model, facts, evidence identities and assessment times}\\Verify retained builds against the selected shared model};
+\node[mapbox,text width=60mm,below=of a,xshift=-38mm] (b) {Execute RuleIR / Java\\Declared input profile};
+\node[mapbox,text width=60mm,below=of a,xshift=38mm] (c) {Execute native Catala\\Same declared input profile};
+\node[mapwide,text width=132mm,below=7mm of $(b.south)!0.5!(c.south)$] (d) {\textbf{Compare with separately written formal calculations}\\Check values and required abstentions; retain evidence and traces};
+\node[mapbox,text width=60mm,below=of d,xshift=-38mm] (e) {Mismatch or invalid evidence\\Retain the failure; repair\\the affected model or implementation};
+\node[mapbox,text width=60mm,below=of d,xshift=38mm] (f) {Agreement in the declared domain\\Retain the conditional result\\and remaining legal questions};
+\draw[maparr](a.south)--++(0,-3.5mm)-|(b.north);
+\draw[maparr](a.south)--++(0,-3.5mm)-|(c.north);
+\draw[maparr](b.south)--++(0,-3.5mm)-|(d.north);
+\draw[maparr](c.south)--++(0,-3.5mm)-|(d.north);
+\draw[maparr](d.south)--++(0,-3.5mm)-|(e.north);
+\draw[maparr](d.south)--++(0,-3.5mm)-|(f.north);
 \end{tikzpicture}
 \end{MapDiagram}
-\MapCaption{Two implementations check whether the proposed rule has survived
-translation. They can agree on a rule that omits a legal exception.}
+\MapCaption{The Java/Python pair and the Catala routes check whether a proposed
+rule survives translation within a declared profile. They can agree on a rule
+that omits a legal exception.}
+
+The bank and CoCo runs use a complete-input profile: unknown, conflicting or
+expired required evidence causes abstention. In the paired run, each target
+returned 138 complete-input results and 19 abstentions. A successful abstention
+test demonstrates preserved uncertainty, not a favourable purchaser finding.
 
 The test cases must also be capable of exposing mistakes. Boundary cases place
 values on either side of a threshold. Missing-fact cases check that uncertainty
 survives. Event histories exercise consent, withdrawal and timing. Deliberately
 altered rules, called \emph{mutations}, ask whether the tests notice a removed
 exception or a reversed condition.
-
-\begin{MapDiagram}
-\begin{tikzpicture}[node distance=5mm]
-\node[mapbox] (a) {Introduce a defect\\Remove an exception};
-\node[mapbox,right=of a] (b) {Try revealing cases\\Discount and voucher};
-\node[mapbox,right=of b] (c) {Inspect the result\\Was the defect detected?};
-\draw[maparr](a)--(b);\draw[maparr](b)--(c);
-\end{tikzpicture}
-\end{MapDiagram}
-\MapCaption{A useful test notices a meaningful error. Mutation testing checks
-that ability; it does not manufacture independent legal answers.}
 
 For a small finite rule, every declared input combination can be enumerated.
 Larger or unsupported domains require more limited conclusions. Expected legal
@@ -277,12 +577,15 @@ output meanings and permitted input domain must first be made comparable.
 \MapCaption{A solver result concerns an encoded comparison. An unsupported
 operation, timeout or empty domain cannot count as agreement.}
 
-The current adapter supports a restricted subset of RuleIR and does not check
-an independent proof certificate from the solver. A found discrepancy is
+The solver adapter covers a stated subset of the formal model and does not
+check an independent proof certificate from the solver. A found discrepancy is
 valuable because the original programs can replay it. A no-counterexample
-result retains the encoding and domain assumptions. Chapter~\ref{ch:proof}
+result retains the encoding and domain assumptions. Unsupported operations,
+timeouts and empty domains remain explicit outcomes. Chapter~\ref{ch:proof}
 explains those restrictions.
 
+\clearpage
+\MapHeading{6 continued. Prove a translation and challenge the tests}{map:certificates}
 \MapSubheading{Proofs of selected mathematical properties}
 Lean is a proof assistant that checks a formal derivation. The mathematical
 review used it for selected logical and arithmetic propositions, including
@@ -300,68 +603,345 @@ transfer. SymPy, a symbolic algebra system, checked selected algebraic identitie
 \MapCaption{These are checks of selected mathematical claims, not an automatic
 proof of each generated program or of the whole compiler.}
 
+The successor also registers a narrow Lean certificate for Boolean expression
+lowering. Its fixed checker proves the relation between two formal descriptions;
+an additional finite check executes the generated Java for every declared
+Boolean state assignment within its size limit. Arithmetic, dates, full event
+histories and English meaning remain outside that theorem. A separate Java
+entry point demonstrates attributed contact histories, keeping the duty trigger
+distinct from an observed contact and from overall compliance.
+
+For the CoCo purchaser rule, a Lean certificate checks preservation from the
+formal expression to the shared model. The independent solver comparison covers
+all 512 assignments of the nine Boolean premises. Native execution is a
+separate check: both targets receive the same 157 complete, uncertain or
+expired cases. These are different forms of evidence about a stated model.
+
+\MapSubheading{Would the tests detect a consequential mistake?}
+The purchaser tests deliberately remove conditions that matter. One mutation
+ignores whose account benefits; another ignores the purchaser's US-person
+status. A revealing input must make the altered rule disagree with the
+independently expressed relation.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapbox] (a) {Introduce a defect\\Ignore the client account};
+\node[mapbox,right=of a] (b) {Find a revealing case\\QIB bank; non-QIB client};
+\node[mapbox,right=of b] (c) {Retain the counterexample\\Did the test expose the defect?};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Six altered purchaser rules produced counterexamples. Mutation
+testing checks sensitivity to those defects; it does not manufacture legal
+answers or establish that the source interpretation is complete.}
+
 Proving that every supported rule preserves its behaviour through translation
 remains a stronger goal. The present checks do not establish that whole-compiler
 result or correct interpretation of English. The Stipula/JML/KeY route offers
 another research approach to particular Java properties.
 
 \clearpage
-\MapHeading{7. Deliver a reviewable Java program}{map:delivery}
-The result is a program that another person can inspect, run and question.
-A Java archive (JAR) packages the compiled code. The associated review record
-identifies the sources, proposed meanings, facts, test results and unresolved
-questions. A separate host program exercises the callable Java control.
+\MapHeading{The proof-carrying dossier and the abstention path}{map:assurance}
+The preceding checks are useful only when their targets and assumptions stay
+visible. The integration record therefore binds a source packet, competing
+hypotheses, arguments, proof obligations, method-family results and executable
+artifacts by hash. It also records shared dependencies: agreement between Java
+and Catala after the same RuleIR lowering is a translation check, not two
+independent readings. The controller never changes an unavailable, unknown or
+unsupported result into agreement.
 
 \begin{MapDiagram}
-\begin{tikzpicture}[node distance=7mm and 5mm]
-\node[mapbox] (a) {Compiled Java and tests\\Fixed proposed control};
-\node[mapbox,right=of a] (b) {Sources and meaning\\Assumptions and questions};
-\node[mapbox,right=of b] (c) {Reviewable draft\\JAR and host example};
-\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\begin{tikzpicture}[node distance=18mm and 7mm]
+\tikzset{mapcompact/.style={mapbox,text width=37mm,minimum height=30mm,inner sep=2.5mm,font=\small}}
+\node[mapcompact] (a) {Versioned source packet\\Question and scope\\Quoted passages};
+\node[mapcompact,right=of a] (b) {Interpretation families\\Arguments and search\\Open assumptions};
+\node[mapcompact,right=of b] (c) {Formal obligations\\Solver/proof checks\\Java and Catala artifacts};
+\node[mapcompact,below=of b] (d) {Verify retained files\\Targets and hashes\\Common inputs};
+\node[mapcompact,below=of a] (e) {Unresolved or novel\\clause\\Extension required};
+\node[mapcompact,below=of c] (f) {Reviewable draft\\Evidence dossier\\No release authority};
+\draw[maparr] (a)--(b);\draw[maparr] (b)--(c);\draw[maparr] (c)--(d);
+\draw[maparr] (d)--(e);\draw[maparr] (d)--(f);
+\draw[maparr] (e.north)--++(0,9mm)-|node[pos=.25,above,mapnote]{new evidence or revised model}(b.south);
 \end{tikzpicture}
 \end{MapDiagram}
-\MapCaption{The delivered evidence lets a reviewer relate an executable answer
-to its proposed meaning. Draft delivery supplies no authority to use it.}
+\MapCaption{A proof or replay closes the proposition it names. An open authority,
+future clause, stale result or unavailable required method keeps the dossier on
+the abstention path.}
 
-\MapHeading{8. Approve and supervise bank use}{map:operation}
-The institution decides which interpretation and exact program version it will
-authorize. Its own identities, fact owners and transaction systems must preserve
-that decision. The local source monitor and bounded scheduler can revisit
-affected controls; actual bank operation still needs institution validation.
+The gift-circular replay (23EC46) imports five previously proposed readings. Two differ
+on whether product-directed presentation suffices without an operational
+connection. The solver finds a separating assignment and the original Python
+and Java programs replay it. The Catala routes supply another execution target
+over the shared model: the compatibility backend consumes supported RuleIR,
+while the native converter can consume a richer model without first making it
+RuleIR. Agreement after a common lowering is a translation check, not
+independent legal evidence. The disabled live provider supplies no fresh
+reading. The witness identifies a legal question; it does not answer it.
+The result can be delivered
+as a draft Java package with its evidence and open questions. The transaction
+assessment must retain the unresolved classification and any missing policy.
+The exact contract and master command are described in
+Section~\ref{sec:proof-carrying-integration}.
+
+The master validates a frozen revision and binds each accepted phase to its
+inputs and predecessor files.
+Failure preserves the attempt and triggers a focused repair check before a
+bounded retry. Success refreshes the next-phase plan. A changed source, checker,
+plan or allowlist invalidates acceptance; retry exhaustion produces a report of
+the remaining failure. Neither a retry nor a successful document build supplies
+missing interpretive evidence.
+
+\clearpage
+\MapHeading{7. Assemble the transaction assessment}{map:delivery}
+A Java archive (JAR) or a declared Catala package contains the compiled
+control. Its execution result is only one part of the transaction assessment.
+The investigation also checks the fixed obligation inventory, applicability,
+retrieved factual documents and their source dependencies. Each finding keeps
+its scope, supporting evidence and unresolved questions.
 
 \begin{MapDiagram}
-\begin{tikzpicture}[node distance=9mm and 5mm]
-\node[mapresearch] (a) {Bank review\\Meaning and facts\\Release approval};
-\node[mapresearch,right=of a] (b) {Supervised bank use\\Host, identity and transaction checks};
-\node[mapbox,right=of b] (c) {Source review\\Monitor and scheduler};
-\node[mapbox,below=of b] (d) {Revisit affected rules\\Preserve earlier decisions};
-\draw[maparr](a)--(b);\draw[maparr](b)--(c);
-\draw[maparr](c.south)--++(0,-3mm)-|node[pos=.25,below,mapnote]{source changes}(d.north);
-\draw[maparr](d.west)-|node[pos=.25,below,mapnote]{revised proposal}(a.south);
+\begin{tikzpicture}[node distance=7mm]
+\node[mapwide,text width=132mm] (a) {\textbf{Retrieve evidence for the declared transaction}\\Actual document fields; source versions, scope and time checks};
+\node[mapwide,text width=132mm,below=of a] (b) {\textbf{Calculate supported conditions in dependency order}\\Derived facts cannot be replaced by an asserted favourable result};
+\node[mapwide,text width=132mm,below=of b] (c) {\textbf{Reconcile every obligation in the fixed inventory}\\Findings, missing rules, conflicts and unsupported applicability};
+\node[mapwide,text width=132mm,below=of c] (d) {\textbf{Bind the assessment to sources, facts and method}\\Program identity, formal checks, execution results and reasons};
+\node[mapwide,text width=132mm,below=of d] (e) {\textbf{Current result: qualified assessment}\\Complete legal coverage is not established; execution is not authorized};
+\foreach \x/\y in {a/b,b/c,c/d,d/e}\draw[maparr](\x)--(\y);
 \end{tikzpicture}
 \end{MapDiagram}
-\MapCaption{Dashed boxes require the bank's operating evidence. Local monitoring
-is implemented; an unchanged source still leaves unresolved questions open.}
+\MapCaption{A request supplies evidence and context, not its own shorter list
+of requirements or precomputed favourable findings. The retained assessment
+can be reconstructed from its bound inputs.}
 
-\MapSubheading{Measuring whether the method helps}
-Empirical evaluation runs alongside development. The implemented comparison
-offers a single reader, isolated readers, tree search and source assurance under
-declared resource limits. Independent reference outcomes and unfamiliar source
-families are needed to estimate interpretation quality; a separate workflow
-study measures people's review effort.
+For example, account amounts enter the financial condition before client
+qualification is calculated. A transaction threshold also needs its separately
+declared controls premise. Sophisticated professional investor eligibility then
+feeds the condition for streamlined procedures. A false sufficient condition
+does not prove its converse: failure to establish that a bond is complex does
+not establish that it is non-complex.
+
+The CoCo purchaser result is supplementary evidence attached to this assessment.
+The original fourteen bank obligations remain present for each instrument.
+Actual JPMorgan entity, account, policy and settlement facts have not been
+supplied. The program therefore retains those gaps and returns no transaction
+execution permission. Recording a bank authorization as a business fact would
+not turn it into proof of legal interpretation quality.
+
+\clearpage
+\MapHeading{8. Reassess when evidence or events change}{map:operation}
+An assessment belongs to particular source editions, factual records, a method
+and an assessment time. It cannot be reused as though a later transaction had
+the same circumstances. The event replay records changes and invalidates the
+current assessment before it considers a later settlement request.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=7mm]
+\node[mapwide] (a) {\textbf{Retained assessment and ordered events}\\Exact sources, facts, policy, route and dates};
+\node[mapwide,below=of a] (b) {\textbf{A relevant input changes}\\Law or sanctions source; account facts; policy; route; corporate action};
+\node[mapwide,below=of b] (c) {\textbf{Invalidate the current assessment}\\Preserve its historical evidence; retrieve the changed inputs};
+\node[mapwide,below=of c] (d) {\textbf{Reassess applicability and all declared obligations}\\Recheck affected models and their dependencies};
+\node[mapwide,below=of d] (e) {\textbf{Retain the new result and any separately sourced duties}\\No current qualified result permits settlement};
+\foreach \x/\y in {a/b,b/c,c/d,d/e}\draw[maparr](\x)--(\y);
+\draw[maparr](e.east)--++(12mm,0)|-node[pos=.25,mapnote,rotate=90]{next change}(b.east);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Settlement requires a current assessment for its declared time.
+A stale or absent assessment is rejected. Passing that freshness check still
+does not turn a qualified result into permission to trade.}
+
+Duties keep the responsible actor, trigger, source and due time separate.
+Rejection, blocking assets, reporting, rescreening and disclosure are different
+actions; a sanctions finding cannot silently substitute one for another. A
+business-day deadline needs an explicit retained calendar within its supported
+range. Evidence recorded as completion does not prove the action occurred.
+
+Official sanctions snapshots can be refreshed and checked before replacement;
+earlier bytes remain available for historical investigations. Exact-name matches
+identify candidates for entity resolution. Ownership propagation for a blocking
+program cannot automatically be reused for a solely Chinese military-industrial
+company designation. These scoped mechanisms do not complete identity resolution
+or every sanctions program.
+
+\clearpage
+\MapHeading{Repair the implementation; refresh the next phase}{map:repair}
+The executable master programs preserve the evidence from each phase. The bank
+and paired-CoCo campaigns validate sources and tools, run regressions, check
+formal relations, execute both targets, and then assemble the integrated
+investigation. A phase failure must remain visible until a repair has been
+executed and checked.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=8mm]
+\node[mapwide] (a) {\textbf{Freeze the phase inputs and required checks}\\Source, model, tool and predecessor identities};
+\node[mapwide,below=of a] (b) {\textbf{Execute the current phase}\\Keep outputs and diagnostics under a new attempt};
+\node[mapbox,text width=58mm,below=of b,xshift=-37mm] (c) {\textbf{Failure}\\Retain the failed attempt\\Record the required repair};
+\node[mapbox,text width=58mm,below=of b,xshift=37mm] (d) {\textbf{Checks pass}\\Validate output identities\\Accept only this phase's result};
+\node[mapbox,text width=58mm,below=of c] (e) {Execute and check the repair\\Rerun with current inputs\\Changed methods invalidate reuse};
+\node[mapbox,text width=58mm,below=of d] (f) {Refresh the next-phase plan\\Continue to the next phase\\or retain the final qualified result};
+\draw[maparr](a)--(b);
+\draw[maparr](b.south)--++(0,-4mm)-|(c.north);
+\draw[maparr](b.south)--++(0,-4mm)-|(d.north);
+\draw[maparr](c)--(e);\draw[maparr](d)--(f);
+\draw[maparr](e.west)--++(-6mm,0)|-(a.west);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{The runner records a repair request; a failed check does not repair
+itself. Reuse of a successful phase requires matching inputs and output hashes.
+An engineering pass does not remove the legal qualifications.}
+
+\MapSubheading{Evaluate new situations without human answer labels}
+The product requires a machine-checked proposition or an explicit qualification.
+Human approval and agreement among models are not quality evidence. Independent
+equations, translation proofs, adversarial cases and source-bound challenges
+test different possible failures, each within its declared domain.
+
+For future-source work, the observation mechanism freezes the method, inventory
+and prior sources before it accepts new content. A changed method starts a new
+series. New-to-inventory documents and generated amendments test novelty handling;
+they do not establish accuracy on future laws. The present bank series has no
+real prospective observations. Unknown meaning must remain qualified until
+evidence establishes the particular claim being made.
+
+\clearpage
+\MapHeading{Complete the processing without losing the question}{map:continuation}
+The same proof-or-qualification requirement applies when a source investigation
+must be split into smaller pieces. Finishing those pieces matters because an
+unexamined exception can invalidate a conclusion drawn from the rest.
+
+Long responses and exhausted review budgets can leave parts of a circular
+unexamined. Two implemented paths share exact source references. The single
+reader accounts for its declared questions; the ensemble investigates competing
+readings. These paths retain their separate results. See
+Section~\ref{sec:processing-continuation} for the mechanics and checked limits.
 
 \begin{MapDiagram}
 \begin{tikzpicture}[node distance=5mm]
-\node[mapbox] (a) {Fixed study design\\Hidden reference answers};
-\node[mapbox,right=of a] (b) {Compare methods\\Errors, useful answers\\and missing answers};
-\node[mapbox,right=of b] (c) {Estimate performance\\By source family};
-\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\node[mapwide] (a) {Whole retained source\\Select exact source identifiers; software retrieves the text};
+\node[mapbox,text width=54mm,below=7mm of a,xshift=-34mm] (b) {Single reading\\Exact declared questions};
+\node[mapbox,text width=54mm,below=7mm of a,xshift=34mm] (c) {Competing readings\\Exact question assignments};
+\node[mapbox,text width=54mm,below=of b] (d) {Bounded complete coverage\\Every source unit accounted for};
+\node[mapbox,text width=54mm,below=of c] (e) {Breadth before follow-ups\\Two perspectives per batch};
+\node[mapbox,text width=54mm,below=of d] (f) {Whole-source consistency\\Recheck coverage\\after revision};
+\node[mapbox,text width=54mm,below=of e] (g) {Scoped reconciliation\\Retain disputes and missing work};
+\node[mapwide,below=7mm of $(f.south)!0.5!(g.south)$] (h) {Retained proposals and uncertainty\\Source, reading, question and method identities};
+\draw[maparr](a.south)--++(0,-3mm)-|(b.north);
+\draw[maparr](a.south)--++(0,-3mm)-|(c.north);
+\draw[maparr](b)--(d);\draw[maparr](c)--(e);
+\draw[maparr](d)--(f);\draw[maparr](e)--(g);
+\draw[maparr](f.south)--++(0,-3mm)-|(h.north);
+\draw[maparr](g.south)--++(0,-3mm)-|(h.north);
 \end{tikzpicture}
 \end{MapDiagram}
-\MapCaption{The comparison machinery exists. Its development checks have not
-established a method ranking or a reduction in reviewer workload.}
+\MapCaption{An interpretation revision reopens its coverage checks. Failed
+requests keep their spent attempts; no batch disappears to fit the budget.}
 
-Chapters~\ref{ch:implementation}--\ref{ch:operation} explain delivery,
-comparative evaluation and bank adoption.
+The qualification adapter checks supported formal propositions for a retained
+reading and exact question. The complete ensemble investigation invokes it when
+enabled; the split single-reader path retains proposals for subsequent checking.
+A source identifier proves where the words came from. Coverage proves that the
+declared units and questions received dispositions. A formal theorem proves its
+stated relation. None of these alone proves the English interpretation. The
+four earlier unfamiliar investigations therefore remain incomplete unless their
+remaining stages actually execute under the recorded limits.
+
+\clearpage
+\MapHeading{Preserve every concern before shortening a request}{map:lossless-context}
+The retained authentication exercise reached all 263 source units but could not
+fit its final whole-source comparison into one request. The optional readable
+table encoding removes repeated representation while retaining the complete
+source, questions and explanations. Section~\ref{sec:lossless-context} explains
+the encoding and its executed checks.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapwide] (a) {Retain original complete request\\Full source, every question and all cross-piece concerns};
+\node[mapwide,below=of a] (b) {Encode readable tables and exact references\\No summary, truncation or deleted qualification};
+\node[mapwide,below=of b] (c) {Decode and compare the entire original request\\Canonical bytes equal; original identities unchanged};
+\node[mapbox,text width=57mm,below=7mm of c,xshift=-34mm] (d) {Preserved and within byte limit\\Dispatch complete context};
+\node[mapbox,text width=57mm,below=7mm of c,xshift=34mm] (e) {Mismatch or overflow\\Keep evidence; stop dispatch};
+\node[mapbox,text width=57mm,below=of d] (f) {Whole-source reconciliation\\Account for every concern\\and question; retain uncertainty};
+\node[mapbox,text width=57mm,below=of e] (g) {Bounded causal repair\\Execute its diagnostic\\before a permitted retry};
+\node[mapwide,below=7mm of $(f.south)!0.5!(g.south)$] (h) {An interpretation revision reopens all coverage\\No discarded history or refunded attempts};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\draw[maparr](c.south)--++(0,-3mm)-|(d.north);
+\draw[maparr](c.south)--++(0,-3mm)-|(e.north);
+\draw[maparr](d)--(f);\draw[maparr](e)--(g);
+\draw[maparr](f.south)--++(0,-3mm)-|(h.north);
+\draw[maparr](g.south)--++(0,-3mm)-|(h.north);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Exact reconstruction permits the capacity comparison; it does not
+establish legal support. The executed synthetic reconciliation retained every
+concern as unresolved.}
+
+The measured request shrank from 382,396 to 175,016 bytes under the unchanged
+200,000-byte limit. A challenge with long unique explanations still exceeded
+that limit and stopped before dispatch. A future source can therefore produce
+an explicit capacity qualification. Model comprehension of the encoding and
+English correctness remain unestablished by these offline exercises.
+
+\clearpage
+\MapHeading{Check program references and dates independently}{map:executable-dates}
+Section~\ref{sec:executable-dates} separates exact quotation, mathematical
+preservation and native execution. Each establishes a different proposition.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=6mm]
+\node[mapwide] (a) {Retained source, proposed reading and typed question\\Check the request against these original objects};
+\node[mapbox,text width=56mm,below=7mm of a,xshift=-34mm] (b) {Parse scope and result\\Select their exact expressions\\Fact descriptions remain context};
+\node[mapbox,text width=56mm,below=7mm of a,xshift=34mm] (c) {Reading is unencoded\\No executable quotation\\or correspondence verdict};
+\node[mapwide,below=7mm of $(b.south)!0.5!(c.south)$] (d) {Check ownership; resolve text; retain all proposed judgments\\Run original semantic checks; preserve rejected batches};
+\node[mapwide,below=of d] (e) {For supported Gregorian comparisons\\Check constructor preservation and calendar-order theorems};
+\node[mapwide,below=of e] (f) {Check the actual representations and runtimes\\Independent calendar codec; RuleIR/Java and Catala challenges};
+\node[mapwide,below=of f] (g) {Retain the legal date question and missing authorities\\Freeze the method before collecting future observations};
+\draw[maparr](a.south)--++(0,-3mm)-|(b.north);
+\draw[maparr](a.south)--++(0,-3mm)-|(c.north);
+\draw[maparr](b.south)--++(0,-3mm)-|(d.north);
+\draw[maparr](c.south)--++(0,-3mm)-|(d.north);
+\draw[maparr](d)--(e);\draw[maparr](e)--(f);\draw[maparr](f)--(g);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{The calendar domain is valid proleptic Gregorian dates in years
+1--9999. Business-day rules and selection of the legally relevant date remain separate.}
+
+The eight encoded UCITS readings can now receive date-preservation evidence.
+The ninth remains unencoded, and unresolved source questions persist for all
+nine. Tests of this implementation do not create future observations or certify
+the interpretation of an unknown future legal text.
+
+Source extraction and question definition use source references. Version~2
+executable references apply only at the correspondence stage. A failed response
+triggers bounded diagnostic processing; exhaustion retains every unresolved
+pair and concern. Exact quotation never establishes legal support.
+
+\clearpage
+\MapHeading{Keep the method fixed when observing future sources}{map:whole-method}
+Section~\ref{sec:whole-method-observation} explains why a study must identify
+the extraction and interpretation process as well as its final proof checker.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=6mm]
+\node[mapwide] (a) {Freeze the method before admitting new sources\\Extraction, model route, search and questions\\Authority, spending limits and proof tools};
+\node[mapwide,below=of a] (b) {Record each submitted source edition and question\\Check publication and encounter dates; retain excluded and pending tasks};
+\node[mapwide,below=of b] (c) {Execute the investigation with original spending limits\\Retain all candidates, rejected responses, discrepancies and missing premises};
+\node[mapwide,below=of c] (d) {Join the actual stage records to the frozen method\\Recheck each candidate qualification and the complete pair denominator};
+\node[mapbox,text width=56mm,below=7mm of d,xshift=-34mm] (e) {Method and records match\\Retain the checked propositions\\and every unresolved question};
+\node[mapbox,text width=56mm,below=7mm of d,xshift=34mm] (f) {Method changed\\or stage missing\\Retain incomplete task\\Repair needs a later window};
+\node[mapwide,below=8mm of f.south,xshift=-34mm] (g) {Report the observed evidence and its limits\\Legal meaning and remote attestation remain qualified\\Publication completeness is unestablished};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);\draw[maparr](c)--(d);
+\draw[maparr](d.south)--++(0,-3mm)-|(e.north);
+\draw[maparr](d.south)--++(0,-3mm)-|(f.north);
+\draw[maparr](e.south)--++(0,-3mm)-|(g.north);
+\draw[maparr](f.south)--++(0,-3mm)-|(g.north);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{A checked program belongs to a particular investigation. The same
+program produced from a changed source or method is a different observation.}
+
+An additional allowance does not reset the original question's attempts or
+deadline. A revised source keeps its predecessor's unresolved questions. A
+repaired method needs a later untouched observation window; no earlier failure
+is silently turned into evidence for that revision.
+
 \endgroup
 \clearpage

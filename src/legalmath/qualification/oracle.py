@@ -182,7 +182,11 @@ def evaluate(formal, snapshot):
         if op == 'and': return all(values)
         if op == 'or': return any(values)
         if op == 'not': return not values[0]
-        if op == '+': return values[0] + values[1]
+        if op == '+':
+            if len(values) < 2: unsupported('Addition requires at least two operands')
+            result = values[0]
+            for value in values[1:]: result += value
+            return result
         if op == '-': return values[0] - values[1]
         if op == '*': return values[0] * values[1]
         if op == '=': return values[0] == values[1]

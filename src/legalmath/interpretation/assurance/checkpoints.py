@@ -106,7 +106,10 @@ def seal(directory):
 def receipt(request,response,ledger_path,route_hash):
     ledger_path=Path(ledger_path).resolve();ledger=loads(ledger_path.read_bytes())
     provenance=response['provenance'];slot=provenance.get('allowance_slot')
-    wire=compact_request(request);wire_hash=digest(wire)
+    profile=provenance.get('transport_profile','exact-source-text.compact.v1')
+    if profile not in ('exact-source-text.compact.v1','exact-source-text.compact.v2'):
+        raise LegalMathError('E_INTEGRITY',details='Unknown compact transport profile')
+    wire=compact_request(request,profile=profile.rsplit('.',1)[-1]);wire_hash=digest(wire)
     if (type(slot)is not int or not 1<=slot<=len(ledger['calls']) or
         ledger['calls'][slot-1]['request_hash']!=wire_hash or
         provenance.get('request_hash')!=wire_hash or provenance.get('provider_route_hash')!=route_hash):

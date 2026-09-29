@@ -1,0 +1,379 @@
+#!/usr/bin/env python3
+"""Run the repaired dossier protocol. V1 evidence is preserved and rejected.
+
+No supplied shell text, model request or network operation is executed. Every
+accepted phase binds exact inputs, predecessor manifests and output files.
+"""
+from __future__ import annotations
+
+import argparse
+import copy
+import fcntl
+import hashlib
+import importlib.metadata
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+import xml.etree.ElementTree as ET
+import zipfile
+
+ROOT = Path(__file__).resolve().parents[1]
+DOC = ROOT/'docs/implementation/proof-carrying-assurance'
+PROTOCOL = 'verified-execution-v3'
+OUT = ROOT/'artifacts/proof-carrying-assurance'/PROTOCOL
+PLAN = ROOT/'docs/plans/proof-carrying-assurance-integration.md'
+ALLOWLIST = DOC/'allowlist.json'
+INPUT = DOC/'replay-input.json'
+PY = ROOT/'.venv/bin/python'
+DOC_PY = Path('/home/chakwong/miniconda3/envs/tfgpu/bin/python')
+JDK = ROOT/'.localresources/java-toolchain/jdk-17.0.20.1+1'
+CATALA = {'compiler': ROOT/'.localresources/catala-toolchain/opam-root/catala-clean-1.2.1/bin/catala',
+          'upstream': ROOT/'.localresources/catala-toolchain/catala-0f895e048d19dbe72f24cdd6d5f3398bfe1335fa',
+          'lock': ROOT/'docs/implementation/catala/toolchain-lock.json'}
+PHASES = ('P0', 'P1', 'P2', 'P3', 'P4', 'P5')
+MAX_ATTEMPTS = 3
+TESTS = {
+    'contract': ['tests/assurance/test_proof_carrying_integration.py'],
+    'controller': ['tests/assurance/test_proof_carrying_master.py'],
+    'regression-assurance': ['tests/assurance'],
+    'regression-backends': ['tests/catala', 'tests/conformance', 'tests/translation'],
+    'regression-interpretation': ['tests/search', 'tests/interpretation'],
+    'regression-product': ['tests/integration', 'tests/unit', 'tests/security'],
+}
+
+
+def now(): return datetime.now(timezone.utc).isoformat()
+def sha(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+def read(p): return json.loads(Path(p).read_text())
+def rel(p): return Path(p).resolve().relative_to(ROOT.resolve()).as_posix()
+def objhash(v): return hashlib.sha256(json.dumps(v, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def write(p, value):
+    p = Path(p); p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(p.suffix+'.tmp'); tmp.write_text(json.dumps(value, indent=2, sort_keys=True)+'\n'); tmp.replace(p)
+
+
+def environment_fingerprint():
+    # Repeated sys.path entries can expose the same installed distribution more
+    # than once. Keep distinct name/version pairs, including conflicting versions.
+    packages = sorted({(dist.metadata['Name'], dist.version)
+                       for dist in importlib.metadata.distributions() if dist.metadata['Name']})
+    return {'python': sys.version, 'executable': str(Path(sys.executable).resolve()),
+            'packages': [list(row) for row in packages]}
+
+
+def material_inputs():
+    paths = {PLAN, ALLOWLIST, INPUT, Path(__file__).resolve()}
+    for folder in ('src', 'scripts', 'tests', 'examples', 'docs/specs', 'docs/monograph', 'docs/proposal'):
+        for p in (ROOT/folder).rglob('*'):
+            if p.is_file() and p.suffix in ('.py', '.java', '.tex', '.bib', '.json', '.txt', '.html'):
+                if '__pycache__' not in p.parts and 'review' not in p.parts:
+                    paths.add(p)
+    config = read(INPUT)
+    for key in ('packet', 'candidates', 'criticism'):
+        paths.add(ROOT/config[key]['path'])
+    paths.update(ROOT/s['path'] for s in config['sources'])
+    paths.add(ROOT/'docs/monograph/review/reader-facing/citation-occurrence-review.json')
+    paths.update(p for p in (JDK/'bin/java', JDK/'bin/javac', CATALA['compiler'], CATALA['lock']) if p.is_file())
+    files = {rel(p): sha(p) for p in sorted(paths)}
+    environment = environment_fingerprint()
+    return {'files': files, 'environment': environment,
+            'digest': objhash({'files': files, 'environment': environment})}
+
+
+def state():
+    p = OUT/'state.json'
+    return read(p) if p.exists() else {'protocol': PROTOCOL, 'phases': {
+        phase: {'status': 'PLANNED', 'attempts': [], 'repairs': []} for phase in PHASES}}
+
+
+def fixed_command(kind, directory):
+    if kind in TESTS:
+        return [str(PY), '-m', 'pytest', *TESTS[kind], '-q', '--junitxml='+str(directory/(kind+'.xml'))]
+    if kind == 'document':
+        return [str(PY), str(ROOT/'scripts/build_reader_facing_monograph.py')]
+    raise ValueError(kind)
+
+
+def command_allowed(argv, directory):
+    directory = Path(directory).resolve()
+    if not directory.is_relative_to(OUT.resolve()): return False
+    policy = read(ALLOWLIST)
+    for kind in [*TESTS, 'document']:
+        if argv == fixed_command(kind, directory) and kind in policy['command_kinds']:
+            return True
+    return False
+
+
+def junit(path):
+    doc = ET.parse(path).getroot()
+    suites = [doc] if doc.tag == 'testsuite' else list(doc.iter('testsuite'))
+    result = {k: sum(int(s.get(k, '0')) for s in suites) for k in ('tests', 'failures', 'errors', 'skipped')}
+    if result['tests'] <= 0 or any(result[k] for k in ('failures', 'errors', 'skipped')):
+        raise RuntimeError('Regression did not pass without skips: '+str(result))
+    return result
+
+
+def run_command(kind, directory):
+    argv = fixed_command(kind, directory)
+    if not command_allowed(argv, directory): raise RuntimeError('Command not in exact allowlist')
+    directory.mkdir(parents=True, exist_ok=True); log = directory/(kind+'.log')
+    record = {'kind': kind, 'argv': argv, 'started_at': now(), 'status': 'RUNNING',
+              'cpu_only': True, 'network_operations_authorized': False}
+    receipt = directory/(kind+'.command.json'); write(receipt, record)
+    start = time.monotonic()
+    env = {**os.environ, 'PYTHONPATH': str(ROOT/'src'), 'CUDA_VISIBLE_DEVICES': '-1',
+           'HF_HUB_OFFLINE': '1', 'HF_HUB_DISABLE_TELEMETRY': '1', 'TOKENIZERS_PARALLELISM': 'false',
+           'LEGALMATH_DOC_PY': str(DOC_PY)}
+    try:
+        with log.open('w') as stream:
+            proc = subprocess.run(argv, cwd=ROOT, env=env, stdout=stream, stderr=subprocess.STDOUT,
+                                  timeout=2400 if kind == 'document' else 1800)
+        record['exit_code'] = proc.returncode
+        if proc.returncode: raise RuntimeError(kind+' failed; inspect '+rel(log))
+        if kind in TESTS: record['junit'] = junit(directory/(kind+'.xml'))
+        record['status'] = 'PASSED'
+    except BaseException as exc:
+        record['status'] = 'FAILED'; record['error'] = type(exc).__name__+': '+str(exc)
+        raise
+    finally:
+        record.update(finished_at=now(), wall_seconds=round(time.monotonic()-start, 3),
+                      log=rel(log), log_sha256=sha(log) if log.exists() else None)
+        write(receipt, record)
+    return record
+
+
+def audit():
+    policy = read(ALLOWLIST)
+    if policy['protocol'] != PROTOCOL or policy['max_attempts_per_phase'] != MAX_ATTEMPTS:
+        raise RuntimeError('Plan/allowlist protocol mismatch')
+    if policy['network'] or policy['model_calls'] or policy['release_eligible']:
+        raise RuntimeError('This execution is offline and cannot release')
+    if set(policy['command_kinds']) != {*TESTS, 'document'}:
+        raise RuntimeError('Command policy differs from implementation')
+    covered = {p for kind, paths in TESTS.items() if kind.startswith('regression-')
+               for folder in paths for p in (ROOT/folder).rglob('test_*.py')}
+    if covered != set((ROOT/'tests').rglob('test_*.py')):
+        raise RuntimeError('Regression partitions do not cover the complete test inventory')
+    for kind in policy['command_kinds']:
+        if not command_allowed(fixed_command(kind, OUT/'audit'), OUT/'audit'):
+            raise RuntimeError('Fixed command rejected')
+    result = {'status': 'REVIEWED_ENGINEERING_PROTOCOL', 'inputs': material_inputs(),
+              'model_calls': 0, 'release_eligible': False,
+              'v1_acceptance': 'REJECTED_ASSERTED_EVIDENCE', 'plan': rel(PLAN)}
+    write(OUT/'audit.json', result); return result
+
+
+def verify_manifest(ref, *, current_inputs=None):
+    p = ROOT/ref['path']
+    if sha(p) != ref['sha256']: raise RuntimeError('Manifest changed: '+ref['path'])
+    manifest = read(p)
+    if manifest['status'] != 'PASSED': raise RuntimeError('Predecessor did not pass')
+    if current_inputs is not None and manifest['inputs'] != current_inputs:
+        raise RuntimeError('Accepted inputs are stale')
+    for name, expected in manifest['artifacts'].items():
+        p = ROOT/name
+        if not p.is_file() or sha(p) != expected: raise RuntimeError('Accepted artifact changed: '+name)
+    for prior in manifest['predecessors'].values():
+        # Verify stored manifest identity; the caller verifies each predecessor's artifacts once.
+        if sha(ROOT/prior['path']) != prior['sha256']: raise RuntimeError('Predecessor identity changed')
+    return manifest
+
+
+def invalidate(current):
+    inputs = material_inputs(); reason = None
+    for phase in PHASES:
+        row = current['phases'][phase]
+        if row['status'] == 'RUNNING':
+            # A lock is held by execute; a persisted RUNNING here has no live supervisor.
+            row['status'] = 'REPAIR_REQUIRED'
+            row['interruption'] = {'at': now(), 'reason': 'Previous supervisor interrupted; attempt preserved'}
+        if row['status'] == 'PASSED':
+            try: verify_manifest(row['attempts'][-1], current_inputs=inputs)
+            except (RuntimeError, OSError) as exc: reason = str(exc)
+            if reason:
+                row['status'] = 'STALE'; row.setdefault('invalidations', []).append({'at': now(), 'reason': reason})
+    write(OUT/'state.json', current)
+    report_path = OUT/'final-report.json'
+    if any(r['status'] != 'PASSED' for r in current['phases'].values()) and report_path.exists():
+        previous = read(report_path)
+        if previous.get('status') == 'ENGINEERING_PASS_WITH_RETAINED_UNCERTAINTY':
+            archived = OUT/'report-history'/(sha(report_path)+'.json')
+            archived.parent.mkdir(parents=True, exist_ok=True)
+            archived.write_bytes(report_path.read_bytes())
+            write(report_path, {'status': 'STALE_REVALIDATION_REQUIRED', 'superseded_report': rel(archived),
+                                'at': now(), 'release_eligible': False, 'legal_correctness_established': False})
+
+
+def refresh(current):
+    pending = next((p for p in PHASES if current['phases'][p]['status'] != 'PASSED'), None)
+    value = {'created_at': now(), 'next_phase': pending, 'inputs': material_inputs(),
+             'predecessors': {p: r['attempts'][-1] for p, r in current['phases'].items() if r['status'] == 'PASSED'},
+             'phase_statuses': {p: r['status'] for p, r in current['phases'].items()},
+             'repair_required': [p for p, r in current['phases'].items() if r['status'] == 'REPAIR_REQUIRED'],
+             'remaining_attempts': {p: MAX_ATTEMPTS-len(r['attempts']) for p, r in current['phases'].items()},
+             'next_evidence': ['Fresh source-driven candidate/critic runs under a new bounded allowance',
+                               'Source authority closure and independent adjudication of unresolved priorities',
+                               'General proof-certificate adapter with explicit semantics',
+                               'Prospective held-out circular evaluation; no reuse as a training answer'],
+             'release_eligible': False}
+    write(OUT/'next-phase-plan.json', value); return value
+
+
+def repair_exercise(directory, dossier_path):
+    from legalmath.interpretation.assurance.integration_contract import parse_dossier, validate_dossier
+    from legalmath.errors import LegalMathError
+    original = read(dossier_path); before = validate_dossier(original, ROOT)
+    mutant = copy.deepcopy(original); mutant['methods'][0]['input_hash'] = '0'*64
+    write(directory/'rejected-target-mutation.json', mutant)
+    try: parse_dossier(mutant)
+    except LegalMathError as exc: error = exc.code
+    else: raise RuntimeError('Mis-targeted evidence was accepted')
+    restored = validate_dossier(original, ROOT)
+    if restored != before: raise RuntimeError('Restoration changed the evidence')
+    value = {'repair_executed': True, 'mutation_rejected': True, 'error': error,
+             'restored_dossier_hash': restored['dossier_hash'], 'status_after_repair': restored['status'],
+             'release_eligible': False}
+    write(directory/'repair-result.json', value); return value
+
+
+def phase_work(phase, directory, current):
+    if phase == 'P0':
+        result = {'inputs': material_inputs(), 'v1_rejection': read(DOC/'v1-acceptance-rejection.json')}
+        # Dirty/untracked implementation bytes must remain reconstructible.
+        # Hashes and a base commit alone cannot reproduce a later overwritten file.
+        with zipfile.ZipFile(directory/'input-snapshot.zip', 'w', compression=zipfile.ZIP_DEFLATED) as snapshot:
+            for name in sorted(result['inputs']['files']):
+                data = (ROOT/name).read_bytes()
+                if hashlib.sha256(data).hexdigest() != result['inputs']['files'][name]:
+                    raise RuntimeError('Input changed during snapshot: '+name)
+                snapshot.writestr(name, data)
+        write(directory/'baseline.json', result); return result
+    if phase == 'P1': return {'command': run_command('contract', directory)}
+    if phase == 'P2':
+        from legalmath.interpretation.assurance.integration_execution import run_replay
+        return run_replay(ROOT, INPUT, directory/'dossier', JDK, catala=CATALA)
+    if phase == 'P3': return {'command': run_command('controller', directory)}
+    if phase == 'P4':
+        command = run_command('document', directory)
+        copies = {}
+        for filename in ('monograph.pdf', 'technical-companion.pdf', 'process-guide.pdf'):
+            source = ROOT/'docs/monograph'/filename; target = directory/filename
+            target.write_bytes(source.read_bytes()); copies[rel(source)] = sha(source)
+        return {'command': command, 'published_document_hashes': copies}
+    p2 = verify_manifest(current['phases']['P2']['attempts'][-1])['result']
+    repair = repair_exercise(directory, ROOT/p2['dossier']['path'])
+    commands = [run_command(k, directory) for k in TESTS if k.startswith('regression-')]
+    return {'repair': repair, 'commands': commands,
+            'test_counts': {k: sum(c['junit'][k] for c in commands) for k in ('tests', 'failures', 'errors', 'skipped')}}
+
+
+def run_phase(phase, current):
+    row = current['phases'][phase]
+    if row['status'] == 'PASSED': return
+    if row['status'] == 'REPAIR_REQUIRED': raise RuntimeError('Execute a repair before retrying '+phase)
+    if len(row['attempts']) >= MAX_ATTEMPTS: raise RuntimeError('Attempt ceiling reached: '+phase)
+    predecessors = {}
+    for prior in PHASES[:PHASES.index(phase)]:
+        r = current['phases'][prior]
+        if r['status'] != 'PASSED': raise RuntimeError('Predecessor incomplete: '+prior)
+        predecessors[prior] = r['attempts'][-1]
+        verify_manifest(predecessors[prior], current_inputs=material_inputs())
+    directory = OUT/phase/f'attempt-{len(row["attempts"])+1:02d}'
+    directory.mkdir(parents=True, exist_ok=False)
+    manifest_path = directory/'run-manifest.json'
+    manifest = {'phase': phase, 'status': 'RUNNING', 'started_at': now(), 'inputs': material_inputs(),
+                'predecessors': predecessors, 'git_commit': subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
+                'argv': sys.argv, 'execution_root': str(ROOT), 'python': sys.version, 'cpu_only': True, 'gpu_used': False, 'random_seed': 'N/A deterministic replay',
+                'plan': rel(PLAN), 'model_calls': 0, 'release_eligible': False, 'legal_correctness_established': False}
+    write(manifest_path, manifest)
+    row['attempts'].append({'path': rel(manifest_path), 'sha256': sha(manifest_path)})
+    row['status'] = 'RUNNING'; write(OUT/'state.json', current)
+    started = time.monotonic()
+    print('Executing '+phase+' '+directory.name, flush=True)
+    try:
+        manifest['result'] = phase_work(phase, directory, current)
+        if manifest['inputs'] != material_inputs(): raise RuntimeError('Inputs changed during phase execution')
+        manifest['status'] = 'PASSED'; row['status'] = 'PASSED'
+    except BaseException as exc:
+        manifest['status'] = 'FAILED'; manifest['failure'] = type(exc).__name__+': '+str(exc)
+        row['status'] = 'REPAIR_REQUIRED'
+        raise
+    finally:
+        manifest['finished_at'] = now(); manifest['wall_seconds'] = round(time.monotonic()-started,3)
+        manifest['artifacts'] = {rel(p): sha(p) for p in sorted(directory.rglob('*')) if p.is_file() and p != manifest_path}
+        write(manifest_path, manifest); row['attempts'][-1]['sha256'] = sha(manifest_path)
+        write(OUT/'state.json', current); refresh(current)
+    print('Passed '+phase, flush=True)
+
+
+def repair(phase, note):
+    current = state(); invalidate(current); row = current['phases'][phase]
+    if row['status'] != 'REPAIR_REQUIRED': raise RuntimeError('No failed/interrupted phase to repair')
+    note = Path(note).resolve()
+    if not note.is_relative_to(DOC) or not note.is_file(): raise RuntimeError('Repair note must be retained under '+str(DOC))
+    value = read(note)
+    if not all(value.get(k) for k in ('failure', 'changes', 'regression')): raise RuntimeError('Incomplete repair note')
+    directory = OUT/phase/f'repair-{len(row["repairs"])+1:02d}'; directory.mkdir(parents=True, exist_ok=False)
+    kind = 'document' if phase == 'P4' else 'controller' if phase == 'P3' else 'contract'
+    result = run_command(kind, directory)
+    record = {'note': rel(note), 'note_sha256': sha(note), 'command': result, 'at': now()}
+    write(directory/'repair.json', record); row['repairs'].append({'path': rel(directory/'repair.json'), 'sha256': sha(directory/'repair.json')})
+    row['status'] = 'REPAIRED_PENDING_RETRY'; write(OUT/'state.json', current); refresh(current)
+    return record
+
+
+def finalize(current):
+    inputs = material_inputs(); manifests = {}
+    for phase in PHASES:
+        row = current['phases'][phase]
+        if row['status'] != 'PASSED': raise RuntimeError('Incomplete phase '+phase)
+        manifests[phase] = verify_manifest(row['attempts'][-1], current_inputs=inputs)
+    from legalmath.interpretation.assurance.integration_contract import validate_dossier
+    dref = manifests['P2']['result']['dossier']
+    validation = validate_dossier(read(ROOT/dref['path']), ROOT)
+    for name, expected in manifests['P4']['result']['published_document_hashes'].items():
+        if sha(ROOT/name) != expected: raise RuntimeError('Published document changed')
+    result = {'status': 'ENGINEERING_PASS_WITH_RETAINED_UNCERTAINTY', 'protocol': PROTOCOL,
+              'phases': {p: current['phases'][p]['attempts'][-1] for p in PHASES},
+              'test_counts': manifests['P5']['result']['test_counts'], 'replay': manifests['P2']['result'],
+              'dossier_validation': validation, 'repair': manifests['P5']['result']['repair'],
+              'next_phase_plan': refresh(current), 'created_at': now(), 'model_calls': 0,
+              'legal_correctness_established': False, 'release_eligible': False,
+              'strongest_remaining_shared_error': 'Retained proposals can all omit the same source qualification.'}
+    write(OUT/'final-report.json', result); return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', choices=['audit','execute','repair','status','refresh'])
+    parser.add_argument('--through', choices=PHASES, default='P5')
+    parser.add_argument('--from', dest='start', choices=PHASES, default='P0')
+    parser.add_argument('--phase', choices=PHASES); parser.add_argument('--note')
+    args = parser.parse_args(); sys.path.insert(0,str(ROOT/'src')); OUT.mkdir(parents=True,exist_ok=True)
+    with (OUT/'execution.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX|fcntl.LOCK_NB)
+        if args.command == 'audit': result = audit()
+        elif args.command == 'status': result = state()
+        elif args.command == 'repair':
+            if not args.phase or not args.note: parser.error('repair requires --phase and --note')
+            result = repair(args.phase,args.note)
+        elif args.command == 'refresh':
+            current=state(); invalidate(current); result=refresh(current)
+        else:
+            if PHASES.index(args.start)>PHASES.index(args.through): parser.error('from must precede through')
+            audit(); current=state(); invalidate(current)
+            for phase in PHASES[PHASES.index(args.start):PHASES.index(args.through)+1]: run_phase(phase,current)
+            result=finalize(current) if args.through=='P5' else refresh(current)
+        if args.command in ('execute', 'audit', 'refresh'):
+            result = {k: result[k] for k in ('status', 'next_phase', 'test_counts', 'replay', 'release_eligible') if k in result}
+            result['records'] = rel(OUT)
+        print(json.dumps(result,indent=2,sort_keys=True))
+
+
+if __name__ == '__main__': main()

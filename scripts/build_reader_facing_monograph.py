@@ -1,5 +1,6 @@
 """Build the reader-facing monograph and its linked reproduction companion."""
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import sys
@@ -9,8 +10,30 @@ BOOK = ROOT / "docs/monograph"
 REVIEW = BOOK / "review/reader-facing"
 
 
+def document_python():
+    """Choose a Python that can run the PDF checker, and record that choice.
+
+    The application environment intentionally does not require PyMuPDF.  The
+    document-review environment does.  An explicit override keeps this script
+    portable while avoiding a silent fallback to an unrelated interpreter.
+    """
+    candidates = []
+    override = os.environ.get("LEGALMATH_DOC_PY")
+    if override:
+        candidates.append(Path(override))
+    candidates.append(Path(sys.executable))
+    for candidate in candidates:
+        probe = subprocess.run([str(candidate), "-c", "import fitz"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                               check=False)
+        if probe.returncode == 0:
+            return str(candidate)
+    raise RuntimeError("document checker requires PyMuPDF; set LEGALMATH_DOC_PY")
+
+
 def main():
     REVIEW.mkdir(parents=True, exist_ok=True)
+    doc_python = document_python()
     # Each document imports the other's labels. The second pair settles both
     # directions after a fresh build or a changed split between documents.
     for document in ("technical-companion", "monograph") * 2:
@@ -22,7 +45,7 @@ def main():
             )
         print(f"Built {document}.pdf", flush=True)
     subprocess.run(
-        [sys.executable, "scripts/check_reader_facing_monograph.py"],
+        [doc_python, "scripts/check_reader_facing_monograph.py"],
         cwd=ROOT, check=True,
     )
     shutil.copyfile(BOOK / "monograph.pdf", ROOT / "docs/proposal/proposal.pdf")
@@ -31,7 +54,7 @@ def main():
     # the historical proposal alias as well.
     shutil.copyfile(BOOK / "monograph.pdf", ROOT / "docs/proposal/monograph.pdf")
     subprocess.run(
-        [sys.executable, "scripts/export_monograph_process_guide.py"],
+        [doc_python, "scripts/export_monograph_process_guide.py"],
         cwd=ROOT, check=True,
     )
 

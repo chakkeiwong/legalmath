@@ -1,0 +1,67 @@
+{
+  "source": {
+    "key": "l4code",
+    "title": "L4 compiler, IDE and DEONTIC reference",
+    "author_filename": "Legalese contributors",
+    "year": "2026",
+    "path": "docs/papers/L4 compiler, IDE and DEONTIC reference_Legalese contributors(2026).zip",
+    "sha256": "b05e179b3ba9b0e3977a33f947a4eb9f9c56d696ec49de0e6da81f5821265d71",
+    "source_url": "https://github.com/legalese/l4-ide",
+    "retained_inputs": [
+      ".localresources/literature-v2/metadata/l4-deontic.md",
+      ".localresources/literature-v2/metadata/l4.json",
+      ".localresources/literature-v2/metadata/l4-tree.json",
+      ".localresources/monograph-revision/sources/l4-README.md"
+    ],
+    "status": "local_copy_retained",
+    "claim_support": "not_reaudited",
+    "currentness": "historical_snapshot_not_current_authority_determination",
+    "scope": "Retained inspected documentation/source files; not a full repository clone."
+  },
+  "claims": [
+    {
+      "id": "docs/monograph/chapters/04-languages.tex:1313:l4code",
+      "key": "l4code",
+      "source": "docs/monograph/chapters/04-languages.tex",
+      "line": 1313,
+      "context_tex": "L4 & Legal DSL, regulative rules, event traces, IDE and generated decision services. & Candidate for a later authoring/core comparison; documentation does not establish equivalence with RuleIR. \\citep{l4code}",
+      "support_status": "not_checked"
+    },
+    {
+      "id": "docs/monograph/chapters/04-languages.tex:1333:l4code",
+      "key": "l4code",
+      "source": "docs/monograph/chapters/04-languages.tex",
+      "line": 1333,
+      "context_tex": "\\input{\\LegalMathRoot teaching/teach-P-02-literature-08}\nL4 is a serious alternative to building the authoring environment from scratch.\nIts inspected repository exposes a parser, type checker, evaluator, IDE,\ndecision service, generated schemas and graphical traces. Its regulative\n\\texttt{DEONTIC} documentation names actor, action, deadline, successful\ncontinuation and breach continuation, and distinguishes \\texttt{MUST},\n\\texttt{MAY} and \\texttt{SHANT} \\citep{l4code}. The 2023 L4 paper on deontics\nand time was identified but its full text was not retrieved, so no theorem from\nit is used here. Before adopting L4 as a core dependency, test exact money,\nmissing evidence, simultaneous events and historical replay against the RuleIR\ncases. The proposal fixes that comparison target rather than making development\nwait for another language-selection exercise.",
+      "support_status": "not_checked"
+    }
+  ],
+  "candidate_passages": [
+    {
+      "location": ".localresources/literature-v2/metadata/l4-deontic.md",
+      "word_offset": 0,
+      "text": "# DEONTIC The type for regulative rules representing obligations, permissions, and prohibitions. ## Syntax ```l4 GIVETH A DEONTIC ActorType ActionType ruleName MEANS PARTY actor MUST/MAY/SHANT/DO action WITHIN deadline HENCE consequence LEST breach ``` ## Purpose `DEONTIC` is L4's type for modeling legal obligations, permissions, and prohibitions. A DEONTIC value captures: 1. **Who** has the obligation/permission (`PARTY`) 2. **What** they must/may/must not do (`MUST`/`MAY`/`SHANT`/`DO`) 3. **When** it must occur (`WITHIN`) 4. **What happens** on compliance (`HENCE`) 5. **What happens** on breach (`LEST`) The DEONTIC type is parameterized by two type arguments: - **ActorType**: The type of parties who can act (e.g., `Buyer`, `Seller`) - **ActionType**: The type of actions that can be performed (e.g., `deliver`, `pay`) ## Examples **Example file:** [deontic-example.l4](deontic-example.l4) ### Basic Usage ```l4 DECLARE Actor IS ONE OF Buyer, Seller DECLARE Action IS ONE OF `deliver goods`, `pay invoice` HAS amount IS A NUMBER GIVETH A DEONTIC Actor Action `delivery obligation` MEANS PARTY Seller MUST `deliver goods` WITHIN 14 HENCE FULFILLED LEST BREACH ``` ### Terminal Values DEONTIC has two terminal values: | Value | Meaning | | ----------- | -------------------------- | | `FULFILLED` | Contract successfully done | | `BREACH` | Contract broken | ### Breach with Blame ```l4 LEST BREACH BY Seller BECAUSE \"failed to deliver on time\" ``` ## Type Signature When a function returns a DEONTIC value, use: ```l4 GIVETH A DEONTIC ActorType ActionType ``` For example: - `GIVETH A DEONTIC Person Action` — Obligations",
+      "passage_id": 0
+    },
+    {
+      "location": ".localresources/literature-v2/metadata/l4-deontic.md",
+      "word_offset": 360,
+      "text": "#TRACE Test DEONTIC values by simulating events: ```l4 #TRACE `delivery obligation` AT 0 WITH PARTY Seller DOES `deliver goods` AT 10 ``` ### EVALTRACE Function The underlying evaluation function: ```l4 EVALTRACE : FORALL party action. DEONTIC party action -> -- The contract NUMBER -> -- Start time LIST (EVENT party action) -> -- Events DEONTIC party action -- Result ``` Use `EVENT` to construct events: ```l4 #EVAL EVALTRACE myContract 0 (LIST EVENT Seller `deliver` 5, EVENT Buyer `pay` 20) ``` ## Deontic Modalities | Modality | Keyword | Meaning | On Action | On No Action | | --------- | ------- | ----------- | -------------- | -------------- | | Must | `MUST` | Obligation | HENCE (comply) | LEST (breach) | | May | `MAY` | Permission | HENCE (comply) | Nothing | | Shall not | `SHANT` | Prohibition | LEST (breach) | HENCE (comply) | ## Advanced Features ### PROVIDED Clause Add conditions to action matching: ```l4 PARTY Buyer MUST `pay invoice` amount PROVIDED amount >= 100 WITHIN 30 ``` ### EXACTLY Keyword Require exact value matching: ```l4 PARTY Buyer MUST EXACTLY `pay invoice` 500 WITHIN 30 ``` ### WAIT UNTIL Advance time in traces without events: ```l4 #TRACE myContract AT 0 WITH (`WAIT UNTIL` 20) ``` ## Related Keywords - **[PARTY](PARTY.md)** — Specifies who has the obligation - **[MUST](MUST.md)** — Creates an obligation - **[MAY](MAY.md)** — Creates a permission - **[SHANT](SHANT.md)** — Creates a prohibition - **[BECAUSE](BECAUSE.md)**",
+      "passage_id": 2
+    },
+    {
+      "location": ".localresources/literature-v2/metadata/l4-deontic.md",
+      "word_offset": 540,
+      "text": "PARTY Buyer MUST EXACTLY `pay invoice` 500 WITHIN 30 ``` ### WAIT UNTIL Advance time in traces without events: ```l4 #TRACE myContract AT 0 WITH (`WAIT UNTIL` 20) ``` ## Related Keywords - **[PARTY](PARTY.md)** — Specifies who has the obligation - **[MUST](MUST.md)** — Creates an obligation - **[MAY](MAY.md)** — Creates a permission - **[SHANT](SHANT.md)** — Creates a prohibition - **[BECAUSE](BECAUSE.md)** — Adds blame reason to breach - **[Regulative Rules](README.md)** — Full regulative reference ## Further Reading - [Regulative Rules Concept](../../concepts/legal-modeling/regulative-rules.md) — Deep dive into deontic logic - [Foundation Module 5](../../courses/foundation/module-6-regulative.md) — Tutorial on regulative rules - [Tom Hvitved's PhD Thesis](https://di.ku.dk/english/research/phd/phd-theses/2011/hvitved12phd.pdf) — Theoretical foundation",
+      "passage_id": 3
+    },
+    {
+      "location": ".localresources/monograph-revision/sources/l4-README.md",
+      "word_offset": 0,
+      "text": "# L4 with IDE **L4** is a domain-specific programming language for law. It formalizes legal rules and contracts as executable specifications, bringing software engineering rigor to legal drafting and analysis. This repository contains the L4 compiler, IDE tooling (VS Code extension, LSP, REPL, web editor), and a decision service that exposes L4 rules as REST APIs and MCP tools. ## What You Get From a Single L4 File - **REST APIs** — Expose functions as HTTP endpoints with `@export` annotations - **AI tool integration** — MCP server for Claude, Cursor, and VS Code Copilot; WebMCP for in-browser agents - **Interactive visualizations** — Ladder diagrams and evaluation traces rendered via GraphViz - **Audit-grade explainability** — Every evaluation produces a trace you can follow from the top-level question down to the deciding condition - **Test suites** — Golden-file tests and assertions - **Generated schemas** — OpenAPI 3.0 specs and JSON schemas for integration ## Getting Started - **Install the VS Code extension:** [L4 Rules-as-code on the Marketplace](https://marketplace.visualstudio.com/items?itemName=Legalese.l4-vscode) - **Try the web editor:** <https://jl4.legalese.com/> - **Learn L4:** [Foundation Course](doc/courses/foundation/README.md) — no prior programming experience required - **Full documentation:** [doc/README.md](doc/README.md) ## Repository Layout **Haskell (Cabal):** | Package | Purpose | | ----------------------------------------- | -------------------------------------------------------- | | [jl4-core](jl4-core/) | Core language (parser, typechecker, evaluator) | | [jl4](jl4/) | CLI tool and JSON schema generator | | [jl4-lsp](jl4-lsp/) | Language Server Protocol for IDE support | | [jl4-repl](jl4-repl/) | Interactive REPL | | [jl4-service](jl4-service/) | REST",
+      "passage_id": 348
+    }
+  ],
+  "status": "RETRIEVAL_ONLY_NOT_READING_EVIDENCE",
+  "selection": "Two lexical matches per occurrence; inspect broader sections and equations as needed."
+}

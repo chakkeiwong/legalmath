@@ -1,0 +1,15 @@
+; benchmark generated from python API
+(set-info :status unknown)
+(declare-fun prior_to_both () Bool)
+(declare-fun adequate () Bool)
+(declare-fun above_threshold () Bool)
+(declare-fun restored () Bool)
+(declare-fun written () Bool)
+(declare-fun requested () Bool)
+(declare-fun ordinary () Bool)
+(assert
+ (let ((?x88 (+ (ite ordinary 0 1) (ite requested 0 1) (ite written 0 1) (ite restored 0 1) (ite above_threshold 0 1) (ite adequate 0 1) (ite prior_to_both 0 1))))
+(let (($x89 (= ?x88 0)))
+(let (($x65 (and ordinary requested written restored above_threshold adequate prior_to_both)))
+(and (distinct $x65 $x89) true)))))
+(check-sat)

@@ -43,7 +43,7 @@ def run(out):
         raise LegalMathError('E_RESOURCE_LIMIT',details='Cannot admit inventory, three readers, fidelity and criticism')
     out.mkdir(parents=True);save(out/'contract.json',contract);save(out/'allowance-before.json',before)
     save(out/'public-input.json',public);save(out/'packet.json',packet)
-    compact_sizes=[len(canonical(compact_request(piece_request(p,'atomic-reader',i,len(pieces),digest(packet))))) for i,p in enumerate(pieces)]
+    compact_sizes=[len(canonical(compact_request(piece_request(p,'atomic-reader',i,len(pieces),digest(packet)),profile='v2'))) for i,p in enumerate(pieces)]
     save(out/'decomposition.json',{'piece_count':len(pieces),'piece_characters':[sum(len(u['text']) for u in p['units']) for p in pieces],
         'compact_piece_request_bytes':compact_sizes,'all_original_units_preserved':True,'probe_bytes':len(canonical(PROBE))})
     allowance=Allowance(ledger,100,reservation_ceiling=len(before['calls'])+contract['maximum_new_calls'])

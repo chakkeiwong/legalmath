@@ -1,0 +1,15 @@
+; benchmark generated from python API
+(set-info :status unknown)
+(declare-fun bond_summary () Bool)
+(declare-fun offering_documents () Bool)
+(declare-fun streamlined () Bool)
+(declare-fun solicited () Bool)
+(declare-fun complex_product () Bool)
+(assert
+ (let (($x31 (not (and (not offering_documents) (not bond_summary)))))
+(let (($x102 (not solicited)))
+(let (($x108 (and complex_product $x102 streamlined)))
+(let (($x97 (and $x108 $x31)))
+(let (($x71 (and complex_product $x102 streamlined (or offering_documents bond_summary))))
+(or (not true) (and (distinct $x71 $x97) true))))))))
+(check-sat)

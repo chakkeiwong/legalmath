@@ -74,6 +74,27 @@ def test_selected_task_cannot_be_replaced(window):
     with pytest.raises(LegalMathError):p.admit(*window,item(source_hash='e'*64),method_hash='a'*64)
 
 
+def test_renamed_identical_source_question_cannot_inflate_eligible_count(window):
+    p.admit(*window, item(), method_hash='a'*64)
+    duplicate = p.admit(*window, item('renamed'), method_hash='a'*64)
+    assert duplicate['status'] == 'INELIGIBLE'
+    assert 'DUPLICATE_SOURCE_QUESTION' in duplicate['reasons']
+    result = p.report(*window)
+    assert result['submitted'] == 2 and result['eligible'] == 1 and result['ineligible'] == 1
+
+
+def test_late_encounter_cannot_enter_closed_window(window, monkeypatch):
+    monkeypatch.setattr(p, 'now', lambda: '2030-04-02T00:00:00Z')
+    result = p.admit(*window, item(first_seen_at='2030-04-01T00:00:00Z'), method_hash='a'*64)
+    assert result['status'] == 'INELIGIBLE' and 'OUTSIDE_ENCOUNTER_WINDOW' in result['reasons']
+
+
+def test_different_question_is_retained_without_claiming_an_independent_source(window):
+    p.admit(*window, item(), method_hash='a'*64)
+    row = p.admit(*window, item('second.question', question_hash='e'*64), method_hash='a'*64)
+    assert row['status'] == 'PENDING'
+
+
 def test_external_event_head_detects_a_rehashed_rewritten_history(window):
     d,h=window;event=p.admit(d,h,item(),method_hash='a'*64)
     assert p.report(d,h,expected_head=event['event_hash'])['external_head_checked']

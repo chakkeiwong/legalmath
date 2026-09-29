@@ -1,0 +1,15 @@
+; benchmark generated from python API
+(set-info :status unknown)
+(declare-fun other_applicable_requirements () Bool)
+(declare-fun threshold_compliant () Bool)
+(declare-fun assessment_current () Bool)
+(declare-fun consent_active () Bool)
+(declare-fun category_knowledge () Bool)
+(declare-fun category_selected () Bool)
+(declare-fun client_qualifies () Bool)
+(assert
+ (let ((?x70 (+ (ite client_qualifies 1 0) (ite category_selected 1 0) (ite category_knowledge 1 0) (ite consent_active 1 0) (ite assessment_current 1 0) (ite threshold_compliant 1 0) (ite other_applicable_requirements 1 0))))
+(let (($x72 (= ?x70 7)))
+(let (($x21 (and client_qualifies category_selected category_knowledge consent_active assessment_current threshold_compliant other_applicable_requirements)))
+(or (not true) (and (distinct $x21 $x72) true))))))
+(check-sat)

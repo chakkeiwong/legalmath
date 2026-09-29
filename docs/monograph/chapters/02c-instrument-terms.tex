@@ -1,0 +1,136 @@
+\subsection{Executing the UBS notice and conversion terms}
+\label{sec:ubs-terms}
+
+The UBS example can now begin with a particular issue rather than a generic
+conversion rule. Annex A of the retained published terms concerns the
+SGD 500 million notes issued on 24 June 2024, with ISIN CH1357852636.
+The same PDF contains the later SGD 175 million reopening in Annex B.
+The initial conversion price for the June issue is SGD 37.77, and holdings
+must respect the SGD 250,000 denomination and increment. Keeping the annex
+explicit prevents an internal capital loan, another currency issue or the
+reopening's issue date from supplying the wrong premise
+\citep[Annex A, definitions and condition~2]{ubsat12024}.
+
+These terms describe direct subordinated obligations that can convert into
+shares. The source-dependent product reading therefore supplies five previously
+missing premises: debt form, qualifying contingent loss absorption, absence of
+the plain-debt or deposit exclusion, and absence of either a related-product
+wrapper or a loss-absorption fund. They yield a conditional conclusion that the
+direct notes fall within the selected HKMA product scope. The reading remains
+an interpretation of the retained edition. It does not establish current legal
+force, the purchaser's PI status or the bank's capacity. The combined assessment
+continues to carry those questions through all fourteen bank obligations.
+
+\paragraph{A breach creates a notice question.}
+The capital test uses the figures attached to a particular publication.
+Let $C$ be its CET1 capital, $H$ the defined Higher-Trigger Amount, and $R>0$
+its risk-weighted assets, all expressed in the same monetary unit. The
+Higher-Trigger Amount represents capital capable of absorbing losses under
+the higher-trigger provisions; omitting it can change the result. The
+published ratio and breach test are
+\begin{equation}
+  r=\frac{C+H}{R},\qquad
+  r<0.07\quad\Longleftrightarrow\quad 100(C+H)<7R.
+  \label{eq:ubs-trigger-ratio}
+\end{equation}
+The positive denominator permits multiplication without reversing the
+inequality. With $C=6$, $H=1$ and $R=100$, the ratio is exactly seven percent,
+so this strict test does not breach. With $H=0$, it does. Condition 7(d)
+uses the publication's figures even if they are later restated. The software
+binds the calculation to that retained publication snapshot
+\citep[definition of Trigger CET1 Ratio; conditions~7(b), 7(d)]{ubsat12024}.
+
+A breach is not itself the defined Trigger Event. Condition 7(a) ties that
+event to the issuer giving a Trigger Event Notice in accordance with the
+terms. An ordinary publication normally starts a five-business-day notice
+period; an extraordinary publication calls for notice on the publication
+date. The ordinary branch also has a restoration exception involving a UBS
+request, FINMA's written agreement, restoration or imminent restoration above
+the threshold, their assessment of adequacy, and a strict timing condition.
+The agreement must precede the earlier of the ordinary notice date and the
+original fifth-business-day determination date. An unknown earlier notice
+history or unresolved ordering within one day therefore leaves the exception
+qualified. A bare restoration percentage cannot establish it.
+
+Outstanding higher-trigger instruments can postpone both the notice and the
+conversion. The program retains the full supplied inventory and selects the
+latest relevant conversion date; one observed higher-trigger notice cannot
+stand for all of them. Notice publication is a further factual question.
+Condition 14 uses the first qualifying SIX publication while the notes are
+listed, or delivery to the intermediary after delisting. The implemented
+publication path does not infer a notice from its deadline; alternative
+exchange-rule notice methods still require their own evidence and treatment
+\citep[conditions~7(a)--(b), 14]{ubsat12024}.
+
+\paragraph{Different events use different clocks.}
+For the publication definitions, the Business Day definition refers to Zurich.
+For the other relevant calculations it requires Singapore and Zurich.
+The calendar input therefore records a covered interval and the days on which
+the specified banks and foreign-exchange markets are open in each location.
+An ordinary weekday or a public-holiday list alone does not establish that
+condition. The engineering examples use explicitly hypothetical calendars.
+
+A Viability Event has its own FINMA and, where relevant, public-support
+premises. Its notice must be given within three days, while conversion must
+occur within twenty Business Days following the event. The latter period
+starts from the event, not from the notice. In a hypothetical calendar with
+both markets open on every weekday, a Friday event on 4 September 2026 has a
+Monday notice deadline on 7 September and a conversion deadline on 2 October.
+Starting the twenty-day count from that Monday notice would instead produce
+5 October. The program rejects that extra time. A qualifying change in law
+can stop the viability provisions under Condition 7(e), but they cease from
+the specified actual notice date, not merely the date of the joint
+determination. The capital-ratio trigger remains a separate branch
+\citep[Business Day definition; conditions~7(c), 7(e)]{ubsat12024}.
+
+\paragraph{Shares, prices and delivery need separate evidence.}
+Once the appropriate notice and price premises are supplied, the calculation
+aggregates the principal held by one holder before discarding any fraction
+of a share. For aggregate principal $P$ and conversion price $K>0$ in the
+same currency, the number of shares is
+\begin{equation}
+  N=\left\lfloor\frac{P}{K}\right\rfloor,
+  \qquad NK\leq P<(N+1)K.
+  \label{eq:ubs-whole-shares}
+\end{equation}
+The inequality checks the rounding independently. Rounding each lot first
+can discard more than one holder's terms permit. The discarded fraction
+does not produce cash compensation. Nor does the resulting share count
+establish a market value. Actual share creation, receipt by the settlement
+depository, cancellation of accrued unpaid interest and subsequent delivery
+to the holder remain distinct events
+\citep[conditions~8(a)--(c), 8(g)--(j)]{ubsat12024}.
+
+The price is adjusted through the notice date, including that date. A later
+corporate action cannot silently replace the price applicable to the notice.
+Implemented arithmetic covers declared share splits and bonus issues,
+discounted rights, exact-cent adjustments, the par-value floor and a bounded
+carry-forward case. Other calculations cover the stated successor-share price
+ratio and the distribution of supplied net offer proceeds. Their market
+prices, exchange rates, relevant dealing days and contractual determinations
+remain explicit premises. Ambiguous rounding, overlapping adjustments,
+unavailable action history, amended terms and issuer substitution qualify
+the result rather than select a convenient convention.
+
+The retained source itself supplies a useful challenge. Condition 8(d)(i)(C)
+prints the extraordinary-distribution factor as $(A-B)/B$, where $A$ is the
+specified market price and $B$ is the distribution per share. The rendered
+PDF confirms the denominator. At $A=100$ and $B=10$, that expression gives
+$9$, whereas $(A-B)/A$ would give $0.9$. The program preserves the printed
+expression and its literal result, records the unresolved intended adjustment,
+and withholds an operational price for that branch. It does not correct the
+contract by appealing to the more familiar formula
+\citep[condition~8(d)(i)(C), PDF p.~30]{ubsat12024}.
+
+The checks exercise these distinctions without using human expected legal
+answers. Independent mathematical relations test the capital comparison,
+restoration predicates, date ordering, product scope and PI restriction;
+native RuleIR/Java and Catala executions test the corresponding programs.
+Calendar selection and whole-share inequalities separately challenge the
+Python calculations. Source substitutions, capital restatements, missing
+notices and changed scenarios must invalidate or qualify the affected result.
+The PI and non-PI examples change declared client premises while holding the
+issue fixed. They distinguish the selected selling condition without turning
+either example into approval by an actual private bank. Incorporated agency
+agreements, actual notices and market histories, applicable current law and
+private account evidence remain required for a real transaction.

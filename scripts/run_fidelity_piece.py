@@ -47,12 +47,12 @@ def run(out):
     except Exception as exc:error={'error':getattr(exc,'code',type(exc).__name__),'details':str(getattr(exc,'details',None) or exc)}
     after=loads(ledger.read_bytes());save(out/'allowance-after.json',after)
     if (after['maximum']!=100 or after['calls'][:len(before['calls'])]!=before['calls'] or
-        len(after['calls'])!=len(before['calls'])+1 or after['calls'][-1]['request_hash']!=digest(compact_request(request))):
+        len(after['calls'])!=len(before['calls'])+1 or after['calls'][-1]['request_hash']!=digest(compact_request(request,profile='v2'))):
         raise LegalMathError('E_INTEGRITY')
     summary={'engineering_status':'EVIDENCE_RECORDED','diagnostic_status':'VALIDATED_PARTIAL' if checked else 'FAILED_DIAGNOSTIC',
         'requested_pairs':4,'validated_pairs':len(checked['checks']) if checked else 0,'parent_pairs':len(pairs),
         'remaining_unchecked_pairs':len(pairs)-(len(checked['checks']) if checked else 0),'new_live_calls':1,
-        'remaining_calls':100-len(after['calls']),'wire_request_bytes':len(canonical(compact_request(request))),
+        'remaining_calls':100-len(after['calls']),'wire_request_bytes':len(canonical(compact_request(request,profile='v2'))),
         'wall_seconds':str(monotonic()-began),'error':error,'execution_complete':False,
         'legal_accuracy_evaluated':False,'release_eligible':False}
     save(out/'summary.json',summary)

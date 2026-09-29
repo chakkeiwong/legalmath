@@ -1,0 +1,533 @@
+\chapter*{From the circular to executable controls}
+\addcontentsline{toc}{chapter}{From the circular to executable controls}
+\markboth{From the circular to executable controls}{}
+\label{map:overview}
+\begingroup
+\tikzset{
+ mapbox/.style={draw=teal,fill=pale,rounded corners=2pt,align=center,
+   text width=42mm,minimum height=16mm,inner sep=3mm,font=\small},
+ mapwide/.style={mapbox,text width=108mm,minimum height=11mm,inner sep=2mm},
+ mapresearch/.style={mapbox,draw=navy,dashed,fill=white},
+ maparr/.style={-{Latex[length=2mm]},thick,draw=navy},
+ mapnote/.style={font=\small,align=center,fill=white,inner sep=1mm}
+}
+\newcommand{\MapSubheading}[1]{\par\vspace{2mm}{\sffamily\bfseries\large #1\par}\vspace{1mm}}
+\newcommand{\MapHeading}[2]{\phantomsection\label{#2}\MapSubheading{#1}}
+\newenvironment{MapDiagram}{\par\noindent\begin{minipage}{\linewidth}\centering}{\par\end{minipage}\par}
+\newcommand{\MapCaption}[1]{\par{\small\itshape #1\par}\vspace{2mm}}
+
+A circular supplies words; a Java program needs precise decisions. Between
+them lie questions about meaning, evidence and execution. The eight steps
+below locate that work. Each numbered box links to a closer view on the next
+pages, where the technology is introduced through the job it performs.
+
+The first software stage, called the \emph{frontend}, proposes a meaning for the
+passage and records its sources, assumptions and required facts. A
+\emph{translator} then turns that fixed proposal into an executable language.
+LegalMath has two such targets. \emph{RuleIR}, its own small rule language,
+expresses conditions such as a financial threshold and the effect of missing
+evidence. \emph{Catala} is a programming language designed for legal rules,
+with a compiler that translates those rules into executable code. Both targets
+can receive the same proposed meaning; Catala also supports the implemented
+calculations over structured collections described in Chapter~\ref{ch:implementation}.
+
+\emph{Stipula} answers a different question: how does a contract change when a
+party takes an action? It describes parties, resources and states. For example,
+a request available while an agreement is active may become unavailable after
+withdrawal. The book studies Stipula's verification methods as a comparison;
+LegalMath does not currently compile Stipula contracts.
+
+\clearpage
+\MapSubheading{Eight steps from source to bank use}
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapwide] (a) {\hyperref[map:source]{\textbf{1. Retain the circular}}\\Original document and usable text};
+\node[mapwide,below=of a] (b) {\hyperref[map:context]{\textbf{2. Read it in context}}\\Related sources, dates and business scope};
+\node[mapwide,below=of b] (c) {\hyperref[map:readings]{\textbf{3. Develop possible interpretations}}\\Duties, exceptions and required facts};
+\node[mapwide,below=of c] (d) {\hyperref[map:challenge]{\textbf{4. Challenge the interpretations}}\\Omissions, alternative readings and revealing cases};
+\node[mapwide,below=of d] (e) {\hyperref[map:rules]{\textbf{5. Express the proposed rules precisely}}\\Separate duties and alternative meanings};
+\node[mapwide,below=of e] (f) {\hyperref[map:java]{\textbf{6. Generate executable targets and check behaviour}}\\RuleIR/Java and Catala execution tests};
+\node[mapwide,below=of f] (g) {\hyperref[map:delivery]{\textbf{7. Deliver a reviewable executable control}}\\Target program, sources, results and open questions};
+\node[mapwide,dashed,fill=white,below=of g] (h) {\hyperref[map:operation]{\textbf{8. Approve and supervise bank use}}\\Institution decisions, operating controls and source review};
+\foreach \x/\y in {a/b,b/c,c/d,d/e,e/f,f/g,g/h}
+  \draw[maparr] (\x)--(\y);
+\draw[maparr] (d.east)--++(12mm,0)|- node[pos=.25,mapnote,rotate=90]{Revise} (c.east);
+\draw[maparr] (f.west)--++(-12mm,0)|- node[pos=.25,mapnote,rotate=90]{Repair} (e.west);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{A tested program is a reviewable result. The dashed final step
+requires the bank's own authority and operating evidence.}
+
+The implemented route can produce draft controls while interpretations remain
+unresolved. It can also stop before code generation when a proposal cannot be
+expressed or evidence is missing. In the running example, whether a rebate is
+a fee discount can remain open even after its proposed rule runs correctly.
+The later charts show how that question stays attached to the result.
+
+\clearpage
+\MapHeading{1. Retain the circular}{map:source}
+The first task is to give every later reading the same inspectable source.
+For PDFs, \texttt{pypdf} and Poppler's \texttt{pdftotext} are two different text
+extractors. Web pages have two parsing paths. Comparing their text can expose
+a missing line; checking the page for images can expose material that neither
+extractor has read.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=7mm and 5mm]
+\node[mapbox] (a) {Official circular\\PDF or web document};
+\node[mapbox,right=of a] (b) {Keep the original\\Locate pages and passages};
+\node[mapbox,right=of b] (c) {Extract the text\\Two extraction paths};
+\node[mapbox,below=of b] (d) {Compare the extractions\\Inspect visual warnings};
+\node[mapbox,below=of a] (e) {Retain usable text\\with its source locations};
+\node[mapbox,below=of c] (f) {Unread or inconsistent?\\Keep the gap visible};
+\draw[maparr] (a)--(b);\draw[maparr] (b)--(c);
+\draw[maparr] (c.south)--++(0,-3mm)-|(d.north);
+\draw[maparr] (d)--(e);
+\draw[maparr] (d)--(f);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Agreement between text extractors cannot reveal an exception present
+only in an image. The additional source checks in Chapter~\ref{ch:ensemble}
+read page images and compare the recognised text with the embedded text.}
+
+\MapHeading{2. Read it in context}{map:context}
+A gift restriction may refer to the Code of Conduct and a frequently asked
+question (FAQ). A retained authority catalog connects those references to
+document editions and passages. A dependency search follows explicit official
+links; missing documents remain named questions. The relevant business scope
+identifies the people, products, activities and dates being assessed.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=7mm and 5mm]
+\node[mapbox] (a) {Circular passage\\and cited references};
+\node[mapbox,right=of a] (b) {Authority catalog\\Edition and passage lookup};
+\node[mapbox,right=of b] (c) {Date and scope check\\What can this source support?};
+\node[mapbox,below=of b] (d) {Source set for the review\\with missing or uncertain items};
+\draw[maparr] (a)--(b);\draw[maparr] (b)--(c);
+\draw[maparr] (c.south)--++(0,-3mm)-|(d.north);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Finding the FAQ changes the question from where the source is to
+what its dated answer supports.}
+
+The retained FAQ page has later answer updates. Its older page date therefore
+does not establish everything a historical reader could have seen. A catalog
+match records useful evidence while preserving that uncertainty.
+Chapter~\ref{ch:circular} follows the actual Code and FAQ example;
+the companion's Appendix~\ref{app:current-interpretation} gives the source tools.
+
+\clearpage
+\MapHeading{3. Develop possible interpretations}{map:readings}
+A language model can propose what a passage requires and which facts would
+decide a case. Separate requests produce initial readings without showing each
+request the other answers. Another set of requests inventories the source's
+requirements and qualifications. This second view helps expose an exception
+that all the proposed readings might miss.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=7mm and 5mm]
+\node[mapbox] (a) {Source passages\\Review question};
+\node[mapbox,right=of a] (b) {Separate model requests\\Readings and facts};
+\node[mapbox,right=of b] (c) {Alternative readings\\with source reasons};
+\node[mapbox,below=of b] (d) {Source inventory\\Duties and qualifications};
+\node[mapbox,below=of c] (e) {Questions to investigate\\Differences and possible gaps};
+\draw[maparr] (a)--(b);\draw[maparr] (b)--(c);
+\draw[maparr] (a.south)--++(0,-3mm)-|(d.north);
+\draw[maparr] (d)--(e);\draw[maparr] (c)--(e);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Several readings reveal disagreement. A separate source inventory
+can reveal a shared omission. Separate requests can still share mistakes.}
+
+\MapHeading{4. Challenge the interpretations}{map:challenge}
+Tree search organises successive revisions of a reading. Breadth-first search
+visits the shallower alternatives first. Upper Confidence bounds applied to
+Trees (UCT) balances previously useful branches against less-visited ones.
+These are ways to choose the next investigation, not probabilities of legal
+correctness. Both are implemented with finite work limits.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=8mm and 5mm]
+\node[mapbox] (a) {Select a reading\\Breadth-first or UCT};
+\node[mapbox,right=of a] (b) {Challenge a reading\\Sources, examples, cases};
+\node[mapbox,right=of b] (c) {Record the consequence\\Revision, rejection or open question};
+\node[mapbox,below=of b] (d) {Keep alternatives and evidence\\Stop at the work limit};
+\draw[maparr] (a)--(b);\draw[maparr] (b)--(c);
+\draw[maparr] (c.north)--++(0,5mm)-|node[pos=.25,above,mapnote]{further work justified}(a.north);
+\draw[maparr] (c.south)--++(0,-3mm)-|(d.north);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Search changes a proposed reading only with an explicit reason.
+Exhausting the work allowance leaves an unresolved result.}
+
+Typed arguments record support and objections; official examples retain their
+stated meaning. A rebate-and-voucher case can reveal where readings attach an
+exception. After aligning facts and outputs, the original programs execute
+that case. Draft compilation and step~6 therefore occur inside this loop too.
+Agreement still cannot establish complete source coverage.
+Chapters~\ref{ch:search} and~\ref{ch:ensemble} develop these checks.
+
+\clearpage
+\MapSubheading{4 continued. Investigate the exact disagreement}
+The continuing investigation separates source support, relevance to the selected
+question, correspondence with the executable rule and availability of required
+authority. Two initial contexts work without peer answers. A later round can
+then address the precise disagreement, or repair an invalid response, within
+the same fixed allowance.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=6mm]
+\node[mapwide] (q) {Fix the question\\Actor, assessment unit, time and meaning of the result};
+\node[mapwide,below=of q] (p) {Two blind initial assessments\\Source support, relevance, code correspondence, authority};
+\node[mapwide,below=of p] (v) {Check identities, quotations and required evidence\\Retain both proposed explanations};
+\node[mapwide,below=of v] (r) {Disagreement or missing evidence?\\Investigate the smallest consequential question};
+\node[mapwide,below=of r] (o) {Retain supported proposals and unresolved alternatives\\Declared round limit; every dispatch consumes allowance};
+\foreach \x/\y in {q/p,p/v,v/r,r/o}\draw[maparr](\x)--(\y);
+\draw[maparr](r.east)--++(12mm,0)|-node[pos=.25,mapnote,rotate=90]{bounded follow-up}(p.east);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{A repaired response is another proposal. Agreement cannot supply a
+missing source or prove an interpretation.}
+
+Rival factual models retain different actors, objects and assessment times.
+A proposed mapping permits a conditional comparison only after those
+distinctions and its assumptions are stated. Changed source bytes or methods
+start a new revision; the old program remains evidence for its old source.
+Section~\ref{sec:successor-assurance} follows the implemented distinctions
+through an STR contact history and the unfamiliar-circular study.
+
+Capacity is checked separately from meaning. Smaller source or comparison
+batches retain the complete set of obligations and the original retry counts.
+The optional incremental check admits each validated part only while total
+retained size remains within its limit. A failed repair preserves earlier
+claims; it cannot replace them with an empty inventory. If the work still
+cannot finish, its missing checks remain in the final report.
+
+\clearpage
+\MapHeading{5. Express the proposed rules precisely}{map:rules}
+A program needs the meaning of each fact and operation fixed. LegalMath's rule
+intermediate representation, \textbf{RuleIR}, is its small executable rule
+language. It records typed facts, conditions, exceptions and scope. Type checks
+reject such mistakes as adding a date to money; dependency checks reject
+missing or circular rule references.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapwide] (a) {Proposed interpretation\\Identify each duty, fact and exception};
+\node[mapwide,below=of a] (b) {RuleIR expressions\\Precise operations with known, unknown and conflicting facts};
+\node[mapwide,below=of b] (c) {Validate types and dependencies\\Unsupported expressions remain explicit gaps};
+\node[mapwide,below=of c] (d) {Compose separately scoped controls\\Keep rival selections in separate draft packages};
+\foreach \x/\y in {a/b,b/c,c/d}\draw[maparr](\x)--(\y);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{The current Java route starts from validated RuleIR. Successful
+construction does not decide which legal interpretation the bank should adopt.}
+
+For example, a gift restriction and a separately specified disclosure duty can
+both belong in a package. Two rival readings of the restriction remain
+alternative packages. The proposed grouping and each unresolved question are
+preserved. The common model now has two Catala routes. The compatibility route
+lowers a supported RuleIR profile and retains the existing result, trace and
+release checks. The native route consumes the shared model directly, so rich
+records, lists, options, payload variants and typed operations can be reported
+as executable Catala even when the RuleIR target returns an explicit capability
+failure. These routes share the frontend and evidence policy; they do not make
+different interpretations agree by construction.
+
+\clearpage
+\MapSubheading{5 continued. Where Stipula belongs}
+Stipula describes contracts through parties, resources, actions and state
+changes. It is relevant when consent can be granted and withdrawn. The
+published translation studied in Chapter~\ref{ch:languages} constructs a Java
+verification model with specifications in the Java Modeling Language (JML).
+KeY is a verifier that reasons about the Java model and those specifications.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapresearch] (a) {Stipula contract\\Parties and state changes};
+\node[mapresearch,right=of a] (b) {Java model with JML\\Conditions and invariants};
+\node[mapresearch,right=of b] (c) {KeY verification\\Named properties of that model};
+\draw[maparr,dashed](a)--(b);\draw[maparr,dashed](b)--(c);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Dashed boxes show a studied research route, not the current
+LegalMath compiler. Its Java model is not automatically a bank application.}
+
+The retained translator examples contain a compilation discrepancy; no local
+KeY replay establishes their reported proofs. Adoption requires reproducible
+inputs and a justified mapping to LegalMath's event rules.
+Chapter~\ref{ch:languages} details those limits; Chapter~\ref{ch:verification}
+explains the implemented rule language.
+
+\clearpage
+\MapHeading{6. Generate executable targets and check their behaviour}{map:java}
+The Java emitter embeds the fixed RuleIR rules in a generated policy class
+that calls a shared Java evaluator. The Java compiler, \texttt{javac}, compiles
+that class and its supporting runtime. A separately written Python evaluator
+supplies another execution of the same proposed rule. The Catala translators
+take the same shared model when their capability report permits it: the
+compatibility route lowers supported RuleIR, while the native route emits richer
+Catala directly. Each target receives the same declared facts and assessment
+times for the cases in its profile.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=9mm and 5mm]
+\node[mapbox] (a) {Validated RuleIR\\Fixed proposed rule};
+\node[mapbox,right=of a] (b) {Java emitter\\Policy class and shared evaluator};
+\node[mapbox,right=of b] (c) {Java compiler\\Compiled program};
+\node[mapbox,below=of a] (d) {Python evaluation\\Same facts and times};
+\node[mapbox,below=of c] (e) {Java evaluation\\Same facts and times};
+\node[mapbox,below=of d] (f) {Compare results\\Decision and explanation\\Required evidence};
+\node[mapbox,right=of f] (g) {Keep test results\\Repair disagreements};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\draw[maparr](a)--(d);\draw[maparr](c)--(e);\draw[maparr](d)--(f);
+\draw[maparr](e.south)--++(0,-4mm)-|(f.north);
+\draw[maparr](f)--(g);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{The Java/Python pair and the Catala routes check whether a proposed
+rule survives translation within a declared profile. They can agree on a rule
+that omits a legal exception.}
+
+The test cases must also be capable of exposing mistakes. Boundary cases place
+values on either side of a threshold. Missing-fact cases check that uncertainty
+survives. Event histories exercise consent, withdrawal and timing. Deliberately
+altered rules, called \emph{mutations}, ask whether the tests notice a removed
+exception or a reversed condition.
+
+The successor also registers a narrow Lean certificate for Boolean expression
+lowering. Its fixed checker proves the relation between two formal descriptions;
+an additional finite check executes the generated Java for every declared
+Boolean state assignment within its size limit. Arithmetic, dates, full event
+histories and English meaning remain outside that theorem. A separate Java
+entry point demonstrates attributed contact histories, keeping the duty trigger
+distinct from an observed contact and from overall compliance.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapbox] (a) {Introduce a defect\\Remove an exception};
+\node[mapbox,right=of a] (b) {Try revealing cases\\Discount and voucher};
+\node[mapbox,right=of b] (c) {Inspect the result\\Was the defect detected?};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{A useful test notices a meaningful error. Mutation testing checks
+that ability; it does not manufacture independent legal answers.}
+
+For a small finite rule, every declared input combination can be enumerated.
+Larger or unsupported domains require more limited conclusions. Expected legal
+outcomes need their own source justification, separate from Python/Java
+agreement. Compilation failures and disagreements return to the affected rule
+or implementation; successful checks accompany the draft rather than remove
+its open interpretation questions. Chapter~\ref{ch:verification} develops
+these checks and the separate Java host demonstration.
+
+\clearpage
+\MapHeading{6 continued. Where mathematical verification fits}{map:formal}
+A mathematical check needs a precise proposition: whether two encoded rules
+differ on a permitted input, for example, or whether a transfer preserves a
+quantity. Such propositions concern the formal model and its assumptions.
+
+\MapSubheading{Symbolic comparison with Z3}
+Z3 is a satisfiability modulo theories (SMT) solver: it searches for values that
+make a collection of logical and arithmetic conditions true. Here the condition
+asks whether two supported rule encodings return different answers. The facts,
+output meanings and permitted input domain must first be made comparable.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=8mm and 5mm]
+\node[mapbox] (a) {Comparable rules\\Supported input domain};
+\node[mapbox,right=of a] (b) {Encode a disagreement\\Ask Z3 for a case};
+\node[mapbox,right=of b] (c) {Different answers found\\Replay in Python and Java};
+\node[mapbox,below=of a] (d) {Unsupported, unknown\\or inconsistent domain};
+\node[mapbox,below=of b] (e) {No counterexample\\Within the stated domain};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\draw[maparr](b)--node[right,mapnote]{ruled out}(e);
+\draw[maparr](a)--(d);
+\draw[maparr](b.south west)--(d.north east);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{A solver result concerns an encoded comparison. An unsupported
+operation, timeout or empty domain cannot count as agreement.}
+
+The solver adapter covers a stated subset of the formal model and does not
+check an independent proof certificate from the solver. A found discrepancy is
+valuable because the original programs can replay it. A no-counterexample
+result retains the encoding and domain assumptions. Unsupported operations,
+timeouts and empty domains remain explicit outcomes. Chapter~\ref{ch:proof}
+explains those restrictions.
+
+\MapSubheading{Proofs of selected mathematical properties}
+Lean is a proof assistant that checks a formal derivation. The mathematical
+review used it for selected logical and arithmetic propositions, including
+three-valued logic, an exception counterexample and conservation under a stated
+transfer. SymPy, a symbolic algebra system, checked selected algebraic identities.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapbox] (a) {State a property\\Definitions and assumptions};
+\node[mapbox,right=of a] (b) {Lean checks the proof\\Selected propositions};
+\node[mapbox,right=of b] (c) {Retain the conclusion\\Only the property proved};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{These are checks of selected mathematical claims, not an automatic
+proof of each generated program or of the whole compiler.}
+
+Proving that every supported rule preserves its behaviour through translation
+remains a stronger goal. The present checks do not establish that whole-compiler
+result or correct interpretation of English. The Stipula/JML/KeY route offers
+another research approach to particular Java properties.
+
+\clearpage
+\MapHeading{The proof-carrying dossier and the abstention path}{map:assurance}
+The preceding checks are useful only when their targets and assumptions stay
+visible. The integration record therefore binds a source packet, competing
+hypotheses, arguments, proof obligations, method-family results and executable
+artifacts by hash. It also records shared dependencies: agreement between Java
+and Catala after the same RuleIR lowering is a translation check, not two
+independent readings. The controller never changes an unavailable, unknown or
+unsupported result into agreement.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=18mm and 7mm]
+\tikzset{mapcompact/.style={mapbox,text width=37mm,minimum height=30mm,inner sep=2.5mm,font=\small}}
+\node[mapcompact] (a) {Versioned source packet\\Question and scope\\Quoted passages};
+\node[mapcompact,right=of a] (b) {Interpretation families\\Arguments and search\\Open assumptions};
+\node[mapcompact,right=of b] (c) {RuleIR obligations\\Solver/proof checks\\Java and Catala artifacts};
+\node[mapcompact,below=of b] (d) {Verify retained files\\Targets and hashes\\Common inputs};
+\node[mapcompact,below=of a] (e) {Unresolved or novel\\clause\\Extension required};
+\node[mapcompact,below=of c] (f) {Reviewable draft\\Evidence dossier\\No release authority};
+\draw[maparr] (a)--(b);\draw[maparr] (b)--(c);\draw[maparr] (c)--(d);
+\draw[maparr] (d)--(e);\draw[maparr] (d)--(f);
+\draw[maparr] (e.north)--++(0,9mm)-|node[pos=.25,above,mapnote]{new evidence or legal decision}(b.south);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{A proof or replay closes the proposition it names. An open authority,
+future clause, stale result or unavailable required method keeps the dossier on
+the abstention path.}
+
+The worked 23EC46 replay imports five previously proposed readings. Two differ
+on whether product-directed presentation suffices without an operational
+connection. The solver finds a separating assignment and the original Python
+and Java programs replay it. The Catala routes supply another execution target
+over the shared model: the compatibility backend consumes supported RuleIR,
+while the native converter can consume a richer model without first making it
+RuleIR. Agreement after a common lowering is a translation check, not
+independent legal evidence. The disabled live provider supplies no fresh
+reading. The witness identifies a legal question; it does not answer it.
+The result can be delivered
+as a draft Java package with its evidence and open questions, but the host must
+route the unresolved classification according to a bank-approved policy.
+The exact contract and master command are described in
+Section~\ref{sec:proof-carrying-integration}.
+
+The master validates a frozen revision and binds each accepted phase to its
+inputs and predecessor files.
+Failure preserves the attempt and triggers a focused repair check before a
+bounded retry. Success refreshes the next-phase plan. A changed source, checker,
+plan or allowlist invalidates acceptance; retry exhaustion produces a report of
+the remaining failure. Neither a retry nor a successful document build supplies
+missing interpretive evidence.
+
+\clearpage
+\MapHeading{7. Deliver a reviewable executable control}{map:delivery}
+The result is a target program that another person can inspect, run and
+question. A Java archive (JAR) or a declared Catala package contains the
+compiled code. The associated review record identifies the sources, proposed
+meanings, facts, test results and unresolved questions. A separate host program
+exercises the callable control and preserves the target identity.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=7mm and 5mm]
+\node[mapbox] (a) {Compiled target and tests\\Fixed proposed control};
+\node[mapbox,right=of a] (b) {Sources and meaning\\Assumptions and questions};
+\node[mapbox,right=of b] (c) {Reviewable draft\\JAR and host example};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{The delivered evidence lets a reviewer relate an executable answer
+to its proposed meaning. Draft delivery supplies no authority to use it.}
+
+\MapHeading{8. Approve and supervise bank use}{map:operation}
+The institution decides which interpretation and exact program version it will
+authorize. Its own identities, fact owners and transaction systems must preserve
+that decision. The local source monitor and bounded scheduler can revisit
+affected controls; actual bank operation still needs institution validation.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=9mm and 5mm]
+\node[mapresearch] (a) {Bank review\\Meaning and facts\\Release approval};
+\node[mapresearch,right=of a] (b) {Supervised bank use\\Host, identity and transaction checks};
+\node[mapbox,right=of b] (c) {Source review\\Monitor and scheduler};
+\node[mapbox,below=of b] (d) {Revisit affected rules\\Preserve earlier decisions};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\draw[maparr](c.south)--++(0,-3mm)-|node[pos=.25,below,mapnote]{source changes}(d.north);
+\draw[maparr](d.west)-|node[pos=.25,below,mapnote]{revised proposal}(a.south);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{Dashed boxes require the bank's operating evidence. Local monitoring
+is implemented; an unchanged source still leaves unresolved questions open.}
+
+\MapSubheading{Measuring whether the method helps}
+Empirical evaluation runs alongside development. The implemented comparison
+offers a single reader, isolated readers, tree search and source assurance under
+declared resource limits. Independent reference outcomes and unfamiliar source
+families are needed to estimate interpretation quality; a separate workflow
+study measures people's review effort.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapbox] (a) {Fixed study design\\Hidden reference answers};
+\node[mapbox,right=of a] (b) {Compare methods\\Errors, useful answers\\and missing answers};
+\node[mapbox,right=of b] (c) {Estimate performance\\By source family};
+\draw[maparr](a)--(b);\draw[maparr](b)--(c);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{The comparison machinery exists. Its development checks have not
+established a method ranking or a reduction in reviewer workload.}
+
+\clearpage
+\MapHeading{Complete the processing without losing the question}{map:continuation}
+The human-reference design above records an earlier research proposal. The
+current product requires a machine-checked proposition or an explicit
+qualification; human labels and approval do not establish product quality.
+
+Long responses and exhausted review budgets can leave parts of a circular
+unexamined. Two implemented paths share exact source references. The single
+reader accounts for its declared questions; the ensemble investigates competing
+readings. These paths retain their separate results. See
+Section~\ref{sec:processing-continuation} for the mechanics and checked limits.
+
+\begin{MapDiagram}
+\begin{tikzpicture}[node distance=5mm]
+\node[mapwide] (a) {Whole retained source\\Select exact source identifiers; software retrieves the text};
+\node[mapbox,text width=54mm,below=7mm of a,xshift=-34mm] (b) {Single reading\\Exact declared questions};
+\node[mapbox,text width=54mm,below=7mm of a,xshift=34mm] (c) {Competing readings\\Exact question assignments};
+\node[mapbox,text width=54mm,below=of b] (d) {Bounded complete coverage\\Every source unit accounted for};
+\node[mapbox,text width=54mm,below=of c] (e) {Breadth before follow-ups\\Two perspectives per batch};
+\node[mapbox,text width=54mm,below=of d] (f) {Whole-source consistency\\Recheck coverage\\after revision};
+\node[mapbox,text width=54mm,below=of e] (g) {Scoped reconciliation\\Retain disputes and missing work};
+\node[mapwide,below=7mm of $(f.south)!0.5!(g.south)$] (h) {Retained proposals and uncertainty\\Source, reading, question and method identities};
+\draw[maparr](a.south)--++(0,-3mm)-|(b.north);
+\draw[maparr](a.south)--++(0,-3mm)-|(c.north);
+\draw[maparr](b)--(d);\draw[maparr](c)--(e);
+\draw[maparr](d)--(f);\draw[maparr](e)--(g);
+\draw[maparr](f.south)--++(0,-3mm)-|(h.north);
+\draw[maparr](g.south)--++(0,-3mm)-|(h.north);
+\end{tikzpicture}
+\end{MapDiagram}
+\MapCaption{An interpretation revision reopens its coverage checks. Failed
+requests keep their spent attempts; no batch disappears to fit the budget.}
+
+The qualification adapter checks supported formal propositions for a retained
+reading and exact question. The complete ensemble investigation invokes it when
+enabled; the split single-reader path retains proposals for subsequent checking.
+A source identifier proves where the words came from. Coverage proves that the
+declared units and questions received dispositions. A formal theorem proves its
+stated relation. None of these alone proves the English interpretation. The
+four earlier unfamiliar investigations therefore remain incomplete unless their
+remaining stages actually execute under the recorded limits.
+
+\endgroup
+\clearpage

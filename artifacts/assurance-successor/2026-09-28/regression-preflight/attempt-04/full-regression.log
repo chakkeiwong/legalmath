@@ -1,0 +1,337 @@
+........................................................................ [  5%]
+........................................................................ [ 11%]
+........................................................................ [ 17%]
+........................................................................ [ 23%]
+........................................................................ [ 29%]
+........................................................................ [ 35%]
+........................................................................ [ 41%]
+........................................................................ [ 46%]
+.........................FFFFFFFFFF..................................... [ 52%]
+........................................................................ [ 58%]
+........................................................................ [ 64%]
+........................................................................ [ 70%]
+........................................................................ [ 76%]
+........................................................................ [ 82%]
+........................................................................ [ 87%]
+........................................................................ [ 93%]
+........................................................................ [ 99%]
+.....                                                                    [100%]
+=================================== FAILURES ===================================
+_____________ test_owned_phase_manifest_is_saved_before_execution ______________
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738baee3a690>
+
+    def test_owned_phase_manifest_is_saved_before_execution(master,monkeypatch):
+        def check(work):
+            assert (work/'start-manifest.json').exists()
+            return {'status':'FIXTURE_EXECUTED'}
+        monkeypatch.setattr(master,'baseline',check)
+>       master.phase('S0')
+
+tests/assurance/test_successor_master.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'S0'
+
+    def phase(name,*,assessment=False):
+        policy=read(DOC/'allowlist.json')
+        if (policy['phases']!=list(PHASES) or policy['additional_model_calls']!=500 or
+                policy['max_attempts_per_phase']!=MAX_ATTEMPTS or
+                policy.get('phase_attempt_overrides',{})!=PHASE_ATTEMPT_OVERRIDES or policy['old_ledger_mutation'] or
+                policy['shell_fragments'] or policy['release_eligible']):
+>           raise RuntimeError('Controller and command policy differ')
+E           RuntimeError: Controller and command policy differ
+
+scripts/run_assurance_successor.py:198: RuntimeError
+__________ test_tampered_predecessor_cannot_remain_a_passing_receipt ___________
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+
+    def test_tampered_predecessor_cannot_remain_a_passing_receipt(master):
+>       master.phase('S0')
+
+tests/assurance/test_successor_master.py:44: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'S0'
+
+    def phase(name,*,assessment=False):
+        policy=read(DOC/'allowlist.json')
+        if (policy['phases']!=list(PHASES) or policy['additional_model_calls']!=500 or
+                policy['max_attempts_per_phase']!=MAX_ATTEMPTS or
+                policy.get('phase_attempt_overrides',{})!=PHASE_ATTEMPT_OVERRIDES or policy['old_ledger_mutation'] or
+                policy['shell_fragments'] or policy['release_eligible']):
+>           raise RuntimeError('Controller and command policy differ')
+E           RuntimeError: Controller and command policy differ
+
+scripts/run_assurance_successor.py:198: RuntimeError
+_ test_changed_material_file_invalidates_a_final_report_without_resetting_attempts _
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+
+    def test_changed_material_file_invalidates_a_final_report_without_resetting_attempts(master):
+>       master.phase('S0');file=master.ROOT/'src/legalmath/example.py'
+        ^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_successor_master.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'S0'
+
+    def phase(name,*,assessment=False):
+        policy=read(DOC/'allowlist.json')
+        if (policy['phases']!=list(PHASES) or policy['additional_model_calls']!=500 or
+                policy['max_attempts_per_phase']!=MAX_ATTEMPTS or
+                policy.get('phase_attempt_overrides',{})!=PHASE_ATTEMPT_OVERRIDES or policy['old_ledger_mutation'] or
+                policy['shell_fragments'] or policy['release_eligible']):
+>           raise RuntimeError('Controller and command policy differ')
+E           RuntimeError: Controller and command policy differ
+
+scripts/run_assurance_successor.py:198: RuntimeError
+___________ test_unexecuted_or_changed_repair_cannot_authorize_retry ___________
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738baf34c990>
+
+    def test_unexecuted_or_changed_repair_cannot_authorize_retry(master,monkeypatch):
+        def fail(work):raise RuntimeError('Controlled failure')
+        monkeypatch.setattr(master,'baseline',fail)
+        with pytest.raises(RuntimeError):master.phase('S0')
+>       failed=master.read(master.OUT/'S0/attempt-01/manifest.json')
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_successor_master.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/run_assurance_successor.py:36: in read
+    def read(p): return json.loads(Path(p).read_text())
+                                   ^^^^^^^^^^^^^^^^^^^
+../../miniconda3/envs/tfgpu/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/tmp/pytest-of-chakwong/pytest-462/test_unexecuted_or_changed_rep0/out/S0/attempt-01/manifest.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-chakwong/pytest-462/test_unexecuted_or_changed_rep0/out/S0/attempt-01/manifest.json'
+
+../../miniconda3/envs/tfgpu/lib/python3.11/pathlib.py:1044: FileNotFoundError
+_______________ test_attempt_limit_survives_repair_and_staleness _______________
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+
+    def test_attempt_limit_survives_repair_and_staleness(master):
+        master.OUT.mkdir();s=master.state();s['phases']['S0'].update(status='STALE_EVIDENCE',attempts=[{},{},{}]);master.save(master.OUT/'state.json',s)
+>       with pytest.raises(RuntimeError,match='ceiling'):master.phase('S0')
+                                                         ^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_successor_master.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'S0'
+
+    def phase(name,*,assessment=False):
+        policy=read(DOC/'allowlist.json')
+        if (policy['phases']!=list(PHASES) or policy['additional_model_calls']!=500 or
+                policy['max_attempts_per_phase']!=MAX_ATTEMPTS or
+                policy.get('phase_attempt_overrides',{})!=PHASE_ATTEMPT_OVERRIDES or policy['old_ledger_mutation'] or
+                policy['shell_fragments'] or policy['release_eligible']):
+>           raise RuntimeError('Controller and command policy differ')
+E           RuntimeError: Controller and command policy differ
+
+scripts/run_assurance_successor.py:198: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+
+    def test_attempt_limit_survives_repair_and_staleness(master):
+        master.OUT.mkdir();s=master.state();s['phases']['S0'].update(status='STALE_EVIDENCE',attempts=[{},{},{}]);master.save(master.OUT/'state.json',s)
+>       with pytest.raises(RuntimeError,match='ceiling'):master.phase('S0')
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'ceiling'
+E         Actual message: 'Controller and command policy differ'
+
+tests/assurance/test_successor_master.py:78: AssertionError
+_________ test_status_does_not_write_while_a_phase_owns_the_controller _________
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+
+    def test_status_does_not_write_while_a_phase_owns_the_controller(master):
+        import fcntl
+>       master.phase('S0')
+
+tests/assurance/test_successor_master.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'S0'
+
+    def phase(name,*,assessment=False):
+        policy=read(DOC/'allowlist.json')
+        if (policy['phases']!=list(PHASES) or policy['additional_model_calls']!=500 or
+                policy['max_attempts_per_phase']!=MAX_ATTEMPTS or
+                policy.get('phase_attempt_overrides',{})!=PHASE_ATTEMPT_OVERRIDES or policy['old_ledger_mutation'] or
+                policy['shell_fragments'] or policy['release_eligible']):
+>           raise RuntimeError('Controller and command policy differ')
+E           RuntimeError: Controller and command policy differ
+
+scripts/run_assurance_successor.py:198: RuntimeError
+____________ test_wrong_phase_receipt_cannot_satisfy_a_predecessor _____________
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+
+    def test_wrong_phase_receipt_cannot_satisfy_a_predecessor(master):
+        from copy import deepcopy
+>       master.phase('S0');s=master.state();s['phases']['S1']=deepcopy(s['phases']['S0']);master.save(master.OUT/'state.json',s)
+        ^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_successor_master.py:99: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'S0'
+
+    def phase(name,*,assessment=False):
+        policy=read(DOC/'allowlist.json')
+        if (policy['phases']!=list(PHASES) or policy['additional_model_calls']!=500 or
+                policy['max_attempts_per_phase']!=MAX_ATTEMPTS or
+                policy.get('phase_attempt_overrides',{})!=PHASE_ATTEMPT_OVERRIDES or policy['old_ledger_mutation'] or
+                policy['shell_fragments'] or policy['release_eligible']):
+>           raise RuntimeError('Controller and command policy differ')
+E           RuntimeError: Controller and command policy differ
+
+scripts/run_assurance_successor.py:198: RuntimeError
+____ test_documented_s6_amendment_never_resets_or_permits_a_seventh_attempt ____
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+
+    def test_documented_s6_amendment_never_resets_or_permits_a_seventh_attempt(master):
+        master.OUT.mkdir();s=master.state();s['phases']['S6'].update(status='FAILED',attempts=[{},{},{},{},{}])
+        master.save(master.OUT/'state.json',s)
+        status=master.refresh(master.state())
+        assert status['phases']['S6']['attempts_consumed']==5 and status['phases']['S6']['attempts_remaining']==1
+        s=master.state();s['phases']['S6']['attempts'].append({});master.save(master.OUT/'state.json',s)
+        assert master.refresh(master.state())['phases']['S6']['attempts_remaining']==0
+        assert master.attempt_limit('S0')==3
+>       assert master.attempt_limit('S8')==8
+E       AssertionError: assert 8 == 7
+E        +  where 8 = <function attempt_limit at 0x738baf9b2700>('S8')
+E        +    where <function attempt_limit at 0x738baf9b2700> = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>.attempt_limit
+
+tests/assurance/test_successor_master.py:112: AssertionError
+___ test_incomplete_phase_keeps_its_structured_result_without_claiming_pass ____
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738bb476ba90>
+
+    def test_incomplete_phase_keeps_its_structured_result_without_claiming_pass(master,monkeypatch):
+        result={'status':'CONTROLLED_INCOMPLETE','execution_complete':False,'missing':['required evidence']}
+        monkeypatch.setattr(master,'baseline',lambda work:result)
+>       with pytest.raises(RuntimeError,match='structured result retained'):master.phase('S0')
+                                                                            ^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_successor_master.py:118: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'S0'
+
+    def phase(name,*,assessment=False):
+        policy=read(DOC/'allowlist.json')
+        if (policy['phases']!=list(PHASES) or policy['additional_model_calls']!=500 or
+                policy['max_attempts_per_phase']!=MAX_ATTEMPTS or
+                policy.get('phase_attempt_overrides',{})!=PHASE_ATTEMPT_OVERRIDES or policy['old_ledger_mutation'] or
+                policy['shell_fragments'] or policy['release_eligible']):
+>           raise RuntimeError('Controller and command policy differ')
+E           RuntimeError: Controller and command policy differ
+
+scripts/run_assurance_successor.py:198: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738bb476ba90>
+
+    def test_incomplete_phase_keeps_its_structured_result_without_claiming_pass(master,monkeypatch):
+        result={'status':'CONTROLLED_INCOMPLETE','execution_complete':False,'missing':['required evidence']}
+        monkeypatch.setattr(master,'baseline',lambda work:result)
+>       with pytest.raises(RuntimeError,match='structured result retained'):master.phase('S0')
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'structured result retained'
+E         Actual message: 'Controller and command policy differ'
+
+tests/assurance/test_successor_master.py:118: AssertionError
+___ test_assessment_keeps_resource_failed_study_failed_and_binds_its_attempt ___
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738baf266290>
+
+    def test_assessment_keeps_resource_failed_study_failed_and_binds_its_attempt(master,monkeypatch):
+        s,p=failed_study(master)
+        import assurance_successor_phases as phases
+        monkeypatch.setattr(phases,'execute',lambda phase,work:{'assessment_complete':True,'overall_execution_complete':False})
+>       with pytest.raises(RuntimeError,match='Predecessor incomplete'):master.phase('S9')
+                                                                        ^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_successor_master.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'S9'
+
+    def phase(name,*,assessment=False):
+        policy=read(DOC/'allowlist.json')
+        if (policy['phases']!=list(PHASES) or policy['additional_model_calls']!=500 or
+                policy['max_attempts_per_phase']!=MAX_ATTEMPTS or
+                policy.get('phase_attempt_overrides',{})!=PHASE_ATTEMPT_OVERRIDES or policy['old_ledger_mutation'] or
+                policy['shell_fragments'] or policy['release_eligible']):
+>           raise RuntimeError('Controller and command policy differ')
+E           RuntimeError: Controller and command policy differ
+
+scripts/run_assurance_successor.py:198: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738baf266290>
+
+    def test_assessment_keeps_resource_failed_study_failed_and_binds_its_attempt(master,monkeypatch):
+        s,p=failed_study(master)
+        import assurance_successor_phases as phases
+        monkeypatch.setattr(phases,'execute',lambda phase,work:{'assessment_complete':True,'overall_execution_complete':False})
+>       with pytest.raises(RuntimeError,match='Predecessor incomplete'):master.phase('S9')
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'Predecessor incomplete'
+E         Actual message: 'Controller and command policy differ'
+
+tests/assurance/test_successor_master.py:141: AssertionError
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /home/chakwong/python/legalmath/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+.venv/lib/python3.11/site-packages/starlette/testclient.py:53
+  /home/chakwong/python/legalmath/.venv/lib/python3.11/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/assurance/test_successor_master.py::test_owned_phase_manifest_is_saved_before_execution
+FAILED tests/assurance/test_successor_master.py::test_tampered_predecessor_cannot_remain_a_passing_receipt
+FAILED tests/assurance/test_successor_master.py::test_changed_material_file_invalidates_a_final_report_without_resetting_attempts
+FAILED tests/assurance/test_successor_master.py::test_unexecuted_or_changed_repair_cannot_authorize_retry
+FAILED tests/assurance/test_successor_master.py::test_attempt_limit_survives_repair_and_staleness
+FAILED tests/assurance/test_successor_master.py::test_status_does_not_write_while_a_phase_owns_the_controller
+FAILED tests/assurance/test_successor_master.py::test_wrong_phase_receipt_cannot_satisfy_a_predecessor
+FAILED tests/assurance/test_successor_master.py::test_documented_s6_amendment_never_resets_or_permits_a_seventh_attempt
+FAILED tests/assurance/test_successor_master.py::test_incomplete_phase_keeps_its_structured_result_without_claiming_pass
+FAILED tests/assurance/test_successor_master.py::test_assessment_keeps_resource_failed_study_failed_and_binds_its_attempt
+10 failed, 1219 passed, 2 warnings in 1241.33s (0:20:41)

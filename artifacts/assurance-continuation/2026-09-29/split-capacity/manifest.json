@@ -1,0 +1,28 @@
+{
+  "command": {
+    "argv": [
+      "/home/chakwong/python/legalmath/.venv/bin/python",
+      "-c",
+      "import sys\nsys.path.insert(0,'scripts')\nfrom copy import deepcopy\nfrom assurance_continuation_checks import OLD\nimport run_assurance_continuation as r\nfrom legalmath.canonical import digest,canonical\nfrom legalmath.interpretation.assurance import single_reader as sr\nfrom tests.assurance.test_continuation_coverage import fixture,response\nfrom tests.search.support import FunctionProvider\nwork=r.OUT/'split-capacity'\ntask=next(t for t in r.read(OLD/'study-source-freeze.json')['tasks'] if t['task_id']=='26ec35')\np=task['packet'];_,i=fixture()\ni['reading']['formalization']=None\ni['reading']['statement']='Synthetic processing challenge only; no legal interpretation proposed.'\ni['reading']['citations']=[{'unit_id':p['units'][0]['unit_id'],'quote':p['units'][0]['text']}]\ni['reading']['questions']=['The legal meaning remains unresolved in this synthetic capacity diagnostic.']\nfor q in i['questions']:q['source_evidence']=deepcopy(i['reading']['citations'])\nbase=response(p,i)\ndef synthetic(req):\n value=base(req)\n if req['task']=='SINGLE_WHOLE_SOURCE_CHECK':\n  for row in value['questions']:row['status']='UNRESOLVED'\n return value\nprovider=FunctionProvider(synthetic)\nresult=sr.run(p,provider,work/'run',transport_profile='compact-locators.v2')\nrows=[]\nfor path in sorted((work/'run/model').glob('action-*/references/wire-request.json')):\n req=r.read(path);rows.append({'task':req['task'],'wire_bytes':len(canonical(req)),'source_units':len(req['source_packet']['units'])})\nr.save(work/'result.json',{'source_hash':digest(p),'synthetic_only':True,'new_live_calls':0,'request_sizes':rows,'result':result,'legal_correctness':'NOT_ESTABLISHED'})\nprint('status',result['status'],'stopped',result['stopped'])\nprint('coverage_units',[len(c['units']) for c in result['coverage']],'concerns',[len(c['concerns']) for c in result['coverage']])\nprint('largest_request_bytes',max(x['wire_bytes'] for x in rows),'provider_calls',len(provider.requests))\n"
+    ],
+    "cpu_only": true,
+    "elapsed_seconds": 6.754,
+    "exit_code": 0,
+    "log": "artifacts/assurance-continuation/2026-09-29/split-capacity/capacity.log",
+    "log_sha256": "0c6735f173cc7dc24a1e158a817e0fdb017038c1b0c30176920cd5c1d0321f62"
+  },
+  "commit": "79a6313c79138aa81c48fd50229d9226acdcfbc5",
+  "cpu_only": true,
+  "data_version": "5894cfa10af7d57ee82fb3dc180ec265ed4036b10337795874bf5577f51ff49b",
+  "gpu": "Intentionally hidden: CUDA_VISIBLE_DEVICES=-1",
+  "plan": "docs/plans/split-reader-retained-capacity.md",
+  "plan_sha256": "5dc6e1a20d11506089e3af7c01b574248b056684ad2cb3d04316f21f51c1da9d",
+  "python": "/home/chakwong/python/legalmath/.venv/bin/python",
+  "python_sha256": "6f38473e7e297ce26d0daf41f8c5d7ce5b8b92859ca905a8145a83a881f0b790",
+  "result": {
+    "path": "artifacts/assurance-continuation/2026-09-29/split-capacity/result.json",
+    "sha256": "360a90cfb6653900ef71e393bb31e3fd6373f6aa69237d89a1ca95c7fb31017b"
+  },
+  "seed": "N/A: synthetic deterministic responses",
+  "wall_time_seconds": 6.754
+}

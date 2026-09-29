@@ -1,0 +1,278 @@
+\section{What a formal legal language actually does}
+\label{sec:language-lesson}
+
+Consider the instruction to obtain written agreement before applying the
+streamlined approach. A checklist can remind an officer to obtain it. A database
+can store a scanned agreement. Neither tells a program what to conclude if the
+agreement covers bonds while the proposed transaction is in a different category,
+or if the client withdrew yesterday. A formal language supplies a precise way
+to state the relevant conditions and the changes that events produce. Its
+purpose here is to preserve an agreed interpretation closely enough that people
+can inspect it and computers can execute and check it.
+
+The word ``formal'' does not mean that the language resolves legal judgment.
+It means that a well-formed statement has a specified computational meaning.
+We can then distinguish disagreement about that meaning from a programming
+mistake in carrying it out. The original circular, the adopted interpretation
+and the formal statement must remain connected.
+
+\subsection{From a sentence to a calculation with a defined meaning}
+
+A programming language needs three ingredients. Its \emph{syntax} says which
+statements are allowed. Its \emph{types} say which kinds of value can be combined.
+Its \emph{semantics} says what each allowed statement does. For example,
+\texttt{portfolio >= HKD(40000000)} has comparison syntax, compares two money
+values, and means an inclusive monetary comparison. Comparing that portfolio
+with a consent date is a type error. Using \texttt{>} instead of \texttt{>=} is
+well-typed but changes the meaning at the boundary. A type checker catches the
+first error; an independently chosen boundary example catches the second.
+
+For the SPI financial condition, a readable formal statement is:
+\begin{lstlisting}[caption={Illustrative controlled syntax for Annex 1 paragraph 3.1. This is a teaching notation, not Catala or Stipula source.}]
+financial_condition(client, date) :=
+    portfolio(client, date) >= HKD(40000000)
+    OR net_assets_ex_home(client, date) >= HKD(80000000)
+\end{lstlisting}
+Here \texttt{client} and \texttt{date} are arguments: every occurrence refers to
+the same person and valuation date. \texttt{portfolio} and
+\texttt{net\_assets\_ex\_home} name defined inputs. The source, paragraphs
+3.2--3.4, determines the ownership and net-asset definitions; the host bank must
+provide values calculated under the adopted mapping. The notation makes no
+assumption that the portfolio is simply assets held at this bank.
+
+The compiler stores the statement as a tree. The root is \texttt{OR}; its two
+children are inclusive comparisons; each comparison has an input and a monetary
+constant. This tree is called an \emph{abstract syntax tree}: it retains the
+operations and their arguments without depending on the layout of the original
+sentence. The JSON in Section~\ref{sec:product} is a serialized version of such
+a tree. An intermediate representation, or IR, adds stable identifiers, source
+locations, types and interpretation records to that executable structure.
+
+Evaluation works from the leaves towards the root. For a portfolio of HK\$35
+million and net assets of HK\$90 million, the comparisons give false and true;
+their alternative gives true. Missing portfolio evidence produces an unresolved
+comparison. An established net-asset route can still make the alternative true.
+If neither route is established and one remains unresolved, the answer remains
+unresolved. This is why an ordinary Java \texttt{boolean}, which has only two
+values, is insufficient as the complete result type.
+
+The financial predicate answers one question. It does not produce a duty or an
+authorization to execute an order. The larger model must combine qualification,
+the selected product category, consent, exposure and retained requirements.
+Keeping these named subquestions separate is useful both to the reviewer and
+to the engineer diagnosing a rejected request.
+
+\subsection{Catala: general rules and explicit exceptions}
+
+Catala was designed around a recurring structure in legislation: a value is
+defined by a general rule, subject to exceptions. Its central contribution is
+to give that structure an explicit executable meaning, while placing code close
+to the legal text \citep[secs.~2--4]{catala2021}. It is useful when nested
+qualifications would otherwise become a long, undocumented sequence of
+\texttt{if} statements.
+
+For a small banking illustration, take the product-explanation relief in Annex
+1 paragraph 10.3. Within the selected solicited-transaction profile, an
+explanation remains required when the client requests it or raises material
+queries. A local representation can say:
+\begin{lstlisting}[caption={An exception with an explicit guard. The combined guard avoids creating two competing exceptions for the same requirement.}]
+normally: product_explanation_required = false
+exception when client_requests_explanation
+               OR client_has_material_queries:
+    product_explanation_required = true
+always retain: current_offering_documents_required = true
+\end{lstlisting}
+The \emph{guard} is the condition after ``when''. If the guard is true, use the
+exception; if false, use the general value. If evidence about the guard is
+missing, LegalMath leaves the requirement unresolved. The separate offering-
+document requirement is not inside the explanation exception. A programmer
+who implements one switch for both has changed the model
+\citep[Annex 1, para.~10.3]{sfcspiannex1}.
+
+There is an important distinction between borrowing this organization and
+claiming to implement Catala itself. Catala's core calculus distinguishes an
+empty applicable value and a conflict between exceptions. LegalMath additionally
+needs incomplete bank evidence to remain explicitly unknown. Its proposed
+default operator evaluates every sibling guard: two established exceptions
+conflict; one established exception with an unresolved competing guard remains
+unresolved; one established exception with all competitors refuted supplies the
+value; all refuted guards use the general value. Nesting expresses an adopted
+priority. File order does not.
+
+Suppose two exceptions have been written, one for a request and another for a
+material query. A client who does both would activate both. Under the proposed
+sibling-conflict semantics, identical resulting values still conflict. Combining
+the two conditions into one guard expresses the intended single exception.
+That example shows why choosing a language is a substantive design decision:
+a rule engine's treatment of overlapping rules must match the representation
+the reviewer has adopted. The delivered Java example uses the equivalent
+explicit Boolean condition for this one requirement; its compiler rejects the
+general default operator until that operator has its own implementation tests.
+
+\subsection{Stipula: agreements, authorized actions and state changes}
+\label{sec:stipula-tutorial}
+
+A wealth calculation is a function of facts. An agreement also has a history.
+Before signature, after signature, after withdrawal and after an amendment, the
+same attempted action can have different consequences. Stipula is a language
+for expressing those interactions. The requested 2021 paper defines parties,
+agreement terms, fields, assets, states, guarded functions and scheduled events
+\citep[secs.~3--4]{stipula2021}. The original language in that paper is
+type-free; the typed decision representation proposed here is a separate design.
+
+A \emph{party} is an actor allowed to participate, such as a lender or borrower
+in the paper's rental example. An \emph{agreement} establishes the parties and
+the terms on which they agree. A \emph{field} stores information, such as a price
+or agreed period. An \emph{asset} represents a transferable resource. A
+\emph{state} records which stage the agreement has reached. A \emph{function}
+specifies an action a named party may invoke in a particular state; a guard
+adds a condition for the action. Its body changes fields, sends information or
+transfers assets, and its transition identifies the next state. A scheduled
+\emph{event} specifies an action to attempt at a future time if the agreement
+is then in the required state.
+
+For example, the rental contract in the paper first records an offer. The
+borrower accepts by supplying the required payment, which moves the contract
+into its using state. The contract provides the use information and schedules
+an event for the end of the rental period. Either an appropriate borrower action
+or the scheduled event can finish the interaction and release the held payment.
+The language gives a precise account of which party can trigger each step and
+when the payment moves. Assets have special transfer behavior; they are not
+ordinary numeric fields that an assignment may freely duplicate
+\citep[sec.~3, rental example and grammar]{stipula2021}.
+
+The banking analogue uses the state and actor ideas but does not transfer client
+assets. The following is explanatory pseudocode, deliberately distinguished
+from compilable Stipula syntax:
+\begin{lstlisting}[caption={A consent model inspired by Stipula. ``Record'' observes an event; ``allow'' describes the control's decision.}]
+parties: Client, Bank
+terms: client_id, product_category, threshold, monitoring_mode
+states: NOT_ESTABLISHED, ACTIVE, WITHDRAWN
+
+NOT_ESTABLISHED:
+    record Client.written_agreement(terms, evidence)
+    when Bank.confirmed_required_explanations(evidence)
+    -> ACTIVE
+
+ACTIVE:
+    record Client.withdrawal(instruction_id) -> WITHDRAWN
+    allow Bank.apply_streamlining(transaction)
+    when category_matches(transaction, terms)
+         AND all_other_required_conditions_hold(transaction)
+
+WITHDRAWN:
+    do not allow Bank.apply_streamlining(transaction)
+    record a new, fully evidenced agreement -> ACTIVE
+\end{lstlisting}
+The terms bind consent to a client, category and arrangement. A new agreement
+after withdrawal is a new generation of consent, not deletion of the withdrawal.
+The regulatory duties themselves come from the applicable regulatory sources.
+Client and bank agreement can establish the consent contemplated by those
+sources; it cannot amend an SFC requirement. This distinction is essential when
+borrowing a contract language for a regulatory-control system.
+The figure makes those changes visible without requiring the reader to know a
+particular language's punctuation.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=17mm, every node/.style={font=\small},
+box/.style={draw=teal,fill=pale,rounded corners,align=center,text width=33mm,minimum height=14mm},
+arr/.style={-{Latex[length=2mm]},thick,draw=navy}]
+\node[box] (none) {Consent not established};
+\node[box,right=of none] (active) {Active consent\\for these terms};
+\node[box,right=of active] (withdrawn) {Withdrawn};
+\draw[arr] (none)--node[above=5pt,align=center,font=\footnotesize]{Evidenced\\agreement}(active);
+\draw[arr] (active)--node[above=5pt,font=\footnotesize]{Withdrawal}(withdrawn);
+\draw[arr] (withdrawn.south) to[bend left=35] node[below]{New evidenced agreement} (active.south);
+\end{tikzpicture}
+\caption{Consent transitions for the example. An incomplete event history produces
+an unresolved assessment outside these established states. It is not evidence
+of an active agreement.}
+\label{fig:consent-tutorial}
+\end{figure}
+
+Execution requires a state, stored terms and a history of ordered events. In
+Stipula's operational semantics, the runtime also maintains pending scheduled
+events and a clock. In the inspected 2021 semantics, due events take priority
+over function calls at the same time. That is a language rule, not a rule of
+Hong Kong banking law. LegalMath must adopt an explicit ordering policy for
+withdrawal and order events, record the authority for their sequence, and retain
+an unresolved result where the ordering cannot be established. It cannot import
+Stipula's clock convention as if the circular prescribed it.
+
+There is a second adaptation. A control may prohibit streamlined treatment after
+withdrawal, but the bank might nevertheless have processed a transaction.
+Deleting that transaction from the history because it is an illegal transition
+would hide the very incident a compliance system needs to detect. LegalMath
+therefore separates the observed event record from the decision about whether
+the proposed action is permitted by the selected control. Normative languages
+such as eFLINT and Symboleo help make this distinction explicit: a duty or
+violation is represented separately from the fact that an action happened
+\citep{eflint2020,symboleo2020}.
+
+\subsection{What it means to verify such a model}
+
+A property is a precise question about the model. For the consent example:
+``After a known withdrawal, and before a new qualifying agreement, this control
+never returns that the streamlining conditions are met.'' Testing checks selected
+histories. Model checking explores all histories within a specified finite
+model. A mathematical proof establishes the property under explicit assumptions.
+None establishes that a real client signed a document, or that the selected
+provisions are the complete legal regime.
+
+Stipula's behavioral-equivalence work compares the observable interactions of
+two formal contracts. Two implementations can use different internal state names
+yet be equivalent if the relevant party actions, communications and asset
+behavior match. This is useful for comparing formal implementations. It is not
+a test that the English circular and the contract mean the same thing
+\citep[sec.~5]{stipula2021}.
+
+The Stipula--KeY work supplies a particularly relevant connection to Java.
+Its translator builds Java verification models from a supported class of
+Stipula contracts and adds specifications in the Java Modeling Language (JML).
+KeY reasons about Java programs and these specifications. A JML precondition
+states what must hold before a method; a postcondition states what the method
+must establish; an invariant states a condition preserved at the designated
+program points. For instance, an illustrative postcondition can require a
+withdrawal method to leave consent inactive, while an invariant can prevent a
+successful streamlining decision in that state. The proof obligation concerns
+all executions covered by the model and its assumptions
+\citep[secs.~3--5]{stipulakey2025,stipulakeycode}.
+
+That translation is a useful research route, but its Java verification model is
+not automatically a deployable bank integration. The paper restricts cycle
+structure and abstracts some event conditions; the adapter still has to preserve
+timestamps, evidence and the bank's actual interface. The concrete Java
+demonstration in this proposal instead compiles the stated decision subset
+directly. It compares Java with a separately implemented reference evaluator
+and source-derived examples. A later KeY or Lean task can strengthen the
+compiler evidence for a chosen property without changing who approves the
+legal interpretation.
+
+\subsection{Solvers, explanations and search in ordinary programming terms}
+
+A satisfiability solver searches for values that make a set of logical
+constraints true. To compare the correct wealth alternative with a mistaken
+conjunction, give it both formulas and ask for inputs where their answers differ.
+HK\$35 million and HK\$90 million are one such counterexample. An SMT solver
+extends this idea with theories such as exact integer arithmetic. It is useful
+here because money can be encoded as integers. Before treating ``no
+counterexample'' as evidence, the system must establish that the allowed input
+domain is nonempty and that both formulas were encoded faithfully. A timeout
+means that the search did not finish.
+
+A justification engine answers a related question: which rules and facts support
+a conclusion? In a rule program, \texttt{eligible(C) :- financial(C), consent(C)}
+means that both supporting predicates are needed to derive eligibility for the
+same client \texttt{C}. s(CASP), used by s(LAW), can expose the supporting
+derivation and assumptions rather than returning only a label. An assumed
+consent predicate in a hypothetical answer is still an assumption; it must never
+be written back as an observed agreement \citep{slaw2024}.
+
+Search over interpretations sits above these calculations. An agent may propose
+two readings of a clause, retrieve a referenced definition, and ask a solver for
+a case that separates them. A Monte Carlo tree or UCB scheduler can choose which
+investigation to try next. Its score measures usefulness under the chosen search
+objective; it does not certify the resulting legal reading. The adopted meaning
+must come from source-based adjudication. The existing MCP projects can assist
+these bounded jobs, as explained in Section~\ref{sec:prototype}.

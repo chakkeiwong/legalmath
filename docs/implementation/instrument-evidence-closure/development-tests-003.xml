@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="10" time="3.220" timestamp="2026-09-29T17:21:27.614181+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="tests.prospectus.test_preferred_ss" name="test_bound_source_and_controlling_document_difference" time="0.006" /><testcase classname="tests.prospectus.test_preferred_ss" name="test_noncumulative_periods_exact_rate_and_no_payment_inference" time="0.001" /><testcase classname="tests.prospectus.test_preferred_ss" name="test_missing_terms_and_stub_qualify[changes0]" time="0.000" /><testcase classname="tests.prospectus.test_preferred_ss" name="test_missing_terms_and_stub_qualify[changes1]" time="0.000" /><testcase classname="tests.prospectus.test_preferred_ss" name="test_missing_terms_and_stub_qualify[changes2]" time="0.000" /><testcase classname="tests.prospectus.test_preferred_ss" name="test_missing_terms_and_stub_qualify[changes3]" time="0.000" /><testcase classname="tests.prospectus.test_preferred_ss" name="test_missing_terms_and_stub_qualify[changes4]" time="0.000" /><testcase classname="tests.prospectus.test_preferred_ss" name="test_redemption_inclusive_dates_and_control_precedence" time="0.000" /><testcase classname="tests.prospectus.test_preferred_ss" name="test_liquidation_conservation_parity_and_zero_assets" time="0.000" /><testcase classname="tests.prospectus.test_preferred_ss" name="test_equity_scope_does_not_remove_bank_obligations" time="2.872"><failure message="ValueError: Explicit nonempty source identifiers required">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-580/test_equity_scope_does_not_rem0')
+
+    def test_equity_scope_does_not_remove_bank_obligations(tmp_path):
+        request,store=instrument_cases.request(ROOT,tmp_path)
+        joined=request["joined_request"]
+        joined["bank_request"]["context"].update(instrument_id=ss.KEY,instrument_kind="preferred_share")
+        joined["prospectus_source_ids"]=[ss.KEY]
+        joined["issuer_basis_source_ids"]=[]  # No Swiss legal-power profile transferred.
+&gt;       report=ss.investigate(joined,store,ROOT)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/prospectus/test_preferred_ss.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/prospectus/preferred_ss.py:142: in investigate
+    joined = eligibility.investigate(joined_request, store)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+request = {'bank_request': {'capacity': 'unresolved', 'context': {'action': 'buy', 'booking_entity_id': 'not-established', 'clie..._source_ids': [], 'product_assertions_sha256': '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a', ...}
+store = &lt;legalmath.transaction.evidence.Store object at 0x717844ebc310&gt;
+
+    def investigate(request, store):
+        """Compose with a freshly computed bank receipt, not a caller's clearance."""
+        fields(request, {"profile", "bank_request", "product_assertions_sha256", "issuer_basis_source_ids", "prospectus_source_ids", "contract_event_source_id"})
+        if request["profile"] != PROFILE:
+            raise ValueError("Unknown joined profile")
+        bank_request = request["bank_request"]
+        bank = engine.investigate(bank_request, store)
+        registry = Registry(store, store.json(bank_request["registry_sha256"]))
+        context = bank_request["context"]
+        at, known = context["effective_at"], context["known_at"]
+        observed = facts(registry, store.json(request["product_assertions_sha256"]), declarations(), at, known)
+        # The same client PI proposition appears in the SFC and HKMA specifications.
+        # Preserve a conflict across inputs; absence on either side is not evidence.
+        pi = bank["observations"]["professional_investor"]
+        supplied = observed["professional_investor"]
+        if pi["status"] == "CONFLICT" or (pi["status"] == supplied["status"] == "KNOWN" and pi["value"] != supplied["value"]):
+            supplied.update(status="CONFLICT", value=None)
+        elif supplied["status"] == "UNKNOWN" and pi["status"] == "KNOWN":
+            observed["professional_investor"] = deepcopy(pi)
+        calculations, observed = calculate(observed)
+        references, issues = {}, []
+        for key in ("issuer_basis_source_ids", "prospectus_source_ids"):
+            ids = request[key]
+            if not isinstance(ids, list) or not ids or any(not isinstance(x, str) for x in ids):
+&gt;               raise ValueError("Explicit nonempty source identifiers required")
+E               ValueError: Explicit nonempty source identifiers required
+
+src/legalmath/prospectus/eligibility.py:148: ValueError</failure></testcase></testsuite></testsuites>

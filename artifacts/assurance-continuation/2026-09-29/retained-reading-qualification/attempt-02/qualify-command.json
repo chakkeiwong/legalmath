@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/home/chakwong/python/legalmath/.venv/bin/python",
+    "-c",
+    "import sys\nsys.path.insert(0,'scripts')\nfrom assurance_continuation_checks import retained, AT, TOOLCHAIN, JDK\nimport run_assurance_continuation as r\nfrom legalmath.canonical import digest\nfrom legalmath.interpretation.assurance import qualification_adapter\nwork=r.OUT/'retained-reading-qualification'/'attempt-02'\nbefore=r.inputs()\ntask,dossier,packet,claims,candidates=retained('25ec66')\nassignments={q['candidate_id']:q for q in dossier['questions']['assignments']}\nrows=[]\nfor candidate,reading in candidates.items():\n assignment=assignments[candidate];destination=work/candidate\n result=qualification_adapter.run(packet,reading,assignment['question'],[],destination,JDK,AT,assignment_status=assignment['assignment_status'],toolchain=TOOLCHAIN)\n qualification_adapter.verify(destination,packet,reading,assignment['question'],JDK,assignment_status=assignment['assignment_status'],compiler=TOOLCHAIN['compiler'])\n if result['summary']['executed_target_cases']!=0:raise RuntimeError('Invented runtime evidence')\n rows.append({'candidate_id':candidate,'reading_hash':digest(reading),'question_hash':digest(assignment['question']),'summary':result['summary'],'runtime_challenge_disposition':'UNENCODED' if reading['formalization'] is None else 'DATE_CHALLENGE_DOMAIN_UNDECLARED','record':{'path':r.relative(destination/'qualification.json'),'sha256':r.sha(destination/'qualification.json')}})\n print(candidate,result['summary']['status'],result['summary']['formal_lowering'],flush=True)\nif len(rows)!=len(candidates) or r.inputs()!=before:raise RuntimeError('Candidate loss or implementation changed')\nr.save(work/'result.json',{'status':'ALL_RETAINED_READINGS_QUALIFIED','packet_hash':digest(packet),'original_dossier':task['ensemble']['dossier'],'rows':rows,'inputs':before,'legal_correctness':'NOT_ESTABLISHED','historical_study_complete':False,'human_quality_evidence':False,'runtime_cases_executed':0,'scope':'Identity-bound unsupported/source-premise accounting only; date challenge domain remains undeclared.'})\n"
+  ],
+  "cpu_only": true,
+  "elapsed_seconds": 0.97,
+  "exit_code": 0,
+  "log": "artifacts/assurance-continuation/2026-09-29/retained-reading-qualification/attempt-02/qualify.log",
+  "log_sha256": "dba599845521a0be737c2bba76c31b2e25fe9952c967cbbfb9048beb4eac02e7"
+}

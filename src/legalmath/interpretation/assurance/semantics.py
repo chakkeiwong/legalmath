@@ -102,8 +102,27 @@ def pair_diagnostics(expected, pairs, limit=64):
 def check_quotes(quotes, packet):
     units = {u['unit_id']: u['text'] for u in packet['units']}
     for q in quotes:
-        if units.get(q['unit_id'], '').count(q['quote']) != 1:
-            raise LegalMathError('E_REFERENCE', details='Evidence must occur exactly once in its supplied unit')
+        source=units.get(q['unit_id'], '')
+        occurrences=source.count(q['quote'])
+        if occurrences != 1:
+            # Character evidence helps repair literal quotations without relaxing
+            # the source predicate or treating an authentic quote as entailment.
+            def special(text):
+                return [{'offset':i,'codepoint':f'U+{ord(c):04X}'} for i,c in
+                        enumerate(text) if ord(c)<32 or (c.isspace() and c!=' ')][:32]
+            raise LegalMathError('E_REFERENCE', details={
+                'reason':'Evidence must occur exactly once in its supplied unit',
+                'unit_id':q['unit_id'],'unit_present':q['unit_id'] in units,
+                'occurrences':occurrences,'quote':q['quote'][:2048],
+                'quote_truncated':len(q['quote'])>2048,
+                'source_unit':source[:2048],'source_unit_truncated':len(source)>2048,
+                'quote_special_characters':special(q['quote']),
+                'source_special_characters':special(source),
+                'character_list_limit':32,
+                'repair':'Copy an exact contiguous quotation from the named source unit. '
+                    'Preserve Unicode spaces and punctuation; never insert a null character. '
+                    'For repeated text, use enough source context to identify one occurrence. '
+                    'No text was normalized or substituted by this diagnostic.'})
 
 
 def validate_inventory(value, packet):
@@ -114,7 +133,10 @@ def validate_inventory(value, packet):
         raise LegalMathError('E_DUPLICATE_ID')
     accounts = [u['unit_id'] for u in result['units']]
     if set(accounts) != units or len(accounts) != len(units):
-        raise LegalMathError('E_REFERENCE', details='Every source unit needs a disposition')
+        raise LegalMathError('E_REFERENCE', details={'reason':'Every source unit needs a disposition',
+            'missing_unit_ids':sorted(units-set(accounts)),'unexpected_unit_ids':sorted(set(accounts)-units),
+            'repeated_unit_ids':sorted(k for k,v in Counter(accounts).items() if v>1),
+            'required_unit_ids':sorted(units),'repair':'Return the complete inventory, not a patch. Preserve all supported claims and account for every required unit exactly once.'})
     claims = {c['claim_id']: c for c in result['claims']}
     for claim in claims.values():
         check_quotes(claim['evidence'], packet)
@@ -126,7 +148,9 @@ def validate_inventory(value, packet):
             raise LegalMathError('E_SCHEMA', details='Claimed coverage needs an actual claim')
         for cid in row['claim_ids']:
             if row['unit_id'] not in {q['unit_id'] for q in claims[cid]['evidence']}:
-                raise LegalMathError('E_REFERENCE', details='Coverage cannot cite an unrelated claim')
+                raise LegalMathError('E_REFERENCE', details={'reason':'Coverage cannot cite an unrelated claim',
+                    'unit_id':row['unit_id'],'claim_id':cid,'claim_evidence_unit_ids':sorted({q['unit_id'] for q in claims[cid]['evidence']}),
+                    'repair':'If the claim is supported by this unit, supply its exact evidence; otherwise correct the unit disposition and claim links. Return the complete inventory, not just changed rows.'})
         accounted.update(row['claim_ids'])
     if accounted != set(ids):
         raise LegalMathError('E_REFERENCE', details='Every claim must be assigned to its evidence unit')

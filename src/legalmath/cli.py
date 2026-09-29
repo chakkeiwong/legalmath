@@ -45,6 +45,18 @@ def main():
     recovery=issue.add_mutually_exclusive_group()
     recovery.add_argument('--resume',action='store_true')
     recovery.add_argument('--recover',action='store_true')
+    investigation=subs.add_parser('assurance-investigate',help='Run resumable source, factual-abstraction, tree and independent binary checks')
+    for name in ('manifest','out','allowance','jdk','at'):investigation.add_argument('--'+name,required=True)
+    investigation.add_argument('--ceiling',type=int,required=True,help='Absolute position within an existing authorised allowance')
+    dossier = subs.add_parser('assurance-dossier', help='Execute checks over retained hypotheses and produce a file-bound evidence dossier')
+    for name in ('manifest', 'out', 'jdk'):
+        dossier.add_argument('--'+name, required=True)
+    dossier.add_argument('--repository', default='.')
+    for name in ('catala-compiler', 'catala-upstream', 'catala-lock'):
+        dossier.add_argument('--'+name)
+    dossier_verify = subs.add_parser('assurance-dossier-verify', help='Recheck dossier targets, retained files and deterministic evidence')
+    dossier_verify.add_argument('--dossier', required=True)
+    dossier_verify.add_argument('--repository', default='.')
     scheduler=subs.add_parser('assurance-schedule',help='Run bounded monitoring ticks from an immutable registry snapshot')
     for name in ('config','resource-root','out','jdk','at'):scheduler.add_argument('--'+name,required=True)
     scheduler.add_argument('--settings');scheduler.add_argument('--allowance');scheduler.add_argument('--replay-responses')
@@ -114,6 +126,19 @@ def main():
         elif args.command == 'assurance-interpret-issue':
             from .interpretation.assurance.public_issue import execute_cli
             result=execute_cli(args)
+        elif args.command == 'assurance-investigate':
+            from .interpretation.assurance.integrated import execute_cli
+            result=execute_cli(args)
+        elif args.command == 'assurance-dossier':
+            from .interpretation.assurance.integration_execution import run_replay
+            supplied = (args.catala_compiler, args.catala_upstream, args.catala_lock)
+            if any(supplied) and not all(supplied):
+                parser.error('Catala requires --catala-compiler, --catala-upstream and --catala-lock together')
+            catala = dict(zip(('compiler', 'upstream', 'lock'), supplied)) if all(supplied) else None
+            result = run_replay(args.repository, args.manifest, args.out, args.jdk, catala=catala)
+        elif args.command == 'assurance-dossier-verify':
+            from .interpretation.assurance.integration_contract import validate_dossier
+            result = validate_dossier(loads(Path(args.dossier).read_bytes()), Path(args.repository))
         elif args.command == 'assurance-schedule':
             from .interpretation.assurance.operations import execute
             result=execute(args)

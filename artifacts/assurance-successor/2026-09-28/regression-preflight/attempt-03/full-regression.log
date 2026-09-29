@@ -1,0 +1,50 @@
+........................................................................ [  5%]
+........................................................................ [ 11%]
+........................................................................ [ 17%]
+........................................................................ [ 23%]
+........................................................................ [ 29%]
+........................................................................ [ 35%]
+........................................................................ [ 41%]
+........................................................................ [ 46%]
+................................F....................................... [ 52%]
+........................................................................ [ 58%]
+........................................................................ [ 64%]
+........................................................................ [ 70%]
+........................................................................ [ 76%]
+........................................................................ [ 82%]
+........................................................................ [ 87%]
+........................................................................ [ 93%]
+........................................................................ [ 99%]
+....                                                                     [100%]
+=================================== FAILURES ===================================
+____ test_documented_s6_amendment_never_resets_or_permits_a_seventh_attempt ____
+
+master = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>
+
+    def test_documented_s6_amendment_never_resets_or_permits_a_seventh_attempt(master):
+        master.OUT.mkdir();s=master.state();s['phases']['S6'].update(status='FAILED',attempts=[{},{},{},{},{}])
+        master.save(master.OUT/'state.json',s)
+        status=master.refresh(master.state())
+        assert status['phases']['S6']['attempts_consumed']==5 and status['phases']['S6']['attempts_remaining']==1
+        s=master.state();s['phases']['S6']['attempts'].append({});master.save(master.OUT/'state.json',s)
+        assert master.refresh(master.state())['phases']['S6']['attempts_remaining']==0
+        assert master.attempt_limit('S0')==3
+>       assert master.attempt_limit('S8')==7
+E       AssertionError: assert 7 == 6
+E        +  where 7 = <function attempt_limit at 0x737fc52da660>('S8')
+E        +    where <function attempt_limit at 0x737fc52da660> = <module 'successor_controller_fixture' from '/home/chakwong/python/legalmath/scripts/run_assurance_successor.py'>.attempt_limit
+
+tests/assurance/test_successor_master.py:112: AssertionError
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /home/chakwong/python/legalmath/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+.venv/lib/python3.11/site-packages/starlette/testclient.py:53
+  /home/chakwong/python/legalmath/.venv/lib/python3.11/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/assurance/test_successor_master.py::test_documented_s6_amendment_never_resets_or_permits_a_seventh_attempt
+1 failed, 1227 passed, 2 warnings in 1180.94s (0:19:40)

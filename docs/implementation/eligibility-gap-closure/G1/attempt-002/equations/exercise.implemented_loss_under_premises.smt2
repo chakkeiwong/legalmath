@@ -1,0 +1,17 @@
+; benchmark generated from python API
+(set-info :status unknown)
+(declare-fun order_applies_to_instrument () Bool)
+(declare-fun order_issued () Bool)
+(declare-fun authority_preconditions () Bool)
+(declare-fun order_suspended () Bool)
+(declare-fun loss_implemented () Bool)
+(assert
+ (let ((?x34 (ite order_applies_to_instrument 1 0)))
+(let ((?x36 (ite order_issued 1 0)))
+(let ((?x97 (ite authority_preconditions 1 0)))
+(let (($x103 (ite order_suspended false (= (+ ?x97 ?x36 ?x34) 3))))
+(let (($x104 (ite loss_implemented $x103 false)))
+(let (($x105 (not order_suspended)))
+(let (($x71 (and authority_preconditions order_issued order_applies_to_instrument $x105 loss_implemented)))
+(and (distinct $x71 $x104) true)))))))))
+(check-sat)

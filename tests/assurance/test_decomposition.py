@@ -106,7 +106,7 @@ def test_inventory_budget_refuses_before_dispatch(root,tmp_path):
 
 
 def test_compact_transport_preserves_source_text_and_retains_full_mapping(tmp_path):
-    request={'task':'SOURCE_INVENTORY','source_packet':source_packet()};wire=compact_request(request)
+    request={'task':'SOURCE_INVENTORY','source_packet':source_packet()};wire=compact_request(request,profile='v2')
     assert [(u['unit_id'],u['text']) for u in wire['source_packet']['units']]==[
         (u['unit_id'],u['text']) for u in request['source_packet']['units']]
     assert len(canonical(wire))<len(canonical(request)) and request['source_packet']['units'][0]['span'] is not None

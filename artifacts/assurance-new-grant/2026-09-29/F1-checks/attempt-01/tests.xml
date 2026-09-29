@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="9" skipped="0" tests="64" time="22.535" timestamp="2026-09-29T19:48:03.635095+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="tests.assurance.test_new_grant_continuation" name="test_cross_grant_arm_is_not_reset_or_refunded" time="0.006"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_RESOURCE_LIMIT'&#10;  Actual message: 'Input exceeds the declared resource budget.'">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_cross_grant_arm_is_not_re0')
+
+    def test_cross_grant_arm_is_not_reset_or_refunded(tmp_path):
+        grant, arm, prior = setup(tmp_path)
+        untouched = [p.read_bytes() for p in (arm, prior)]
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        assert allowance.reserve(digest('request')) == 1
+        with pytest.raises(LegalMathError, match='E_RESOURCE_LIMIT'):
+&gt;           CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes())).reserve(digest('retry'))
+
+tests/assurance/test_new_grant_continuation.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/interpretation/assurance/grant_continuation.py:61: in reserve
+    return super().reserve(request_hash)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;legalmath.interpretation.assurance.grant_continuation.CarriedSlice object at 0x73962ddb6350&gt;
+request_hash = 'edf916f660660da65a1f21d7ab77d99621262f447acf39a4202ea81551863e66'
+
+    def reserve(self,request_hash):
+        self.verify();self.slice_path.parent.mkdir(parents=True,exist_ok=True)
+        if not isinstance(request_hash,str) or not re.fullmatch('[0-9a-f]{64}',request_hash):raise LegalMathError('E_SCHEMA')
+        with self.slice_path.with_suffix('.lock').open('a') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX)
+            v=loads(self.slice_path.read_bytes()) if self.slice_path.exists() else {
+                'grant_hash':raw_digest(self.grant_bytes),'maximum':self.slice_maximum,'reservations':[]}
+            if v['grant_hash']!=raw_digest(self.grant_bytes) or v['maximum']!=self.slice_maximum:
+                raise LegalMathError('E_INTEGRITY')
+&gt;           if len(v['reservations'])&gt;=self.slice_maximum:raise LegalMathError('E_RESOURCE_LIMIT',details='Predeclared arm allowance exhausted')
+                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           legalmath.errors.LegalMathError: Input exceeds the declared resource budget.
+
+src/legalmath/interpretation/assurance/grants.py:91: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_cross_grant_arm_is_not_re0')
+
+    def test_cross_grant_arm_is_not_reset_or_refunded(tmp_path):
+        grant, arm, prior = setup(tmp_path)
+        untouched = [p.read_bytes() for p in (arm, prior)]
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        assert allowance.reserve(digest('request')) == 1
+&gt;       with pytest.raises(LegalMathError, match='E_RESOURCE_LIMIT'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_RESOURCE_LIMIT'
+E         Actual message: 'Input exceeds the declared resource budget.'
+
+tests/assurance/test_new_grant_continuation.py:44: AssertionError</failure></testcase><testcase classname="tests.assurance.test_new_grant_continuation" name="test_exhausted_old_arm_stays_exhausted" time="0.001"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_RESOURCE_LIMIT'&#10;  Actual message: 'Input exceeds the declared resource budget.'">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_exhausted_old_arm_stays_e0')
+
+    def test_exhausted_old_arm_stays_exhausted(tmp_path):
+        grant, arm, _ = setup(tmp_path, spent=2)
+        with pytest.raises(LegalMathError, match='E_RESOURCE_LIMIT'):
+&gt;           CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+
+tests/assurance/test_new_grant_continuation.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;legalmath.interpretation.assurance.grant_continuation.CarriedSlice object at 0x73962d914dd0&gt;
+grant_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_exhausted_old_arm_stays_e0/grant.json')
+slice_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_exhausted_old_arm_stays_e0/new-arm.json')
+prior_slice = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_exhausted_old_arm_stays_e0/arm.json')
+prior_hash = '5c4e5b0ddbd4760bd0df5ebecb20dff4873f79d2f8a53159c64f7922b7ed6fac'
+
+    def __init__(self, grant_path, slice_path, prior_slice, prior_hash):
+        self.prior_slice = Path(prior_slice).resolve()
+        self.prior_hash = prior_hash
+        prior = loads(self.prior_slice.read_bytes())
+        if raw_digest(self.prior_slice.read_bytes()) != prior_hash:
+            raise LegalMathError('E_INTEGRITY', details='Prior arm changed')
+        if (type(prior.get('maximum')) is not int or
+                not isinstance(prior.get('reservations'), list)):
+            raise LegalMathError('E_SCHEMA')
+        self.prior_spent = len(prior['reservations'])
+        self.arm_maximum = prior['maximum']
+        remaining = self.arm_maximum - self.prior_spent
+        if remaining &lt; 1:
+&gt;           raise LegalMathError('E_RESOURCE_LIMIT', details='Original arm exhausted')
+E           legalmath.errors.LegalMathError: Input exceeds the declared resource budget.
+
+src/legalmath/interpretation/assurance/grant_continuation.py:29: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_exhausted_old_arm_stays_e0')
+
+    def test_exhausted_old_arm_stays_exhausted(tmp_path):
+        grant, arm, _ = setup(tmp_path, spent=2)
+&gt;       with pytest.raises(LegalMathError, match='E_RESOURCE_LIMIT'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_RESOURCE_LIMIT'
+E         Actual message: 'Input exceeds the declared resource budget.'
+
+tests/assurance/test_new_grant_continuation.py:52: AssertionError</failure></testcase><testcase classname="tests.assurance.test_new_grant_continuation" name="test_history_changes_prevent_dispatch[old-arm]" time="0.001"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_INTEGRITY'&#10;  Actual message: 'Persistent records fail an integrity check.'">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_history_changes_prevent_d0')
+which = 'old-arm'
+
+    @pytest.mark.parametrize('which', ['old-arm', 'carry', 'old-ledger'])
+    def test_history_changes_prevent_dispatch(tmp_path, which):
+        grant, arm, prior = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        target = {'old-arm': arm, 'carry': allowance.carry_path, 'old-ledger': prior}[which]
+        target.write_bytes(target.read_bytes()+b' ')
+        with pytest.raises(LegalMathError, match='E_INTEGRITY'):
+&gt;           allowance.reserve(digest('request'))
+
+tests/assurance/test_new_grant_continuation.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;legalmath.interpretation.assurance.grant_continuation.CarriedSlice object at 0x73962da53810&gt;
+request_hash = '8869ad22943e917a9e5aae887407895ca2687608588cb6f5e154e6cc4c617642'
+
+    def reserve(self, request_hash):
+        if (raw_digest(self.prior_slice.read_bytes()) != self.prior_hash or
+                self.carry_path.read_bytes() != canonical(self.carry)):
+&gt;           raise LegalMathError('E_INTEGRITY', details='Carried history changed')
+E           legalmath.errors.LegalMathError: Persistent records fail an integrity check.
+
+src/legalmath/interpretation/assurance/grant_continuation.py:60: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_history_changes_prevent_d0')
+which = 'old-arm'
+
+    @pytest.mark.parametrize('which', ['old-arm', 'carry', 'old-ledger'])
+    def test_history_changes_prevent_dispatch(tmp_path, which):
+        grant, arm, prior = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        target = {'old-arm': arm, 'carry': allowance.carry_path, 'old-ledger': prior}[which]
+        target.write_bytes(target.read_bytes()+b' ')
+&gt;       with pytest.raises(LegalMathError, match='E_INTEGRITY'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_INTEGRITY'
+E         Actual message: 'Persistent records fail an integrity check.'
+
+tests/assurance/test_new_grant_continuation.py:63: AssertionError</failure></testcase><testcase classname="tests.assurance.test_new_grant_continuation" name="test_history_changes_prevent_dispatch[carry]" time="0.001"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_INTEGRITY'&#10;  Actual message: 'Persistent records fail an integrity check.'">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_history_changes_prevent_d1')
+which = 'carry'
+
+    @pytest.mark.parametrize('which', ['old-arm', 'carry', 'old-ledger'])
+    def test_history_changes_prevent_dispatch(tmp_path, which):
+        grant, arm, prior = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        target = {'old-arm': arm, 'carry': allowance.carry_path, 'old-ledger': prior}[which]
+        target.write_bytes(target.read_bytes()+b' ')
+        with pytest.raises(LegalMathError, match='E_INTEGRITY'):
+&gt;           allowance.reserve(digest('request'))
+
+tests/assurance/test_new_grant_continuation.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;legalmath.interpretation.assurance.grant_continuation.CarriedSlice object at 0x73962d96f150&gt;
+request_hash = '8869ad22943e917a9e5aae887407895ca2687608588cb6f5e154e6cc4c617642'
+
+    def reserve(self, request_hash):
+        if (raw_digest(self.prior_slice.read_bytes()) != self.prior_hash or
+                self.carry_path.read_bytes() != canonical(self.carry)):
+&gt;           raise LegalMathError('E_INTEGRITY', details='Carried history changed')
+E           legalmath.errors.LegalMathError: Persistent records fail an integrity check.
+
+src/legalmath/interpretation/assurance/grant_continuation.py:60: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_history_changes_prevent_d1')
+which = 'carry'
+
+    @pytest.mark.parametrize('which', ['old-arm', 'carry', 'old-ledger'])
+    def test_history_changes_prevent_dispatch(tmp_path, which):
+        grant, arm, prior = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        target = {'old-arm': arm, 'carry': allowance.carry_path, 'old-ledger': prior}[which]
+        target.write_bytes(target.read_bytes()+b' ')
+&gt;       with pytest.raises(LegalMathError, match='E_INTEGRITY'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_INTEGRITY'
+E         Actual message: 'Persistent records fail an integrity check.'
+
+tests/assurance/test_new_grant_continuation.py:63: AssertionError</failure></testcase><testcase classname="tests.assurance.test_new_grant_continuation" name="test_history_changes_prevent_dispatch[old-ledger]" time="0.001"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_INTEGRITY'&#10;  Actual message: 'Persistent records fail an integrity check.'">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_history_changes_prevent_d2')
+which = 'old-ledger'
+
+    @pytest.mark.parametrize('which', ['old-arm', 'carry', 'old-ledger'])
+    def test_history_changes_prevent_dispatch(tmp_path, which):
+        grant, arm, prior = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        target = {'old-arm': arm, 'carry': allowance.carry_path, 'old-ledger': prior}[which]
+        target.write_bytes(target.read_bytes()+b' ')
+        with pytest.raises(LegalMathError, match='E_INTEGRITY'):
+&gt;           allowance.reserve(digest('request'))
+
+tests/assurance/test_new_grant_continuation.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/interpretation/assurance/grant_continuation.py:61: in reserve
+    return super().reserve(request_hash)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/interpretation/assurance/grants.py:83: in reserve
+    self.verify();self.slice_path.parent.mkdir(parents=True,exist_ok=True)
+    ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;legalmath.interpretation.assurance.grant_continuation.CarriedSlice object at 0x73962da60e50&gt;
+
+    def verify(self):
+        if self.grant_path.read_bytes() != self.grant_bytes:
+            raise LegalMathError('E_INTEGRITY', details='Grant changed during execution')
+        old = self.predecessor.read_bytes()
+        if raw_digest(old) != self.grant['predecessor']['sha256']:
+&gt;           raise LegalMathError('E_INTEGRITY', details='Historical allowance changed')
+E           legalmath.errors.LegalMathError: Persistent records fail an integrity check.
+
+src/legalmath/interpretation/assurance/grants.py:43: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_history_changes_prevent_d2')
+which = 'old-ledger'
+
+    @pytest.mark.parametrize('which', ['old-arm', 'carry', 'old-ledger'])
+    def test_history_changes_prevent_dispatch(tmp_path, which):
+        grant, arm, prior = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        target = {'old-arm': arm, 'carry': allowance.carry_path, 'old-ledger': prior}[which]
+        target.write_bytes(target.read_bytes()+b' ')
+&gt;       with pytest.raises(LegalMathError, match='E_INTEGRITY'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_INTEGRITY'
+E         Actual message: 'Persistent records fail an integrity check.'
+
+tests/assurance/test_new_grant_continuation.py:63: AssertionError</failure></testcase><testcase classname="tests.assurance.test_new_grant_continuation" name="test_concurrent_last_carried_slot_is_reserved_once" time="0.015" /><testcase classname="tests.assurance.test_new_grant_continuation" name="test_transport_hash_addition_does_not_create_new_issue" time="0.004" /><testcase classname="tests.assurance.test_new_grant_continuation" name="test_spending_history_includes_failed_transport_and_exact_fallback" time="0.003"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_INTEGRITY'&#10;  Actual message: 'Persistent records fail an integrity check.'">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_spending_history_includes0')
+
+    def test_spending_history_includes_failed_transport_and_exact_fallback(tmp_path):
+        request = wire(); path = tmp_path/'ledger.json'
+        path.write_bytes(canonical({'maximum': 2, 'calls': [
+            {'request_hash': digest(request), 'issued_at_ns': str(i+1)} for i in range(2)]}))
+        h = raw_digest(path.read_bytes())
+        with pytest.raises(LegalMathError, match='E_INTEGRITY'):
+&gt;           scoped_history(path, tmp_path/'transport', expected_hash=h, fallback_requests={1: request})
+
+tests/assurance/test_new_grant_continuation.py:98: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ledger_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_spending_history_includes0/ledger.json')
+evidence_directory = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_spending_history_includes0/transport')
+
+    def scoped_history(ledger_path, evidence_directory, *, expected_hash, fallback_requests=None):
+        """Replay successful and failed reservations using retained request bytes."""
+        ledger_path = Path(ledger_path)
+        if raw_digest(ledger_path.read_bytes()) != expected_hash:
+            raise LegalMathError('E_INTEGRITY')
+        ledger = loads(ledger_path.read_bytes())
+        history = {}; missing = []; requests = 0
+        for slot, row in enumerate(ledger['calls'], 1):
+            directory = Path(evidence_directory) / f"{slot:04}-{row['request_hash'][:16]}"
+            manifest = directory/'manifest.json'
+            if not manifest.exists():
+                request = (fallback_requests or {}).get(slot)
+                if request is None:
+                    missing.append(slot)
+                    continue
+            else:
+                record = loads(manifest.read_bytes())
+                if record['allowance_slot'] != slot or record['request_hash'] != row['request_hash']:
+                    raise LegalMathError('E_INTEGRITY')
+                for name in ('request.json', 'schema.json'):
+                    if (name not in record['files'] or
+                            raw_digest((directory/name).read_bytes()) != record['files'][name]['retained_sha256']):
+                        raise LegalMathError('E_INTEGRITY')
+                request = loads((directory/'request.json').read_bytes())
+            if digest(request) != row['request_hash']:
+                raise LegalMathError('E_INTEGRITY')
+            if request.get('task') != 'SCOPED_SOURCE_FIDELITY':
+                continue
+            requests += 1
+            for key in scoped_issue_keys(request):
+                started = int(row['issued_at_ns']) // 1000000
+                item = history.setdefault(key, {'spent': 0, 'started_ms': started,
+                                               'evidence_hash': expected_hash})
+                item['spent'] += 1
+                item['started_ms'] = min(item['started_ms'], started)
+        if missing:
+&gt;           raise LegalMathError('E_INTEGRITY', details={'unattributed_reservations': missing})
+E           legalmath.errors.LegalMathError: Persistent records fail an integrity check.
+
+src/legalmath/interpretation/assurance/grant_continuation.py:127: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_spending_history_includes0')
+
+    def test_spending_history_includes_failed_transport_and_exact_fallback(tmp_path):
+        request = wire(); path = tmp_path/'ledger.json'
+        path.write_bytes(canonical({'maximum': 2, 'calls': [
+            {'request_hash': digest(request), 'issued_at_ns': str(i+1)} for i in range(2)]}))
+        h = raw_digest(path.read_bytes())
+&gt;       with pytest.raises(LegalMathError, match='E_INTEGRITY'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_INTEGRITY'
+E         Actual message: 'Persistent records fail an integrity check.'
+
+tests/assurance/test_new_grant_continuation.py:97: AssertionError</failure></testcase><testcase classname="tests.assurance.test_new_grant_continuation" name="test_new_grant_does_not_reset_issue_attempts_or_deadline[False]" time="0.003"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_RESOURCE_LIMIT'&#10;  Actual message: 'Input exceeds the declared resource budget.'">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_new_grant_does_not_reset_0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x73962d9724d0&gt;
+expired = False
+
+    @pytest.mark.parametrize('expired', [False, True])
+    def test_new_grant_does_not_reset_issue_attempts_or_deadline(tmp_path, monkeypatch, expired):
+        grant, arm, _ = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        request = wire(); key = scoped_issue_keys(request)[0]
+        inherited = {key: {'spent': 1 if expired else 6,
+                          'started_ms': 1 if expired else time.time_ns()//1000000, 'evidence_hash': 'b'*64}}
+        limits = IssueLimits(tmp_path/'issues.json', {'scope': 'test'}, maximum_attempts=6, inherited=inherited)
+        provider = ScopedContinuationProvider(allowance=allowance, issue_limits=limits, allowed_issues={key})
+        monkeypatch.setattr(CodexProvider, 'complete', lambda *a: pytest.fail('Issue cap bypassed'))
+        with pytest.raises(LegalMathError, match='E_RESOURCE_LIMIT'):
+&gt;           provider.complete(request, {}, Settings())
+
+tests/assurance/test_new_grant_continuation.py:118: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/interpretation/assurance/grant_continuation.py:146: in complete
+    self.issue_limits.reserve(keys, digest(request))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;legalmath.interpretation.assurance.issue_limits.IssueLimits object at 0x73962d8d1890&gt;
+issues = ['2492718204ff34fe923bbb9cfc5e454371abc7278c41688ee135365b96b3bf04']
+request_hash = 'ebff9c698dac6315df1b3079c34a2edff749f9ef62596d5a268dad6904073835'
+
+    def reserve(self, issues, request_hash):
+        if (not issues or any(not isinstance(i, str) for i in issues) or len(set(issues)) != len(issues)):
+            raise LegalMathError('E_REFERENCE')
+        with self.path.with_suffix('.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            value = self._load(); rows = self.report(); now = time.time_ns() // 1000000
+            for key in issues:
+                row = rows.get(key, {'spent': 0, 'started_ms': now})
+                if (row['spent'] &gt;= self.binding['maximum_attempts'] or
+                        now - row['started_ms'] &gt;= 1000 * self.binding['deadline_seconds']):
+&gt;                   raise LegalMathError('E_RESOURCE_LIMIT', details={'issue': key, **row,
+                        'reason': 'Original unit issue attempt/deadline limit; no refund on repartition'})
+E                   legalmath.errors.LegalMathError: Input exceeds the declared resource budget.
+
+src/legalmath/interpretation/assurance/issue_limits.py:51: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_new_grant_does_not_reset_0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x73962d9724d0&gt;
+expired = False
+
+    @pytest.mark.parametrize('expired', [False, True])
+    def test_new_grant_does_not_reset_issue_attempts_or_deadline(tmp_path, monkeypatch, expired):
+        grant, arm, _ = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        request = wire(); key = scoped_issue_keys(request)[0]
+        inherited = {key: {'spent': 1 if expired else 6,
+                          'started_ms': 1 if expired else time.time_ns()//1000000, 'evidence_hash': 'b'*64}}
+        limits = IssueLimits(tmp_path/'issues.json', {'scope': 'test'}, maximum_attempts=6, inherited=inherited)
+        provider = ScopedContinuationProvider(allowance=allowance, issue_limits=limits, allowed_issues={key})
+        monkeypatch.setattr(CodexProvider, 'complete', lambda *a: pytest.fail('Issue cap bypassed'))
+&gt;       with pytest.raises(LegalMathError, match='E_RESOURCE_LIMIT'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_RESOURCE_LIMIT'
+E         Actual message: 'Input exceeds the declared resource budget.'
+
+tests/assurance/test_new_grant_continuation.py:117: AssertionError</failure></testcase><testcase classname="tests.assurance.test_new_grant_continuation" name="test_new_grant_does_not_reset_issue_attempts_or_deadline[True]" time="0.003"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_RESOURCE_LIMIT'&#10;  Actual message: 'Input exceeds the declared resource budget.'">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_new_grant_does_not_reset_1')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x73962d97d350&gt;
+expired = True
+
+    @pytest.mark.parametrize('expired', [False, True])
+    def test_new_grant_does_not_reset_issue_attempts_or_deadline(tmp_path, monkeypatch, expired):
+        grant, arm, _ = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        request = wire(); key = scoped_issue_keys(request)[0]
+        inherited = {key: {'spent': 1 if expired else 6,
+                          'started_ms': 1 if expired else time.time_ns()//1000000, 'evidence_hash': 'b'*64}}
+        limits = IssueLimits(tmp_path/'issues.json', {'scope': 'test'}, maximum_attempts=6, inherited=inherited)
+        provider = ScopedContinuationProvider(allowance=allowance, issue_limits=limits, allowed_issues={key})
+        monkeypatch.setattr(CodexProvider, 'complete', lambda *a: pytest.fail('Issue cap bypassed'))
+        with pytest.raises(LegalMathError, match='E_RESOURCE_LIMIT'):
+&gt;           provider.complete(request, {}, Settings())
+
+tests/assurance/test_new_grant_continuation.py:118: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/interpretation/assurance/grant_continuation.py:146: in complete
+    self.issue_limits.reserve(keys, digest(request))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;legalmath.interpretation.assurance.issue_limits.IssueLimits object at 0x73962d8cd990&gt;
+issues = ['2492718204ff34fe923bbb9cfc5e454371abc7278c41688ee135365b96b3bf04']
+request_hash = 'ebff9c698dac6315df1b3079c34a2edff749f9ef62596d5a268dad6904073835'
+
+    def reserve(self, issues, request_hash):
+        if (not issues or any(not isinstance(i, str) for i in issues) or len(set(issues)) != len(issues)):
+            raise LegalMathError('E_REFERENCE')
+        with self.path.with_suffix('.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            value = self._load(); rows = self.report(); now = time.time_ns() // 1000000
+            for key in issues:
+                row = rows.get(key, {'spent': 0, 'started_ms': now})
+                if (row['spent'] &gt;= self.binding['maximum_attempts'] or
+                        now - row['started_ms'] &gt;= 1000 * self.binding['deadline_seconds']):
+&gt;                   raise LegalMathError('E_RESOURCE_LIMIT', details={'issue': key, **row,
+                        'reason': 'Original unit issue attempt/deadline limit; no refund on repartition'})
+E                   legalmath.errors.LegalMathError: Input exceeds the declared resource budget.
+
+src/legalmath/interpretation/assurance/issue_limits.py:51: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_new_grant_does_not_reset_1')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x73962d97d350&gt;
+expired = True
+
+    @pytest.mark.parametrize('expired', [False, True])
+    def test_new_grant_does_not_reset_issue_attempts_or_deadline(tmp_path, monkeypatch, expired):
+        grant, arm, _ = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        request = wire(); key = scoped_issue_keys(request)[0]
+        inherited = {key: {'spent': 1 if expired else 6,
+                          'started_ms': 1 if expired else time.time_ns()//1000000, 'evidence_hash': 'b'*64}}
+        limits = IssueLimits(tmp_path/'issues.json', {'scope': 'test'}, maximum_attempts=6, inherited=inherited)
+        provider = ScopedContinuationProvider(allowance=allowance, issue_limits=limits, allowed_issues={key})
+        monkeypatch.setattr(CodexProvider, 'complete', lambda *a: pytest.fail('Issue cap bypassed'))
+&gt;       with pytest.raises(LegalMathError, match='E_RESOURCE_LIMIT'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_RESOURCE_LIMIT'
+E         Actual message: 'Input exceeds the declared resource budget.'
+
+tests/assurance/test_new_grant_continuation.py:117: AssertionError</failure></testcase><testcase classname="tests.assurance.test_new_grant_continuation" name="test_changed_issue_rejected_before_any_reservation" time="0.003"><failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'E_AUTHORITY'&#10;  Actual message: 'Caller does not have the required authority.'">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_changed_issue_rejected_be0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x73962d915e10&gt;
+
+    def test_changed_issue_rejected_before_any_reservation(tmp_path, monkeypatch):
+        grant, arm, _ = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        request = wire(); key = scoped_issue_keys(request)[0]
+        limits = IssueLimits(tmp_path/'issues.json', {'scope': 'test'}, maximum_attempts=6)
+        provider = ScopedContinuationProvider(allowance=allowance, issue_limits=limits, allowed_issues={key})
+        request['investigation']['perspective'] = 'qualification-first'
+        monkeypatch.setattr(CodexProvider, 'complete', lambda *a: pytest.fail('Unreviewed issue dispatched'))
+        with pytest.raises(LegalMathError, match='E_AUTHORITY'):
+&gt;           provider.complete(request, {}, Settings())
+
+tests/assurance/test_new_grant_continuation.py:131: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;legalmath.interpretation.assurance.grant_continuation.ScopedContinuationProvider object at 0x73962d960890&gt;
+request = {'authority_field_contract': {'AVAILABLE': 'Use only for at least one supplied external dependency ID with a non-null ...sentation quotations. List missing authority even if not already declared in the packet. Use concise rationales.', ...}
+schema = {}
+settings = Settings(scheduler='bfs', max_model_calls=8, max_candidates=24, max_depth=3, max_rounds=3, max_actions_per_root=3, max...t_bytes=100000, max_comparisons=24, max_argument_nodes=12, exploration_weight_milli=1414, reconstruction_required=True)
+
+    def complete(self, request, schema, settings):
+        keys = scoped_issue_keys(request)
+        if not set(keys) &lt;= self.allowed_issues:
+&gt;           raise LegalMathError('E_AUTHORITY', details='Issue outside reviewed continuation')
+E           legalmath.errors.LegalMathError: Caller does not have the required authority.
+
+src/legalmath/interpretation/assurance/grant_continuation.py:145: LegalMathError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-613/test_changed_issue_rejected_be0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x73962d915e10&gt;
+
+    def test_changed_issue_rejected_before_any_reservation(tmp_path, monkeypatch):
+        grant, arm, _ = setup(tmp_path)
+        allowance = CarriedSlice(grant, tmp_path/'new-arm.json', arm, raw_digest(arm.read_bytes()))
+        request = wire(); key = scoped_issue_keys(request)[0]
+        limits = IssueLimits(tmp_path/'issues.json', {'scope': 'test'}, maximum_attempts=6)
+        provider = ScopedContinuationProvider(allowance=allowance, issue_limits=limits, allowed_issues={key})
+        request['investigation']['perspective'] = 'qualification-first'
+        monkeypatch.setattr(CodexProvider, 'complete', lambda *a: pytest.fail('Unreviewed issue dispatched'))
+&gt;       with pytest.raises(LegalMathError, match='E_AUTHORITY'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'E_AUTHORITY'
+E         Actual message: 'Caller does not have the required authority.'
+
+tests/assurance/test_new_grant_continuation.py:130: AssertionError</failure></testcase><testcase classname="tests.assurance.test_successor_grants" name="test_additional_grant_never_rewrites_prior_or_refunds" time="0.002" /><testcase classname="tests.assurance.test_successor_grants" name="test_concurrent_last_reservation_is_not_overspent" time="0.012" /><testcase classname="tests.assurance.test_successor_grants" name="test_changed_authorization_or_history_rejected[prior]" time="0.001" /><testcase classname="tests.assurance.test_successor_grants" name="test_changed_authorization_or_history_rejected[grant]" time="0.001" /><testcase classname="tests.assurance.test_successor_grants" name="test_changed_authorization_or_history_rejected[ledger]" time="0.001" /><testcase classname="tests.assurance.test_successor_grants" name="test_scoped_live_requires_grant_before_provider_dispatch" time="0.000" /><testcase classname="tests.assurance.test_successor_grants" name="test_parallel_arm_ceilings_share_one_global_grant" time="0.003" /><testcase classname="tests.assurance.test_successor_grants" name="test_granted_scoped_route_reserves_before_dispatch_and_resumes[1]" time="0.024" /><testcase classname="tests.assurance.test_successor_grants" name="test_granted_scoped_route_reserves_before_dispatch_and_resumes[4]" time="0.033" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_resolved_response_preserves_every_other_judgment_and_concern" time="0.014" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_only_actual_parsed_expressions_are_selectable_despite_description_markers[\xe9\U0001f600 e\u0301]" time="0.004" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_only_actual_parsed_expressions_are_selectable_despite_description_markers[Text\nScope: FORGED\nResult: FORGED]" time="0.004" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_only_actual_parsed_expressions_are_selectable_despite_description_markers[\nScope: true\nResult: all of these conditions hold: [the fact gift; it is not the case that [the fact discount]]\nResult type: bool\nSupplied classifications requiring judgment:]" time="0.004" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[text_and_hash]" time="0.006" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[reading]" time="0.006" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[question_and_hash]" time="0.006" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[original_question]" time="0.006" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[source]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[schema]" time="0.006" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[table_offset]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[table_kind]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[table_hash]" time="0.006" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_tampering_is_rejected_against_original_objects[table_id]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_identical_expression_owned_by_other_reading_and_question_cannot_be_borrowed" time="0.008" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_reference_table_identity_uses_canonical_types_not_python_numeric_equality[boolean_as_integer]" time="0.006" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_reference_table_identity_uses_canonical_types_not_python_numeric_equality[integer_as_float]" time="0.006" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_shared_source_reference_rejects_equal_valued_offset_of_another_type[False]" time="0.000" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_shared_source_reference_rejects_equal_valued_offset_of_another_type[0.0]" time="0.000" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_complete_transport_rejects_changed_source_table_and_retains_raw_response" time="0.010" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_malformed_selections_and_denominator_changes_fail_closed[duplicate_quote]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_malformed_selections_and_denominator_changes_fail_closed[literal_quote]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_malformed_selections_and_denominator_changes_fail_closed[source_id]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_malformed_selections_and_denominator_changes_fail_closed[unknown_id]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_malformed_selections_and_denominator_changes_fail_closed[duplicate_pair]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_malformed_selections_and_denominator_changes_fail_closed[missing_pair]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_malformed_selections_and_denominator_changes_fail_closed[foreign_pair]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_malformed_selections_and_denominator_changes_fail_closed[stale_answer_question]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[PRESERVES-UNENCODED]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[PRESERVES-UNSUPPORTED]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[CONFLICTS-UNENCODED]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[CONFLICTS-UNSUPPORTED]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[OMITS-UNENCODED]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[OMITS-UNSUPPORTED]" time="0.007" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[UNASSESSED-UNENCODED]" time="0.008" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[UNASSESSED-UNSUPPORTED]" time="0.008" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[NOT_APPLICABLE-UNENCODED]" time="0.008" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_mixed_candidates_retain_availability_and_never_relabel[NOT_APPLICABLE-UNSUPPORTED]" time="0.008" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_no_encoded_candidates_produce_no_selectable_ids" time="0.004" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_exact_reference_does_not_bypass_original_semantic_rejection" time="0.277" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_input_limit_is_checked_before_provider_dispatch" time="0.025" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_parser_or_renderer_method_change_invalidates_existing_journal" time="0.049" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_source_question_and_executable_routes_complete_with_native_qualification[legalmath.source-and-executable-spans.v1]" time="12.045" /><testcase classname="tests.assurance.test_executable_references_v2" name="test_source_question_and_executable_routes_complete_with_native_qualification[legalmath.source-and-executable-spans.v2]" time="9.452" /></testsuite></testsuites>

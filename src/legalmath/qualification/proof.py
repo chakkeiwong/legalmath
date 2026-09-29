@@ -76,12 +76,26 @@ def source_tree(item, facts, bound=()):
         if not isinstance(args[0], str) or not re.fullmatch(r'-?(0|[1-9][0-9]*)', args[0]):
             unsupported('Noncanonical integer')
         return node('literal.' + op, args[0])
+    if op == 'date' and len(args) == 1:
+        from .gregorian import parse as parse_date
+        try:
+            parse_date(args[0])
+        except (ValueError, TypeError):
+            unsupported('Invalid or noncanonical Gregorian date')
+        return node('literal.date', args[0])
     if op in ('fact', 'rule') and len(args) == 1 and isinstance(args[0], str):
         if op == 'fact' and args[0] not in facts:
             unsupported('Unknown fact')
         return node(op, args[0])
     arities = {'not': 1, '+': 2, '-': 2, '=': 2, '>': 2, '>=': 2, 'if': 3}
     names = {'+': 'add', '-': 'sub', '=': 'eq', '>': 'gt', '>=': 'ge', 'and': 'all', 'or': 'any'}
+    if op == '+' and len(args) > 2:
+        # Independent normalization: declared n-ary meaning is ordered fold.
+        converted = list(map(convert, args))
+        accumulated = converted[0]
+        for child in converted[1:]:
+            accumulated = node('add', accumulated, child)
+        return accumulated
     if (op in arities and len(args) == arities[op]) or (op in ('and', 'or') and args):
         return node(names.get(op, op), *map(convert, args))
     if op == 'scale' and len(args) == 3:
@@ -102,7 +116,10 @@ def source_tree(item, facts, bound=()):
 
 def model_tree(n):
     op = n['op']; one = lambda k: model_tree(n[k])
-    if op == 'literal' and n['type'] in ('bool', 'integer', 'money_hkd'):
+    if op == 'literal' and n['type'] in ('bool', 'integer', 'money_hkd', 'date'):
+        if n['type'] == 'date':
+            from .gregorian import parse as parse_date
+            parse_date(n['value'])
         value = ('true' if n['value'] else 'false') if n['type'] == 'bool' else n['value']
         return node('literal.' + n['type'], value)
     if op in ('fact', 'var', 'rule'):
@@ -128,8 +145,8 @@ def trees(model, formal):
     facts = [f['name'] for f in model['facts']]
     if [(f['name'], f['type']) for f in formal['facts']] != [(f['name'], f['type']) for f in model['facts']]:
         raise LegalMathError('E_INTEGRITY', details='Proof factual interfaces differ')
-    if model['types'] or any(f['type'] not in ('bool', 'integer', 'money_hkd') for f in model['facts']):
-        unsupported('This constructor proof covers Boolean/integer/money syntax')
+    if model['types'] or any(f['type'] not in ('bool', 'integer', 'money_hkd', 'date') for f in model['facts']):
+        unsupported('This constructor proof covers Boolean/integer/money/canonical-date syntax')
     if formal.get('version') == '2':
         outputs, helpers = formal['outputs'], formal['helpers']
     else:
@@ -184,6 +201,14 @@ def produce(model, directory, *, formalization=None, lean=LEAN):
               'prelude_sha256': raw_digest(PRELUDE.read_bytes()),
               'proof_sha256': raw_digest(source_text.encode()), 'log_sha256': raw_digest(log.encode()),
               'human_quality_evidence': False, 'legal_correctness': 'NOT_ESTABLISHED'}
+    from . import exact_addition
+    expressions = [x[k] for x in formal.get('outputs', [formal]) for k in ('scope', 'result')]
+    expressions += [h['body'] for h in formal.get('helpers', [])]
+    if any(exact_addition.contains_nary(parse(text)) for text in expressions):
+        result['exact_addition'] = exact_addition.produce(work/'exact-addition', lean)
+    if any(f['type'] == 'date' for f in m['facts']) or 'literal.date' in source_text or any(x['type'] == 'date' for x in m['rules']):
+        from . import gregorian
+        result['date_semantics'] = gregorian.produce(work/'gregorian', lean)
     (work/'certificate.json').write_bytes(canonical(result))
     return result
 

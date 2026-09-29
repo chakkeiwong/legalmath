@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.243" timestamp="2026-09-27T21:31:30.639084+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="tests.assurance.test_round16" name="test_scoped_investigation_repetition_cannot_replace_missing_perspective" time="0.038"><failure message="AssertionError: assert (4 == 6)&#10; +  where 4 = len([{'candidates': [{'candidate_id': 'candidate', 'question': {'actor': 'Distributor', 'control_id': 'gift.question', 'fa...{...}, 'error': 'E_SCHEMA'}], 'disputes': [], 'proposals': [{'additional_concerns': [], 'checks': [...]}]}, ...}, ...}])&#10; +    where [{'candidates': [{'candidate_id': 'candidate', 'question': {'actor': 'Distributor', 'control_id': 'gift.question', 'fa...{...}, 'error': 'E_SCHEMA'}], 'disputes': [], 'proposals': [{'additional_concerns': [], 'checks': [...]}]}, ...}, ...}] = &lt;tests.assurance.test_round16.test_scoped_investigation_repetition_cannot_replace_missing_perspective.&lt;locals&gt;.RoleFailure object at 0x76c84d696b90&gt;.calls">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-353/test_scoped_investigation_repe0')
+
+    def test_scoped_investigation_repetition_cannot_replace_missing_perspective(tmp_path):
+        from legalmath.interpretation.assurance.control_investigation import investigate_scoped
+        p,c,r,q,value = scoped_fixture();invalid = {'checks':[], 'additional_concerns':[]}
+        class RoleFailure(ScopedProvider):
+            def complete(self, request, schema, settings):
+                self.responses = [invalid if request['investigation']['perspective']=='source-first' else value]
+                return super().complete(request,schema,settings)
+        provider=RoleFailure([value])
+        result=investigate_scoped(p,c,r,q,provider,tmp_path,maximum_rounds=3)
+&gt;       assert len(provider.calls)==6 and result['status']=='UNCERTAINTY_REPORTED'
+E       AssertionError: assert (4 == 6)
+E        +  where 4 = len([{'candidates': [{'candidate_id': 'candidate', 'question': {'actor': 'Distributor', 'control_id': 'gift.question', 'fa...{...}, 'error': 'E_SCHEMA'}], 'disputes': [], 'proposals': [{'additional_concerns': [], 'checks': [...]}]}, ...}, ...}])
+E        +    where [{'candidates': [{'candidate_id': 'candidate', 'question': {'actor': 'Distributor', 'control_id': 'gift.question', 'fa...{...}, 'error': 'E_SCHEMA'}], 'disputes': [], 'proposals': [{'additional_concerns': [], 'checks': [...]}]}, ...}, ...}] = &lt;tests.assurance.test_round16.test_scoped_investigation_repetition_cannot_replace_missing_perspective.&lt;locals&gt;.RoleFailure object at 0x76c84d696b90&gt;.calls
+
+tests/assurance/test_round16.py:436: AssertionError</failure></testcase></testsuite></testsuites>

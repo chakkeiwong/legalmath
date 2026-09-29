@@ -1,0 +1,44 @@
+# Swiss and Hong Kong legal source dossier
+
+Inspected 29 September 2026. Original bytes and derivatives are separate. This is a versioned development dossier, not proof of complete current law. The three retained unsuccessful PDF responses are explicitly rejected in the manifest.
+
+| Source | Preserved document | Inspected scope |
+| --- | --- | --- |
+| [Federal Act on Banks and Savings Banks: German consolidation of 1 January 2023](https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/51/117_121_129/20230101/de/pdf-a/fedlex-data-admin-ch-eli-cc-51-117_121_129-20230101-de-pdf-a.pdf) | [swissbank2023](originals/swiss-bank-act-20230101-de.pdf) | Articles 25--31; PDF pp. 23--27. |
+| [Capital Adequacy Ordinance: German consolidation of 1 January 2025](https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2012/629/20250101/de/pdf-a/fedlex-data-admin-ch-eli-cc-2012-629-20250101-de-pdf-a.pdf) | [swisscao2025](originals/swiss-cao-20250101-de.pdf) | Articles 27--29 and amendment footnotes; German PDF pp. 16--18, English pp. 15--17. |
+| [Capital Adequacy Ordinance: English consolidation of 1 January 2025](https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2012/629/20250101/en/pdf-a/fedlex-data-admin-ch-eli-cc-2012-629-20250101-en-pdf-a.pdf) | [swisscao2025en](originals/swiss-cao-20250101-en.pdf) | Articles 27--29 and amendment footnotes; German PDF pp. 16--18, English pp. 15--17. |
+| [Emergency liquidity ordinance: amendment of 19 March 2023 (AS 2023 136)](https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/oc/2023/136/de/pdf-a/fedlex-data-admin-ch-eli-oc-2023-136-de-pdf-a.pdf) | [swissemergency2023](originals/swiss-emergency-amendment-20230319.pdf) | Entire four-page amendment, especially article 5a, p. 1, and commencement, p. 3. |
+| [Emergency liquidity ordinance: amendment of 6 September 2023 (AS 2023 495)](https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/oc/2023/495/de/pdf-a/fedlex-data-admin-ch-eli-oc-2023-495-de-pdf-a.pdf) | [swissrepeal2023](originals/swiss-emergency-repeal-20230906.pdf) | Both pages; repeal of articles 5--7 and commencement in part II. |
+| [FINMA provides information about the basis for writing down AT1 capital instruments](https://www.finma.ch/en/news/2023/03/20230323-mm-at1-kapitalinstrumente/) | [finmaat12023](originals/finma-at1-20230323.html) | Full release: contractual basis, emergency ordinance, Tier 2 exclusion, affected-instrument list. |
+| [B-2334/2023: partial judgment of 1 October 2025](https://www.bvger.ch/media-releases/3eeb1c4b-6120-4804-9512-271477ebb52a/en/b-2334-2023_te.pdf) | [csat1judgment2025](originals/fac-b2334-2023-20251001.pdf) | Reasons 5.1--5.4.8, 5.5.1--5.5.6; 6.8.3--6.10.4; 7.6--7.8 and 7.11; 8--10 (PDF pp. 36--51, 58--63, 66--68, 71--74). |
+| [Suspension of AT1 cases](https://www.bvger.ch/en/newsroom/media-releases/suspension-of-at1-cases-2443) | [csat1suspension2025](originals/fac-suspension-20251022.html) | Entire substantive release, 22 October 2025. |
+| [FINMA to appeal partial decision concerning AT1](https://www.finma.ch/en/news/2025/10/20251015-meldung-bvger-at1/) | [csat1appeal2025](originals/finma-appeal-20251015.html) | Entire substantive release, 15 October 2025. |
+| [2C\_565/2025: judgment of 5 March 2026](https://search.bger.ch/ext/eurospider/live/de/php/aza/http/index.php?highlight_docid=aza%3A%2F%2F05-03-2026-2C_565-2025&lang=de&type=show_document&zoom=NO) | [csat1procedure2026](originals/fsc-2c565-2025-20260305.html) | Full factual/procedural history A--D, reasons 1.1--1.4 and 2, operative disposition. |
+| [Sale and Distribution of Debt Instruments with Loss-absorption Features and Related Products](https://brdr.hkma.gov.hk/eng/doc-ldg/docId/getPdf/20221021-3-EN/20221021-3-EN.pdf) | [hkmalac2022](originals/hkma-loss-absorption-20221021.pdf) | Entire two-page circular. |
+| [Loss-absorption products: Annex 1, enhanced investor protection measures](https://brdr.hkma.gov.hk/eng/doc-ldg/docId/getPdf/20221021-4-EN/20221021-4-EN.pdf) | [hkmalacannex2022](originals/hkma-loss-absorption-annex1-20221021.pdf) | Entire three-page annex, applicability and sections A--F. |
+| [Loss-absorption products: Annex 2, frequently asked questions](https://brdr.hkma.gov.hk/eng/doc-ldg/docId/getPdf/20221021-5-EN/20221021-5-EN.pdf) | [hkmalacfaq2022](originals/hkma-loss-absorption-annex2-20221021.pdf) | Entire five-page annex, questions 1--10. |
+| [Regulatory repository entry for the 21 October 2022 loss-absorption circular](https://brdr.hkma.gov.hk/eng/doc-ldg/docId/20221021-3-EN) | [hkmalacindex2026](originals/hkma-loss-absorption-index-20260929.html) | Document identity, Current label, linked annexes and superseded documents. |
+| [UBS final conditions from published download link](https://www.ubs.com/global/en/investor-relations/investors/bondholder-information/capital-instruments/capital-instruments-content/_jcr_content/root/contentarea/mainpar/toplevelgrid/col_1/table_385933273_copy_478278205.402951188.file/dGFibGVUZXh0PS9jb250ZW50L2RhbS9hc3NldHMvY2MvaW52ZXN0b3ItcmVsYXRpb25zL2JvbmRob2xkZXIvY2FwaXRhbC1pbnN0cnVtZW50cy90Yy1jaDEzNTc4NTI2MzYucGRm/tc-ch1357852636.pdf) | [ubsat12024](../originals/ubs-sgd-at1-2024-final-published.pdf) | Published conditions 7--8, PDF pp. 25--29; definitions on p. 3. |
+| [SFC distribution of complex and high-risk products, 18EC89](https://apps.sfc.hk/edistributionWeb/api/circular/list-content/circular/suitability/doc?lang=EN&refNo=18EC89) | [sfcnvla2018](../originals/sfc-nvla-2018.html) | Entire substantive 7 December 2018 circular, including footnotes 7--8. |
+| [SFC SPI FAQ](https://www.sfc.hk/en/faqs/intermediaries/supervision/Sophisticated-Professional-Investors/Sophisticated-Professional-Investors) | [sfcspiprospectusfaq](../originals/sfc-spi-faq.html) | Questions 3--4 in the preserved online FAQ; question 6 context inspected. |
+
+## Interpretation and currentness limits
+
+- Verify later Swiss legislative amendments and merits dockets 2C_661/2025 and 2C_662/2025 before any live decision.
+- Resolve complete issue packages, incorporated documents and later notices.
+- Discharge natural-language-to-formal entailment for the actual instrument, entity, service and client.
+- Implement full notice/conversion schedules, fund and depositary-share classification, and cross-border recognition.
+- Unchanged bytes are not a legal-currentness certificate.
+
+The HKMA circular and annexes were recovered from its official regulatory repository after the main website returned HTML at a PDF URL. German Swiss legislative texts and the Italian Supreme Court judgment are preserved in their original languages. The English CAO translation is a reading aid. The 2025 CAO edition and the 2023 Banking Act edition are historical consolidations with explicit dates.
+
+No human quality labels are used. Author/model citation notes explain the scope of a paraphrase; they do not certify legal meaning. For the implemented guards and the study decision, see the monograph section and `docs/monograph/review/coco-legal-risk/report.md`.
+
+## Amendment reconciliation repair
+
+The retrieved January 2023 Banking Act PDF and HTML omit article 30b/30c headings present in AS 2022 732, which explicitly commenced on 1 January 2023. Both copies are preserved as diagnostic evidence and excluded from operative-law selection. The section uses the promulgated amendment and the corroborating January 2024 consolidation. The heading check establishes presence/absence only, not semantic incorporation or complete currentness. The 2025 Insolvency Ordinance also requires a transitional-rule check: article 49 applies it to pending proceedings.
+
+- [Banking Act amendment of 17 December 2021, promulgated AS 2022 732](https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/oc/2022/732/de/pdf-a/fedlex-data-admin-ch-eli-oc-2022-732-de-pdf-a.pdf): [swissbankamend2022](originals/swiss-bank-amendment-as2022732.pdf).
+- [Federal Act on Banks and Savings Banks: German consolidation of 1 January 2024](https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/51/117_121_129/20240101/de/pdf-a/fedlex-data-admin-ch-eli-cc-51-117_121_129-20240101-de-pdf-a.pdf): [swissbank2024](originals/swiss-bank-act-20240101-de.pdf).
+- [FINMA Insolvency Ordinance: consolidation of 1 October 2025](https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2025/557/20251001/de/pdf-a/fedlex-data-admin-ch-eli-cc-2025-557-20251001-de-pdf-a.pdf): [swissinsolvency2025](originals/swiss-insolvency-ordinance-20251001.pdf).
+- [Banking Act January 2023 HTML copy: retained version-discrepancy evidence](https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/51/117_121_129/20230101/de/html/fedlex-data-admin-ch-eli-cc-51-117_121_129-20230101-de-html.html): [swissbank2023html](originals/swiss-bank-act-20230101-de.html).

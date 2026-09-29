@@ -101,6 +101,18 @@ def expression(text, prefix, *, parameters=(), interpretation_id='reading', sour
             return {**n, 'op': op, 'arg': children[0]}
         if op == 'if' and len(children) == 3:
             return {**n, 'op': 'if', 'condition': children[0], 'then': children[1], 'else': children[2]}
+        if op == '+' and len(children) > 2:
+            # Exact ordered left fold. Preserve duplicates and every dependency;
+            # binary expressions retain their original node IDs and byte form.
+            folded = children[0]
+            for index, child in enumerate(children[1:], 1):
+                if index == len(children)-1:
+                    ident = n
+                else:
+                    count += 1
+                    ident = {'node_id': f'{prefix}.{count}'}
+                folded = {**ident, 'op': 'add', 'left': folded, 'right': child}
+            return folded
         if op in ('=', '>', '>=', '+', '-', '*') and len(children) == 2:
             n.update(op='compare' if op in ('=', '>', '>=') else {'+': 'add', '-': 'sub', '*': 'mul'}[op],
                      left=children[0], right=children[1])
@@ -108,4 +120,15 @@ def expression(text, prefix, *, parameters=(), interpretation_id='reading', sour
             return n
         raise LegalMathError('E_UNSUPPORTED_PROFILE', details='Unsupported operator or arity: ' + str(op))
 
-    return node(parsed, frozenset(parameters))
+    result = node(parsed, frozenset(parameters))
+    def expanded_depth(value, depth=0):
+        if depth > 32 or count > 1000:
+            raise LegalMathError('E_RESOURCE_LIMIT', details='Expanded expression node/depth budget')
+        if isinstance(value, dict):
+            for child in value.values():
+                expanded_depth(child, depth + (isinstance(child, dict) and 'op' in child))
+        elif isinstance(value, list):
+            for child in value:
+                expanded_depth(child, depth + (isinstance(child, dict) and 'op' in child))
+    expanded_depth(result)
+    return result

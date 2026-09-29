@@ -1,0 +1,73 @@
+"""Transfer a completed frozen validation only onto identical declared inputs."""
+from pathlib import Path
+import hashlib
+import json
+import shutil
+import sys
+
+repo_root = Path('/home/chakwong/python/legalmath')
+frozen_root = Path('/tmp/legalmath-assurance-v3-20260928')
+sys.path.insert(0, str(repo_root/'scripts'))
+sys.path.insert(0, str(repo_root/'src'))
+import run_proof_carrying_master as master
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def read(path):
+    return json.loads(path.read_text())
+
+relative = Path('artifacts/proof-carrying-assurance/verified-execution-v3')
+source = frozen_root/relative
+report = read(source/'final-report.json')
+assert report['status'] == 'ENGINEERING_PASS_WITH_RETAINED_UNCERTAINTY'
+expected = read(master.DOC/'frozen-copy-inputs.json')['inputs']
+assert master.material_inputs() == expected, 'Working inputs changed; no transfer permitted'
+assert not (repo_root/relative).exists(), 'Destination already exists; do not overwrite evidence'
+for phase, ref in report['phases'].items():
+    path = frozen_root/ref['path']
+    assert sha(path) == ref['sha256'], phase
+    manifest = read(path)
+    assert manifest['status'] == 'PASSED' and manifest['inputs'] == expected, phase
+    for name, digest in manifest['artifacts'].items():
+        assert sha(frozen_root/name) == digest, name
+staging = repo_root/'artifacts/proof-carrying-assurance/.v3-delivery-staging'
+assert not staging.exists(), 'Staging already exists; inspect before another transfer'
+shutil.copytree(source, staging)
+for path in source.rglob('*'):
+    if path.is_file():
+        assert sha(path) == sha(staging/path.relative_to(source)), str(path)
+assert master.material_inputs() == expected, 'Working inputs changed during staging'
+staging.rename(repo_root/relative)
+backup = repo_root/'artifacts/proof-carrying-assurance/published-before-v3-transfer'
+backup.mkdir(exist_ok=False)
+published = [Path('docs/monograph')/name for name in ('monograph.pdf','technical-companion.pdf','process-guide.pdf')]
+published += [Path('docs/proposal')/name for name in ('proposal.pdf','monograph.pdf','technical-companion.pdf')]
+for name in published:
+    target = repo_root/name
+    if target.exists():
+        retained = backup/name
+        retained.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(target, retained)
+    shutil.copyfile(frozen_root/name, target)
+for path in (frozen_root/'docs/monograph/review/reader-facing').iterdir():
+    if path.is_file():
+        destination = repo_root/'docs/monograph/review/reader-facing'/path.name
+        if path.name == 'citation-occurrence-review.json':
+            assert sha(path) == sha(destination), 'Reviewed source changed'
+        else:
+            shutil.copyfile(path, destination)
+for name in ('monograph.bbl','technical-companion.bbl'):
+    p = frozen_root/'docs/monograph'/name
+    if p.exists(): shutil.copyfile(p, repo_root/'docs/monograph'/name)
+assert master.material_inputs() == expected, 'Unexpected material change on delivery'
+receipt = {'status':'TRANSFERRED_PENDING_ORIGINAL_ROOT_REVERIFICATION',
+           'execution_root':str(frozen_root),'delivery_root':str(repo_root),
+           'source_input_digest':expected['digest'],'material_files':len(expected['files']),
+           'frozen_final_report_sha256':sha(source/'final-report.json'),
+           'test_counts':report['test_counts'],
+           'published':{str(name):sha(repo_root/name) for name in published},
+           'model_calls':0,'release_eligible':False}
+master.write(master.DOC/'delivery-receipt.json',receipt)
+print(json.dumps({'status':receipt['status'],'test_counts':receipt['test_counts'],
+                  'material_files':receipt['material_files']},indent=2))

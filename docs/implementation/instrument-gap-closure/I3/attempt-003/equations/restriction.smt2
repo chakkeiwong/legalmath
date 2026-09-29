@@ -1,0 +1,17 @@
+; benchmark generated from python API
+(set-info :status unknown)
+(declare-fun professional_investor () Bool)
+(declare-fun faq9_exception () Bool)
+(declare-fun in_scope_product () Bool)
+(declare-fun registered_institution () Bool)
+(assert
+ (let (($x56 (not professional_investor)))
+(let (($x89 (not faq9_exception)))
+(let ((?x10 (ite in_scope_product 1 0)))
+(let ((?x16 (ite registered_institution 1 0)))
+(let (($x41 (not (and (= (+ ?x16 ?x10) 2) $x89 $x56))))
+(let (($x82 (not in_scope_product)))
+(let (($x26 (not registered_institution)))
+(let (($x17 (or $x26 $x82 faq9_exception professional_investor)))
+(and (distinct $x17 $x41) true))))))))))
+(check-sat)

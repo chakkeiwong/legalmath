@@ -1,0 +1,4541 @@
+Correlated Errors in Large Language Models
+
+Elliot Kim * 1 Avi Garg * 2 Kenny Peng * 1 Nikhil Garg 1
+
+Abstract
+
+different available models differ in a meaningful way. How
+correlated are LLM errors—i.e., how often do models converge on the same wrong answer? What features of models
+predict high correlation? Are newer models more or less
+homogeneous? What are the downstream effects of evolving levels of model correlation in high-stakes settings where
+LLMs are used? Answering these questions is necessary
+both to understand the current limits of ecosystem diversity,
+and to more effectively engineer multi-agent systems.
+
+Diversity in training data, architecture, and
+providers is assumed to mitigate homogeneity
+in LLMs. However, we lack empirical evidence
+on whether different LLMs differ meaningfully.
+We conduct a large-scale empirical evaluation
+on over 350 LLMs overall, using two popular
+leaderboards and a resume-screening task. We
+find substantial correlation in model errors—on
+one leaderboard dataset, models agree 60% of
+the time when both models err. We identify factors driving model correlation, including shared
+architectures and providers. Crucially, however,
+larger and more accurate models have highly correlated errors, even with distinct architectures and
+providers. Finally, we show the effects of correlation in two downstream tasks: LLM-as-judge evaluation and hiring—the latter reflecting theoretical
+predictions regarding algorithmic monoculture.
+
+Here, we answer these questions, using three large datasets
+of LLM responses: Responses of 349 LLMs on 14,402
+multiple choice questions on a HuggingFace leaderboard,
+71 LLMs on 12,032 multiple choice questions on the Helm
+leaderboard (Liang et al., 2023), and 20 LLMs on 1,800
+resume-job description pairs.
+(1) How correlated are LLM errors? To assess correlation on multiple choice questions, we evaluate the agreement rate of model pairs—conditional on both models being
+wrong. On the resume evaluations, we evaluate the correlation in residuals in comparison to human labels. In all
+three datasets, we find that errors correlate highly across
+LLMs. For example, on Helm, pairs of models agree on average about 60% of the time when both models are incorrect
+(choosing between incorrect answers uniformly at random
+would lead to an agreement rate of 1/3).
+
+1. Introduction
+Large language models (LLMs) are increasingly involved
+in high-stakes multi-agent settings. A key characteristic
+of the emerging ecosystem is the large number of models
+made available by various providers. One HuggingFace
+leaderboard currently hosts over 2000 models. Diversity
+potentially supports a healthy ecosystem. In labor markets,
+different firms using different models could reduce systemic
+exclusion compared to universal adoption of a single model
+(Bommasani et al., 2022; Toups et al., 2023; Creel & Hellman, 2022). Systems with multiple models may generally
+be more robust, allowing “wisdom of crowds” effects and
+avoiding correlated failure (Verga et al., 2024; Kleinberg &
+Raghavan, 2021; Peng & Garg, 2024a;b; Jain et al., 2024a;b;
+Tekin et al., 2024; Chen et al., 2025; Yang et al., 2025).
+
+(2) What explains model correlation? Through a regression analysis on the datasets above, we find that models
+with the same provider (company), with the same base architecture, or with similar sizes have more correlated errors.
+Importantly, even after conditioning on these factors, pairs
+of models that are more accurate individually also have
+more correlated errors. This means that newer models that
+differ on the surface may be converging in their outputs.
+(3) What are the downstream effects of model correlation? We then study how these patterns in correlation
+translate to downstream outcomes in two settings: LLM-asjudge evaluation (Zheng et al., 2023) and hiring applications.
+In the LLM-as-judge setting, we show that model correlations substantially affect LLM model evaluations when
+another model is used to proxy ground truth labels: judges
+overinflate the accuracy of models that are less accurate
+
+However, we lack large-scale empirical evidence on whether
+*
+
+Equal contribution 1 Cornell University 2 Independent. Correspondence to: Kenny Peng <klp98@cornell.edu>, Nikhil Garg
+<ngarg@cornell.edu>.
+Proceedings of the 42 nd International Conference on Machine
+Learning, Vancouver, Canada. PMLR 267, 2025. Copyright 2025
+by the author(s).
+
+1
+
+Correlated Errors in Large Language Models
+
+(a) HuggingFace
+
+(b) Helm
+
+Figure 1. Agreement when both models are wrong. Models are sorted by accuracy. More accurate models have more correlated errors,
+and almost all model pairs have higher agreement rates than random disagreement on errors would imply.
+
+than it—especially for models of the same provider or architecture. Furthermore, motivated by concerns regarding
+algorithmic monoculture and systemic exclusion in hiring
+markets (Kleinberg & Raghavan, 2021; Creel & Hellman,
+2022; Peng & Garg, 2024a), we quantify the implications of
+correlations across firms when making hiring decisions—for
+example, how model correlation affects who is hired (compared to hand labels of resume-job fit) and worker welfare
+(do they match with their most desired firms).
+
+individually accurate agent. Our work provides an empirical
+foundation for this literature: how correlated are different
+models, and what explains correlation? Our results thus
+aid in choosing uncorrelated models and analyzing whether
+there exists sufficient diversity to receive its benefits.
+Algorithmic monoculture and systemic exclusion A burgeoning literature is concerned with the effects of algorithmic monoculture, when many decision-makers use the same
+model (Kleinberg & Raghavan, 2021; Bommasani et al.,
+2022; Jain et al., 2024a;b; Creel & Hellman, 2022; Peng
+& Garg, 2024a;b; Toups et al., 2023; Baek et al., 2025).
+For example, in hiring, monoculture can negatively affect
+correlated hiring firms (Kleinberg & Raghavan, 2021; Peng
+& Garg, 2024a). There are further concerns about systemic
+exclusion, when one worker is rejected from all jobs because
+they all use the same algorithm (Bommasani et al., 2022;
+Creel & Hellman, 2022). However, Peng & Garg (2024a)
+argue that monoculture can benefit applicants on average because those given offers have more power to choose where
+to work and, in equilibrium, a similar number of workers
+will be hired. Motivated by this literature, in Section 5 we
+simulate a labor market in which firms use either the same or
+different large language models to screen applicant resumes.
+
+Section 2 discusses related work. Section 3 analyzes and
+explains model correlations. Sections 4 and 5 consider
+downstream tasks. Section 6 concludes. Our code and data
+are available at https://github.com/nikhgarg/
+llm_correlated_errors_public/.
+
+2. Related Work
+Multi-agent and multi-model use A large literature, either implicitly or explicitly, assumes that using different
+LLMs provides benefits over using the same model. For example, to avoid self-preferencing (Panickssery et al., 2024;
+Wataoka et al., 2024), many papers use a separate LLM
+model to evaluate outputs from one or more models (Zhou
+et al., 2024; Verga et al., 2024). Raghavan (2024) models a
+game where it is beneficial to both be accurate and be different than other players; he finds that increasing noise (e.g.,
+via increasing temperature) and choosing a different LLM
+than competitors may be preferable over using the most
+
+Ecosystem evaluation A closely related literature studies
+the ecosystem of large language models and foundation
+models more broadly. This literature focuses on the degree
+to which models use shared components. This is motivated,
+2
+
+Correlated Errors in Large Language Models
+
+for example, by the component sharing hypothesis studied
+by Bommasani et al. (2022); Toups et al. (2023)—i.e., that
+models with the same components are more likely to have
+correlated outputs. Further work documents how different
+models share components (Bommasani et al., 2023). Our
+paper can be viewed partially as studying the component
+sharing hypothesis at a large scale.
+
+across multiple networks (Wolfram & Schein, 2025). These
+findings suggest a mechanistic explanation for our results.
+
+3. Correlated Errors
+We start by establishing that LLMs broadly have correlated
+errors, and that this correlation is both substantial and is
+higher for more individually accurate models.
+
+Generative diversity and monoculture in large language
+models Generative diversity and mode collapse is a common worry regarding large language models (Zhang et al.,
+2025; Senthilkumar et al., 2024; Xu et al., 2024; Alvero
+et al., 2024; Wang et al., 2025). Wu et al. (2024) find severe monoculture within an LLM in instances of a task; for
+example, they find that the distribution of code written by
+an LLM has less variance than the distribution of code in
+its training set. They further find that changing inference
+parameters (such as temperature, top-p, and prompts) does
+not mitigate this monoculture, and that it is worse for models with RLHF fine-tuning. Our work complements this
+analysis by measuring monoculture across LLMs: are different LLMs more correlated with each other than they are
+with ground truth? We find that they are, and that this is
+worse among models within the same model company and
+larger models—while within-model generative diversity is
+a concern, using multiple different models is not a panacea.
+
+3.1. Data and methods
+We use three datasets of LLM responses: H ELM, H UG GING FACE, and R ESUMES. H ELM and H UGGING FACE are
+large, existing datasets of LLM answers to multiple-choice
+questions. R ESUMES is a dataset of LLM ratings of resumes
+(given a job description) that we generate. Details, including
+prompts and full lists of models, are in the appendix.
+Multiple choice questions. We started from two LLM
+leaderboards: (1) HuggingFace’s Open LLM Leaderboard
+21 ; and (2) Stanford’s Holistic Evaluation of Language Models (Helm) (Liang et al., 2023). Both use questions from
+the Massive Multitask Language Understanding (MMLU)
+question-answering dataset (Hendrycks et al., 2020), with
+multiple choice questions and labeled correct answers. Both
+leaderboards provide model answers on each question, from
+349 and 71 LLMs, respectively.
+
+In complementary and concurrent work, Wenger & Kenett
+(2025) and Goel et al. (2025) also study model correlation. Wenger & Kenett (2025) show that, on creative tasks,
+“LLM responses are much more similar to other LLM responses than human responses are to each other.” Goel
+et al. (2025) build on the observation that error consistency
+metrics (Geirhos et al., 2020) do not capture differing predictions on errors. They develop a novel metric for measuring
+similarity that adjusts for model accuracy, considers different wrong predictions as a disagreement, and uses the probability distribution over answer choices; we likewise use a
+metric (do models agree on an answer when both err) that
+satisfies the first two criteria but does not incorporate model
+probabilities. Goel et al. (2025) then study implications of
+model correlation, such as affinity bias in LLM-as-judge and
+weak-to-strong training, and find that more capable models
+make more similar mistakes. We similarly find—across
+three datasets—that more accurate models make similar
+mistakes, and that this affects LLM-as-judge setups. However, we also broadly quantify other correlates of similarity
+(shared developer, base architecture, model size). We then
+focus on different downstream outcomes, especially how
+correlation affects multi-agent systems like in hiring.
+
+For each model, we further extract the model company and
+performance features (such as accuracy across the leaderboard questions). HuggingFace provides model details, including the number of parameters and the base architecture
+(known due to the open-source nature of the models). These
+features are not consistently available for the Helm and
+Resume models, which are often proprietary.
+Resume-Job Description Evaluations. Starting from
+large datasets of job postings (Asaniczka, 2024) and resumes (Bhawal, 2022; Jiechieu & Tsopze, 2021), we select
+a subset of 30 job descriptions and 60 resumes chosen via
+a cluster analysis (to find related job descriptions and resumes). This provides 1,800 resume-job description pairs,
+which we evaluate using 20 LLMs (from Meta, Mistral AI,
+Amazon, Anthropic, and OpenAI). Again, we extract available features describing these models. We hand-label 450
+resume-job pairs (30 unique resumes and 15 job descriptions) using the same criteria as our prompts.
+Measuring correlated error. On H UGGING FACE and
+H ELM, where responses are multiple choice and where we
+have ground truth, we measure pairwise error correlation
+
+Finally, recent work explores underlying homogeneity in
+language model representations, e.g., demonstrating that
+embeddings across models can be translated (Jha et al.,
+2025) and that activations are consistent at similar depths
+
+1
+
+https://huggingface.co/
+collections/open-llm-leaderboard/
+open-llm-leaderboard-2-660cdb7601eba6852431fffc
+
+3
+
+Correlated Errors in Large Language Models
+
+through agreement rate when both models are wrong: when
+two models are wrong, how often do their wrong answers
+coincide? On R ESUMES, we compare the correlation between residuals: the difference between a model’s rating
+and the human rating for each job-resume pair. Here, we
+treat the human rating as “ground truth,” but note that jobresume evaluations are subjective. These measures of error
+correlation aim to reduce confounding based on model accuracy: two independently accurate models will agree on
+a large fraction of questions in which they both give the
+correct answer. We, in contrast, are primarily interested in
+correlated errors. Appendices B and C contain results for
+alternate correlation measures (such as overall agreement).
+
+Table 1. Agreement on Errors
+Intercept
+Same Company
+Same Architecture
+Acc. 1
+Acc. 2
+Acc. 1: Acc. 2
+# models
+# responses/model
+R2
+
+3.2. Results
+Figure 1a shows the agreement rate between each pair of
+models (when both are wrong) on H UGGING FACE, and Figure 1b shows the same on the H ELM data. See Figure 9b for
+the analog on R ESUMES. Two conclusions are immediately
+apparent from the agreement rate matrices.
+
+H UGGING FACE
+
+H ELM
+
+R ESUMES
+
+0.398∗∗
+(0.001)
+0.066∗∗
+(0.003)
+0.076∗∗
+(0.001)
+0.014∗∗
+(0.000)
+0.013∗∗
+(0.000)
+0.023∗∗
+(0.000)
+
+0.602∗∗
+(0.001)
+0.022∗∗
+(0.005)
+
+0.653∗∗
+(0.007)
+0.021
+(0.012)
+
+0.055∗∗
+(0.001)
+0.054∗∗
+(0.001)
+0.026∗∗
+(0.001)
+
+0.015∗∗
+(0.006)
+0.028∗∗
+(0.006)
+0.043∗∗
+(0.005)
+
+349
+14,042
+0.340
+
+71
+12,032
+0.618
+
+20
+1,800
+0.415
+
+Notes: Standard errors in parentheses. ∗∗ p < 0.001. Dependent
+variable: Agreement rate when both wrong (H UGGING FACE,
+H ELM), correlation in residual = predicted - true (R ESUMES).
+Numeric features (e.g., accuracy) are standardized. For H UG GING FACE , we omit a subset of covariates in this table for
+concision; see Appendix C for the full regression.
+
+(1) First, models substantially agree, even when both are
+wrong. Conditional on having the wrong answer, uniformly
+random model responses would yield an agreement rate of
+1
+3 on the H ELM , since each question has 3 incorrect answer
+choices. On H UGGING FACE, this agreement rate at random
+would be 0.127.2 On both datasets, almost all pairs (100%
+of pairs on HuggingFace; 97.5% on Helm) of models have
+a higher agreement rate than the respective baselines. The
+mean agreement rate across pairs is 0.423 on HuggingFace
+and 0.6 on Helm, about double or higher than the baselines.
+
+rates. Notably, more accurate models (and especially if both
+models are accurate) are more correlated. The included
+features explain between 34% and 62% of the variation in
+error agreement across the three datasets. In Appendix C
+we report full regressions, including for overall agreement
+rate and agreement rate when one model is wrong. Together,
+these results establish (a) there is substantial correlated errors in LLMs, and (b) this correlation is more severe for
+more accurate models and those with shared characteristics.
+
+(2) Second, some models agree with each other more than
+others. This can be expected: for example, on Helm,
+meta/llama-3.2-90b-vision-instruct-turbo and meta/llama3.1-70b-instruct-turbo have an agreement rate (when both
+are wrong) of .97, consistent with the vision-language model
+being based on the related language-only model. However,
+some models are unexpectedly correlated. For example, on
+Helm, google/text-unicorn@001 and writer/palmyra-x-v3
+agree on 0.9987 fraction of the questions on which both are
+incorrect (about 22% of all questions), and a higher overall
+agreement rate; to our knowledge, there is no publicly stated
+direct relationship between the models.
+
+4. Case Study: LLM as judge
+In this section, we examine the effect of LLM correlation
+in LLM-as-judge setups, in which a judge model is used to
+evaluate the accuracy of other models. Then, we evaluate the
+accuracy of other models according to the judge’s answers.
+We consider judges chosen to be the most accurate model
+within a shared model provider (on H ELM) or architecture
+(on H UGGING FACE). Figure 2 plots the results for H ELM,
+giving models’ true accuracy on the x-axis and the accuracy
+inflation (judged accuracy - true accuracy) on the y-axis.
+Inflation above 0 indicates that the judged accuracy is higher
+than a model’s true accuracy. We plot models from the same
+provider/architecture in red and other models in blue.
+
+Sources of model correlation. Table 1 shows the results
+of a regression of the error agreement rate for each pair of
+models with the model characteristics. We find that models
+by the same developer, using the same base architecture, and
+having similar sizes are all associated with higher agreement
+
+A stark pattern emerges: each judge systematically inflates
+the accuracy of models that are less accurate than itself, due
+to correlated errors (the judge marks incorrect answers as
+correct if both models agree on the incorrect answer). On
+the other hand, each judge underinflates the accuracy of
+models that are more accurate than itself (the judge cannot
+
+2
+The questions have different numbers of answer choices, between 3 and 10. Let pk be the fraction of questions with k
+answer
+Then, the agreement rate at random would be
+P10 choices.
+1
+k=3 pk k−1 . Over 80% of the questions have k = 10 choices.
+
+4
+
+Correlated Errors in Large Language Models
+
+Figure 2. Evaluating LLM-as-judge on H ELM. In each plot, one model is used as the judge. Each dot is another model; the y-axis is the
+accuracy inflation (compared to ground truth) of using the given model as the judge, and the x-axis is the model’s true accuracy. The
+vertical red line corresponds to the true accuracy of the judge. Each judge tends to inflate the accuracy of models that are less accurate
+than itself, especially models from the same provider or family (shown in red dots). Results for H UGGING FACE are shown in Figure 8.
+
+reward a model for answering correctly on a question it
+itself answers incorrectly). We also see examples in which
+judges significantly inflate the accuracy of models from the
+same provider (shown in red). This reflects concerns of selfpreferencing (Panickssery et al., 2024; Wataoka et al., 2024),
+further suggesting that relative self-preferencing can occur
+across different models from the same family; it further connects to other limitations of the LLM-as-judge paradigm (Gu
+et al., 2024; Kamoi et al., 2024b;a; Stureborg et al., 2024).
+More generally, the results suggest that, when comparing
+models or establishing error rates using LLM-as-judge, it
+is important to calibrate error metrics for each model-judge
+pair using ground-truth data.
+
+outcomes studied in this prior literature. First, we study
+the systemic exclusion rate (Bommasani et al., 2022), the
+proportion of applicants who are screened out of all jobs.
+Second, we study downstream outcomes of applicants in a
+matching market setting (Peng & Garg, 2024a). A primary
+aim of this analysis is to test theoretical predictions on the
+impact of homogeneity. In contrast to existing empirical
+work, our experiments use real resumes and job descriptions.
+We also use LLMs as opposed to more classical tabular machine learning models, more closely resembling potential
+deployments of LLMs as hiring tools.
+We study the effect of firms using the same or correlated
+LLMs by considering five experimental settings where firms
+rank applicants under the following methods:
+
+5. Case Study: LLMs in labor markets
+1. Same LLM: All firms use the same LLM, simulating
+a setting in which one model dominates the hiring
+process, such as through a shared service provider.
+
+In this section, we study the implications of LLM correlation in hiring settings. LLM-use in hiring decisions has
+been identified as a particularly important setting in which
+homogeneity—i.e., algorithmic monoculture—may have
+negative effects (Kleinberg & Raghavan, 2021; Bommasani
+et al., 2022; Peng & Garg, 2024a), on top of general concerns regarding biased decisionmaking (Wilson & Caliskan,
+2024; Gaebler et al., 2024). We study several downstream
+
+2. Same Company LLM: Each firm uses a random LLM
+from the same company, simulating a setting in which
+one company monopolizes the LLM space.
+3. Latest LLM: Each firm uses one of the most recent
+5
+
+Correlated Errors in Large Language Models
+
+models from each company from the given LLMs,3
+simulating a setting in which companies only use stateof-the-art LLMs.
+
+systemic exclusion may be acceptable if some resumes are
+definitely poor fits for a position.)
+In Figure 3b, we further consider the systemic exclusion
+rate when firms form applicant preferences according to the
+5 specified methods. We find that if firms all adopt models
+from the same company or if they all adopt the latest LLMs,
+there is a somewhat higher degree of systemic exclusion in
+comparison to when they adopt random LLMs. However,
+these differences are fairly small in contrast to settings in
+which firms all adopt the same LLM.
+
+4. Random LLMs: Each firm independently at random
+selects an LLM from a given set of models, simulating
+a setting in which companies all use LLMs, but in a
+maximally diverse way, unrelated to ground truth fit
+and without correlated errors.
+5. Uniformly Random: All firms have uniformly random
+applicant preferences, providing a baseline in which
+firms make uncorrelated decisions.
+
+We note that the systemic exclusion rate does not account
+for true resume-job fits, e.g., as measured using hand labels, capacity constraints (each applicant can only work for
+one firm), and applicant preferences. Next, we analyze the
+implications of correlation in the presence of these effects.
+
+These settings span the spectrum of complete monoculture
+(fully correlated decisions) to complete polyculture (fully independent decisions). Settings 2-4 represent an intermediate
+state. In our previous results, we demonstrated that models
+tend to be correlated in general (even in how they err). Here,
+we examine the practical effects of this correlation.
+
+5.2. Results: Matching markets effects
+Above, we study systemic exclusion in a setting where each
+firm offers interviews to a fixed number of top applicants.
+However, theoretical work on monoculture in matching markets suggests that it is also important to consider marketlevel effects, since firms may adjust offers to fill capacity
+(Peng & Garg, 2024a). Under a stable matching framework,
+Peng & Garg (2024a) make three sets of predictions under
+algorithmic monoculture, corresponding to firm outcomes
+(do firms collectively hire the best-fit applicants), applicant
+outcomes (do they match with their most preferred firms),
+and outcomes under differential access (some applicants
+apply to more jobs than do other applicants).
+
+5.1. Results: Systemic Exclusion
+A key concern in algorithmic monoculture is systemic exclusion, in which an applicant is screened out of all opportunities (Creel & Hellman, 2022; Bommasani et al., 2022).
+More formally, for a set of firms F and a set of applicants
+A, we let sf (a) denote the percentile ranking of applicant
+a ∈ A in the preference list of firm f ∈ F . Then an
+applicant a receives an interview from firm f if and only if
+sf (a) ≥ 1 − p. Therefore, an applicant a is systemically
+excluded if sf (a) < 1 − p for all firms f ∈ F , i.e., they are
+not interviewed by any firm. The systemic exclusion rate
+of an economy is equal to
+r(F ) =
+
+|a ∈ A | sf (a) < 1 − p for all f ∈ F |
+,
+|A|
+
+In this section, we test these predictions under a stable
+matching framework and LLM correlation. We consider
+markets with a set of 60 applicants A and a set of 30 firms
+F (or the hand-labeled subset). Each firm has capacity of 1:
+each applicant accepts at most one job offer, and each firm
+can hire at most one applicant. For all experiments in this
+section, each applicant a ∈ A has uniformly random preferences over firms. (Appendix B.2 reproduces experiments
+where applicant preferences are determined by an LLM.) To
+understand how markets behave when firms use LLMs to
+rank applicants, we consider markets in which firms form
+their preferences according to the five methods outlined
+above, spanning full monoculture to full polyculture.
+
+(1)
+
+the fraction of applicants interviewed by no firm. In our experiments, we set p = 0.25, so the top quarter of applicants
+receive interviews at each firm. We further assume that each
+firm uses the same job description.
+In Figure 3a, we consider markets with n firms, ranging
+from 1 to 20. We compare settings when firms have uniformly random preferences over applicants and when firms
+each use a random LLM to rank applicants. When firms
+have random preferences, the systemic exclusion rate goes
+to 0 as n grows large (indeed, we should expect it to be
+(1 − 0.25)n ). When firms each use a random LLM, however, we see that even with 20 firms, around 20 percent of
+applicants continue to be systemically excluded—a consequence of general correlation across LLMs. (Some level of
+
+Firm Outcomes: match probability conditional on applicant rating First, we study how an applicant’s true
+rating affects match probability across different firm preference methods. The theoretical literature establishes that
+monoculture worsens firm outcomes, i.e., applicants with
+the highest true ratings are less likely to match with firms
+(Kleinberg & Raghavan, 2021; Peng & Garg, 2024a); in
+contrast, more diverse models can result in a “wisdom of
+crowds” effect, with firms collectively matching with the
+
+3
+
+Meta’s Llama 3.3 70b, Mistral AI’s Mistral Large (24.07),
+Amazon’s Nova Pro, Anthropic’s Claude Sonnet (20241022), and
+OpenAI’s GPT-4o mini.
+
+6
+
+Uniformly Random (5)
+
+(a) The effect of the number of distinct LLM configurations used
+in a job hiring market on systemic exclusion rate across different
+offer methods. For each n, where
+ n represents the number of
+LLMs in use, we sample up to 20
+combinations of LLMs. If this
+n
+exceeds 100, we limit the selection to 100 random combinations.
+LLMs are then evenly distributed across firms for a given job. The
+graph shows that offers made to applicants based on LLM scores
+consistently exhibit higher systemic exclusion rate than uniformly
+random selection of applicants. This highlights that regardless of
+heterogeneity in LLMs in a job market, a considerable amount of
+systemic exclusion will be present when giving offers based on
+scores generated by LLMs.
+
+Random LLM (5)
+
+Number of LLMs
+
+Latest LLM (5)
+
+0 2 4 6 8 10 12 14 16 18 20
+
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0.0
+
+Same Company LLM (3-7)
+
+Offer Method
+LLM
+Random
+
+Same LLM (1)
+
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0.0
+
+Systemic Exclusion Rate
+
+Systemic Exclusion Rate
+
+Correlated Errors in Large Language Models
+
+(b) Average systemic exclusion rates across markets under different firm preference methods. In each market, all firms share a
+randomly sampled job description, and systemic exclusion rates
+are calculated by each firm preference method. As market settings
+shift from full monoculture (Same LLM) to full polyculture (Uniformly Random), systemic exclusion rates decrease. The plot is
+generated by averaging over 1500 random markets.
+
+Figure 3. Systemic exclusion (fraction of resumes with no job offers) when p = 0.25: (a) for varying number of distinct LLMs used in a
+job hiring market, (b) for varying firm preference methods. Lower systemic exclusion is better.
+
+Match Probability
+
+highest rated applicants (Peng & Garg, 2024b).
+
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+
+Firm Preference Method
+Same LLM (1)
+Same Company LLM (3-7)
+Latest LLM (5)
+Random LLM (5)
+Uniformly Random (5)
+
+We use our human hand labels as a ground truth for applicant quality. In each market, we track which applicants
+are successfully matched and their corresponding humanlabeled scores. To analyze the effect of applicant rating, we
+group scores into discrete buckets (e.g., [1, 2), [2, 3), etc.).
+The match probability for a given bucket b is then defined
+as the fraction of applicants in that bucket who are matched.
+Figure 4 shows how match probability changes with true
+applicant rating, in each market. As expected from the
+theoretical literature—among the LLM-based markets due
+to monoculture—using the same (randomly chosen) single
+LLM leads to the worst firm welfare, with relatively smaller
+match probabilities for the highest-ranked applicants. On
+the other hand, using the latest LLMs—which are the most
+accurate individually but also more correlated than random
+LLMs—maximizes firm welfare. These results suggest that,
+as in Raghavan (2024), there are two competing effects
+for firm welfare: individual model accuracy, and diversity.
+LLM diversity may not yield wisdom-of-crowds effects that
+outperform choosing the best LLMs.
+
+1 2 3 4 5 6 7 8 9 10
+
+True Applicant Rating
+
+Figure 4. The effect of “true applicant rating” on match probability
+across different market environments. We use a subset of 30
+applicants and 15 firms, where the fit of an applicant to a firm is
+evaluated by humans. On the x-axis, we have true applicant rating,
+for each t ∈ [1, 10], represents all scores in the range [t, t + 1).
+On the y-axis, we have match probability. The plot is generated by
+averaging over 1500 random markets.
+
+7
+
+Relative Match Probability
+
+Uniformly Random (5)
+
+Random LLM (5)
+
+Latest LLM (5)
+
+Same Company LLM (3-7)
+
+7
+6
+5
+4
+3
+2
+1
+0
+
+Same LLM (1)
+
+Average Applicant Rank
+
+Correlated Errors in Large Language Models
+
+8
+7
+6
+5
+4
+3
+2
+1
+
+Firm Preference Method
+Same LLM (1)
+Same Company LLM (3-7)
+Latest LLM (5)
+Random LLM (5)
+Uniformly Random (5)
+
+0
+
+(a) Average applicant ranks (averaged across applicants, the rank
+of the firm according to the applicant’s preference list to which they
+matched) across markets under different firm preference methods.
+Lower is better, indicating higher applicant welfare.
+
+5
+
+10 15 20
+# of Applications
+
+25
+
+30
+
+(b) The effect of differential application access across different
+matching market environments. On the x-axis, we have the number
+of applications submitted by an applicant to a firm. On the y axis,
+we have the relative match probability as defined in eq. (4).
+
+Figure 5. Market outcomes depending on firm LLM usage: (a) gives average applicant rank, (b) gives the effect of differential application
+access. Both plots are generated by averaging over 1500 random markets; in each, all firms share a randomly sampled job description.
+
+Applicant Outcomes Another basic metric is applicant
+welfare: do applicants match to their top choices? Peng
+& Garg (2024a) suggest that monoculture (increased correlation in firm decisions) yields higher overall applicant
+welfare (intuitively, the applicants that receive offers do so
+from more firms, and get to choose which firm to accept
+an offer from). Correspondingly, we expect applicants in
+markets with more LLM monoculture to match with morepreferred firms than in markets with less correlation.
+
+systemic exclusion analysis in Section 5.1, as predicted by
+Peng & Garg (2024a). Markets with the highest systemic
+exclusion rates produce the highest-quality matches for applicants, suggesting a trade-off between systemic exclusion
+(without considering market effects) and applicant welfare
+when market effects are considered. As above, markets with
+correlated models (either by the same company or the latest
+model from each company) have effects in between those of
+markets with firms using the same LLM or one at random.
+
+Define rank(x, y) as the rank of the firm y in the preference
+list of applicant x—a ranking of 1 indicates an applicant’s
+most preferred firm. The output of the stable matching
+algorithm results in a matching M : A → F ∪ {∅}. For a
+set of applicants A, and firm-applicant pairs M , average
+applicant ranking of match of a labor market is equal to
+P
+a:M (a)̸=∅ rank(a, (M (a))
+AvgRank(M ) =
+(2)
+|a ∈ A : M (a) ̸= ∅|
+Figure 5a shows that markets using a single LLM (full monoculture) yield the best average applicant rank; as market settings shift towards using uniformly random firm preferences
+(full polyculture), applicant welfare worsens.
+
+Differential Application Access Finally, we study differential application access, in which applicants may differ in
+the number of firms to which they apply. Instead of submitting an application to every firm, each applicant applies
+to a random subset of t firms, where t ∼ Uniform(1, |F |),
+where t is drawn for each applicant independently. This
+mimics a job searching process in which various factors
+(time, effort, environment, etc.) may affect the number of
+applications an applicant can submit. Peng & Garg (2024a)
+predict theoretically that monoculture (using the same algorithm) is more robust to differential access. We explore the
+effect of the number of applications submitted on relative
+match probability of applicants.
+
+These market-level results show an opposite trend from the
+
+We run 1500 simulations for each method, in which each
+8
+
+Correlated Errors in Large Language Models
+
+of the 60 applicants draws a number of applications t independently. Then, across simulations, we calculate the match
+probability Pmatch (t), for each number of applications t:
+Pmatch (t) =
+
+|{a ∈ At | a is matched}|
+|At |
+
+wrong), and find similar results. Finally, note that one limitation of current metrics (including ours and that of Goel et al.
+(2025)) is that they treat incorrect answers identically; in
+practice, some incorrect answers may be “closer” to correct,
+and so preferred by more accurate models; some questions
+may also be harder than others. Future work should consider
+developing a metric that is robust to these characteristics.
+
+(3)
+
+where At is the set of applicants who applied to exactly t
+firms. The relative match probability Prelative (t) is then:
+Prelative (t) =
+
+Pmatch (t)
+,
+Pmatch (1)
+
+Multi-agent performance measurement and limitations.
+How to properly evaluate LLM output is a highly contested,
+complex question (Wallach et al., 2024; Guerdan et al., 2025;
+Perlitz et al., 2024; Weidinger et al., 2025), and this is especially true for multi-agent systems. Here, we leverage
+leaderboard metrics based on multiple-choice evaluations,
+and further have LLMs score resumes numerically, in an offline manner. While these measurements provide only a limited view of LLM capabilities, their standardized nature and
+broad coverage across models enable us to conduct a largescale empirical analysis of the correlation between model
+errors. In comparison to work evaluating open-ended model
+output diversity (Wu et al., 2024), we are able to evaluate
+many more (over 350) models, across over 20,000 questions
+with ground truth labels. Richer evaluation of open-ended
+generation and complex reasoning tasks remains an important direction for future work. Recent methods may allow
+analysis over the open-ended types of questions models are
+correlated on and the ways in open-ended responses correlate (Movva et al., 2025). Our evaluations reflect many
+proposed use cases of LLMs in high-stakes settings: for
+example, natural language parsers of resumes already in
+use produce single-dimensional numeric scores of resumes,
+such as to shortlist resumes for human hiring managers. Our
+work does not however directly measure the implications of
+correlations induced by LLMs helping write job descriptions
+or resumes (Wiles et al., 2025; Wiles & Horton, 2025).
+
+(4)
+
+where Pmatch (1) represents the match probability when applicants submit only one application. This normalized metric
+measures the advantage of submitting more applications.
+We find that overall, the relative probability of applicants
+matching increases based on the number of applications submitted, but at different rates depending on the marketplace
+structure. As shown in Figure 5b, similar to trends from
+Figure 5a, as market settings shift from full monoculture to
+full polyculture, relative match probability is consistently
+higher for any t. An applicant is approximately 7 times
+more likely to match when submitting 30 applications than
+1 application in markets under uniformly random preferences, and conversely, an applicant is approximately just 2
+times more likely to match when submitting 30 applications
+versus 1 application when firms use the same LLM. These
+results align with the hypothesis in Peng & Garg (2024a)
+markets under full monoculture are most robust to differential application access, since those with more applications
+receive fewer independent “lottery tickets.”
+
+6. Conclusion
+We show that LLMs have correlated errors, and that this
+correlation is substantially higher for individually accurate
+models and those by the same developer or using the same
+base architecture. These findings suggest that as model performance increases, models are also converging in the errors
+that they make. This error correlation has implications for
+the effectiveness of the LLM-as-judge paradigm, the use of
+LLMs in hiring, and of multi-agent systems broadly.
+
+Implications for ecosystem monitoring. While work
+evaluating models individually is prevalent, analysis of correlations across models has been surprisingly rare. This
+is true even though, as we leverage, such analyses can be
+done using the same data as is used to evaluate models individually, since benchmarks often repeat questions across
+models. We thus encourage leaderboard developers to continuously track model correlation—as we show, doing so
+reveals surprising patterns between individual pairs of models and provides insights on which models might be most
+effective to use together. Similarly, in our application to
+study LLMs in labor markets, there exist laws (such as NYC
+Local Law 144) mandating that companies audit hiring algorithms (Groves et al., 2024; Wright et al., 2024; Terzis
+et al., 2024); however, empirical analyses of correlations
+across models or of multiple firms sharing algorithms are
+relatively unexplored.
+
+Measure of correlation For our multiple choice analysis
+in the main text, we use “agreement rate when both models err” as our measure of correlation. Like in the work of
+Goel et al. (2025), such a metric is designed to correct for
+model accuracy: two models will not be deemed to be more
+correlated simply because they both get a question correct.
+The metric of Goel et al. (2025) also leverages agreements
+on correct answers and model output probabilities, and so
+may be preferable when such probabilities are available. In
+the appendix, we also show results using alternate metrics
+(overall agreement rate, and agreement rate when either is
+9
+
+Correlated Errors in Large Language Models
+
+Impact Statement
+
+Creel, K. and Hellman, D. The algorithmic leviathan:
+Arbitrariness, fairness, and opportunity in algorithmic
+decision-making systems. Canadian Journal of Philosophy, 52(1):26–43, 2022.
+
+We demonstrated that LLMs exhibit large amounts of correlation, even in how they err. This has implications for
+high-stakes settings such as hiring, where there is risk that
+applicants are systematically screened out of opportunities,
+and in LLM-as-judge settings, where models may inflate the
+estimated performance of other models. While our analysis
+is limited to a subset of tasks on which homogeneity may
+be a concern, it serves as a foundation for further evaluation
+and monitoring of the LLM ecosystem.
+
+Gaebler, J. D., Goel, S., Huq, A., and Tambe, P. Auditing the
+use of language models to guide hiring decisions, 2024.
+URL https://arxiv.org/abs/2404.03086.
+Geirhos, R., Meding, K., and Wichmann, F. A. Beyond
+accuracy: quantifying trial-by-trial behaviour of cnns and
+humans by measuring error consistency. Advances in
+neural information processing systems, 33:13890–13902,
+2020.
+
+Acknowledgements
+We thank Manish Raghavan for helpful discussions. NG
+is supported by NSF CAREER IIS-2339427, and Cornell
+Tech Urban Tech Hub, Meta, and Amazon research awards,
+the latter of which provided API credits for this project. EK
+was supported by a Cornell BURE undergraduate research
+fellowship.
+
+Goel, S., Struber, J., Auzina, I. A., Chandra, K. K., Kumaraguru, P., Kiela, D., Prabhu, A., Bethge, M., and
+Geiping, J. Great models think alike and this undermines
+ai oversight. arXiv preprint arXiv:2502.04313, 2025.
+Groves, L., Metcalf, J., Kennedy, A., Vecchione, B., and
+Strait, A. Auditing work: Exploring the new york city
+algorithmic bias audit regime. In The 2024 ACM Conference on Fairness, Accountability, and Transparency, pp.
+1107–1120, 2024.
+
+References
+Alvero, A., Lee, J., Regla-Vargas, A., Kizilcec, R. F.,
+Joachims, T., and Antonio, A. L. Large language models,
+social demography, and hegemony: comparing authorship in human and synthetic text. Journal of Big Data, 11
+(1):138, 2024.
+
+Gu, J., Jiang, X., Shi, Z., Tan, H., Zhai, X., Xu, C., Li, W.,
+Shen, Y., Ma, S., Liu, H., et al. A survey on llm-as-ajudge. arXiv preprint arXiv:2411.15594, 2024.
+
+Guerdan, L., Barocas, S., Holstein, K., Wallach, H., Wu,
+Asaniczka.
+Upwork job postings dataset
+Z. S., and Chouldechova, A. Validating llm-as-a-judge
+2024 (50k records), 2024.
+URL https:
+systems in the absence of gold labels. arXiv preprint
+//www.kaggle.com/datasets/asaniczka/
+arXiv:2503.05965, 2025.
+upwork-job-postings-dataset-2024-50k-records.
+Hendrycks, D., Burns, C., Basart, S., Zou, A., Mazeika,
+Baek, J., Bastani, H., and Chen, S. Hiring under congestion
+M., Song, D., and Steinhardt, J. Measuring masand algorithmic monoculture: Value of strategic behavior.
+sive multitask language understanding. arXiv preprint
+arXiv preprint arXiv:2502.20063, 2025.
+arXiv:2009.03300, 2020.
+Bhawal, S.
+Resume dataset, 2022.
+https://www.kaggle.com/datasets/
+snehaanbhawal/resume-dataset.
+
+URL
+
+Jain, S., Creel, K., and Wilson, A. Scarce resource allocations that rely on machine learning should be randomized.
+arXiv preprint arXiv:2404.08592, 2024a.
+
+Bommasani, R., Creel, K. A., Kumar, A., Jurafsky, D., and
+Liang, P. S. Picking on the same person: Does algorithmic monoculture lead to outcome homogenization?
+Advances in Neural Information Processing Systems, 35:
+3663–3678, 2022.
+
+Jain, S., Suriyakumar, V., Creel, K., and Wilson, A. Algorithmic pluralism: A structural approach to equal opportunity.
+In Proceedings of the 2024 ACM Conference on Fairness,
+Accountability, and Transparency, pp. 197–206, 2024b.
+
+Bommasani, R., Soylu, D., Liao, T. I., Creel, K. A., and
+Liang, P. Ecosystem graphs: The social footprint of foundation models. March 2023. URL https://arxiv.
+org/abs/2303.15772.
+Chen, Z., Li, J., Chen, P., Li, Z., Sun, K., Luo, Y., Mao,
+Q., Yang, D., Sun, H., and Yu, P. S. Harnessing multiple
+large language models: A survey on llm ensemble. arXiv
+preprint arXiv:2502.18036, 2025.
+10
+
+Jha, R., Zhang, C., Shmatikov, V., and Morris, J. X. Harnessing the universal geometry of embeddings. arXiv
+preprint arXiv:2505.12540, 2025.
+Jiechieu, K. F. F. and Tsopze, N. Skills prediction based on
+multi-label resume classification using cnn with model
+predictions explanation. Neural Computing and Applications, 33(10):5069–5087, 2021. ISSN 1433-3058. doi:
+10.1007/s00521-020-05302-x. URL https://doi.
+org/10.1007/s00521-020-05302-x.
+
+Correlated Errors in Large Language Models
+
+Kamoi, R., Das, S. S. S., Lou, R., Ahn, J. J., Zhao, Y.,
+Lu, X., Zhang, N., Zhang, Y., Zhang, H. R., Vummanthala, S. R., Dave, S., Qin, S., Cohan, A., Yin, W., and
+Zhang, R. Evaluating LLMs at detecting errors in LLM
+responses. In First Conference on Language Modeling,
+2024a. URL https://openreview.net/forum?
+id=dnwRScljXr.
+
+Raghavan, M. Competition and diversity in generative ai.
+arXiv preprint arXiv:2412.08610, 2024.
+Senthilkumar, N. K., Ahmad, A., Andreetto, M., Prabhakaran, V., Prabhu, U., Dieng, A. B., Bhattacharyya,
+P., and Dave, S. Beyond aesthetics: Cultural competence
+in text-to-image models. Advances in Neural Information
+Processing Systems, 37:13716–13747, 2024.
+
+Kamoi, R., Zhang, Y., Zhang, N., Han, J., and Zhang, R.
+When can llms actually correct their own mistakes? a
+critical survey of self-correction of llms. Transactions of
+the Association for Computational Linguistics, 12:1417–
+1440, 2024b.
+
+Stureborg, R., Alikaniotis, D., and Suhara, Y. Large language models are inconsistent and biased evaluators.
+CoRR, 2024.
+Tekin, S. F., Ilhan, F., Huang, T., Hu, S., and Liu, L. Llmtopla: Efficient llm ensemble by maximising diversity.
+arXiv preprint arXiv:2410.03953, 2024.
+
+Kleinberg, J. and Raghavan, M. Algorithmic monoculture
+and social welfare. Proceedings of the National Academy
+of Sciences, 118(22):e2018340118, 2021.
+
+Terzis, P., Veale, M., and Gaumann, N. Law and the emerging political economy of algorithmic audits. In The 2024
+ACM Conference on Fairness, Accountability, and Transparency, pp. 1255–1267, 2024.
+
+Liang, P., Bommasani, R., Lee, T., Tsipras, D., Soylu, D.,
+Yasunaga, M., Zhang, Y., Narayanan, D., Wu, Y., Kumar,
+A., Newman, B., Yuan, B., Yan, B., Zhang, C., Cosgrove,
+C. A., Manning, C. D., Re, C., Acosta-Navas, D., Hudson, D. A., Zelikman, E., Durmus, E., Ladhak, F., Rong,
+F., Ren, H., Yao, H., WANG, J., Santhanam, K., Orr,
+L., Zheng, L., Yuksekgonul, M., Suzgun, M., Kim, N.,
+Guha, N., Chatterji, N. S., Khattab, O., Henderson, P.,
+Huang, Q., Chi, R. A., Xie, S. M., Santurkar, S., Ganguli, S., Hashimoto, T., Icard, T., Zhang, T., Chaudhary,
+V., Wang, W., Li, X., Mai, Y., Zhang, Y., and Koreeda,
+Y. Holistic evaluation of language models. Transactions on Machine Learning Research, 2023. ISSN 28358856. URL https://openreview.net/forum?
+id=iO4LZibEqW.
+
+Toups, C., Bommasani, R., Creel, K., Bana, S., Jurafsky, D.,
+and Liang, P. S. Ecosystem-level analysis of deployed
+machine learning reveals homogeneous outcomes. Advances in Neural Information Processing Systems, 36:
+51178–51201, 2023.
+Verga, P., Hofstatter, S., Althammer, S., Su, Y., Piktus,
+A., Arkhangorodsky, A., Xu, M., White, N., and Lewis,
+P. Replacing judges with juries: Evaluating llm generations with a panel of diverse models. arXiv preprint
+arXiv:2404.18796, 2024.
+
+Movva, R., Peng, K., Garg, N., Kleinberg, J., and Pierson,
+E. Sparse autoencoders for hypothesis generation. arXiv
+preprint arXiv:2502.04382, 2025.
+
+Wallach, H., Desai, M., Pangakis, N., Cooper, A. F., Wang,
+A., Barocas, S., Chouldechova, A., Atalla, C., Blodgett,
+S. L., Corvi, E., et al. Evaluating generative ai systems is
+a social science measurement challenge. arXiv preprint
+arXiv:2411.10939, 2024.
+
+Panickssery, A., Bowman, S., and Feng, S. Llm evaluators
+recognize and favor their own generations. Advances
+in Neural Information Processing Systems, 37:68772–
+68802, 2024.
+
+Wang, A., Morgenstern, J., and Dickerson, J. P. Large
+language models that replace human participants can
+harmfully misportray and flatten identity groups. Nature Machine Intelligence, pp. 1–12, 2025.
+
+Peng, K. and Garg, N. Monoculture in matching markets.
+In The Thirty-eighth Annual Conference on Neural Information Processing Systems, 2024a. URL https:
+//openreview.net/forum?id=P5yezHuMSS.
+
+Wataoka, K., Takahashi, T., and Ri, R. Self-preference
+bias in llm-as-a-judge. arXiv preprint arXiv:2410.21819,
+2024.
+
+Peng, K. and Garg, N. Wisdom and foolishness of noisy
+matching markets. In Proceedings of the 25th ACM Conference on Economics and Computation, pp. 675–675,
+2024b.
+
+Weidinger, L., Raji, I. D., Wallach, H., Mitchell, M., Wang,
+A., Salaudeen, O., Bommasani, R., Ganguli, D., Koyejo,
+S., and Isaac, W. Toward an evaluation science for generative ai systems. arXiv preprint arXiv:2503.05336, 2025.
+
+Perlitz, Y., Gera, A., Arviv, O., Yehudai, A., Bandel, E.,
+Shnarch, E., Shmueli-Scheuer, M., and Choshen, L. Do
+these llm benchmarks agree? fixing benchmark evaluation with benchbench. arXiv preprint arXiv:2407.13696,
+2024.
+
+Wenger, E. and Kenett, Y. We’re different, we’re the
+same: Creative homogeneity across llms. arXiv preprint
+arXiv:2501.19361, 2025.
+11
+
+Correlated Errors in Large Language Models
+
+Wiles, E. and Horton, J. J. Generative ai and labor market
+matching efficiency. Available at SSRN 5187344, 2025.
+Wiles, E., Munyikwa, Z., and Horton, J. Algorithmic writing assistance on jobseekers’ resumes increases hires.
+Management Science, 2025.
+Wilson, K. and Caliskan, A. Gender, race, and intersectional
+bias in resume screening via language model retrieval. In
+Proceedings of the AAAI/ACM Conference on AI, Ethics,
+and Society, volume 7, pp. 1578–1590, 2024.
+Wolfram, C. and Schein, A. Layers at similar depths generate similar activations across llm architectures. arXiv
+preprint arXiv:2504.08775, 2025.
+Wright, L., Muenster, R. M., Vecchione, B., Qu, T., Cai,
+P., Smith, A., Investigators, C. . S., Metcalf, J., Matias,
+J. N., et al. Null compliance: Nyc local law 144 and
+the challenges of algorithm accountability. In The 2024
+ACM Conference on Fairness, Accountability, and Transparency, pp. 1701–1713, 2024.
+Wu, F., Black, E., and Chandrasekaran, V. Generative
+monoculture in large language models. arXiv preprint
+arXiv:2407.02209, 2024.
+Xu, W., Jojic, N., Rao, S., Brockett, C., and Dolan, B.
+Echoes in ai: Quantifying lack of plot diversity in llm
+outputs. arXiv preprint arXiv:2501.00273, 2024.
+Yang, H., Li, M., Zhou, H., Xiao, Y., Fang, Q., Zhou,
+S., and Zhang, R. One llm is not enough: Harnessing
+the power of ensemble learning for medical question
+answering. Journal of Medical Internet Research, pp.
+70080, 2025. doi: 10.2196/70080. URL https://
+preprints.jmir.org/preprint/70080. forthcoming/in press.
+Zhang, S., Xu, J., and Alvero, A. Generative ai meets openended survey responses: Research participant use of ai
+and homogenization. Sociological Methods & Research,
+pp. 00491241251327130, 2025.
+Zheng, L., Chiang, W.-L., Sheng, Y., Zhuang, S., Wu, Z.,
+Zhuang, Y., Lin, Z., Li, Z., Li, D., Xing, E., et al. Judging
+llm-as-a-judge with mt-bench and chatbot arena. Advances in Neural Information Processing Systems, 36:
+46595–46623, 2023.
+Zhou, Y., Liu, H., Srivastava, T., Mei, H., and Tan, C.
+Hypothesis Generation with Large Language Models.
+(arXiv:2404.04326), August 2024.
+
+12
+
+Correlated Errors in Large Language Models
+
+The appendix is organized as follows:
+• In Appendix A we describe details on how we constructed our three datasets of LLM responses: H UGGING FACE,
+H ELM, and R ESUMES.
+• In Appendix B, we provide additional figures and analyses that were excluded from the main text.
+• In Appendix C, we provide exact results from our regression analyses.
+• In Appendix D, we provide a full list of models available in our datasets.
+
+A. Dataset Construction
+A.1. H UGGING FACE, H ELM
+We started from two prominent LLM leaderboards: (1) HuggingFace’s Open LLM Leaderboard 24 ; and (2) Stanford’s
+Holistic Evaluation of Language Models (Helm) (Liang et al., 2023). Both use questions from the Massive Multitask
+Language Understanding (MMLU) question-answering dataset (Hendrycks et al., 2020), with multiple choice questions and
+labeled correct answers. Both leaderboards provide model answers on each question, along with metadata about the models
+and questions.
+As we are interested in explaining model correlations, we further collect features for each model. For models it evaluates,
+HuggingFace further provides a range of model features (all known due to the open-source nature of the models), including
+the number of parameters and the base architecture. Such features are not consistently available for the Helm models, given
+the proprietary nature of the models. For each model in both data sources, we further extract the model company and
+performance features (such as accuracy across the leaderboard questions).
+The HuggingFace leaderboard focuses on open-source models, including both “base” models (often provided by larger
+developers) and adaptations by others (such as additional fine-tuning). For tractability,5 we filtered the original 2041 models
+in the dataset to a set of 349 models.6 The Helm model list includes both open and proprietary LLMs, focusing on larger
+companies; at the time of our analysis, it provided evaluations for 71 models across 15 companies including OpenAI,
+Anthropic, Google, DeepSeek, and Qwen. Additionally, if a company has released multiple versions of the same model, or
+has multiple model offerings, the most recent models are present in their respective datasets.
+HuggingFace’s MMLU dataset samples 12,032 multiple choice questions from 91 different MMLU datasets and across
+14 different categories such as business, history, economics, and computer science. The raw response in which the model
+ranks the options is provided and we extract the model’s top-ranked predicted answer. Most questions have 10 answer
+choices. The Helm Dataset is similar and has 14,042 multiple choice questions across 57 categories; questions are limited to
+questions with 4 options, and the model is prompted to directly select one of the choices. The categories include high school
+and college computer science, college computer science, jurisprudence, abstract algebra, astronomy, and US foreign policy.
+A.2. R ESUMES
+We started from a dataset of 53,058 job postings on Upwork, spanning various categories and countries to represent our jobs
+dataset (Asaniczka, 2024). Our resume dataset consists of a combination of 2,484 resumes from LiveCareer (Bhawal, 2022),
+a database of high-quality resumes, and 29,780 resumes from a publicly available resume repository used by Jiechieu &
+Tsopze (2021).
+We removed duplicates as well as resumes or job descriptions that were more than 1 standard deviation below the median
+length. We calculated sentence embeddings for each resume and job description, via Sentence Transformers (SBERT). We
+4
+
+https://huggingface.co/collections/open-llm-leaderboard/open-llm-leaderboard-2-660cdb7601eba6852431fffc
+
+Since we are analyzing correlations between each pair of models, our analyses scale by the (# of questions) × n(n−1)
+, where n is
+2
+the number of models analyzed.
+6
+Huggingface allows users to upload their own models trained from scratch (mostly done by large developers, for example, the Llama
+family from Meta is available) and to allow individuals to modify base models (such as via additional fine-tuning). Starting with the list of
+the 500 most accurate models on the leaderboard, we first found 451 models that had a well-structured MMLU dataset available through
+API query. Then, we select all models from any major developer (such as those that upload their own base models), and up to five models
+each from any individual that fine-tunes other models, picking the most accurate models. This procedure allows analyzing the effect of
+shared developer and base model, without any individual dominating the dataset, and led to 349 models that we analyze.
+5
+
+13
+
+Correlated Errors in Large Language Models
+
+then applied KMeans clustering to each job description and resume dataset; we chose the number of clusters (28) so as to
+maximize similarity between the most similar pair of resume and job clusters, respectively (see Figure 6a). We selected 3
+highly similar pairs of (job description, resume) clusters as shown in Figure 6b, each representing different fields (general IT,
+web development, and consulting/finance) to simulate applicants applying to jobs from across and within various industries.
+Finally, we sampled 20 applicants and 10 jobs from each cluster to construct a dataset of 60 resumes and 30 job descriptions.
+
+Job: 1, Resume: 10
+
+Job: 1, Resume: 26
+
+Job: 1, Resume: 23
+
+Job: 23, Resume: 10
+
+Job: 23, Resume: 26
+
+Job: 23, Resume: 23
+
+Job: 13, Resume: 10
+
+Job: 13, Resume: 26
+
+Job: 13, Resume: 23
+
+Mistral-8x7b
+Mistral-Large
+Llama3-70b
+Llama3-1-8b
+Llama3-1-70b
+Llama3-1-405b
+Llama3-2-11b
+Llama3-2-90b
+Llama3-3-70b
+Claude_3.5_Sonnet
+Claude_3.5_Haiku
+Gpt-4o-mini
+Gpt-o1-mini
+Nova-Pro
+Nova-Micro
+Nova-Lite
+
+app_rate_comb_short
+
+Mistral-8x7b
+Mistral-Large
+Llama3-70b
+Llama3-1-8b
+Llama3-1-70b
+Llama3-1-405b
+Llama3-2-11b
+Llama3-2-90b
+Llama3-3-70b
+Claude_3.5_Sonnet
+Claude_3.5_Haiku
+Gpt-4o-mini
+Gpt-o1-mini
+Nova-Pro
+Nova-Micro
+Nova-Lite
+
+Prompt
+
+Mistral-8x7b
+Mistral-Large
+Llama3-70b
+Llama3-1-8b
+Llama3-1-70b
+Llama3-1-405b
+Llama3-2-11b
+Llama3-2-90b
+Llama3-3-70b
+Claude_3.5_Sonnet
+Claude_3.5_Haiku
+Gpt-4o-mini
+Gpt-o1-mini
+Nova-Pro
+Nova-Micro
+Nova-Lite
+
+firm_rate_comb2
+
+Score
+
+6
+4
+2
+0
+
+Score
+
+6
+
+0.85
+
+4
+2
+0
+
+0.80
+6
+
+Score
+
+Highest Cosine Similarity
+
+0.90
+
+0.75
+
+4
+2
+0
+
+0.70
+0
+
+10
+
+20
+
+30
+
+Number of Clusters
+
+40
+
+50
+
+(a) Highest cosine similarity value between a resume cluster and a
+job description cluster. The x axis represents the number of clusters
+both the resume and job description datasets were clustered to. The
+y axis represents the highest cosine similarity value of given pairs
+of clusters. This graphs shows that as the number of clusters we set
+in the KMeans algorithm increases, the highest cosine similarity
+also increases, but this peaks when there are 28 clusters.
+
+(b) Average scores outputted by each LLM, categorized by each
+pair of resume, job clusters. The graphs along the main diagonal
+of the figure are the three pairs of clusters chosen, and we can
+observe that the overall scores are higher compared to those of
+other rows/columns. This shows that the clustering process was
+accurate to simulate real job markets.
+
+Figure 6. Cluster analysis for selecting resumes and job descriptions in R ESUMES.
+
+We used 20 open-source models available on Amazon Bedrock, specifically models made from Meta, Mistral AI, and
+Amazon, Anthropic API, OpenAI API (see Appendix 10), and 2 prompts. For each applicant-job pair, we prompt an LLM
+to score the fit of a given resume to a given job description through a single score, following a structured criterion, as shown
+in Figure 7.
+
+B. Additional Figures and Analyses
+B.1. LLM-as-judge
+Figure 8 shows the LLM-as-judge analysis for H UGGING FACE models.
+B.2. Matching Markets with LLM-Specified Applicant Preferences
+We now replicate several of the main results in the market results, when applicant preferences are determined by Llama
+3.1 405B instead of at random. Figure 10a shows average applicant welfare. Figure 10b shows the effect of differential
+application access.
+
+14
+
+Correlated Errors in Large Language Models
+
+“You are going to evaluate the fit of a resume to a job description using a single score on a scale from 1 to 10.
+When grading, you will consider overall fit, category fit, and skill fit. Your output format is a json file and must
+follow this example: { ”Score”: 7 }
+Resume: {resume}
+Job Description: {job description}
+Json File: “
+
+“You are going to evaluate the fit of a resume to a job description using a single score on a scale from 1 to 10.
+When grading, consider the following:
+1. Overall fit: This metric evaluates how well the candidate’s resume aligns with the job description, taking into
+account their background, experiences, and qualifications. Consider not only their current suitability but also their
+potential for growth, adaptability, and ability to thrive in the role.
+2. Category fit: This metric assesses the relevance of the candidate’s primary field or industry experience to
+the job’s sector. For example, if a resume comes from a professional in a different field but with some relevant
+transferable skills, consider their potential to succeed in the new field, rather than focusing solely on mismatched
+backgrounds.
+3. Skill fit: This metric evaluates the match between the candidate’s listed skills and those required by the job.
+Consider both the relevance and proficiency of these skills, but also factor in the candidate’s ability to learn and
+grow in areas where there may be gaps, ensuring the evaluation takes into account future potential.
+This is the grading scale:
+10 - Excellent Fit: The resume aligns very closely with the job description in all key areas. The candidate’s
+background, industry experience, and skills are not only relevant but also demonstrate high proficiency, making
+them a strong match for the role.
+7 - Good Fit: The resume shows strong alignment with the job description in most areas. The candidate’s
+background and skills are largely relevant, and while there may be a few gaps, they have the necessary qualifications
+and potential to perform the role effectively.
+5 - Average Fit: The resume meets some of the key requirements of the job description. While the candidate may
+not have perfect alignment, there is still moderate relevance in terms of background, skills, and experience, though
+some key areas may be lacking.
+3 - Poor Fit: The candidate shows limited relevance to the job description. Although there may be a few transferable
+skills or some related experience, significant gaps exist across background, skills, or industry relevance, making
+the candidate a less likely match.
+1 - Extremely Poor Fit: The resume shows little to no alignment with the job description. The candidate’s
+background, experience, and skills are largely unrelated to the job’s requirements, making them an unlikely match
+for the role.
+Your output format is a json file and must follow this example: { ”Score”: 7 }
+Resume: {resume}
+Job Description: {job description}
+Json File: “
+
+Figure 7. The prompts used to score the fit of a resume to a job description. The first prompt is named “firm rate comb short 1“, and
+the second prompt is named “firm rate comb 2“. The resume and job description texts are taken directly from the dataset. A similar
+prompt is used for applicants, named “app rate comb short“ rating a job description based on their resume, but the references to a person
+(”candidate”, ”applicant”, ”resume”) being replaced with references to a job, and vice versa. The prompt that was used in the main
+experiments was “firm rate comb 2“ because the prompt laid out specific criteria for the LLM to consider.
+
+15
+
+Correlated Errors in Large Language Models
+
+Figure 8. Evaluating LLM-as-judge on H UGGING FACE. In each plot, one model is used as the judge. Each dot is another model; the
+y-axis is the accuracy inflation (compared to ground truth) of using the given model as judge, and the x-axis is the model’s true accuracy.
+Each judge tends to inflate the accuracy of models that are less accurate than itself, especially models from the same provider or family
+(shown in red).
+
+16
+
+Correlated Errors in Large Language Models
+
+Gpt-o1-mini
+Llama3-1-405b
+Llama3-3-70b
+Llama3-1-70b
+Llama3-2-90b
+Nova-Pro
+Gpt-4o-mini
+Claude_3.5_Sonnet(20241022)
+Mistral-Large(24.02)
+Claude_3.5_Haiku(20241022)
+Mistral-Large
+Llama3-70b
+Claude_3_Haiku(20240307)
+Llama3-1-8b
+Llama3-2-11b
+Gpt-3.5-turbo
+Mistral-7B-Instruct
+Mistral-8x7b
+Nova-Lite
+Nova-Micro
+
+0.9
+0.8
+
+Correlation
+
+0.7
+0.6
+0.5
+
+0.9
+
+0.8
+
+0.7
+
+0.6
+
+0.5
+
+Gpt-o1-mini
+Llama3-1-405b
+Llama3-3-70b
+Llama3-1-70b
+Llama3-2-90b
+Nova-Pro
+Gpt-4o-mini
+Claude_3.5_Sonnet(20241022)
+Mistral-Large(24.02)
+Claude_3.5_Haiku(20241022)
+Mistral-Large
+Llama3-70b
+Claude_3_Haiku(20240307)
+Llama3-1-8b
+Llama3-2-11b
+Gpt-3.5-turbo
+Mistral-7B-Instruct
+Mistral-8x7b
+Nova-Lite
+Nova-Micro
+
+Llama3-1-70b
+Llama3-2-90b
+Llama3-1-405b
+Llama3-3-70b
+Claude_3.5_Haiku(20241022)
+Gpt-o1-mini
+Mistral-Large
+Mistral-Large(24.02)
+Gpt-4o-mini
+Claude_3.5_Sonnet(20241022)
+Nova-Pro
+Mistral-8x7b
+Nova-Lite
+Nova-Micro
+Mistral-7B-Instruct
+Llama3-1-8b
+Llama3-2-11b
+Gpt-3.5-turbo
+Claude_3_Haiku(20240307)
+Llama3-70b
+
+0.4
+
+1.0
+
+Error Correlation
+
+1.0
+
+Llama3-1-70b
+Llama3-2-90b
+Llama3-1-405b
+Llama3-3-70b
+Claude_3.5_Haiku(20241022)
+Gpt-o1-mini
+Mistral-Large
+Mistral-Large(24.02)
+Gpt-4o-mini
+Claude_3.5_Sonnet(20241022)
+Nova-Pro
+Mistral-8x7b
+Nova-Lite
+Nova-Micro
+Mistral-7B-Instruct
+Llama3-1-8b
+Llama3-2-11b
+Gpt-3.5-turbo
+Claude_3_Haiku(20240307)
+Llama3-70b
+
+(a) Heatmap of correlations between LLM configurations used
+in experiments. We define an LLM configuration as a combination of an LLM and a prompt that was used. We calculate the
+correlation between the scores of each pair of LLM configurations. After analyzing a strong correlation across prompts, we
+constrain the heatmap for configurations only using the prompt
+”firm rate comb2” to focus on the effect of models. We can observe that there is a strong correlation amongst larger models from
+the same company.
+
+(b) Heatmap of error correlations between LLM configurations
+used in experiments. We calculate the correlation between the
+“residuals” (subtracting off the hand-labeled scores) of each pair
+of LLM configurations, where hand-labeled scores are available.
+Similarly to the trends of Figure 9a, larger models from same
+company err similarly.
+
+Figure 9. Correlation heatmaps on R ESUMES.
+
+17
+
+8
+6
+
+Relative Match Probability
+
+4
+
+Uniformly Random (5)
+
+Random LLM (5)
+
+Latest LLM (5)
+
+0
+
+Same Company LLM (3-7)
+
+2
+Same LLM (1)
+
+Average Applicant Rank
+
+Correlated Errors in Large Language Models
+
+Firm Preference Method
+Same LLM (1)
+Same Company LLM (3-7)
+Latest LLM (5)
+Random LLM (5)
+Uniformly Random (5)
+
+7
+6
+5
+4
+3
+2
+1
+0
+
+(a) Average applicant ranks across markets under different firm
+preference methods. Analog of Figure 5a, where applicant preferences are now determined by Llama 3.1 405B. While similar
+patterns hold relatively, average applicant rank is generally worse
+in this market, since preferences between applicants are more correlated. In this case, adoption of multiple LLMs does not appear
+to significantly improve applicant rank in comparison to the uniformly random firm preference setting.
+
+5
+
+10 15 20
+# of Applications
+
+25
+
+30
+
+(b) The effect of differential application access across different
+matching market environments. Analog of Figure 5b, where applicant preferences are now determined by Llama 3.1 405B. Similar
+patterns hold.
+
+Figure 10. Replication of matching markets experiments given LLM-determined applicant preferences.
+
+18
+
+Correlated Errors in Large Language Models
+
+C. Full Regressions
+For all regressions, samples are pairs of models. We randomize the order of the models.
+C.1. H UGGING FACE
+Table 2. Agreement on Errors: H UGGING FACE
+coef
+std err
+t
+P> |t|
+Intercept
+same company[T.True]
+same architecture[T.True]
+is moe[T.True]
+is moe 2[T.True]
+params billions log
+params billions log 2
+generation
+generation 2
+param diff
+accuracy 1
+accuracy 2
+accuracy 1:accuracy 2
+
+0.3984
+0.0658
+0.0759
+0.0006
+0.0053
+0.0012
+0.0014
+0.0031
+0.0032
+-0.0215
+0.0138
+0.0131
+0.0227
+
+0.001
+0.003
+0.001
+0.003
+0.003
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+
+656.121
+21.428
+102.157
+0.200
+1.682
+2.569
+2.989
+7.710
+8.100
+-52.082
+31.917
+30.087
+65.631
+
+0.000
+0.000
+0.000
+0.842
+0.092
+0.010
+0.003
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+
+[0.025
+
+0.975]
+
+0.397
+0.060
+0.074
+-0.005
+-0.001
+0.000
+0.000
+0.002
+0.002
+-0.022
+0.013
+0.012
+0.022
+
+0.400
+0.072
+0.077
+0.007
+0.011
+0.002
+0.002
+0.004
+0.004
+-0.021
+0.015
+0.014
+0.023
+
+Dependent variable: Agreement rate when both models are wrong. No. observations: 60726.
+R2 = 0.340.
+
+Table 3. Agreement on Errors when either model is wrong: H UGGING FACE
+coef
+std err
+t
+P> |t| [0.025 0.975]
+Intercept
+same company[T.True]
+same architecture[T.True]
+is moe[T.True]
+is moe 2[T.True]
+params billions log
+params billions log 2
+generation
+generation 2
+param diff
+accuracy 1
+accuracy 2
+accuracy 1:accuracy 2
+
+0.2381
+0.0793
+0.0773
+0.0023
+0.0071
+0.0015
+0.0019
+0.0026
+0.0028
+-0.0230
+0.0004
+-0.0006
+0.0226
+
+0.001
+0.003
+0.001
+0.003
+0.003
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+
+376.046
+24.765
+99.690
+0.724
+2.175
+3.122
+3.793
+6.281
+6.887
+-53.509
+0.880
+-1.340
+62.639
+
+0.000
+0.000
+0.000
+0.469
+0.030
+0.002
+0.000
+0.000
+0.000
+0.000
+0.379
+0.180
+0.000
+
+0.237
+0.073
+0.076
+-0.004
+0.001
+0.001
+0.001
+0.002
+0.002
+-0.024
+-0.000
+-0.001
+0.022
+
+0.239
+0.086
+0.079
+0.009
+0.013
+0.002
+0.003
+0.003
+0.004
+-0.022
+0.001
+0.000
+0.023
+
+Dependent variable: Agreement rate when either model is wrong. No. observations: 60726.
+R2 = 0.300.
+
+19
+
+Correlated Errors in Large Language Models
+Table 4. Agreement on all questions: H UGGING FACE
+coef
+std err
+t
+P> |t| [0.025
+Intercept
+same company[T.True]
+same architecture[T.True]
+is moe[T.True]
+is moe 2[T.True]
+params billions log
+params billions log 2
+generation
+generation 2
+param diff
+accuracy 1
+accuracy 2
+accuracy 1:accuracy 2
+
+0.4834
+0.0530
+0.0602
+0.0026
+0.0064
+0.0025
+0.0028
+0.0024
+0.0025
+-0.0182
+0.0248
+0.0241
+0.0225
+
+0.000
+0.002
+0.001
+0.002
+0.003
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+
+979.834
+21.223
+99.743
+1.062
+2.509
+6.650
+7.360
+7.297
+7.815
+-54.147
+70.477
+68.139
+80.179
+
+0.000
+0.000
+0.000
+0.288
+0.012
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+0.000
+
+0.482
+0.048
+0.059
+-0.002
+0.001
+0.002
+0.002
+0.002
+0.002
+-0.019
+0.024
+0.023
+0.022
+
+0.975]
+0.484
+0.058
+0.061
+0.007
+0.011
+0.003
+0.004
+0.003
+0.003
+-0.018
+0.026
+0.025
+0.023
+
+Dependent variable: Agreement rate overall. No. observations: 60726. R2 = 0.451.
+
+C.2. H ELM
+Table 5. Agreement on Errors: H ELM
+coef
+std err
+t
+P> |t|
+Intercept
+same company[T.True]
+accuracy 1
+accuracy 2
+accuracy 1:accuracy 2
+
+0.6018
+0.0216
+0.0549
+0.0544
+0.0264
+
+0.001
+0.005
+0.001
+0.001
+0.001
+
+437.617
+4.753
+41.914
+41.478
+19.460
+
+0.000
+0.000
+0.000
+0.000
+0.000
+
+[0.025
+
+0.975]
+
+0.599
+0.013
+0.052
+0.052
+0.024
+
+0.605
+0.031
+0.058
+0.057
+0.029
+
+Dependent variable: Agreement rate when both models are wrong. No. observations:
+2485. R2 = 0.613.
+
+Table 6. Agreement on Errors when either model is wrong: H ELM
+coef
+std err
+t
+P> |t| [0.025
+Intercept
+same company[T.True]
+accuracy 1
+accuracy 2
+accuracy 1:accuracy 2
+
+0.2404
+0.0264
+0.0219
+0.0224
+0.0358
+
+0.001
+0.004
+0.001
+0.001
+0.001
+
+195.475
+6.498
+18.708
+19.101
+29.504
+
+0.000
+0.000
+0.000
+0.000
+0.000
+
+0.238
+0.018
+0.020
+0.020
+0.033
+
+0.975]
+0.243
+0.034
+0.024
+0.025
+0.038
+
+Dependent variable: Agreement rate when either model is wrong. No. observations:
+2485. R2 = 0.406.
+
+Table 7. Agreement on all questions: H ELM
+coef
+std err
+t
+P> |t|
+Intercept
+same company[T.True]
+accuracy 1
+accuracy 2
+accuracy 1:accuracy 2
+
+0.6895
+0.0121
+0.0724
+0.0703
+0.0293
+
+0.001
+0.003
+0.001
+0.001
+0.001
+
+786.886
+4.182
+86.742
+84.129
+33.880
+
+0.000
+0.000
+0.000
+0.000
+0.000
+
+[0.025
+
+0.975]
+
+0.688
+0.006
+0.071
+0.069
+0.028
+
+0.691
+0.018
+0.074
+0.072
+0.031
+
+Dependent variable: Overall agreement rate. No. observations: 2485. R2 = 0.865.
+
+C.3. R ESUMES
+
+20
+
+Correlated Errors in Large Language Models
+Table 8. Correlation in residuals of estimating job-resume fit: R ESUMES
+coef
+std err
+t
+Intercept
+same company[T.True]
+latest model 1[T.True]
+latest model 2[T.True]
+correlation with human score 1
+correlation with human score 2
+correlation with human score 1:correlation with human score 2
+
+0.6534
+0.0210
+0.0155
+0.0047
+0.0151
+0.0283
+0.0429
+
+0.007
+0.012
+0.013
+0.014
+0.006
+0.006
+0.005
+
+89.839
+1.694
+1.211
+0.346
+2.627
+4.993
+8.529
+
+P> |t|
+
+[0.025
+
+0.975]
+
+0.000
+0.092
+0.228
+0.729
+0.009
+0.000
+0.000
+
+0.639
+-0.003
+-0.010
+-0.022
+0.004
+0.017
+0.033
+
+0.668
+0.046
+0.041
+0.032
+0.026
+0.039
+0.053
+
+Dependent variable: Correlation in residual (predicted - human evaluation). No. observations: 190. R2 = 0.415.
+Table 9. Agreement on job-resume fit ratings: R ESUMES
+coef
+std err
+Intercept
+same company[T.True]
+latest model 1[T.True]
+latest model 2[T.True]
+correlation with human score 1
+correlation with human score 2
+correlation with human score 1:correlation with human score 2
+
+0.6377
+0.0340
+-0.0069
+-0.0104
+0.0857
+0.1129
+0.0421
+
+0.005
+0.009
+0.010
+0.010
+0.004
+0.004
+0.004
+
+t
+
+P> |t|
+
+[0.025
+
+0.975]
+
+117.254
+3.660
+-0.719
+-1.016
+19.960
+26.633
+11.204
+
+0.000
+0.000
+0.473
+0.311
+0.000
+0.000
+0.000
+
+0.627
+0.016
+-0.026
+-0.031
+0.077
+0.105
+0.035
+
+0.648
+0.052
+0.012
+0.010
+0.094
+0.121
+0.050
+
+Dependent variable: Correlation. No. observations: 190. R2 = 0.896.
+
+D. Models analyzed
+Table 10: Models analyzed for market analysis (correlation scores with prompt used in the main text)
+
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+
+model
+
+company
+
+Nova-Pro
+Nova-Micro
+Nova-Lite
+Mistral-Large
+Mistral-Large(24.02)
+Mistral-8x7b
+Mistral-7B-Instruct
+Llama3-1-405b
+Llama3-3-70b
+Llama3-2-90b
+Llama3-1-70b
+Llama3-2-11b
+Llama3-1-8b
+Llama3-70b
+Gpt-o1-mini
+Gpt-4o-mini
+Gpt-3.5-turbo
+Claude 3.5 Sonnet(20241022)
+Claude 3.5 Haiku(20241022)
+Claude 3 Haiku(20240307)
+
+Nova
+Nova
+Nova
+Mistral
+Mistral
+Mistral
+Mistral
+Llama
+Llama
+Llama
+Llama
+Llama
+Llama
+Llama
+Gpt
+Gpt
+Gpt
+Claude
+Claude
+Claude
+
+correlation with human score
+0.73
+0.64
+0.55
+0.69
+0.66
+0.54
+0.46
+0.67
+0.67
+0.64
+0.63
+0.46
+0.46
+0.40
+0.70
+0.68
+0.30
+0.71
+0.66
+0.34
+
+latest model
+True
+False
+False
+True
+False
+False
+False
+False
+True
+False
+False
+False
+False
+False
+False
+True
+False
+True
+False
+False
+
+Table 11: Models analyzed from Helm
+
+0
+1
+2
+
+model
+
+company
+
+accuracy
+
+writer/palmyra-x-004
+writer/palmyra-x-v3
+snowflake/snowflake-arctic-instruct
+
+writer
+writer
+snowflake
+
+0.82
+0.78
+0.66
+
+Continued on next page
+
+21
+
+Correlated Errors in Large Language Models
+
+Table 11: Models analyzed from Helm
+
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+
+model
+
+company
+
+qwen/qwen2.5-72b-instruct-turbo
+qwen/qwen2-72b-instruct
+qwen/qwen1.5-110b-chat
+qwen/qwen1.5-72b
+qwen/qwen1.5-32b
+qwen/qwen2.5-7b-instruct-turbo
+qwen/qwen1.5-14b
+qwen/qwen1.5-7b
+openai/gpt-4o-2024-08-06
+openai/gpt-4o-2024-05-13
+openai/gpt-4-0613
+openai/gpt-4-turbo-2024-04-09
+openai/gpt-4-1106-preview
+openai/gpt-4o-mini-2024-07-18
+openai/gpt-3.5-turbo-0613
+openai/gpt-3.5-turbo-0125
+mistralai/mistral-large-2407
+mistralai/mixtral-8x22b
+mistralai/mixtral-8x7b-32kseqlen
+mistralai/mistral-small-2402
+mistralai/mistral-large-2402
+mistralai/open-mistral-nemo-2407
+mistralai/mistral-7b-instruct-v0.3
+mistralai/mistral-7b-v0.1
+microsoft/phi-3-medium-4k-instruct
+microsoft/phi-3-small-8k-instruct
+microsoft/phi-2
+meta/llama-3.1-405b-instruct-turbo
+meta/llama-3.2-90b-vision-instruct-turbo
+meta/llama-3.1-70b-instruct-turbo
+meta/llama-3-70b
+meta/llama-2-70b
+meta/llama-3-8b
+meta/llama-2-13b
+meta/llama-3.2-11b-vision-instruct-turbo
+meta/llama-3.1-8b-instruct-turbo
+meta/llama-2-7b
+google/gemini-1.5-pro-002
+google/gemini-1.5-pro-001
+google/gemini-1.5-pro-preview-0409
+google/text-unicorn@001
+google/gemini-1.5-flash-001
+google/gemini-1.5-flash-preview-0514
+google/gemma-2-27b
+google/gemini-1.5-flash-002
+google/gemma-2-9b
+google/gemini-1.0-pro-001
+google/text-bison@001
+google/gemma-7b
+deepseek-ai/deepseek-llm-67b-chat
+databricks/dbrx-instruct
+cohere/command-r-plus
+cohere/command-r
+anthropic/claude-3-5-sonnet-20241022
+anthropic/claude-3-5-sonnet-20240620
+anthropic/claude-3-opus-20240229
+anthropic/claude-3-sonnet-20240229
+anthropic/claude-2.1
+anthropic/claude-3-haiku-20240307
+
+qwen
+qwen
+qwen
+qwen
+qwen
+qwen
+qwen
+qwen
+openai
+openai
+openai
+openai
+openai
+openai
+openai
+openai
+mistralai
+mistralai
+mistralai
+mistralai
+mistralai
+mistralai
+mistralai
+mistralai
+microsoft
+microsoft
+microsoft
+meta
+meta
+meta
+meta
+meta
+meta
+meta
+meta
+meta
+meta
+google
+google
+google
+google
+google
+google
+google
+google
+google
+google
+google
+google
+deepseekai
+databricks
+cohere
+cohere
+anthropic
+anthropic
+anthropic
+anthropic
+anthropic
+anthropic
+
+accuracy
+0.83
+0.83
+0.77
+0.77
+0.74
+0.71
+0.67
+0.61
+0.85
+0.85
+0.84
+0.82
+0.81
+0.76
+0.68
+0.66
+0.81
+0.77
+0.71
+0.69
+0.67
+0.65
+0.59
+0.56
+0.77
+0.76
+0.57
+0.85
+0.81
+0.81
+0.79
+0.69
+0.65
+0.55
+0.54
+0.54
+0.45
+0.86
+0.83
+0.81
+0.78
+0.78
+0.77
+0.75
+0.74
+0.70
+0.70
+0.68
+0.65
+0.73
+0.73
+0.69
+0.65
+0.88
+0.87
+0.85
+0.76
+0.73
+0.73
+
+Continued on next page
+
+22
+
+Correlated Errors in Large Language Models
+
+Table 11: Models analyzed from Helm
+
+62
+63
+64
+65
+66
+67
+68
+69
+70
+
+model
+
+company
+
+accuracy
+
+anthropic/claude-instant-1.2
+allenai/olmo-1.7-7b
+allenai/olmo-7b
+ai21/jamba-1.5-large
+ai21/jamba-1.5-mini
+ai21/jamba-instruct
+01-ai/yi-large-preview
+01-ai/yi-34b
+01-ai/yi-6b
+
+anthropic
+allenai
+allenai
+ai21
+ai21
+ai21
+01ai
+01ai
+01ai
+
+0.68
+0.53
+0.29
+0.78
+0.69
+0.66
+0.80
+0.76
+0.63
+
+Table 12: Models analyzed from HuggingFace
+name
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+
+tiiuae/Falcon3-10B-Instruct
+tiiuae/Falcon3-10B-Base
+tiiuae/Falcon3-7B-Instruct
+tiiuae/Falcon3-Mamba-7B-Instruct
+tiiuae/Falcon3-3B-Instruct
+theprint/ReWiz-Qwen-2.5-14B
+tenyx/Llama3-TenyxChat-70B
+tanliboy/lambda-qwen2.5-32b-dpo-test
+tanliboy/lambda-qwen2.5-14b-dpo-test
+suayptalha/Rombos-2.5-T.E-8.1
+suayptalha/HomerCreativeAnvita-Mix-Qw7B
+sthenno-com/miscii-14b-1028
+ssmits/Qwen2.5-95B-Instruct
+spow12/ChatWaifu 22B v2.0 preview
+spow12/ChatWaifu v2.0 22B
+speakleash/Bielik-11B-v2.3-Instruct
+sometimesanotion/Lamarck-14B-v0.3
+sometimesanotion/Lamarck-14B-v0.4-Qwenvergence
+sometimesanotion/lamarck-14b-reason-model stock
+sometimesanotion/Qwen-2.5-14B-Virmarckeoso
+sometimesanotion/lamarck-14b-prose-model stock
+sethuiyer/Qwen2.5-7B-Anvita
+sequelbox/Llama3.1-70B-PlumChat
+sam-paech/Delirium-v1
+sam-paech/Darkest-muse-v1
+sam-paech/Quill-v1
+rombodawg/Rombos-LLM-V2.5-Qwen-72b
+rombodawg/Rombos-LLM-V2.5-Qwen-32b
+rombodawg/Rombos-LLM-V2.5-Qwen-14b
+rombodawg/Rombos-LLM-V2.6-Nemotron-70b
+rombodawg/Rombos-LLM-V2.6-Qwen-14b
+rhymes-ai/Aria
+recoilme/recoilme-gemma-2-9B-v0.5
+recoilme/Gemma-2-Ataraxy-Gemmasutra-9B-slerp
+recoilme/recoilme-gemma-2-9B-v0.1
+recoilme/recoilme-gemma-2-9B-v0.2
+recoilme/recoilme-gemma-2-9B-v0.3
+qingy2024/Qwen2.6-14B-Instruct
+qingy2024/Qwen2.6-Math-14B-Instruct
+qingy2024/Fusion2-14B-Instruct
+qingy2024/Fusion-14B-Instruct
+qingy2024/Qwen2.5-Math-14B-Instruct-Preview
+qingy2019/Qwen2.5-Math-14B-Instruct
+
+accuracy
+
+params (B)
+
+0.44
+0.42
+0.41
+0.34
+0.30
+0.51
+0.52
+0.57
+0.48
+0.44
+0.44
+0.52
+0.52
+0.40
+0.38
+0.34
+0.54
+0.54
+0.54
+0.54
+0.54
+0.42
+0.52
+0.42
+0.42
+0.42
+0.59
+0.59
+0.54
+0.53
+0.50
+0.44
+0.42
+0.42
+0.42
+0.41
+0.40
+0.53
+0.52
+0.51
+0.50
+0.50
+0.53
+
+10.31
+10.31
+7.46
+7.27
+3.23
+16.74
+70.55
+32.76
+14.77
+7.62
+7.62
+14.77
+94.65
+22.25
+22.25
+11.17
+14.77
+14.77
+14.77
+14.77
+14.77
+7.62
+70.55
+9.24
+10.16
+9.24
+72.71
+32.76
+14.77
+70.55
+14.77
+25.31
+10.16
+10.16
+10.16
+10.16
+10.16
+14.77
+14.00
+14.77
+14.00
+14.77
+14.00
+
+architecture
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+FalconMambaForCausalLM
+LlamaForCausalLM
+?
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+MistralForCausalLM
+MistralForCausalLM
+MistralForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+AriaForConditionalGeneration
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Continued on next page
+
+23
+
+Correlated Errors in Large Language Models
+
+Table 12: Models analyzed from HuggingFace
+name
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+
+qingy2019/Qwen2.5-Math-14B-Instruct-Alpha
+qingy2019/Qwen2.5-Ultimate-14B-Instruct
+paloalma/TW3-JRGL-v2
+paloalma/ECE-TW3-JRGL-V5
+paloalma/ECE-TW3-JRGL-V1
+oxyapi/oxy-1-small
+nvidia/Llama-3.1-Nemotron-70B-Instruct-HF
+nisten/franqwenstein-35b
+nhyha/merge Qwen2.5-7B-Instruct 20241023 0314
+nhyha/N3N Delirium-v1 1030 0227
+nhyha/N3N gemma-2-9b-it 20241029 1532
+nhyha/N3N gemma-2-9b-it 20241110 2026
+newsbang/Homer-v1.0-Qwen2.5-7B
+newsbang/Homer-7B-v0.1
+newsbang/Homer-v0.3-Qwen2.5-7B
+newsbang/Homer-7B-v0.2
+newsbang/Homer-v0.5-Qwen2.5-7B
+nbeerbower/Llama-3.1-Nemotron-lorablated-70B
+nbeerbower/Qwen2.5-Gutenberg-Doppel-14B
+nbeerbower/Llama3.1-Gutenberg-Doppel-70B
+nbeerbower/Gemma2-Gutenberg-Doppel-9B
+nbeerbower/Mistral-Small-Gutenberg-Doppel-22B
+moeru-ai/L3.1-Moe-2x8B-v0.2
+mmnga/Llama-3-70B-japanese-suzume-vector-v0.1
+mlabonne/BigQwen2.5-52B-Instruct
+mlabonne/BigQwen2.5-Echo-47B-Instruct
+mlabonne/Hermes-3-Llama-3.1-70B-lorablated
+mlabonne/NeuralDaredevil-8B-abliterated
+mistralai/Mistral-Large-Instruct-2411
+mistralai/Mistral-Small-Instruct-2409
+microsoft/Phi-3-medium-128k-instruct
+microsoft/Phi-3-medium-4k-instruct
+microsoft/Phi-3.5-MoE-instruct
+microsoft/Phi-3-mini-4k-instruct
+microsoft/Phi-3.5-mini-instruct
+microsoft/Phi-3-mini-128k-instruct
+meta-llama/Meta-Llama-3.1-70B-Instruct
+meta-llama/Llama-3.3-70B-Instruct
+meta-llama/Meta-Llama-3-70B-Instruct
+meta-llama/Meta-Llama-3-70B
+meta-llama/Meta-Llama-3.1-8B-Instruct
+meditsolutions/MedIT-Mesh-3B-Instruct
+meditsolutions/Llama-3.1-MedIT-SUN-8B
+meditsolutions/MSH-v1-Bielik-v2.3-Instruct-Med...
+mattshumer/ref 70 e3
+lemon07r/Gemma-2-Ataraxy-v4c-9B
+lemon07r/Gemma-2-Ataraxy-v4-Advanced-9B
+lemon07r/Gemma-2-Ataraxy-v4b-9B
+lemon07r/Gemma-2-Ataraxy-v4d-9B
+lemon07r/Gemma-2-Ataraxy-v4a-Advanced-9B
+leafspark/Llama-3.1-8B-MultiReflection-Instruct
+jpacifico/Chocolatine-14B-Instruct-4k-DPO
+jpacifico/Chocolatine-14B-Instruct-DPO-v1.2
+jpacifico/Chocolatine-3B-Instruct-DPO-v1.2
+jeffmeloy/Qwen2.5-7B-olm-v1.0
+jeffmeloy/Qwen2.5-7B-nerd-uncensored-v1.5
+jeffmeloy/Qwen2.5-7B-nerd-uncensored-v1.4
+jeffmeloy/jeffmeloy Qwen2.5-7B-minperplexity-1
+jeffmeloy/Qwen2.5-7B-nerd-uncensored-v0.9
+
+accuracy
+
+params (B)
+
+0.53
+0.49
+0.49
+0.46
+0.42
+0.50
+0.49
+0.56
+0.45
+0.41
+0.41
+0.40
+0.45
+0.45
+0.45
+0.44
+0.44
+0.53
+0.49
+0.47
+0.41
+0.41
+0.39
+0.52
+0.55
+0.47
+0.47
+0.38
+0.56
+0.41
+0.47
+0.47
+0.47
+0.40
+0.40
+0.37
+0.53
+0.53
+0.52
+0.47
+0.37
+0.40
+0.39
+0.35
+0.53
+0.44
+0.44
+0.44
+0.43
+0.43
+0.37
+0.48
+0.47
+0.39
+0.46
+0.44
+0.44
+0.44
+0.44
+
+14.00
+14.77
+72.29
+72.29
+68.98
+14.77
+70.55
+34.71
+7.62
+10.16
+10.16
+10.16
+7.62
+7.62
+7.62
+7.62
+7.62
+70.55
+14.77
+70.55
+9.24
+22.25
+13.67
+70.55
+52.27
+47.39
+70.55
+8.03
+122.61
+22.05
+13.96
+13.96
+42.00
+3.82
+3.82
+3.82
+70.55
+70.55
+70.55
+70.55
+8.03
+3.82
+8.03
+11.17
+70.55
+10.16
+10.16
+10.16
+10.16
+10.16
+8.03
+13.96
+13.96
+3.82
+7.62
+7.62
+7.62
+7.62
+7.62
+
+architecture
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+Gemma2ForCausalLM
+MistralForCausalLM
+MixtralForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+MistralForCausalLM
+MistralForCausalLM
+Phi3ForCausalLM
+Phi3ForCausalLM
+Phi3ForCausalLM
+Phi3ForCausalLM
+Phi3ForCausalLM
+Phi3ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Phi3ForCausalLM
+LlamaForCausalLM
+MistralForCausalLM
+LlamaForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+LlamaForCausalLM
+Phi3ForCausalLM
+Phi3ForCausalLM
+Phi3ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Continued on next page
+
+24
+
+Correlated Errors in Large Language Models
+
+Table 12: Models analyzed from HuggingFace
+name
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+
+invisietch/MiS-Firefly-v0.2-22B
+internlm/internlm2 5-20b-chat
+internlm/internlm2 5-7b-chat
+informatiker/Qwen2-7B-Instruct-abliterated
+huihui-ai/QwQ-32B-Coder-Fusion-9010
+huihui-ai/Qwen2.5-14B-Instruct-abliterated-v2
+huihui-ai/Qwen2.5-7B-Instruct-abliterated-v2
+huihui-ai/Qwen2.5-7B-Instruct-abliterated
+hotmailuser/Gemma2atlas-27B
+hotmailuser/Gemma2SimPO-27B
+hotmailuser/Gemma2Crono-27B
+hotmailuser/Gemma2magnum-27b
+hotmailuser/Qwen2.5-HomerSlerp-7B
+google/gemma-2-27b-it
+gmonsoon/gemma2-9b-sahabatai-v1-instruct-BaseTIES
+glaiveai/Reflection-Llama-3.1-70B
+gbueno86/Brinebreath-Llama-3.1-70B
+freewheelin/free-evo-qwen72b-v0.8-re
+flammenai/Llama3.1-Flammades-70B
+flammenai/Mahou-1.5-llama3.1-70B
+flammenai/Mahou-1.5-mistral-nemo-12B
+fblgit/TheBeagle-v2beta-32B-MGS
+fblgit/cybertron-v4-qw7B-UNAMGS
+fblgit/cybertron-v4-qw7B-MGS
+failspy/Meta-Llama-3-70B-Instruct-abliterated-...
+experiment-llm/exp-3-q-r
+ehristoforu/RQwen-v0.1
+ehristoforu/RQwen-v0.2
+ehristoforu/Gemma2-9b-it-train6
+ehristoforu/Gemma2-9B-it-psy10k-mental health
+ehristoforu/HappyLlama1
+dwikitheduck/gen-try1-notemp
+dwikitheduck/gen-try1
+dwikitheduck/gen-inst-1
+dnhkng/RYS-XLarge-base
+dnhkng/RYS-XLarge
+dnhkng/RYS-XLarge2
+dnhkng/RYS-Llama3.1-Large
+dnhkng/RYS-Llama-3-Large-Instruct
+djuna/G2-BigGSHT-27B-2
+djuna/Q2.5-Partron-7B
+djuna/L3.1-Promissum Mane-8B-Della-1.5-calc
+djuna/L3.1-Promissum Mane-8B-Della-calc
+djuna/L3.1-ForStHS
+dfurman/CalmeRys-78B-Orpo-v0.1
+dfurman/Qwen2-72B-Orpo-v0.1
+deepseek-ai/deepseek-llm-67b-chat
+cstr/llama3.1-8b-spaetzle-v90
+cognitivecomputations/dolphin-2.9.2-qwen2-72b
+cognitivecomputations/dolphin-2.9.2-Phi-3-Medi...
+cloudyu/Mixtral 34Bx2 MoE 60B
+byroneverson/Mistral-Small-Instruct-2409-ablit...
+byroneverson/Yi-1.5-9B-Chat-16K-abliterated
+bunnycore/Qandora-2.5-7B-Creative
+bunnycore/Qwen2.5-7B-Instruct-Fusion
+bunnycore/CyberCore-Qwen-2.1-7B
+bunnycore/QandoraExp-7B
+bunnycore/QandoraExp-7B-Persona
+brgx53/3Bgeneralv2-ECE-PRYMMAL-Martial
+
+accuracy
+
+params (B)
+
+0.36
+0.40
+0.37
+0.39
+0.56
+0.50
+0.42
+0.42
+0.47
+0.46
+0.46
+0.46
+0.45
+0.45
+0.43
+0.63
+0.52
+0.49
+0.48
+0.47
+0.36
+0.59
+0.45
+0.45
+0.45
+0.43
+0.52
+0.52
+0.39
+0.38
+0.35
+0.52
+0.51
+0.51
+0.54
+0.54
+0.54
+0.52
+0.51
+0.45
+0.43
+0.39
+0.38
+0.37
+0.70
+0.55
+0.39
+0.37
+0.55
+0.45
+0.48
+0.39
+0.38
+0.45
+0.45
+0.44
+0.44
+0.44
+0.45
+
+22.25
+19.86
+7.74
+7.62
+32.76
+14.77
+7.62
+7.62
+27.23
+27.23
+27.23
+27.23
+7.62
+27.23
+9.24
+69.50
+70.55
+72.29
+70.55
+70.55
+12.25
+32.76
+7.62
+7.62
+70.55
+7.62
+14.77
+14.77
+9.24
+9.24
+8.03
+14.77
+14.77
+14.77
+77.97
+77.97
+77.97
+81.68
+73.98
+27.23
+7.61
+8.03
+8.03
+8.03
+77.97
+72.70
+67.00
+8.03
+72.00
+13.96
+60.81
+22.25
+8.83
+7.62
+7.62
+7.62
+7.62
+7.62
+3.00
+
+architecture
+MistralForCausalLM
+InternLM2ForCausalLM
+InternLM2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+Qwen2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+MistralForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Gemma2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+MistralForCausalLM
+MixtralForCausalLM
+MistralForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Continued on next page
+
+25
+
+Correlated Errors in Large Language Models
+
+Table 12: Models analyzed from HuggingFace
+name
+161
+162
+163
+164
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+180
+181
+182
+183
+184
+185
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+200
+201
+202
+203
+204
+205
+206
+207
+208
+209
+210
+211
+212
+213
+214
+215
+216
+217
+218
+219
+
+brgx53/3Blarenegv2-ECE-PRYMMAL-Martial
+arcee-ai/Arcee-Nova
+arcee-ai/Virtuoso-Small
+arcee-ai/SuperNova-Medius
+arcee-ai/Llama-3.1-SuperNova-Lite
+arcee-ai/Llama-Spark
+anthracite-org/magnum-v1-72b
+anthracite-org/magnum-v2-72b
+anthracite-org/magnum-v3-34b
+anthracite-org/magnum-v4-27b
+anthracite-org/magnum-v3-27b-kto
+alpindale/WizardLM-2-8x22B
+allura-org/MS-Meadowlark-22B
+allknowingroger/QwenSlerp4-14B
+allknowingroger/QwenStock3-14B
+allknowingroger/QwenStock1-14B
+allknowingroger/QwenStock2-14B
+allknowingroger/QwenSlerp6-14B
+allenai/Llama-3.1-Tulu-3-70B
+allenai/Llama-3.1-Tulu-3-70B-DPO
+allenai/Llama-3.1-Tulu-3-70B-SFT
+allenai/Llama-3.1-Tulu-3-8B-DPO
+akjindal53244/Llama-3.1-Storm-8B
+abhishek/autotrain-llama3-70b-orpo-v2
+abacusai/Dracarys-72B-Instruct
+abacusai/Smaug-Qwen2-72B-Instruct
+abacusai/Smaug-Llama-3-70B-Instruct-32K
+abacusai/Smaug-72B-v0.1
+aaditya/Llama3-OpenBioLLM-70B
+ZeroXClem/Qwen2.5-7B-Qandora-CySec
+ZeroXClem/Qwen2.5-7B-HomerCreative-Mix
+ZeroXClem/Qwen2.5-7B-HomerAnvita-NerdMix
+ZeroXClem/Qwen-2.5-Aether-SlerpFusion-7B
+Weyaxi/Bagel-Hermes-34B-Slerp
+ValiantLabs/Llama3.1-70B-ShiningValiant2
+VAGOsolutions/Llama-3.1-SauerkrautLM-70b-Instruct
+VAGOsolutions/SauerkrautLM-v2-14b-SFT
+VAGOsolutions/SauerkrautLM-v2-14b-DPO
+VAGOsolutions/SauerkrautLM-Phi-3-medium
+VAGOsolutions/Llama-3.1-SauerkrautLM-8b-Instruct
+Undi95/MG-FinalMix-72B
+Tsunami-th/Tsunami-1.0-14B-Instruct
+Tsunami-th/Tsunami-0.5x-7B-Instruct
+Tsunami-th/Tsunami-1.0-7B-Instruct
+Tsunami-th/Tsunami-0.5-7B-Instruct
+TheTsar1209/qwen-carpmuscle-v0.1
+TheTsar1209/qwen-carpmuscle-v0.2
+TheTsar1209/qwen-carpmuscle-v0.4
+TheTsar1209/qwen-carpmuscle-r-v0.3
+TheTsar1209/qwen-carpmuscle-v0.3
+TheDrummer/Cydonia-22B-v1.2
+T145/Llama-3.1-8B-Instruct-Zeus
+T145/ZEUS-8B-V2L2
+T145/ZEUS-8B-V7
+T145/ZEUS-8B-V3
+T145/ZEUS-8B-V4
+Syed-Hasan-8503/Phi-3-mini-4K-instruct-cpo-simpo
+Svak/MN-12B-Inferor-v0.1
+SicariusSicariiStuff/Qwen2.5-14B Uncencored
+
+accuracy
+
+params (B)
+
+0.45
+0.55
+0.52
+0.50
+0.39
+0.37
+0.55
+0.55
+0.48
+0.44
+0.42
+0.46
+0.38
+0.54
+0.54
+0.54
+0.54
+0.54
+0.47
+0.46
+0.46
+0.29
+0.38
+0.48
+0.55
+0.52
+0.48
+0.46
+0.49
+0.45
+0.44
+0.44
+0.43
+0.47
+0.52
+0.53
+0.52
+0.51
+0.47
+0.39
+0.54
+0.52
+0.45
+0.44
+0.44
+0.52
+0.51
+0.51
+0.51
+0.51
+0.41
+0.39
+0.39
+0.38
+0.38
+0.38
+0.39
+0.37
+0.53
+
+7.62
+72.71
+14.77
+14.77
+8.03
+8.03
+72.71
+72.71
+34.39
+27.23
+27.23
+140.62
+22.25
+14.77
+14.77
+14.77
+14.77
+14.77
+70.55
+70.00
+70.55
+8.00
+8.03
+70.55
+72.71
+72.71
+70.55
+72.29
+70.00
+7.62
+7.62
+7.62
+7.62
+34.39
+70.55
+70.55
+14.77
+14.77
+13.96
+8.03
+72.71
+14.77
+7.62
+7.62
+7.62
+14.77
+14.77
+14.77
+14.77
+14.77
+22.25
+8.03
+8.03
+8.03
+8.03
+8.03
+3.82
+12.25
+14.00
+
+architecture
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+MixtralForCausalLM
+MistralForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+MistralForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+MistralForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Phi3ForCausalLM
+MistralForCausalLM
+Qwen2ForCausalLM
+Continued on next page
+
+26
+
+Correlated Errors in Large Language Models
+
+Table 12: Models analyzed from HuggingFace
+name
+220
+221
+222
+223
+224
+225
+226
+227
+228
+229
+230
+231
+232
+233
+234
+235
+236
+237
+238
+239
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249
+250
+251
+252
+253
+254
+255
+256
+257
+258
+259
+260
+261
+262
+263
+264
+265
+266
+267
+268
+269
+270
+271
+272
+273
+274
+275
+276
+277
+278
+
+SicariusSicariiStuff/Qwen2.5-14B Uncensored
+SicariusSicariiStuff/Qwen2.5-14B Uncensored In...
+Shreyash2010/Uma-4x4B-Instruct-v0.1
+Saxo/Linkbricks-Horizon-AI-Korean-Superb-27B
+Replete-AI/L3.1-Pneuma-8B
+Qwen/Qwen2.5-72B
+Qwen/Qwen2.5-32B
+Qwen/Qwen2-72B
+Qwen/Qwen2-VL-72B-Instruct
+Qwen/QwQ-32B-Preview
+Qwen/Qwen2.5-32B-Instruct
+Qwen/Qwen2.5-72B-Instruct
+Qwen/Qwen2-72B-Instruct
+Qwen/Qwen1.5-110B
+Qwen/Qwen2.5-Coder-32B
+Qwen/Qwen2.5-14B
+Qwen/Qwen2.5-14B-Instruct
+Qwen/Qwen1.5-110B-Chat
+Qwen/Qwen2.5-Math-72B-Instruct
+Qwen/Qwen2-57B-A14B-Instruct
+Qwen/Qwen1.5-32B
+Qwen/Qwen1.5-32B-Chat
+Qwen/Qwen2.5-Coder-32B-Instruct
+Qwen/Qwen2.5-7B-Instruct
+Qwen/Qwen2-Math-72B-Instruct
+Qwen/Qwen2-VL-7B-Instruct
+Qwen/Qwen2.5-Coder-14B-Instruct
+Qwen/Qwen2-7B-Instruct
+Qwen/Qwen2.5-Coder-7B-Instruct
+Qwen/Qwen2.5-3B-Instruct
+Orion-zhen/Qwen2.5-7B-Instruct-Uncensored
+Orenguteng/Llama-3.1-8B-Lexi-Uncensored
+Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2
+OpenBuddy/openbuddy-llama3.1-70b-v22.1-131k
+OpenBuddy/openbuddy-nemotron-70b-v23.1-131k
+OpenBuddy/openbuddy-nemotron-70b-v23.2-131k
+OpenBuddy/openbuddy-llama3-70b-v21.2-32k
+OpenBuddy/openbuddy-qwen2.5llamaify-14b-v23.3-...
+NousResearch/Hermes-3-Llama-3.1-70B
+Nohobby/MS-Schisandra-22B-v0.2
+Nohobby/MS-Schisandra-22B-v0.1
+NLPark/Shi-Ci-Robin-Test 3AD80
+NLPark/B-and-W Flycatcher-3AD1E
+NLPark/AnFeng v3.1-Avocet
+NAPS-ai/naps-llama-3 1-8b-instruct-v0.4
+MaziyarPanahi/calme-3.2-instruct-78b
+MaziyarPanahi/calme-3.1-instruct-78b
+MaziyarPanahi/calme-2.4-rys-78b
+MaziyarPanahi/calme-2.1-qwen2.5-72b
+MaziyarPanahi/calme-2.2-qwen2.5-72b
+Marsouuu/general3Bv2-ECE-PRYMMAL-Martial
+Lil-R/2 PRYMMAL-ECE-7B-SLERP
+Lambent/qwen2.5-reinstruct-alternate-lumen-14B
+LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct
+LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct
+Kukedlc/Qwen-2.5-7b-Spanish-o1-CoT
+KSU-HW-SEC/Llama3.1-70b-SVA-FT-1000step
+KSU-HW-SEC/Llama3-70b-SVA-FT-1415
+KSU-HW-SEC/Llama3-70b-SVA-FT-final
+
+accuracy
+
+params (B)
+
+0.53
+0.51
+0.39
+0.46
+0.37
+0.60
+0.58
+0.57
+0.57
+0.57
+0.57
+0.56
+0.54
+0.54
+0.53
+0.52
+0.49
+0.48
+0.48
+0.46
+0.45
+0.45
+0.44
+0.43
+0.43
+0.41
+0.39
+0.38
+0.34
+0.33
+0.44
+0.38
+0.38
+0.53
+0.52
+0.51
+0.48
+0.48
+0.47
+0.41
+0.41
+0.51
+0.47
+0.44
+0.35
+0.73
+0.72
+0.70
+0.56
+0.56
+0.45
+0.45
+0.54
+0.41
+0.33
+0.44
+0.53
+0.52
+0.52
+
+14.00
+14.77
+3.82
+27.23
+8.03
+72.71
+32.76
+72.71
+73.41
+32.76
+32.76
+72.71
+72.71
+111.21
+32.76
+14.77
+14.77
+111.21
+72.71
+57.41
+32.51
+32.51
+32.76
+7.62
+72.71
+8.29
+14.77
+7.62
+7.62
+3.00
+7.62
+8.03
+8.03
+70.55
+70.55
+70.55
+70.55
+14.77
+70.55
+22.25
+22.25
+70.55
+14.77
+34.39
+8.03
+77.97
+77.97
+77.97
+72.70
+72.70
+7.62
+7.62
+14.77
+7.82
+2.40
+7.62
+70.55
+70.55
+70.55
+
+architecture
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+?
+Gemma2ForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2VLForConditionalGeneration
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2MoeForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2VLForConditionalGeneration
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+MistralForCausalLM
+MistralForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+ExaoneForCausalLM
+ExaoneForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Continued on next page
+
+27
+
+Correlated Errors in Large Language Models
+
+Table 12: Models analyzed from HuggingFace
+name
+279
+280
+281
+282
+283
+284
+285
+286
+287
+288
+289
+290
+291
+292
+293
+294
+295
+296
+297
+298
+299
+300
+301
+302
+303
+304
+305
+306
+307
+308
+309
+310
+311
+312
+313
+314
+315
+316
+317
+318
+319
+320
+321
+322
+323
+324
+325
+326
+327
+328
+329
+330
+331
+332
+333
+334
+335
+336
+337
+
+KSU-HW-SEC/Llama3-70b-SVA-FT-500
+Junhoee/Qwen-Megumin
+Joseph717171/Llama-3.1-SuperNova-8B-Lite TIES ...
+Isaak-Carter/Josiefied-Qwen2.5-7B-Instruct-abl...
+Isaak-Carter/Josiefied-Qwen2.5-7B-Instruct-abl...
+IntervitensInc/internlm2 5-20b-llamafied
+HumanLLMs/Humanish-Qwen2.5-7B-Instruct
+HuggingFaceH4/zephyr-orpo-141b-A35b-v0.1
+HPAI-BSC/Llama3.1-Aloe-Beta-8B
+Gunulhona/Gemma-Ko-Merge
+Gryphe/Pantheon-RP-Pure-1.6.2-22b-Small
+GreenNode/GreenNode-small-9B-it
+Goekdeniz-Guelmez/Josiefied-Qwen2.5-14B-Instru...
+Goekdeniz-Guelmez/Josiefied-Qwen2.5-7B-Instruc...
+Goekdeniz-Guelmez/josie-7b-v6.0-step2000
+GoToCompany/gemma2-9b-cpt-sahabatai-v1-instruct
+Etherll/Qwen2.5-7B-della-test
+Etherll/SuperHermes
+Etherll/Herplete-LLM-Llama-3.1-8b-Ties
+Etherll/Qwen2.5-Coder-7B-Instruct-Ties
+EpistemeAI2/Fireball-Phi-3-medium-4k-inst-Philos
+EVA-UNIT-01/EVA-Qwen2.5-72B-v0.2
+DreadPoor/Emu Eggs-9B-Model Stock
+DreadPoor/Condensed Milk-8B-Model Stock
+DreadPoor/Matryoshka-8B-LINEAR
+DreadPoor/BaeZel-8B-LINEAR
+DreadPoor/Promissum Mane-8B-LINEAR
+DeepMount00/Llama-3.1-8b-ITA
+DeepMount00/Llama-3-8b-Ita
+DeepMount00/Llama-3.1-Distilled
+DeepAutoAI/ldm soup Llama-3.1-8B-Instruct-v0.0
+DeepAutoAI/ldm soup Llama-3.1-8B-Instruct-v0.1
+DeepAutoAI/ldm soup Llama-3.1-8B-Inst
+DeepAutoAI/d2nwg Llama-3.1-8B-Instruct-v0.0
+DeepAutoAI/Explore Llama-3.1-8B-Inst
+Danielbrdz/Barcenas-14b-Phi-3-medium-ORPO
+Dampfinchen/Llama-3.1-8B-Ultra-Instruct
+CultriX/Qwen2.5-14B-Wernicke
+CultriX/Qwestion-14B
+CultriX/Qwen2.5-14B-MegaMerge-pt2
+CultriX/SeQwence-14B-EvolMerge
+CultriX/SeQwence-14B
+Cran-May/T.E-8.1
+CombinHorizon/huihui-ai-abliterated-Qwen2.5-32...
+CombinHorizon/Josiefied-abliteratedV4-Qwen2.5-...
+CombinHorizon/huihui-ai-abliteratedV2-Qwen2.5-...
+CombinHorizon/YiSM-blossom5.1-34B-SLERP
+CombinHorizon/Rombos-Qwen2.5-7B-Inst-BaseMerge...
+CohereForAI/aya-expanse-32b
+CohereForAI/c4ai-command-r-plus
+ClaudioItaly/intelligence-cod-rag-7b-v3
+BoltMonkey/DreadMix
+BoltMonkey/NeuralDaredevil-SuperNova-Lite-7B-D...
+BoltMonkey/SuperNeuralDreadDevil-8b
+BlackBeenie/Neos-Phi-3-14B-v0.1
+BenevolenceMessiah/Qwen2.5-72B-2x-Instruct-TIE...
+BAAI/Infinity-Instruct-7M-Gen-Llama3 1-70B
+BAAI/Infinity-Instruct-3M-0625-Llama3-70B
+BAAI/Infinity-Instruct-3M-0625-Yi-1.5-9B
+
+accuracy
+
+params (B)
+
+0.52
+0.42
+0.39
+0.43
+0.41
+0.41
+0.44
+0.46
+0.36
+0.39
+0.39
+0.39
+0.50
+0.41
+0.40
+0.43
+0.44
+0.39
+0.38
+0.35
+0.46
+0.58
+0.42
+0.39
+0.39
+0.39
+0.38
+0.39
+0.39
+0.38
+0.39
+0.39
+0.39
+0.39
+0.38
+0.47
+0.38
+0.54
+0.54
+0.54
+0.54
+0.54
+0.44
+0.57
+0.50
+0.49
+0.47
+0.43
+0.41
+0.40
+0.42
+0.38
+0.37
+0.35
+0.46
+0.56
+0.46
+0.46
+0.41
+
+70.55
+15.23
+8.03
+7.62
+7.62
+19.86
+7.62
+140.62
+8.03
+10.16
+22.25
+9.24
+14.77
+7.62
+7.62
+9.24
+7.62
+8.03
+8.03
+7.62
+13.96
+72.71
+9.24
+8.03
+8.03
+8.03
+8.03
+8.03
+8.03
+8.03
+8.03
+8.03
+8.03
+8.03
+8.03
+13.96
+8.03
+14.77
+14.77
+14.77
+14.77
+14.77
+7.62
+32.76
+14.77
+14.77
+34.39
+7.62
+32.30
+103.81
+7.62
+8.03
+8.03
+8.03
+13.96
+72.70
+70.55
+70.55
+8.83
+
+architecture
+LlamaForCausalLM
+?
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+MixtralForCausalLM
+LlamaForCausalLM
+Gemma2ForCausalLM
+MistralForCausalLM
+Gemma2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Gemma2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+MistralForCausalLM
+Qwen2ForCausalLM
+Gemma2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+MistralForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+CohereForCausalLM
+CohereForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Phi3ForCausalLM
+Qwen2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+Continued on next page
+
+28
+
+Correlated Errors in Large Language Models
+
+Table 12: Models analyzed from HuggingFace
+name
+338
+339
+340
+341
+342
+343
+344
+345
+346
+347
+348
+
+Azure99/blossom-v5-32b
+AuraIndustries/Aura-8B
+Aashraf995/Creative-7B-nerd
+Aashraf995/Qwen-Evo-7B
+AELLM/gemma-2-aeria-infinity-9b
+AELLM/gemma-2-lyco-infinity-9b
+AALF/FuseChat-Llama-3.1-8B-SFT-preview
+AALF/FuseChat-Llama-3.1-8B-Instruct-preview
+01-ai/Yi-1.5-34B-32K
+01-ai/Yi-1.5-34B-Chat
+01-ai/Yi-1.5-9B-Chat
+
+29
+
+accuracy
+
+params (B)
+
+0.42
+0.39
+0.45
+0.45
+0.39
+0.38
+0.37
+0.37
+0.47
+0.45
+0.40
+
+32.51
+8.03
+7.62
+7.62
+9.24
+10.16
+8.03
+8.03
+34.39
+34.39
+8.83
+
+architecture
+Qwen2ForCausalLM
+LlamaForCausalLM
+Qwen2ForCausalLM
+Qwen2ForCausalLM
+Gemma2ForCausalLM
+Gemma2ForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+LlamaForCausalLM
+
+

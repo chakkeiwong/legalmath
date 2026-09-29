@@ -1,0 +1,290 @@
+\section{The problem: a regulatory decision loses meaning as it becomes software}
+\label{sec:problem}
+
+A private bank must turn regulatory requirements into client classifications,
+product permissions, disclosures, monitoring, records and staff actions. Those
+requirements rarely arrive as a complete algorithm. A circular may change one
+part of an existing regime, depend on definitions in a code, distinguish product
+providers from distributors, or explain an exception in an annex. Software must
+nevertheless decide what to do for a particular client, product and event.
+
+The sponsor's reported problem is the error-prone manual reading and updating of
+bank systems. This proposal treats that account as the starting business need;
+it does not assume a measured incident rate. The process below is a plausible
+operating model to validate with the bank. A compliance officer reads a circular,
+writes an interpretation, and discusses it with product and operations staff. A
+business analyst turns the interpretation into requirements. Engineers implement
+configuration or code, and testers construct examples from those requirements.
+Each participant can perform competently while a condition disappears between
+documents. When the circular changes, the bank must reconstruct the chain.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=5mm, every node/.style={font=\small},
+  box/.style={draw=teal,rounded corners,fill=pale,align=center,text width=25mm,minimum height=15mm},
+  arr/.style={-{Latex[length=2mm]},thick,draw=navy}]
+\node[box] (a) {Circulars, annexes, codes};
+\node[box,right=of a] (b) {Compliance interpretation};
+\node[box,right=of b] (c) {Requirements and tickets};
+\node[box,right=of c] (d) {System rules and workflow};
+\node[box,right=of d] (e) {Client decisions and records};
+\draw[arr] (a)--(b); \draw[arr] (b)--(c); \draw[arr] (c)--(d); \draw[arr] (d)--(e);
+\end{tikzpicture}
+\caption{The proposed discovery exercise will map the bank's actual process onto
+these transitions. LegalMath preserves the source, interpretation and tests across
+them, so a reviewer can follow a decision back to its reason.}
+\label{fig:manual}
+\end{figure}
+
+The product opportunity is to make that chain inspectable and reusable. A
+reviewer should be able to select a rule and see the passage that supports it,
+the interpretation adopted, the facts it needs, the situations in which it changes
+an outcome, and the version actually used. A subsequent amendment should identify
+the affected controls and test cases without relying on the memory of the
+original implementation team.
+
+\subsection{The regulatory perimeter is part of the specification}
+
+The supplied Hong Kong Securities and Futures Commission (SFC) product-authorization
+page is a useful discovery source, but it
+is not a complete inventory of a private bank's distribution obligations. The
+SPI guidance examined here is a joint circular from the SFC and Hong Kong Monetary
+Authority (HKMA) to intermediaries. The
+tokenisation circular distinguishes product-provider responsibilities from
+distributor responsibilities and imports other product and intermediary rules.
+The marketing circular refers to the Securities and Futures Ordinance, the Code
+of Conduct and advertising guidance. These dependencies determine the meaning of
+the extracted clauses \citep{sfcindex,sfcspi,sfctoken2026,sfcmarketing}.
+
+Discovery therefore starts with the bank's legal entities and activities. For a
+specified business, the inventory should record whether the institution acts as
+distributor, product provider, adviser or another regulated actor, and which
+client and product classes are involved. Being a Hong Kong office of a US banking
+group does not by itself settle any of these questions. The prototype will record
+the selected Hong Kong perimeter and leave other group and jurisdictional
+requirements as separately identified dependencies. A broader rollout requires
+the bank's authoritative inventory.
+
+Document classification also matters. The September 2025 joint circular announces
+a concurrent thematic review of distribution practices and describes what the
+review will examine. It should enter regulatory-change tracking; its description
+of the review is not, by itself, a new numerical client-eligibility test
+\citep{sfcreview2025}. A translator that treats every sentence as a binding
+conditional will manufacture rules. Conversely, a translator that extracts only
+sentences containing a particular modal verb can miss definitions, incorporated
+requirements and material explanatory guidance.
+
+LegalMath should preserve a passage's role: definition, requirement, permission,
+exception, supervisory expectation, explanation or announcement. The original
+wording and its authority remain alongside the adopted implementation. A bank may
+choose an additional operational restriction, but that choice should be recorded
+as bank policy with an owner and rationale. It must not be silently attributed to
+the SFC.
+
+\subsection{A running case: sophisticated professional investors}
+\label{sec:spi}
+
+The joint circular of 28 July 2023 supplies an unusually useful test case because
+its apparent simplicity conceals several different kinds of rule. Annex 1
+defines the qualifying criteria, eligible investment transactions, information
+and consent requirements, and continuing controls. Annex 2 clarifies difficult
+implementation cases. The examples below are synthetic and illustrate the cited
+provisions; they do not complete an SPI assessment or authorize a transaction
+\citep{sfcspi,sfcspiannex1,sfcspiannex2}.
+
+\caseheading{A one-word error changes the financial condition}
+Annex 1, paragraph 3.1 provides two alternative financial routes: a portfolio of
+at least HK\$40 million, or net assets excluding the primary residence of at least
+HK\$80 million, including the stated foreign-currency equivalents. Consider a
+client with an eligible portfolio valued at HK\$35 million and qualifying net
+assets of HK\$90 million. The second route meets this financial condition.
+Replacing the alternative with a conjunction rejects the client incorrectly.
+Replacing either inclusive comparison with a strict comparison rejects a client
+exactly at that threshold. Both defects are easy to miss when test data use
+wealth amounts far from the boundary \citep[Annex 1, para.~3.1]{sfcspiannex1}.
+
+The numbers also require definitions. The value of assets held at the bank is
+not automatically the qualifying portfolio, and total wealth is not automatically
+net assets excluding the primary residence. Paragraph 3.3 specifies the net-asset
+calculation. In a simple synthetic case with HK\$120 million of assets, including
+a HK\$30 million primary residence, and HK\$15 million of liabilities, that
+calculation gives HK\$75 million: $120-15-30$. Omitting the residence gives
+HK\$105 million and changes the result of the net-asset route. The portfolio
+route must still be assessed independently. The bank must also establish how the
+source definitions map to its valuation and ownership records
+\citep[Annex 1, paras.~3.2--3.4]{sfcspiannex1}.
+
+\caseheading{Ownership and missing evidence can reverse the result}
+For a joint portfolio with persons other than the client's associate, paragraph
+3.2(c) refers to the client's share specified in a written agreement, or an equal
+share in the absence of that agreement. Suppose a two-holder portfolio is worth
+HK\$60 million and the written allocation gives the client 20 percent. The
+relevant share for this illustration is HK\$12 million, not the whole account
+and not an automatically assumed half. The rule for a joint account with an
+associate is separately stated. A generic ``joint-account multiplier'' loses
+this distinction \citep[Annex 1, para.~3.2]{sfcspiannex1}.
+
+An unavailable document is also different from an established absence of an
+agreement. The bank must decide what evidence establishes each fact. If a feed
+returns a null portfolio value, replacing null with zero creates a substantive
+conclusion from a data failure. If qualifying net assets are known to be
+HK\$90 million, the financial condition can still be established by that route.
+If they are HK\$70 million, the unknown portfolio value can change the answer;
+the financial condition remains unresolved. The product must express that
+distinction directly.
+
+\caseheading{Wealth does not establish suitability for streamlined treatment}
+Paragraph 1 combines professional-investor status, the financial criteria,
+knowledge or experience, and investment objectives at the relevant date.
+Paragraph 4.1 requires reasonable satisfaction concerning sophistication and
+sets out alternative supporting criteria. Paragraph 5.1 excludes conservative
+clients from SPI treatment for this guidance. A wealthy client whose objective
+is capital preservation therefore demonstrates why a field named
+\texttt{wealth\_qualified} must not automatically populate
+\texttt{streamlined\_approach\_available}
+\citep[Annex 1, paras.~1, 4--5]{sfcspiannex1}.
+
+Some criteria are countable; others require assessment. A degree, a qualification,
+relevant work experience and prior transactions are distinct routes. A translator
+should not invent a score that trades off wealth against sophistication or
+investment objectives. The assessment and its supporting evidence need an owner,
+date and review record. Paragraph 2 also supplies a separate route for a qualifying
+investment-holding corporation wholly owned by SPIs. It cannot be represented by
+treating every client identifier as an individual.
+
+\caseheading{Experience and consent belong to a product category}
+Suppose the client relies on the transaction-experience route and has completed
+five bond transactions in the relevant three-year period. That history does not
+automatically establish the same route for an unrelated product category.
+Paragraph 7.3 connects category eligibility to the alternative qualification and
+experience routes; paragraph 7.2 requires the client's choice of categories to be
+documented and category information to be provided. A global client flag can
+therefore remain true while a proposed category is outside the selected scope
+\citep[Annex 1, paras.~4.1, 7.1--7.3]{sfcspiannex1}.
+
+The identity of the person matters too. Annex 2, FAQ 2 explains the assessment
+where a client acts through a power of attorney. The attorney's sophistication
+cannot simply replace the client's qualifying attributes. In software terms,
+the customer, account holder, representative, beneficial owner and person giving
+an instruction are different roles. Collapsing them into one record can make
+every subsequent logical step internally consistent and still apply it to the
+wrong person \citep[Annex 2, FAQ 2]{sfcspiannex2}.
+
+\caseheading{Exposure monitoring is an event rule}
+Paragraph 8.3 permits two monitoring approaches. One concerns gross exposure on
+execution of transactions under the streamlined approach. The other uses
+designated accounts and checks the specified condition after a top-up or deposit
+of new funds. Annex 2, FAQ 6 explains how these approaches operate, including
+transferred exposures and restrictions on additional funds when a designated
+account exceeds the threshold. FAQ 7 addresses leverage
+\citep[Annex 1, para.~8.3; Annex 2, FAQs 6--7]{sfcspiannex1,sfcspiannex2}.
+
+A single rule that rejects every transaction whenever an account's current value
+exceeds a threshold loses the distinction between these approaches. In the
+designated-account example, the FAQ allows continued execution above the
+threshold subject to its conditions restricting new funds. The monitoring mode,
+movement of funds, gross exposure and prior events all matter. An appreciated
+position, a leveraged purchase, a cash withdrawal and a transferred non-cash
+position must not be reduced to the same change in account market value. This is
+a strong reason to model event histories as well as decision tables.
+
+\caseheading{Consent and continuing obligations outlive the initial decision}
+Paragraph 13 calls for prior written agreement and an explanation of the ability
+to withdraw from, or change, the arrangement. Paragraph 14 requires annual review
+and reminders. Assessment and agreement are therefore not permanent facts. A
+transaction considered before receipt of a withdrawal instruction and one
+considered afterwards require different state snapshots. A review reminder being
+queued is different from being sent; being sent is different from the review
+being completed \citep[Annex 1, paras.~12--14]{sfcspiannex1}.
+
+The streamlined approach also retains specific information and conduct
+requirements. The solicited or recommended transaction provisions and the
+unsolicited complex-product provisions have different contexts. A broad
+``skip suitability and disclosure'' switch would conceal these remaining duties
+\citep[Annex 1, paras.~9--11]{sfcspiannex1}. The prototype should return the
+relevant decision and the associated tasks, explanations and evidence requests,
+rather than a single apparently comprehensive compliance flag.
+
+\subsection{Amendment, actor and conditional language: tokenised products}
+
+The SFC's 20 April 2026 tokenisation circular replaces the November 2023 circular;
+the earlier public entry is marked accordingly. A source collector that keeps
+only a URL and the most recently extracted text cannot reliably reconstruct
+which requirements an older decision used. A collector that retains both but
+fails to record replacement can apply inconsistent generations together
+\citep{sfctoken2023,sfctoken2026}.
+
+The 2026 circular also provides useful clause-level challenges. Paragraph 10
+keeps responsibility for the tokenisation arrangement and ownership records
+with product providers despite outsourcing. Paragraph 18 addresses distributors,
+including providers distributing their own products. These are actor-specific
+requirements: the word ``bank'' is not a sufficient applicability condition.
+Paragraph 13 conditions the use of public-permissionless networks on additional
+proper controls; translating it into an unconditional technology ban changes the
+statement \citep[paras.~10, 13, 18]{sfctoken2026}.
+
+Paragraphs 14--16 illustrate several different triggers. Confirmation and
+demonstration upon request are distinguishable actions. Third-party verification
+and a legal opinion are conditioned on an SFC request in the cited paragraphs.
+Removing that trigger creates a different obligation; removing the obligation
+creates the opposite error. A request must be represented as an event, with its
+subject and responsible actor, and any deadline must come from a relevant source
+or separately identified operational policy. The product must not invent a
+generic deadline \citep[paras.~14--16]{sfctoken2026}.
+
+Prior consultation and prior approval are also different. Paragraphs 20--21 and
+footnote 8 distinguish new products, tokenisation of existing products, material
+changes, and circumstances concerning tokenised share classes. Turning
+``consultation required'' into ``approval obtained'' skips an action and invents
+a result. The proposed workbench will expose such verbs and their dependencies
+as separate obligations and evidence fields \citep[paras.~20--21 and n.~8]{sfctoken2026}.
+
+\subsection{Marketing rules require exceptions and judgment}
+
+The October 2023 distributor circular examines additional returns and incentives,
+redemption restrictions and marketing of fund-related services. Its treatment of
+guaranteed-return arrangements depends on the arrangement and the relevant legal
+classification. A potential structured-product classification should produce a
+supported assessment task; a language model should not resolve it from a slogan
+alone \citep[paras.~5--11]{sfcmarketing}.
+
+The circular's discussion of gifts expressly distinguishes discounts of fees or
+charges. Losing that exception makes an apparently conservative implementation
+incorrectly broad. Its redemption discussion distinguishes administrative
+procedures or cut-off times from reducing a fund's dealing frequency. A daily
+dealing fund offered with weekly redemption presents a different issue from a
+different daily processing cut-off. These are excellent paired test cases because
+they differ in the fact that determines the treatment
+\citep[paras.~9--14]{sfcmarketing}.
+
+The advertising discussion addresses misleading impressions and comparisons with
+deposits. Keyword detection can nominate material for review, but it cannot
+establish the whole classification: meaning depends on the presentation and the
+service described. The system should retain the advertisement, the relevant
+source passages and the reviewer's conclusion. That is a useful result even when
+there is no defensible fully automated predicate
+\citep[paras.~15--17]{sfcmarketing}.
+
+\subsection{What makes the current work expensive and hard to verify}
+
+The common failure is loss of context. Thresholds detach from definitions;
+exceptions detach from their parent rules; duties detach from actors and events;
+and historical decisions detach from the source version that justified them.
+Document search helps locate text, but it does not preserve those relationships
+through implementation. More fluent summaries can make an omitted condition
+harder to notice.
+
+Review then becomes repetitive. Compliance officers must infer what an engineer
+understood, engineers must infer what a compliance memo leaves implicit, and
+testers must construct enough cases to expose mismatches. If tests are written
+only from the implementation ticket, a mistranslation shared by the ticket and
+code can pass every test. After an amendment, teams may retest too little because
+dependencies are hidden, or retest too much because they cannot show what is
+unaffected.
+
+The proposed product makes each material interpretation a maintained part of the
+system. Its value should be measured in fewer material defects, more complete
+explanations, and less repeated review effort. Those benefits are hypotheses for
+the prototype to test. The evidence needed to test them includes independently
+reviewed cases, disagreements that remain visible, and the time spent resolving
+them; a high extraction score alone cannot establish the business case.

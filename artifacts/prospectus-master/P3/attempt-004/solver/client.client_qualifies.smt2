@@ -1,0 +1,15 @@
+; benchmark generated from python API
+(set-info :status unknown)
+(declare-fun objectives_permit () Bool)
+(declare-fun knowledge_or_experience () Bool)
+(declare-fun financial_pass () Bool)
+(declare-fun professional_investor () Bool)
+(assert
+ (let ((?x29 (ite objectives_permit 1 0)))
+(let ((?x30 (ite knowledge_or_experience 1 0)))
+(let ((?x32 (ite financial_pass 1 0)))
+(let ((?x34 (ite professional_investor 1 0)))
+(let (($x26 (= (+ ?x34 ?x32 ?x30 ?x29) 4)))
+(let (($x59 (and professional_investor financial_pass knowledge_or_experience objectives_permit)))
+(or (not true) (and (distinct $x59 $x26) true)))))))))
+(check-sat)

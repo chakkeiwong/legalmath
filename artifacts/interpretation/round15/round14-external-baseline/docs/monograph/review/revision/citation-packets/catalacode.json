@@ -1,0 +1,61 @@
+{
+  "source": {
+    "key": "catalacode",
+    "title": "Catala: compiler and core formalization repository",
+    "author_filename": "Catala contributors",
+    "year": "2026",
+    "path": "docs/papers/Catala -  compiler and core formalization repository_Catala contributors(2026).zip",
+    "sha256": "c6f034612847753d7595ff91269959be44387aad2c2f5035e5c80d752a9a0f90",
+    "source_url": "https://github.com/CatalaLang/catala",
+    "retained_inputs": [
+      ".localresources/projects/catala-README.md",
+      ".localresources/projects/catala-formalization.md",
+      ".localresources/projects/catala-translation.fst",
+      ".localresources/projects/catala-conditions.ml"
+    ],
+    "status": "local_copy_retained",
+    "claim_support": "not_reaudited",
+    "currentness": "historical_snapshot_not_current_authority_determination",
+    "scope": "Retained inspected documentation/source files; not a full repository clone."
+  },
+  "claims": [
+    {
+      "id": "docs/monograph/chapters/04-languages.tex:347:catalacode",
+      "key": "catalacode",
+      "source": "docs/monograph/chapters/04-languages.tex",
+      "line": 347,
+      "context_tex": "\\input{\\LegalMathRoot teaching/teach-P-02-literature-02}\nThe Catala compilation result is relevant but narrower than the phrase\n``verified legal software'' might suggest. The paper proves properties of a\ntranslation from the core default calculus into a lambda calculus with exceptions,\nwith a mechanized development in F*. It distinguishes that model from the\nseparately implemented production compiler. The inspected repository's\nformalization notes additionally disclose an admitted supporting lemma; this\nreview has not replayed the development \\citep[sec.~4]{catala2021,catalacode}.\nThe useful precedent is to define a small semantics and state exactly which\ntranslation preserves it. It provides no theorem that a human or model has\ncaptured the meaning of an SFC circular.",
+      "support_status": "not_checked"
+    },
+    {
+      "id": "docs/monograph/chapters/04-languages.tex:1308:catalacode",
+      "key": "catalacode",
+      "source": "docs/monograph/chapters/04-languages.tex",
+      "line": 1308,
+      "context_tex": "midrule\n\\endhead\nCatala & Literate definitions, exceptions, executable decisions and verification-condition ideas. & Compare one adapter on the SPI decision fragment; do not assume event-workflow coverage or end-to-end verified compilation. \\citep{catalacode}",
+      "support_status": "not_checked"
+    }
+  ],
+  "candidate_passages": [
+    {
+      "location": ".localresources/projects/catala-README.md",
+      "word_offset": 360,
+      "text": "knowledge that embeds default logic as a first-class feature, which is why it is the only language perfectly adapted to literate legislative programming. ## The Catala Book The one-stop-shop for tutorials, installation instructions, FAQ and reference guide about Catala is the [Catala book](https://book.catala-lang.org) available at: <div align=\"center\"> <a href=\"https://book.catala-lang.org\">https://book.catala-lang.org</a> </div> ## IDE Extensions and Tooling ### Syntax highlighting Syntax highlighting is available for several text-editors. Scripts can be found [here](https://github.com/CatalaLang/catala/tree/master/syntax_highlighting). ### Catala VSCode Extension A VSCode extension for Catala is available [on the marketplace](https://marketplace.visualstudio.com/items?itemName=catalalang.catala). It bundles a syntax highlighter and a dedicated LSP server which offers support for code navigation, auto-completion along with a UX for test suites. See the [dedicated repository](https://github.com/catalaLang/catala-language-server) for more details. ### Code formatting A code formatting tool, `catala-format` is available alongside the LSP server. If installed, code formatting is directly available in VSCode. This tool is based on a [`tree-sitter` grammar](https://github.com/CatalaLang/tree-sitter-catala) for Catala. See the [dedicated repository](https://github.com/catalaLang/catala-format) for more details. ## Additional documentation items ### Syntax cheat sheet A complete and handy reference of the Catala syntax can be found in the [cheat sheet](https://catalalang.github.io/catala/syntax.pdf) (for French and English versions of the syntax). ### Formal semantics To audit the formal proof of the partial certification of the Catala compiler, see [the dedicated readme](doc/formalization/README.md). ### Compiler documentation The documentation is accessible online, for the latest [`master` version](https://catalalang.github.io/catala/api-doc/). It is otherwise generated from the compiler source code using `dune` and `odoc`. Run make doc to generate the documentation,",
+      "passage_id": 2
+    },
+    {
+      "location": ".localresources/projects/catala-formalization.md",
+      "word_offset": 0,
+      "text": "# The Catala formalization The formalization of Catala is presented in the paper [Catala: A Programming Language for the Law](https://arxiv.org/abs/2103.03198). # Certification of a critical Catala compilation step ## Presentation This folder contains the F\\* proof of the correctness of the translation from the default calculus to the target lambda calculus. The proof is organized as follows: - `Catala.DefaultCalculus.fst` contains the semantics of the default calculus as well as the type safety theorems and proofs; - `Catala.LambdaCalculus.fst` contains the semantics of the lambda calculus as well as the type safety theorems and proofs; - `Catala.Translation.Helpers.fst` contains various helpers related to the lambda calculus, used in the translation correctness proof; - `Catala.Translation.fst` contains the definition of the translation as well as its proof of correctness, culminating in the last wrap-up theorem of the file. The `*.hints` files are merely F\\* technical helper files that speed up the proof replay by recording a list of lemmas to feed in priority to the SMT solver. ## Proof replay To replay the proofs, you will need to have [F\\*](https://github.com/FStarLang/FStar) installed on your machine, and the `FSTAR_HOME` environement variable pointed to the location of the F\\* directory. You can then replay the proofs using: make verify The proofs should take 4~5 minutes to replay entirely. Warning: due to Z3 non-deterministic behavior, some proofs may fail to replay on your machine for unknown reasons. May this happen, we will make sure to strenghen the flaky proofs",
+      "passage_id": 5
+    },
+    {
+      "location": ".localresources/projects/catala-translation.fst",
+      "word_offset": 0,
+      "text": "module Catala.Translation module L = Catala.LambdaCalculus module D = Catala.DefaultCalculus open Catala.Translation.Helpers (*** Translation definitions *) let rec translate_ty (ty: D.ty) : Tot L.ty = match ty with | D.TBool -> L.TBool | D.TUnit -> L.TUnit | D.TArrow t1 t2 -> L.TArrow (translate_ty t1) (translate_ty t2) let translate_lit (l: D.lit) : Tot L.lit = match l with | D.LTrue -> L.LTrue | D.LFalse -> L.LFalse | D.LUnit -> L.LUnit | D.LEmptyError -> L.LError L.EmptyError | D.LConflictError -> L.LError L.ConflictError let rec translate_exp (e: D.exp) : Tot L.exp = match e with | D.EVar x -> L.EVar x | D.EApp e1 e2 tau_arg -> L.EApp (translate_exp e1) (translate_exp e2) (translate_ty tau_arg) | D.EAbs ty body -> L.EAbs (translate_ty ty) (translate_exp body) | D.ELit l -> L.ELit (translate_lit l) | D.EIf e1 e2 e3 -> L.EIf (translate_exp e1) (translate_exp e2) (translate_exp e3) | D.EDefault exceptions just cons tau -> build_default_translation (translate_exp_list exceptions) L.ENone (translate_exp just) (translate_exp cons) (translate_ty tau) and translate_exp_list (l: list D.exp) : Tot (list L.exp) = match l with | [] -> [] | hd::tl -> (L.EThunk (translate_exp hd))::(translate_exp_list tl) let translate_env (g: D.env) : Tot L.env = FunctionalExtensionality.on_dom L.var (fun v -> match g v with None -> None | Some t -> Some (translate_ty t)) (*** Typing preservation *) (**** Helpers and lemmas *) let extend_translate_commute (g: D.env) (tau: D.ty) : Lemma (L.extend (translate_env g) (translate_ty tau) == translate_env (D.extend g tau)) = FunctionalExtensionality.extensionality L.var (fun _",
+      "passage_id": 7
+    }
+  ],
+  "status": "RETRIEVAL_ONLY_NOT_READING_EVIDENCE",
+  "selection": "Two lexical matches per occurrence; inspect broader sections and equations as needed."
+}

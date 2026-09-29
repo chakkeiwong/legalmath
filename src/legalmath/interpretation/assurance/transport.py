@@ -5,6 +5,7 @@ from ...errors import LegalMathError
 from ..search.providers import Completion
 from .decomposition import compact_request
 from .monitor import save
+from . import source_references
 
 
 def transient_service_failure(exc):
@@ -17,26 +18,31 @@ def transient_service_failure(exc):
 
 
 class CompactProvider:
-    def __init__(self,provider,directory):
+    def __init__(self,provider,directory,*,reference_protocol='literal'):
+        if reference_protocol not in ('literal',source_references.PROTOCOL):raise LegalMathError('E_SCHEMA')
+        self.reference_protocol=reference_protocol
         self.provider=provider;self.directory=Path(directory);self.directory.mkdir(parents=True,exist_ok=True)
-        self.provider_id=provider.provider_id+'.compact.v1';self.live=provider.live
-        self.routing={'provider':getattr(provider,'routing',provider.provider_id),'transport':'exact-source-text.compact.v1'}
+        self.provider_id=provider.provider_id+'.compact.v2';self.live=provider.live
+        self.routing={'provider':getattr(provider,'routing',provider.provider_id),'transport':'exact-source-text.compact.v2'}
+        if reference_protocol!='literal':self.routing['source_reference_protocol']=reference_protocol
         self.allowance=getattr(provider,'allowance',None);self.blocked=None
 
     def complete(self,request,schema,settings):
         if self.blocked:
             raise LegalMathError('E_DEPENDENCY',details={'provider_circuit_open':self.blocked,'new_live_call':False})
         out=self.directory/f'call-{len(list(self.directory.glob("call-*"))):03}'
-        out.mkdir(exist_ok=False);wire=compact_request(request)
+        out.mkdir(exist_ok=False);wire=compact_request(request,profile='v2')
         save(out/'request.json',wire);save(out/'original-request.json',request);save(out/'schema.json',schema)
         record={'original_request_hash':digest(request),'wire_request_hash':digest(wire),
                 'original_bytes':len(canonical(request)),'wire_bytes':len(canonical(wire)),'status':'DISPATCHED'}
         save(out/'status.json',record)
         try:
-            answer=self.provider.complete(wire,schema,settings)
+            if self.reference_protocol!='literal' and 'Quote' in schema.get('$defs',{}):
+                answer=source_references.complete(self.provider,wire,schema,settings,out/'source-references')
+            else:answer=self.provider.complete(wire,schema,settings)
             provenance={**answer.provenance,'original_request_hash':digest(request),
                 'wire_request_hash':digest(wire),'compact_request':wire,
-                'transport_profile':'exact-source-text.compact.v1'}
+                'transport_profile':'exact-source-text.compact.v2'}
             save(out/'response.json',{'value':answer.value,'provenance':provenance})
             record.update(status='RETURNED_UNVALIDATED',response_hash=digest(answer.value))
             save(out/'status.json',record)

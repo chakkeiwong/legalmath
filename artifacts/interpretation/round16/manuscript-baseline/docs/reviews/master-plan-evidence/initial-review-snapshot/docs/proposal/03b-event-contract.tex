@@ -1,0 +1,48 @@
+\subsubsection{The finite event profile}
+
+The first event implementation supports consent and non-preemptive achievement
+duties. Events have immutable identifiers, stream identifiers, occurrence and
+recorded timestamps, and an authoritative sequence number. Timestamps are UTC
+with microsecond precision; legal date conversion explicitly uses
+\texttt{Asia/Hong\_Kong}. Equal occurrence times can use sequence order only
+when the connector declares that ordering authority. Otherwise the result is
+\texttt{E\_ORDER\_UNRESOLVED}. A duplicate event with identical bytes is a
+no-op; reuse of its identifier for different content is an error.
+
+Consent begins as not established only when the stream is complete from its
+declared inception, or is complete after a reviewed initial snapshot. An incomplete export
+instead yields an unknown history. A grant creates an active consent generation;
+withdrawal makes it withdrawn; a new grant needs new evidence and creates a new
+generation. Observed transactions remain in the audit history even when the
+current consent state would prevent streamlined use.
+
+An obligation records actor, action, subject, source version, activation and a
+deadline or explicit absence of a deadline. Let $a$ be activation and $d$ the
+exclusive deadline. Under this proposed profile, a matching performance at time
+$p$ is timely when
+\begin{equation}
+ a\leq p<d.
+ \label{eq:timely}
+\end{equation}
+This is the chosen boundary convention for the profile, not an assertion that
+every SFC deadline has the same wording. A local due date is converted to the
+next local midnight. An anniversary requires an explicit leap-day policy; a
+reviewed choice of February 28, March 1 or rejection replaces an implicit library
+default. Business-day calendars are deferred.
+
+Absence of a timely record establishes breach only when a watermark shows that
+the observation window through $d$ is complete. The wall clock cannot create
+that evidence. Without completeness the obligation stays open. Timely performance
+produces \texttt{SATISFIED\_ON\_TIME}; a complete window without it produces
+\texttt{BREACHED}. A subsequent matching performance produces
+\texttt{PERFORMED\_LATE} and retains the breach. A deadline-free request can be
+performed but does not become overdue through an invented number of days.
+
+For example, consider a synthetic review activated at midnight UTC on September
+1 and due at midnight on September 2. A record one microsecond before the latter
+instant is timely; a record exactly at it is late. The fixtures contain both.
+These dates illustrate the runtime convention rather than an SFC-prescribed
+review deadline. If a late-arriving record later proves timely performance,
+replay produces a corrected assessment with a new knowledge cutoff; the original
+assessment remains visible. Maintenance duties, pre-emptive satisfaction,
+waivers and legal compensation require future profiles and are rejected now.

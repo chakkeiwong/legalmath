@@ -1,0 +1,46 @@
+--- a/src/legalmath/interpretation/assurance/engine.py
++++ b/src/legalmath/interpretation/assurance/engine.py
+@@ -546,7 +546,7 @@
+         fidelity, semantic = self._fidelity(packet, claims, candidates)
+         budget = RepairBudget(self.settings.semantic_repairs_per_issue); cost = self.settings.action_cost_budget
+         attempted = set(); partition_runs=[]; partition_remaining=self.settings.max_question_replays
+-        repair_results = []
++        repair_results = [];inventory_repair_incomplete=False
+         for step in range(self.settings.semantic_repair_rounds):
+             scope = {'source_packet_hash':digest(packet),'candidates_hash':digest(candidates),'at':self.at}
+             if partition_runs and partition_runs[-1]['candidates_hash']==digest(candidates):
+@@ -591,6 +591,25 @@
+                         repair_instruction='Re-extract the source claims in light of this discrepancy. No candidate or peer answer is supplied. Retain ambiguity; do not force an expected interpretation.')
+                     value=self.invoke(request,Inventory,lambda v:validate_inventory(v,packet))
+                     if value is not None:revised[role]=value
++                revision={'prior_inventory_hash':digest(inventory),'proposed':revised,
++                    'required_roles':['atomic-reader','qualification-reader'],
++                    'completed_roles':sorted(revised),'concern':concern}
++                if set(revised)!={'atomic-reader','qualification-reader'}:
++                    # Failed new evidence cannot erase retained source obligations.
++                    inventory_repair_incomplete=True
++                    revision.update(status='INCOMPLETE_PRIOR_INVENTORY_RETAINED',
++                        retained_claim_hash=digest(claims))
++                    save(self.directory/f'inventory-repair-{step:03}.json',revision)
++                    failed={'kind':'SOURCE_INVENTORY_REPAIR_INCOMPLETE','stage':'INTERPRETATION',
++                        'completed_roles':sorted(revised),'retained_claim_hash':digest(claims),
++                        'source_concern':concern}
++                    findings.append(failed)
++                    self.history.record('INTERPRETATION',{'packet':digest(packet),'repair':action},revision)
++                    repair_results.append({'kind':'SOURCE_INVENTORY','stage':'INTERPRETATION',
++                        'reservation':reservation,'status':revision['status']})
++                    break
++                revision['status']='TWO_INVENTORIES_VALIDATED'
++                save(self.directory/f'inventory-repair-{step:03}.json',revision)
+                 inventory=revised;claims=merge_inventories(inventory)
+                 self.history.record('INTERPRETATION',{'packet':digest(packet),'repair':action},inventory)
+                 fixed_findings=[{**f,'stage':'DEPENDENCY'} for f in context['findings']]+source_findings+authority_findings+[
+@@ -772,7 +791,7 @@
+         report['authority_registry_hash'] = authority_registry.hash if authority_registry else None
+         save(self.directory/'candidates.json',candidates)
+         save(self.directory/'inventories.json',inventory);save(self.directory/'claims.json',claims)
+-        report['execution_complete']=(len(inventory)==2 and fidelity is not None and argument_result is not None
++        report['execution_complete']=(not inventory_repair_incomplete and len(inventory)==2 and fidelity is not None and argument_result is not None
+             and argument_result.get('status') not in ('ARGUMENT_LIMIT','CYCLIC_SUPPORT_UNRESOLVED')
+             and search_report['status']!='FAILED_INTEGRITY' and not incomplete_questions
+             and (abstraction_result is None or not abstraction_result['failures'])

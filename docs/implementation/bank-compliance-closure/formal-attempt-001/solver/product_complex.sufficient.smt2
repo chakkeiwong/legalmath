@@ -1,0 +1,17 @@
+; benchmark generated from python API
+(set-info :status unknown)
+(declare-fun contractual_write_down () Bool)
+(declare-fun contingent_conversion () Bool)
+(declare-fun subordinated () Bool)
+(declare-fun perpetual () Bool)
+(declare-fun bond () Bool)
+(assert
+ (let ((?x62 (ite contractual_write_down 1 0)))
+(let ((?x12 (ite contingent_conversion 1 0)))
+(let ((?x76 (ite subordinated 1 0)))
+(let ((?x55 (ite perpetual 1 0)))
+(let (($x64 (and bond (>= (+ ?x55 ?x76 ?x12 ?x62) 1))))
+(let (($x28 (or perpetual subordinated contingent_conversion contractual_write_down)))
+(let (($x25 (and bond $x28)))
+(or (not true) (and (distinct $x25 $x64) true))))))))))
+(check-sat)

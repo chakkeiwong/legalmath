@@ -1,0 +1,164 @@
+{
+  "value": {
+    "task": "CHECK_LOWERING_MEANING",
+    "protocol": "legalmath.syntax-lowering.v1",
+    "local_id": "sfc_equity_option_exemption_scope",
+    "original_hash": "1a211f70fa6c2a3c8be8545cfe3d1c612e60b7fdb2873309e1f52b0f29c3ab75",
+    "lowered_hash": "b167049fefd67237e07d3853bc459ca7d920822275d42696ef1a92718a841bdd",
+    "verdict": "REVISE",
+    "summary": "The positive Boolean conjunction is preserved, but the executable scope changes negative answers into OUT_OF_SCOPE. The original and backtranslation also share temporal ambiguities that the retained source does not resolve.",
+    "bidirectional_comparison": {
+      "original_to_backtranslation": "All five positive conditions appear in the executable result. However, the original explicitly promises a false answer when a condition fails; the backtranslation instead excludes those cases through its identical scope conjunction.",
+      "backtranslation_to_original": "With all dependencies known and consistent, every TRUE result satisfies the original conjunction. The added restriction is on evaluation: only transactions already satisfying the exemption conditions reach the Boolean result. This restriction is not supported by the original scope description."
+    },
+    "findings": [
+      {
+        "id": "F1",
+        "severity": "error",
+        "classification": "lowering_changes_negative_result",
+        "original_quote": "true means the condition for announced exemption coverage is satisfied, false means at least one stated condition is not satisfied or the exemption is no longer in force.",
+        "backtranslation_quotes": [
+          "Scope: all of these conditions hold: [the fact corporation_is_sfc_licensed; the fact option_is_covered_equity_type; the fact option_is_non_centrally_cleared; [the fact transaction_date] is greater than or equal to [the fact exemption_start_date]; the fact exemption_remains_until_further_notice]",
+          "A false scope returns OUT_OF_SCOPE"
+        ],
+        "assessment": "The eligibility test has been copied into the evaluation scope. For known, consistent inputs, a failed condition yields OUT_OF_SCOPE rather than FALSE. The resulting rule cannot return a known FALSE.",
+        "counterexample": {
+          "facts": "All Boolean facts are TRUE, transaction_date is 2026-01-03, and exemption_start_date is 2026-01-04.",
+          "original_result": "FALSE",
+          "backtranslation_result": "OUT_OF_SCOPE"
+        },
+        "proposed_change": "Use an unconditional evaluation scope for the stated applicability question and retain the conjunction as the result. Any separate scope restriction must be independently justified and must preserve the original's intended negative answers."
+      },
+      {
+        "id": "F2",
+        "severity": "material_uncertainty",
+        "classification": "shared_temporal_assumption",
+        "source_quote": {
+          "unit_id": "d802c45a4262c.u0.0",
+          "quote": "from 4 January 2026 until further notice"
+        },
+        "original_quotes": [
+          "occurs on or after 2026-01-04",
+          "The transaction date is the Gregorian date on which the option transaction is assessed."
+        ],
+        "assessment": "The statement describes a transaction-occurrence date, while the fact definition describes an assessment date. These dates can differ. The source gives the exemption's effective period but does not expressly limit it to transactions entered into during that period. The backtranslation preserves this ambiguity rather than introducing it.",
+        "proposed_change": "Distinguish assessment_date from transaction_entry_date. Apply the exemption's effective period to the date whose margin treatment is being assessed. Retain a separate entry-date restriction only with supporting authority or an explicit, limited modeling assumption.",
+        "unresolved_question": "Whether and how the announced exemption applies to options entered into before 2026-01-04 remains unestablished by the supplied text."
+      },
+      {
+        "id": "F3",
+        "severity": "material_uncertainty",
+        "classification": "shared_overrestrictive_notice_definition",
+        "source_quote": {
+          "unit_id": "d802c45a4262c.u0.0",
+          "quote": "until further notice"
+        },
+        "original_and_backtranslation_quote": "The announced exemption remains in force at the assessment date because no later notice has withdrawn or altered it.",
+        "assessment": "Continued applicability must be assessed at the relevant date. The existence of an alteration does not necessarily terminate coverage of the assessed transaction, and a notice can announce a future change without changing present coverage. The supplied definition could incorrectly make either circumstance disqualifying. No later notices are supplied.",
+        "proposed_change": "Define the fact by whether the exemption remains applicable to this transaction at the relevant assessment date, accounting for the effective dates and substantive effects of later notices. Do not equate every alteration or publication of a notice with loss of coverage."
+      }
+    ],
+    "full_source_checks": [
+      {
+        "topic": "Actor",
+        "source_quote": {
+          "unit_id": "d802c45a4262c.u0.0",
+          "quote": "to inform licensed corporations"
+        },
+        "assessment": "The licensed-corporation condition is preserved. The fact's reference to registration must not be read as an alternative sufficient condition: its full wording also requires that the entity be a licensed corporation addressed by the circular."
+      },
+      {
+        "topic": "Products, clearing and quantifiers",
+        "source_quote": {
+          "unit_id": "d802c45a4262c.u0.0",
+          "quote": "non-centrally cleared single-stock options, equity basket options and equity index options"
+        },
+        "assessment": "The three alternative product types and the non-central-clearing condition are preserved. No exposure threshold or portfolio-wide quantifier is added. Product and clearing classifications remain supplied judgments."
+      },
+      {
+        "topic": "Date, units and polarity",
+        "source_quote": {
+          "unit_id": "d802c45a4262c.u0.0",
+          "quote": "from 4 January 2026"
+        },
+        "assessment": "2026-01-04 and an inclusive comparison preserve the stated calendar boundary, subject to F2. TRUE retains the meaning that exemption conditions are satisfied. The declared start date should be fixed at 2026-01-04; the supplied backtranslation does not establish whether executable validation enforces that value."
+      },
+      {
+        "topic": "Specified margin requirements",
+        "source_quote": {
+          "unit_id": "d802c45a4262c.u15.1671",
+          "quote": "1 As set out in Part III of Schedule 10 to the Code of Conduct for Persons Licensed by or Registered with the Securities and Futures Commission (Code of Conduct)."
+        },
+        "assessment": "The original appropriately limits the result to the specified SFC margin exemption. This limitation should remain attached to the executable result's description; the Boolean alone does not express it."
+      },
+      {
+        "topic": "Pending amendment",
+        "source_quote": {
+          "unit_id": "d802c45a4262c.u6.1357",
+          "quote": "Paragraph 7(e) of Part III of Schedule 10 to the Code of Conduct will be amended accordingly and gazetted in due course."
+        },
+        "assessment": "Neither the original result nor the backtranslation makes completed amendment or gazettal a prerequisite, which is consistent with the announcement. Preserve the pending-amendment qualification in accompanying metadata; the backtranslation does not restate it and does not establish that amendment has occurred."
+      },
+      {
+        "topic": "Overseas background",
+        "source_quotes": [
+          {
+            "unit_id": "d802c45a4262c.u3.801",
+            "quote": "In the EU, a permanent exemption from the requirement to exchange margin for single-stock equity options and equity index options became effective on 24 December 2024, subject to monitoring and periodic reporting2."
+          },
+          {
+            "unit_id": "d802c45a4262c.u4.1019",
+            "quote": "It implemented an indefinite exemption from the UK bilateral margining requirements for single-stock equity options and index options."
+          }
+        ],
+        "assessment": "EU monitoring and reporting, the EU effective date, and UK requirements are correctly excluded from the Hong Kong predicates. Neither permanence nor an independently verified overseas legal conclusion follows from this rule."
+      },
+      {
+        "topic": "Remaining supplied material and dependencies",
+        "assessment": "The rationale, contact instruction, issuer identifiers and overseas reference footnotes add no further transaction-level condition to the selected SFC announcement. The three dependency entries have null source hashes and no substantive contents. Referenced instruments and subsequent notices therefore remain unverified."
+      }
+    ],
+    "proposal": {
+      "evaluation_scope": "Unconditional for the stated exemption-applicability question.",
+      "result": "[TRUE_IS_SATISFIED] (and corporation_is_sfc_licensed option_is_covered_equity_type option_is_non_centrally_cleared (>= assessment_date 2026-01-04) exemption_applies_at_assessment_date)",
+      "qualification": "The assessment-date formulation is a proposed clarification requiring resolution of F2, rather than a claim that the supplied source settles treatment of pre-existing transactions.",
+      "preserve": [
+        "The result concerns only the announced exemption from the identified SFC margin requirements.",
+        "The pending Code amendment is contextual information, not an added prerequisite.",
+        "Classification and subsequent-notice review remain external factual judgments.",
+        "Missing or temporally unavailable facts remain UNKNOWN; conflicts remain CONFLICT; neither is converted to a known Boolean."
+      ],
+      "acceptance_checks": [
+        "Known, consistent inputs satisfying every condition return TRUE.",
+        "Known, consistent inputs failing any eligibility condition return FALSE rather than OUT_OF_SCOPE.",
+        "The inclusive effective-date boundary uses the resolved date meaning.",
+        "Later notices are assessed by their effective substantive impact on the transaction.",
+        "The exemption start date cannot silently vary from 2026-01-04."
+      ]
+    }
+  },
+  "provenance": {
+    "provider": "codex.fresh.v1",
+    "fresh_context": true,
+    "independence": "CONTEXT_ONLY_SAME_MODEL_CORRELATION_UNMEASURED",
+    "request_hash": "47c79285036c73a21ad9e4e2f7e1105e7281a5d26d820c207f6943cb827c7d20",
+    "response_hash": "3144af2a67e2142407a40ab7e5ea0d5e8ecb5b919720e429ef1a43a08c30996e",
+    "allowance_slot": 274,
+    "wall_milliseconds": 37772,
+    "usage": [
+      {
+        "input_tokens": 21229,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2235,
+        "reasoning_output_tokens": 39
+      }
+    ],
+    "events_jsonl": "{\"type\":\"thread.started\",\"thread_id\":\"01a0d93a-1c14-7380-bfd2-aa920f1e1c48\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"{\\n  \\\"task\\\": \\\"CHECK_LOWERING_MEANING\\\",\\n  \\\"protocol\\\": \\\"legalmath.syntax-lowering.v1\\\",\\n  \\\"local_id\\\": \\\"sfc_equity_option_exemption_scope\\\",\\n  \\\"original_hash\\\": \\\"1a211f70fa6c2a3c8be8545cfe3d1c612e60b7fdb2873309e1f52b0f29c3ab75\\\",\\n  \\\"lowered_hash\\\": \\\"b167049fefd67237e07d3853bc459ca7d920822275d42696ef1a92718a841bdd\\\",\\n  \\\"verdict\\\": \\\"REVISE\\\",\\n  \\\"summary\\\": \\\"The positive Boolean conjunction is preserved, but the executable scope changes negative answers into OUT_OF_SCOPE. The original and backtranslation also share temporal ambiguities that the retained source does not resolve.\\\",\\n  \\\"bidirectional_comparison\\\": {\\n    \\\"original_to_backtranslation\\\": \\\"All five positive conditions appear in the executable result. However, the original explicitly promises a false answer when a condition fails; the backtranslation instead excludes those cases through its identical scope conjunction.\\\",\\n    \\\"backtranslation_to_original\\\": \\\"With all dependencies known and consistent, every TRUE result satisfies the original conjunction. The added restriction is on evaluation: only transactions already satisfying the exemption conditions reach the Boolean result. This restriction is not supported by the original scope description.\\\"\\n  },\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": \\\"F1\\\",\\n      \\\"severity\\\": \\\"error\\\",\\n      \\\"classification\\\": \\\"lowering_changes_negative_result\\\",\\n      \\\"original_quote\\\": \\\"true means the condition for announced exemption coverage is satisfied, false means at least one stated condition is not satisfied or the exemption is no longer in force.\\\",\\n      \\\"backtranslation_quotes\\\": [\\n        \\\"Scope: all of these conditions hold: [the fact corporation_is_sfc_licensed; the fact option_is_covered_equity_type; the fact option_is_non_centrally_cleared; [the fact transaction_date] is greater than or equal to [the fact exemption_start_date]; the fact exemption_remains_until_further_notice]\\\",\\n        \\\"A false scope returns OUT_OF_SCOPE\\\"\\n      ],\\n      \\\"assessment\\\": \\\"The eligibility test has been copied into the evaluation scope. For known, consistent inputs, a failed condition yields OUT_OF_SCOPE rather than FALSE. The resulting rule cannot return a known FALSE.\\\",\\n      \\\"counterexample\\\": {\\n        \\\"facts\\\": \\\"All Boolean facts are TRUE, transaction_date is 2026-01-03, and exemption_start_date is 2026-01-04.\\\",\\n        \\\"original_result\\\": \\\"FALSE\\\",\\n        \\\"backtranslation_result\\\": \\\"OUT_OF_SCOPE\\\"\\n      },\\n      \\\"proposed_change\\\": \\\"Use an unconditional evaluation scope for the stated applicability question and retain the conjunction as the result. Any separate scope restriction must be independently justified and must preserve the original's intended negative answers.\\\"\\n    },\\n    {\\n      \\\"id\\\": \\\"F2\\\",\\n      \\\"severity\\\": \\\"material_uncertainty\\\",\\n      \\\"classification\\\": \\\"shared_temporal_assumption\\\",\\n      \\\"source_quote\\\": {\\n        \\\"unit_id\\\": \\\"d802c45a4262c.u0.0\\\",\\n        \\\"quote\\\": \\\"from 4 January 2026 until further notice\\\"\\n      },\\n      \\\"original_quotes\\\": [\\n        \\\"occurs on or after 2026-01-04\\\",\\n        \\\"The transaction date is the Gregorian date on which the option transaction is assessed.\\\"\\n      ],\\n      \\\"assessment\\\": \\\"The statement describes a transaction-occurrence date, while the fact definition describes an assessment date. These dates can differ. The source gives the exemption's effective period but does not expressly limit it to transactions entered into during that period. The backtranslation preserves this ambiguity rather than introducing it.\\\",\\n      \\\"proposed_change\\\": \\\"Distinguish assessment_date from transaction_entry_date. Apply the exemption's effective period to the date whose margin treatment is being assessed. Retain a separate entry-date restriction only with supporting authority or an explicit, limited modeling assumption.\\\",\\n      \\\"unresolved_question\\\": \\\"Whether and how the announced exemption applies to options entered into before 2026-01-04 remains unestablished by the supplied text.\\\"\\n    },\\n    {\\n      \\\"id\\\": \\\"F3\\\",\\n      \\\"severity\\\": \\\"material_uncertainty\\\",\\n      \\\"classification\\\": \\\"shared_overrestrictive_notice_definition\\\",\\n      \\\"source_quote\\\": {\\n        \\\"unit_id\\\": \\\"d802c45a4262c.u0.0\\\",\\n        \\\"quote\\\": \\\"until further notice\\\"\\n      },\\n      \\\"original_and_backtranslation_quote\\\": \\\"The announced exemption remains in force at the assessment date because no later notice has withdrawn or altered it.\\\",\\n      \\\"assessment\\\": \\\"Continued applicability must be assessed at the relevant date. The existence of an alteration does not necessarily terminate coverage of the assessed transaction, and a notice can announce a future change without changing present coverage. The supplied definition could incorrectly make either circumstance disqualifying. No later notices are supplied.\\\",\\n      \\\"proposed_change\\\": \\\"Define the fact by whether the exemption remains applicable to this transaction at the relevant assessment date, accounting for the effective dates and substantive effects of later notices. Do not equate every alteration or publication of a notice with loss of coverage.\\\"\\n    }\\n  ],\\n  \\\"full_source_checks\\\": [\\n    {\\n      \\\"topic\\\": \\\"Actor\\\",\\n      \\\"source_quote\\\": {\\n        \\\"unit_id\\\": \\\"d802c45a4262c.u0.0\\\",\\n        \\\"quote\\\": \\\"to inform licensed corporations\\\"\\n      },\\n      \\\"assessment\\\": \\\"The licensed-corporation condition is preserved. The fact's reference to registration must not be read as an alternative sufficient condition: its full wording also requires that the entity be a licensed corporation addressed by the circular.\\\"\\n    },\\n    {\\n      \\\"topic\\\": \\\"Products, clearing and quantifiers\\\",\\n      \\\"source_quote\\\": {\\n        \\\"unit_id\\\": \\\"d802c45a4262c.u0.0\\\",\\n        \\\"quote\\\": \\\"non-centrally cleared single-stock options, equity basket options and equity index options\\\"\\n      },\\n      \\\"assessment\\\": \\\"The three alternative product types and the non-central-clearing condition are preserved. No exposure threshold or portfolio-wide quantifier is added. Product and clearing classifications remain supplied judgments.\\\"\\n    },\\n    {\\n      \\\"topic\\\": \\\"Date, units and polarity\\\",\\n      \\\"source_quote\\\": {\\n        \\\"unit_id\\\": \\\"d802c45a4262c.u0.0\\\",\\n        \\\"quote\\\": \\\"from 4 January 2026\\\"\\n      },\\n      \\\"assessment\\\": \\\"2026-01-04 and an inclusive comparison preserve the stated calendar boundary, subject to F2. TRUE retains the meaning that exemption conditions are satisfied. The declared start date should be fixed at 2026-01-04; the supplied backtranslation does not establish whether executable validation enforces that value.\\\"\\n    },\\n    {\\n      \\\"topic\\\": \\\"Specified margin requirements\\\",\\n      \\\"source_quote\\\": {\\n        \\\"unit_id\\\": \\\"d802c45a4262c.u15.1671\\\",\\n        \\\"quote\\\": \\\"1 As set out in Part III of Schedule 10 to the Code of Conduct for Persons Licensed by or Registered with the Securities and Futures Commission (Code of Conduct).\\\"\\n      },\\n      \\\"assessment\\\": \\\"The original appropriately limits the result to the specified SFC margin exemption. This limitation should remain attached to the executable result's description; the Boolean alone does not express it.\\\"\\n    },\\n    {\\n      \\\"topic\\\": \\\"Pending amendment\\\",\\n      \\\"source_quote\\\": {\\n        \\\"unit_id\\\": \\\"d802c45a4262c.u6.1357\\\",\\n        \\\"quote\\\": \\\"Paragraph 7(e) of Part III of Schedule 10 to the Code of Conduct will be amended accordingly and gazetted in due course.\\\"\\n      },\\n      \\\"assessment\\\": \\\"Neither the original result nor the backtranslation makes completed amendment or gazettal a prerequisite, which is consistent with the announcement. Preserve the pending-amendment qualification in accompanying metadata; the backtranslation does not restate it and does not establish that amendment has occurred.\\\"\\n    },\\n    {\\n      \\\"topic\\\": \\\"Overseas background\\\",\\n      \\\"source_quotes\\\": [\\n        {\\n          \\\"unit_id\\\": \\\"d802c45a4262c.u3.801\\\",\\n          \\\"quote\\\": \\\"In the EU, a permanent exemption from the requirement to exchange margin for single-stock equity options and equity index options became effective on 24 December 2024, subject to monitoring and periodic reporting2.\\\"\\n        },\\n        {\\n          \\\"unit_id\\\": \\\"d802c45a4262c.u4.1019\\\",\\n          \\\"quote\\\": \\\"It implemented an indefinite exemption from the UK bilateral margining requirements for single-stock equity options and index options.\\\"\\n        }\\n      ],\\n      \\\"assessment\\\": \\\"EU monitoring and reporting, the EU effective date, and UK requirements are correctly excluded from the Hong Kong predicates. Neither permanence nor an independently verified overseas legal conclusion follows from this rule.\\\"\\n    },\\n    {\\n      \\\"topic\\\": \\\"Remaining supplied material and dependencies\\\",\\n      \\\"assessment\\\": \\\"The rationale, contact instruction, issuer identifiers and overseas reference footnotes add no further transaction-level condition to the selected SFC announcement. The three dependency entries have null source hashes and no substantive contents. Referenced instruments and subsequent notices therefore remain unverified.\\\"\\n    }\\n  ],\\n  \\\"proposal\\\": {\\n    \\\"evaluation_scope\\\": \\\"Unconditional for the stated exemption-applicability question.\\\",\\n    \\\"result\\\": \\\"[TRUE_IS_SATISFIED] (and corporation_is_sfc_licensed option_is_covered_equity_type option_is_non_centrally_cleared (>= assessment_date 2026-01-04) exemption_applies_at_assessment_date)\\\",\\n    \\\"qualification\\\": \\\"The assessment-date formulation is a proposed clarification requiring resolution of F2, rather than a claim that the supplied source settles treatment of pre-existing transactions.\\\",\\n    \\\"preserve\\\": [\\n      \\\"The result concerns only the announced exemption from the identified SFC margin requirements.\\\",\\n      \\\"The pending Code amendment is contextual information, not an added prerequisite.\\\",\\n      \\\"Classification and subsequent-notice review remain external factual judgments.\\\",\\n      \\\"Missing or temporally unavailable facts remain UNKNOWN; conflicts remain CONFLICT; neither is converted to a known Boolean.\\\"\\n    ],\\n    \\\"acceptance_checks\\\": [\\n      \\\"Known, consistent inputs satisfying every condition return TRUE.\\\",\\n      \\\"Known, consistent inputs failing any eligibility condition return FALSE rather than OUT_OF_SCOPE.\\\",\\n      \\\"The inclusive effective-date boundary uses the resolved date meaning.\\\",\\n      \\\"Later notices are assessed by their effective substantive impact on the transaction.\\\",\\n      \\\"The exemption start date cannot silently vary from 2026-01-04.\\\"\\n    ]\\n  }\\n}\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":21229,\"cached_input_tokens\":0,\"cache_write_input_tokens\":0,\"output_tokens\":2235,\"reasoning_output_tokens\":39}}\n",
+    "cli_version": "codex-cli 0.153.4",
+    "configuration": "ignore-user-config; read-only; tools-disabled; no-resume",
+    "model": "gpt-6-astra",
+    "provider_route_hash": "3d676052ff208f9c0b35467659af41d3138476127d0d1b523970689c2edf4714",
+    "transport_retry_policy": "NO_APPLICATION_RETRY; CLI transport behavior is external"
+  }
+}

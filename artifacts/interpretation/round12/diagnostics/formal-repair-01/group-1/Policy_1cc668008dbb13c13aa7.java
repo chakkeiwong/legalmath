@@ -1,0 +1,20 @@
+package hk.legalmath;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Map;
+
+/** Generated RuleIR 0.1 policy. Authority is supplied by an external release record. */
+public final class Policy_1cc668008dbb13c13aa7 {
+    private Policy_1cc668008dbb13c13aa7() {}
+    public static final String BUNDLE_HASH = "1cc668008dbb13c13aa7fa7a01509330ae58e15aeffb8b144f53c2bfcf90f84e";
+    private static final Policy POLICY = new Policy(new String(Base64.getDecoder().decode(String.join("", new String[]{
+"eyJidW5kbGVfaWQiOiJsb2dpYy5hbGwiLCJmYWN0cyI6W3siZGVzY3JpcHRpb24iOiJhIiwibmFtZSI6ImEiLCJ0eXBlIjoiYm9vbCJ9LHsiZGVzY3JpcHRpb24iOiJiIiwibmFtZSI6ImIiLCJ0eXBlIjoiYm9vbCJ9XSwiaW50ZXJwcmV0YXRpb25zIjpbeyJiYXNpcyI6InN5bnRoZXRpY190ZXN0IiwiaWQiOiJtZWFuaW5nLm1haW4iLCJpc3N1ZV9pZHMiOltdLCJzb3VyY2Vfc3Bhbl9pZHMiOlsic3BpLmFubmV4MS4zLjEiXSwic3RhdGVtZW50IjoiU3ludGhldGljIGxhbmd1YWdlIGNvbmZvcm1hbmNlIGV4YW1wbGU7IG5vdCBhbiBhZGRpdGlvbmFsIFNGQyBydWxlLiJ9XSwicnVsZXMiOlt7ImJvZHkiOnsiYXJncyI6W3sibmFtZSI6ImEiLCJub2RlX2lkIjoiYS5yZWYiLCJvcCI6ImZhY3QifSx7Im5hbWUiOiJiIiwibm9kZV9pZCI6ImIucmVmIiwib3AiOiJmYWN0In1dLCJub2RlX2lkIjoiY29tYmluZSIsIm9wIjoiYWxsIn0sImlkIjoibG9naWMuYWxsIiwiaW50ZXJwcmV0YXRpb25faWQiOiJtZWFuaW5nLm1haW4iLCJzY29wZSI6eyJub2RlX2lkIjoic2NvcGUudHJ1ZSIsIm9wIjoibGl0ZXJhbCIsInR5cGUiOiJib29sIiwidmFsdWUiOnRydWV9LCJzb3VyY2Vfc3Bhbl9pZHMiOlsic3BpLmFubmV4MS4zLjEiXSwidHlwZSI6ImJvb2wifV0sInNvdXJjZV9zcGFucyI6W3siZW5kIjoyMTA3LCJpZCI6InNwaS5hbm5leDEuMy4xIiwicGFnZSI6MSwicXVvdGVfc2hhMjU2IjoiMTJlNTVkMzY4NDg5MjdmYWFkODJjNTE5YjhiM2Y3NWI3YTcxNjJjYzc5ZWZhN2MzZDBjZmZlYWE4OWJhYWRlZCIsInJhd19zaGEyNTYiOiJmODM3MTk5ODFkNzRlZDA2YmI2MmNjZjEyMWJkNzIwNGY4MGExMTQ2YWU1MDQwZjRjNGFhYjkwNWRmNTEwYzRhIiwic291cmNlX2lkIjoiMjNFQzM1L2FubmV4MSIsInN0YXJ0IjoxODU5LCJ0ZXh0X3NoYTI1NiI6IjY3ODA2MDA2MDBlNzdkMmZiZmY1ZjRhMTRiNGRiMjM3YzRjMzk0Mzc2NGE4NDg0NGFhZDhhZDljZDM0NmU1ODkifV0sInNwZWNfdmVyc2lvbiI6IjAuMSIsInZhbGlkX2Zyb20iOiIyMDIzLTA3LTI4VDAwOjAwOjAwLjAwMDAwMFoiLCJ2YWxpZF91bnRpbCI6bnVsbH0="
+    })), StandardCharsets.UTF_8));
+    public static String evaluate(String snapshot, String ruleId, String validAt, String knownAt, String mode) {
+        return POLICY.evaluate(snapshot, ruleId, validAt, knownAt, mode);
+    }
+    public static Map<String,Object> evaluate(Map<String,Object> snapshot, String ruleId, String validAt, String knownAt, String mode) {
+        return POLICY.evaluate(snapshot, ruleId, validAt, knownAt, mode);
+    }
+}

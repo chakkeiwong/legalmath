@@ -105,6 +105,11 @@ def admit(directory, expected_hash, item, *, method_hash):
         if item['family'] not in spec['families']: reasons.append('OUTSIDE_FROZEN_FAMILIES')
         if not instant(spec['starts_at']) < published <= instant(spec['ends_at']): reasons.append('OUTSIDE_PUBLICATION_WINDOW')
         if not instant(spec['starts_at']) < seen <= instant(now()) or seen < published: reasons.append('INVALID_ENCOUNTER_CHRONOLOGY')
+        if seen > instant(spec['ends_at']): reasons.append('OUTSIDE_ENCOUNTER_WINDOW')
+        if any(e['kind'] == 'SELECT' and e['status'] == 'PENDING' and
+               e['item']['source_hash'] == item['source_hash'] and
+               e['item']['question_hash'] == item['question_hash'] for e in events):
+            reasons.append('DUPLICATE_SOURCE_QUESTION')
         if item['source_hash'] in spec['development_sources']: reasons.append('DEVELOPMENT_SOURCE')
         if method_hash != spec['method_hash']: reasons.append('METHOD_CHANGED')
         if any(e['kind'] == 'REPAIR' for e in events): reasons.append('WINDOW_USED_FOR_REPAIR')
