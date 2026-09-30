@@ -7,17 +7,25 @@ import re
 from fractions import Fraction
 
 
-DEBT=r'(?:(?:the|these|each|our|such)\s+)?(?:Notes?|Securities|Security|Bonds?|Debentures?)'
-COMMON=r'(?:(?:ordinary|common)(?:\s+registered)?\s+shares|common\s+(?:capital\s+)?stock|Conversion\s+Shares)'
+DEBT=r'(?:(?:the|these|each|our|such)\s+)?(?:Notes?|(?:Preferred\s+)?(?:Securities|Security)|Bonds?|Debentures?)'
+COMMON_CLASS=r'(?:(?:ordinary|common)(?:\s+registered)?\s+shares|common\s+(?:capital\s+)?stock)'
+COMMON=rf'(?:(?:newly\s+issued|new|fully\s+paid(?:\s+up)?)\s+)*(?:{COMMON_CLASS}|Conversion\s+Shares)'
 MOD=r'(?:will|shall|must|may)'
 ADV=r'(?:(?:automatically|irrevocably|mandatorily|compulsorily|permanently|temporarily|promptly|be|and)\s+)*'
 WRITE=r'(?:writ(?:e|ten)[ -]?(?:down|off)|reduc(?:e|ed)|cancel(?:led|ed)?)'
 PASSIVE_WRITE=r'(?:written[ -]?(?:down|off)|reduced|cancelled|canceled)'
 AMOUNT=r'(?:(?:prevailing|full|entire|aggregate|outstanding|then|current)\s+)*(?:principal|nominal|face)\s+(?:amount|value)'
+NO_CONSENT=r'(?:\((?:and\s+)?without\s+(?:any\s+requirement\s+for\s+)?(?:the\s+)?consent(?:\s+or\s+approval)?\s+of\s+(?:the\s+)?Holders\)\s+)?'
+# A numbered action inherits its modal only from this same list head. Other
+# subjects, reporting verbs and action negation do not fit the action slot.
+LIST_HEAD=r'(?P<trigger>If\s+the\s+(?:Trigger|Conversion|Capital)\s+Event\s+occurs\b[^;:]{0,160}?,\s*(?:then\s+)?)(?P<subject>the\s+(?:Bank|Issuer|Company))\s+(?P<modal>will|shall|must)\s*:\s*'
+LIST_PREFIX=r'(?:\([a-z]\)\s+[^;]{1,2400};\s*(?:and\s+)?){0,8}\([a-z]\)\s+'
 
 # Each rule binds obligation/power to the relevant action in one matched
 # relation; an unrelated shall/notify/confirm is not a mandatory mechanism.
 RULES={
+ 'copular_mandatory_conversion':('mandatory_common_conversion',rf'(?P<subject>{DEBT})\s+(?P<modal>are|is)\s+(?P<force>(?:(?:irrevocably|automatically)\s+and\s+)?(?:mandatorily|compulsorily))\s+(?P<action>(?:(?:and|irrevocably|automatically)\s+)*convertible\s+(?:into|to))\s+(?P<target>{COMMON})'),
+ 'numbered_mandatory_conversion':('mandatory_common_conversion',rf'{LIST_HEAD}{LIST_PREFIX}(?P<action>{ADV}{NO_CONSENT}convert)\s+(?:all\s+)?(?P<security>{DEBT})\s+(?:into|to)\s+(?P<target>{COMMON})'),
  'debt_conversion':('mandatory_common_conversion',rf'(?P<subject>{DEBT})\s+(?P<modal>will|shall|must)\s+(?P<action>{ADV}convert(?:ed)?\s+(?:into|to))\s+(?P<target>{COMMON})'),
  'issuer_conversion_power':('mandatory_common_conversion',rf'(?P<subject>(?:the\s+)?(?:issuer|resolution authority|regulator))\s+(?P<modal>{MOD})\s+(?P<action>{ADV}convert)\s+{DEBT}\s+(?:into|to)\s+(?P<target>{COMMON})'),
  'debt_write_down':('principal_write_down',rf'(?P<subject>{DEBT})\s+(?P<modal>{MOD})\s+(?P<action>{ADV}written[ -]?(?:down|off))\b'),
@@ -42,7 +50,7 @@ def clean(text):
 
 def definitions_for(term,definitions):
     """Only explicit definition relations; nearby common-share words do not suffice."""
-    target=COMMON.replace('|Conversion\\s+Shares','') if term=='Conversion Shares' else r'(?:outstanding\s+)?principal\s+amount'
+    target=COMMON_CLASS if term in ('Conversion Shares','Common Shares') else r'(?:outstanding\s+)?principal\s+amount'
     head=re.compile(re.escape(term)+r'["”]?\s+(?:means|shall mean|are(?=\s+(?:(?:the|our)\s+)?(?:ordinary|common|preferred|preference)\s+shares))\s+(?:(?:the|our)\s+)?',re.I)
     result=[]
     for m in head.finditer(definitions):
@@ -67,10 +75,18 @@ def semantic_features(text,definitions=''):
             if re.search(r'(?:notify|confirm|report|state|disclose|determine)\b.{0,60}$',before,re.I) and kind.startswith('no_') is False:
                 continue
             if kind.startswith('no_') and re.search(r'\b(?:unless|except|until|at the start|at the option)\b',text,re.I):continue
-            if kind=='mandatory_common_conversion' and re.search(r'\b(?:holder|investor)\w*.{0,30}\b(?:option|request|election)\b|at the option of (?:the )?holders',text,re.I):continue
+            option_scope=text[m.start('action'):] if name=='numbered_mandatory_conversion' else text
+            if kind=='mandatory_common_conversion' and re.search(
+                    r'\b(?:holder|investor)\w*.{0,30}\b(?:option|request|elect\w*)\b|'
+                    r'at the option of (?:the )?holders|'
+                    r'\b(?:subject to|only with|with)\s+(?:the\s+)?(?:consent|approval)\s+of\s+(?:the\s+)?(?:holders|investors)',
+                    option_scope,re.I):continue
             bindings=[]
-            if kind=='mandatory_common_conversion' and 'conversion shares' in m.group().lower():
-                bindings=definitions_for('Conversion Shares',definitions)
+            target=m.groupdict().get('target','')
+            term=('Conversion Shares' if 'conversion shares' in target.lower() else
+                  'Common Shares' if 'Common Shares' in target else None)
+            if kind=='mandatory_common_conversion' and term:
+                bindings=definitions_for(term,definitions)
                 if not bindings:
                     result.append({'kind':'candidate','disposition':'unresolved_share_definition','origin':None});continue
             if name=='resolution_defined_amounts':

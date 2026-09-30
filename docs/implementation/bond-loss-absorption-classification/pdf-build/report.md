@@ -1,6 +1,6 @@
 # Bond-by-bond loss-absorption results
 
-The programme produced 12 positive, 14 negative and 2 unresolved results for 28 bond series. These are qualified readings of dated offering documents. Preferred-share securities are excluded. A positive identifies principal write-down or compulsory common-share conversion, including disclosed statutory bail-in. A negative requires affirmative debt/repayment terms and no unresolved potentially qualifying candidate in the declared source set. Ordinary creditor-approved restructuring is treated separately.
+The programme produced 14 positive, 15 negative and 1 unresolved results for 30 bond series. These are qualified readings of dated offering documents. Preferred-share securities are excluded. A positive identifies principal write-down or compulsory common-share conversion, including disclosed statutory bail-in. A negative requires affirmative debt/repayment terms and no unresolved potentially qualifying candidate in the declared source set. Ordinary creditor-approved restructuring is treated separately.
 
 
 ```{=latex}
@@ -479,9 +479,9 @@ Yes: the bond can be compulsorily converted into common/ordinary shares under th
 
 **ISIN / identity:** XS3100756637
 
-**Result:** Unresolved
+**Result:** Yes — loss absorption
 
-No supported yes/no answer: Affirmative principal repayment terms have not been resolved; 62 potentially relevant clauses require scope/meaning resolution
+Yes: the bond can be compulsorily converted into common/ordinary shares under the contractual terms ([santander-at1-2025](https://www.santander.com/content/dam/santander-com/en/documentos/emisiones/documentos/em-XS3100756637-at1-july-2025-perpnc6-en.pdf), PDF p.103). The conditions are retained in the cited evidence; the power need not have been exercised.
 
 ```{=latex}
 \end{minipage}
@@ -497,9 +497,45 @@ No supported yes/no answer: Affirmative principal repayment terms have not been 
 
 **ISIN / identity:** XS3081333547
 
+**Result:** No — non loss absorption
+
+No feature identified within the examined offering terms: cash principal repayment is provided ([unilever-2030-final](https://www.rns-pdf.londonstockexchange.com/rns/5821J_1-2025-5-21.pdf), PDF pp.2–4); no applicable principal write-down or compulsory common-share conversion was identified. This is a qualified source reading, not a proof of absence in all operative language or documents.
+
+```{=latex}
+\end{minipage}
+\par\addvspace{1.1em}
+```
+
+
+```{=latex}
+\begin{minipage}{\linewidth}
+```
+
+### 29. ABN AMRO 5.750% perpetual AT1, February 2025
+
+**ISIN / identity:** XS3004202811
+
+**Result:** Yes — loss absorption
+
+Yes: the principal can be reduced or cancelled under the contractual terms ([abn-at1-2025](https://assets.ctfassets.net/1u811bvgvthc/6ZQ3Wu8Ft9B213eJuFEtWg/9b9df49434fffbc6407b418083b4a1e0/ABN_AMRO_AT1_XS3004202811_Offering_Circular_EUR_PNC2033_dd_26Feb2025.pdf), PDF p.1). The conditions are retained in the cited evidence; the power need not have been exercised.
+
+```{=latex}
+\end{minipage}
+\par\addvspace{1.1em}
+```
+
+
+```{=latex}
+\begin{minipage}{\linewidth}
+```
+
+### 30. Enel Finance International 2.625% senior notes due 24 February 2028
+
+**ISIN / identity:** XS3008888953
+
 **Result:** Unresolved
 
-No supported yes/no answer: Required Unilever Information Memorandum dated 16 May 2025 could not be downloaded: issuer URLs returned HTTP 403. Final terms alone do not establish the complete offering terms.; Debt status is not established from the selected terms
+No supported yes/no answer: 1 potentially relevant clauses require scope/meaning resolution
 
 ```{=latex}
 \end{minipage}
@@ -509,9 +545,9 @@ No supported yes/no answer: Required Unilever Information Memorandum dated 16 Ma
 
 ## What was checked
 
-529 prospectus tests passed, including 387 tests for this classifier. The independent specification checked all 256 known/unknown/conflict input states; two SMT equivalence obligations passed and four deliberately wrong formal rules were detected. RuleIR/Java and Catala executed the same 28 bond input sets, plus 24 formal challenge cases in each of 2 runs, for 152 native executions. Kernel-checked lowering and source integrity establish conditional software properties, not legal interpretation.
+585 prospectus tests passed, including 443 tests for this classifier. The independent specification checked all 256 known/unknown/conflict input states; two SMT equivalence obligations passed and four deliberately wrong formal rules were detected. RuleIR/Java and Catala executed the same 30 bond input sets, plus 24 formal challenge cases in each of 2 runs, for 156 native executions. Kernel-checked lowering and source integrity establish conditional software properties, not legal interpretation.
 
-Every one of the 7,148 emitted evidence records was rebound to its preserved source text. Six faults involving actual PDFs/text were rejected or left unresolved. The reader repairs were checked against action, polarity, issue, definition, source and monetary-relation challenges. Previously inspected documents are development cases. The new frozen version processed these fresh cases: santander-at1-eur-2025 (unresolved), unilever-capital-2030 (unresolved). No source-answer labels were used.
+Every one of the 7,584 emitted evidence records was rebound to its preserved source text. 20 faults involving actual PDFs/text were rejected or left unresolved. The reader repairs were checked against action, polarity, issue, definition, source and monetary-relation challenges. Previously inspected documents are development cases. The new frozen version processed these fresh cases: abn-amro-at1-2025 (yes), enel-senior-2028 (unresolved). No source-answer labels were used.
 
 ## Qualifications and remaining work
 
@@ -523,7 +559,7 @@ Shell now has an exact repayment derivation: £1,000 final redemption per £1,00
 
 Next work: strengthen semantic subject/condition resolution, close incorporated-document and amendment dependencies, validate authoritative language alignment, and run further frozen document-family challenges. Treat future source or law changes as reasons to re-acquire and re-evaluate. A negative here does not mean low investment risk or transaction permission.
 
-[Machine-readable results](results.json) · [CSV](results.csv) · [verification](execution/delivery-verification.json) · [reviewed execution plan](../../plans/bond-reader-repair-program.md) · [source freeze](execution/freeze-reader-v2.json)
+[Machine-readable results](results.json) · [CSV](results.csv) · [verification](execution/delivery-verification.json) · [reviewed execution plan](../../../docs/plans/bond-two-case-repair.md) · [source freeze](execution/freeze-two-case-v3.json)
 
 ## What the repairs establish
 
@@ -570,12 +606,37 @@ authoritative-language equivalence, later amendments and performance on
 unknown future instruments remain unresolved. No human answer labels or legal
 accuracy score are used.
 
-The post-freeze challenge exposes the remaining limits directly. Santander's
-circular uses the construction “are mandatorily and irrevocably convertible”
-on its cover. The frozen reader leaves this construction unresolved instead
-of asserting a negative. Unilever's final terms refer to a base memorandum
-that could not be retained after two issuer downloads returned HTTP 403.
-That missing dependency blocks a binary answer. Neither abstention is a
-successful demonstration of classification across new issuer families.
-Further construction support needs new tests and another freeze; changing
-the reader and rescoring Santander would be development evidence.
+The earlier frozen challenge left Santander and Unilever unresolved. Both
+became development cases during the subsequent repair. Santander's operative
+Condition 5.1(c), on PDF page 103, requires the Bank to convert the securities
+into Common Shares on the Trigger Event without holder consent. The reader now
+keeps the numbered action with its governing actor and obligation. Common
+Shares are defined as ordinary shares on PDF page 86. A prohibition on optional
+holder conversion does not negate that mandatory mechanism. The resulting
+positive identifies this sufficient feature; subsidiary unresolved clauses
+remain in the JSON and are not thereby settled.
+
+Unilever's 16 May 2025 memorandum was recovered from the public asset endpoint
+corresponding to the issuer link. Its content hash matches the filename in that
+link; the issuer endpoint itself continued to return HTTP 403. The selected
+20 May 2025 final terms name that exact edition. Their EUR 1,000 calculation
+amount and EUR 1,000 final redemption per calculation amount supply the cash
+repayment relation. All 131 pages of the memorandum are examined, with its
+uncompleted programme forms distinguished from the selected issue terms.
+No qualifying feature was identified within those retained disclosures.
+The separate trust deed, incorporated financial and constitutional documents,
+later amendments and complete applicable law have not been reconstructed.
+The negative therefore remains a bounded source reading. Neither repaired
+case counts as evidence from a previously unseen issuer family.
+
+The next frozen challenge used ABN AMRO's AT1 circular and Enel's senior-note
+final terms, base prospectus and supplement. ABN AMRO supplies a principal-loss
+witness. Enel remains unresolved: its final terms put a parenthetical instruction
+between “Calculation Amount” and EUR 1,000, without the colon required by the
+frozen reader. The final redemption field refers to the calculation amount, but
+the reader cannot establish that unit. The document's senior ranking cannot
+supply the missing relation. Vodafone preceded Enel in the recorded acquisition
+order; failures to retrieve its final terms and base prospectus remain preserved.
+These two new families expose the method's coverage directly: one supplies a
+supported feature witness and one requires a further parsing repair. They do
+not supply a population accuracy estimate.

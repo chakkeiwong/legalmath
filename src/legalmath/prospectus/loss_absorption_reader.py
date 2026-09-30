@@ -9,7 +9,7 @@ import re
 
 from .common import digest, read, sha
 from .loss_absorption import FACTS, decide, explain
-from .loss_absorption_witnesses import (RISK, semantic_features, validate_semantic_witness,
+from .loss_absorption_witnesses import (RISK, COMPILED, semantic_features, validate_semantic_witness,
                                        series_binding, exact_repayment)
 
 
@@ -206,6 +206,16 @@ def analyze_document(row, document, selection, issue=None):
     cuts = [0] + [starts[i] for i in range(1, len(starts)) if page_scope(i) != page_scope(i+1)] + [len(text)]
     spans = [(left + a, left + b) for left, right in zip(cuts, cuts[1:])
              for a, b in segments(text[left:right])]
+    # Keep a scoped numbered obligation together even when semicolons would
+    # separate the action from its governing actor and modal. Never join across
+    # a declared source-section boundary. Retain the remainder of the action's
+    # sentence so an option/qualification after the share class is not erased.
+    for left, right in zip(cuts, cuts[1:]):
+        for relation in COMPILED['numbered_mandatory_conversion'].finditer(text,left,right):
+            start=next((a for a,b in spans if a <= relation.start() < b),relation.start())
+            end=next((b for a,b in spans if a <= relation.end()-1 < b),relation.end())
+            span=(start,end)
+            if span not in spans:spans.append(span)
     for start, end in spans:
         clause = text[start:end]
         page = bisect_right(starts, start)
@@ -256,7 +266,8 @@ def evidence_order(item):
     elif kind == 'principal_write_down':
         direct = bool(match(r'\bshall\b.{0,100}'+WRITE_TERM+r'|\bshall be\b.{0,100}reduced|(?:will|shall) automatically be written|exercise.{0,100}bail.in power|bound by.{0,200}bail.in power', text))
     elif kind == 'mandatory_common_conversion':
-        direct = bool(match(r'automatic conversion.{0,40}(?:is|shall|will)|upon (?:the )?occurrence.{0,60}trigger event|shall.{0,50}convert', text))
+        direct = (item.get('semantic_witness',{}).get('rule')=='numbered_mandatory_conversion' or
+                  bool(match(r'automatic conversion.{0,40}(?:is|shall|will)|upon (?:the )?occurrence.{0,60}trigger event|shall.{0,50}convert', text)))
     return (0 if item['scope']=='operative' and direct else 1, item['priority'],
             1 if match(r'"|“',text[:1]) else 0, item['page'], item['start'])
 

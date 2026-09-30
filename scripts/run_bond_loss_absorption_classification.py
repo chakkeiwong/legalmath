@@ -20,7 +20,7 @@ def source_versions():
     return {str(p.relative_to(ROOT)): sha(p.read_bytes()) for p in paths}
 
 
-def run(inventory, output, checks=False):
+def run(inventory, output, checks=False, plan='docs/plans/bond-reader-repair-program.md'):
     start = time.monotonic(); output.mkdir(parents=True, exist_ok=False)
     metadata = read(inventory); versions = source_versions()
     manifest = {'started_at': now(), 'command': sys.argv, 'python': sys.version,
@@ -28,7 +28,7 @@ def run(inventory, output, checks=False):
         'git_commit': subprocess.check_output(['git','rev-parse','HEAD'], cwd=ROOT, text=True).strip(),
         'dirty_source_hashes': versions, 'inventory': str(inventory), 'inventory_sha256': sha(inventory.read_bytes()),
         'cpu_gpu': 'CPU only; no GPU framework imported', 'seeds': 'N/A: deterministic',
-        'plan': 'docs/plans/bond-reader-repair-program.md', 'policy': POLICY,
+        'plan': str(plan), 'policy': POLICY,
         'data_versions': {k: {'original':v['sha256'], 'text':v['text_sha256']} for k,v in metadata['documents'].items()},
         'human_quality_labels': False, 'status': 'RUNNING'}
     write(output/'run-manifest.json', manifest)
@@ -73,7 +73,8 @@ def run(inventory, output, checks=False):
         if checks:
             from legalmath.prospectus.loss_absorption_checks import native, prove
             completed = subprocess.run([sys.executable,'-m','pytest','tests/prospectus/test_loss_absorption.py',
-                'tests/prospectus/test_loss_absorption_repair.py','tests/prospectus/test_bond_report_presentation.py','-q',
+                'tests/prospectus/test_loss_absorption_repair.py','tests/prospectus/test_loss_absorption_two_case.py',
+                'tests/prospectus/test_bond_report_presentation.py','-q',
                 '--junitxml='+str(output/'tests.xml')],cwd=ROOT,capture_output=True,text=True,timeout=120)
             (output/'tests.log').write_text(completed.stdout+completed.stderr)
             if completed.returncode: raise ValueError('Controlled tests failed; see tests.log')
@@ -105,4 +106,5 @@ if __name__ == '__main__':
     parser.add_argument('--inventory',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--checks',action='store_true')
-    args=parser.parse_args(); run(args.inventory,args.output,args.checks)
+    parser.add_argument('--plan',type=Path,default=Path('docs/plans/bond-reader-repair-program.md'))
+    args=parser.parse_args(); run(args.inventory,args.output,args.checks,args.plan)

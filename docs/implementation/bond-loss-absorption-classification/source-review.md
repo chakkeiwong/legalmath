@@ -43,12 +43,37 @@ authoritative-language equivalence, later amendments and performance on
 unknown future instruments remain unresolved. No human answer labels or legal
 accuracy score are used.
 
-The post-freeze challenge exposes the remaining limits directly. Santander's
-circular uses the construction “are mandatorily and irrevocably convertible”
-on its cover. The frozen reader leaves this construction unresolved instead
-of asserting a negative. Unilever's final terms refer to a base memorandum
-that could not be retained after two issuer downloads returned HTTP 403.
-That missing dependency blocks a binary answer. Neither abstention is a
-successful demonstration of classification across new issuer families.
-Further construction support needs new tests and another freeze; changing
-the reader and rescoring Santander would be development evidence.
+The earlier frozen challenge left Santander and Unilever unresolved. Both
+became development cases during the subsequent repair. Santander's operative
+Condition 5.1(c), on PDF page 103, requires the Bank to convert the securities
+into Common Shares on the Trigger Event without holder consent. The reader now
+keeps the numbered action with its governing actor and obligation. Common
+Shares are defined as ordinary shares on PDF page 86. A prohibition on optional
+holder conversion does not negate that mandatory mechanism. The resulting
+positive identifies this sufficient feature; subsidiary unresolved clauses
+remain in the JSON and are not thereby settled.
+
+Unilever's 16 May 2025 memorandum was recovered from the public asset endpoint
+corresponding to the issuer link. Its content hash matches the filename in that
+link; the issuer endpoint itself continued to return HTTP 403. The selected
+20 May 2025 final terms name that exact edition. Their EUR 1,000 calculation
+amount and EUR 1,000 final redemption per calculation amount supply the cash
+repayment relation. All 131 pages of the memorandum are examined, with its
+uncompleted programme forms distinguished from the selected issue terms.
+No qualifying feature was identified within those retained disclosures.
+The separate trust deed, incorporated financial and constitutional documents,
+later amendments and complete applicable law have not been reconstructed.
+The negative therefore remains a bounded source reading. Neither repaired
+case counts as evidence from a previously unseen issuer family.
+
+The next frozen challenge used ABN AMRO's AT1 circular and Enel's senior-note
+final terms, base prospectus and supplement. ABN AMRO supplies a principal-loss
+witness. Enel remains unresolved: its final terms put a parenthetical instruction
+between “Calculation Amount” and EUR 1,000, without the colon required by the
+frozen reader. The final redemption field refers to the calculation amount, but
+the reader cannot establish that unit. The document's senior ranking cannot
+supply the missing relation. Vodafone preceded Enel in the recorded acquisition
+order; failures to retrieve its final terms and base prospectus remain preserved.
+These two new families expose the method's coverage directly: one supplies a
+supported feature witness and one requires a further parsing repair. They do
+not supply a population accuracy estimate.

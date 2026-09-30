@@ -1,5 +1,9 @@
 # Bond reader repair: results and remaining limits
 
+Historical v2 result: the later [two-case repair](../bond-two-case-repair/RESULTS.md)
+resolves Santander and Unilever and delivers a 30-row report. The counts and
+unresolved cases below describe the preserved v2 baseline.
+
 30 September 2026 (Hong Kong). The bounded repair program is complete. The
 original three demonstrated reader failures are repaired, the retained corpus
 has been re-evaluated, both language routes agree on the recorded formal inputs,

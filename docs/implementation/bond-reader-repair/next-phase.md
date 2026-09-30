@@ -1,13 +1,13 @@
-# Refreshed continuation
+# Continuation after the two-case repair
 
-The bounded repair and reporting phases are complete. Repair commit `dffd5805` was
-pushed to origin/main and fast-forwarded into the clean Catala worktree.
-The implementation refs match; the integration receipt preserves the check.
-The shared main checkout contains a separate active assurance campaign.
+The Santander and Unilever sequence has now executed. Its
+[results](../bond-two-case-repair/RESULTS.md) record the qualified positive and
+negative, unchanged original 26 answers, and the separate ABN AMRO/Enel frozen
+challenge. The complete report covers 30 series: 14 positive, 15 negative and
+one unresolved. The 28-row v2 report remains a protected historical baseline.
 
-The next research study should treat Santander as exposed development data, derive
-copular mandatory-conversion tests from actor/action/polarity/share-class slots,
-and obtain Unilever's exact named base through a verifiable public archive.
-Re-freeze the full method and test additional uninspected sources before any
-stronger transfer claim. Current fresh abstentions do not invalidate the harness,
-formal rule or research direction; they limit the current candidate's coverage.
+The [next study](../bond-two-case-repair/next-phase.md) addresses Enel's
+calculation-amount field layout under a separate method freeze. Source closure,
+authoritative language and unrestricted legal meaning remain open. The earlier
+continuation note is preserved in
+[the delivery record](../bond-two-case-repair/delivery-001/previous-reader-next-phase.md).

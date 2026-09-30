@@ -177,6 +177,11 @@ def verify():
         wrong=next(r for r in read(ROOT/'docs/prospectus/classification-holdout/manifest.json')['documents'] if r['id']=='compass-2026-base')
         docs['compass-2025-base']={**wrong,'id':'compass-2025-base'}
         check('newer_base_with_consistent_hashes_but_wrong_named_edition',issue,docs)
+    if config.get('additional_source_faults'):
+        extra=read(ROOT/config['additional_source_faults'])
+        if extra['status']!='PASS' or any(f['answer'] is not None for f in extra['faults']):
+            raise ValueError('Additional source-fault verification failed')
+        faults.extend(extra['faults'])
     regression=ET.parse(RUNS/config['regression']).getroot()
     suites=list(regression.iter('testsuite'))
     test_count=sum(int(s.attrib['tests']) for s in suites)
@@ -235,7 +240,7 @@ def verify():
         'two SMT equivalence obligations passed and four deliberately wrong formal rules were detected. '
         f"RuleIR/Java and Catala executed the same {len(all_results)} bond input sets, plus 24 formal challenge cases in each of {len(reports)} runs, for {native_count} native executions. "
         'Kernel-checked lowering and source integrity establish conditional software properties, not legal interpretation.', '',
-        f"Every one of the {quotation_count:,} emitted evidence records was rebound to its preserved source text. Six faults involving actual PDFs/text were rejected or left unresolved. "
+        f"Every one of the {quotation_count:,} emitted evidence records was rebound to its preserved source text. {len(faults)} faults involving actual PDFs/text were rejected or left unresolved. "
         'The reader repairs were checked against action, polarity, issue, definition, source and monetary-relation challenges. '
         'Previously inspected documents are development cases. '
         + ('The new frozen version processed these fresh cases: '+', '.join(r['id']+' ('+('yes' if r['answer'] is True else 'no' if r['answer'] is False else 'unresolved')+')' for r in fresh)+'. ' if fresh else 'No fresh transfer claim is made in this interim report. ')
@@ -261,7 +266,7 @@ def verify():
         'validate authoritative language alignment, and run further frozen document-family challenges. '
         'Treat future source or law changes as reasons to re-acquire and re-evaluate. A negative here does not mean low investment risk or transaction permission.', '',
         '[Machine-readable results](results.json) · [CSV](results.csv) · [verification](execution/delivery-verification.json) · '
-        '[reviewed execution plan](../../plans/bond-reader-repair-program.md) · [source freeze](execution/'+config['freeze']+')', '']
+        '[reviewed execution plan](../../../'+config.get('plan','docs/plans/bond-reader-repair-program.md')+') · [source freeze](execution/'+config['freeze']+')', '']
     review=DIRECTORY/'source-review.md'
     if review.exists():
         lines += [review.read_text().strip(), '']

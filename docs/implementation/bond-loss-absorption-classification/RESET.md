@@ -1,24 +1,28 @@
-# Bond feature classifier: current handoff
+# Bond feature classifier: current recovery checkpoint
 
-Integration note: a separate assurance-gap-closure campaign began changing this
-shared main checkout during final staging. Its unfinished files are preserved
-and excluded. Only the Catala worktree can be certified clean; main branch refs
-can still be committed, pushed and synchronized without discarding that work.
+30 September 2026: the two-case repair and report delivery are complete. The
+current report covers **30 bonds: 14 qualified positives, 15 qualified negatives
+and one abstention**. Santander and Unilever now resolve, and the original 26
+answers are unchanged. ABN AMRO is positive; Enel's calculation-unit field
+remains unresolved in the frozen new-family challenge.
 
-30 September 2026: reader repair and the two-family frozen challenge are complete
-as bounded engineering work. Current outputs cover 28 bonds: 12 qualified
-positives, 14 qualified negatives, two abstentions. Shell now has exact repayment
-unit support; Santander has unsupported copular conversion wording and Unilever
-has a missing named base memorandum. 529 tests and 152 native executions pass.
-The seven-page [PDF](results.pdf), [JSON](results.json), [CSV](results.csv) and
-[verification](execution/delivery-verification.json) are current.
+The [eight-page PDF](results.pdf), [JSON](results.json), [CSV](results.csv) and
+[verification](execution/delivery-verification.json) are current. The complete
+[results and limits](../bond-two-case-repair/RESULTS.md),
+[active plan](../../plans/bond-two-case-repair.md), and
+[recovery checkpoint](../bond-two-case-repair/RESET.md) replace the earlier
+28-row delivery instructions. The original baseline remains protected.
 
-Use the [final repair results](../bond-reader-repair/RESULTS.md),
-[reviewed plan](../../plans/bond-reader-repair-program.md) and
-[current delivery config](execution/delivery-config.json). Fresh abstentions
-do not establish successful transfer. No human answer labels or legal-accuracy
-score were used. Repair commit `dffd5805` is pushed and synchronized with the clean Catala
-worktree; see the [receipt](../bond-reader-repair/integration-receipt.json).
+585 archived tests and 156 recorded native executions passed. Recovery verified
+the unchanged freeze and run artifacts, rebound 7,584 source quotations and
+rebuilt/inspected every PDF page. No universal English/legal correctness or
+future accuracy is established. The next parser study must preserve the Enel
+abstention and use a separate freeze.
+
+The shared main checkout contains an unrelated assurance campaign. Preserve its
+unfinished changes. Integration status and the narrow preservation receipt belong
+in the two-case recovery checkpoint. The following material is historical, with
+its original counts and limits retained for comparison.
 
 ## Historical v1 campaign and diagnosis
 

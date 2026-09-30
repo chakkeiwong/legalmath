@@ -1,6 +1,12 @@
 # Preserved prospectuses and related sources
 
-Original bytes are retained in `originals/`; page text in `text/` is a derivative.
+**Start with the [30-case source index](CASE-INDEX.md)** for direct links to every
+prospectus, final terms, supplement and retained filing used in the bond report.
+All 40 referenced files are present (39 PDFs and one HTML filing), spread across
+nine acquisition folders. Several bond series share one prospectus.
+
+Original bytes are retained in the `originals/` folders listed in that index;
+page text in `text/` is a derivative.
 `catalog.json` records every requested source, including unsuccessful downloads.
 `manifest.json` records URLs, acquisition attempts, versions and SHA-256 checksums.
 These are development sources. Document preservation does not verify a legal interpretation.
@@ -22,8 +28,19 @@ include Tesco, Veolia, Deutsche Bank, Sogécap and the executed Standard Charter
 conditions. Further source-family challenges are preserved under
 [classification-holdout](classification-holdout/README.md) and
 [classification-holdout-v2](classification-holdout-v2/README.md). The report
-contains 26 issue rows: 12 positive, 13 negative and one unresolved. All source
-interpretations remain qualified; formal execution does not prove English law.
+now contains 30 issue rows: 14 qualified positives, 15 qualified negatives and
+one unresolved result. Santander and Unilever have been repaired and rerun;
+ABN AMRO supplies a feature witness in the subsequent frozen challenge, while
+Enel's calculation-unit field remains unresolved. All four additions are linked
+in the source index. The original 26 answers are unchanged. See the
+[two-case execution results](../implementation/bond-two-case-repair/RESULTS.md).
+All source interpretations remain qualified; formal execution does not prove
+English legal meaning.
+
+The acquisition catalogue below also includes preliminary documents, background
+sources, duplicate URLs and failed download attempts. A pending URL does not
+mean that every alternative copy of that document is missing; use the source
+index to locate the copy actually used for a case.
 
 | Document | Role | Preserved file | Pages |
 | --- | --- | --- | --- |
