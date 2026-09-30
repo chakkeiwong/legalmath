@@ -119,3 +119,9 @@ are not presented as another 585-test or native execution run.
 - [Delivery manifest](delivery-001/run-manifest.json)
 - [Rendered-page review](delivery-001/visual-review.json)
 - [Recovery checkpoint](RESET.md)
+
+Implementation commit 10272593 was integrated into main, pushed, and
+fast-forwarded into the clean Catala checkout. Its 301 frozen source files were
+verified there. The [integration receipt](integration-receipt.json) preserves the
+commit, narrow stash, and concurrent-work checks. A documentation-only follow-up
+records this receipt. The unrelated assurance campaign remains in progress.

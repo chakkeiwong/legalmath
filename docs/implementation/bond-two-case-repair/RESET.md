@@ -1,9 +1,10 @@
 # Two-case repair recovery checkpoint
 
-30 September 2026. The repair and delivery checks are complete. Integration is
-the remaining operational step; record its receipt here after the branch is
-committed and synchronized. Do not rerun the completed campaigns or broaden
-into the Enel repair under this freeze.
+The repair, delivery checks and integration are complete. Implementation commit
+1027259342d449289be0811898dcaaf0791c7093 is on main and origin/main; the clean
+Catala checkout is synchronized. A following documentation-only commit preserves
+this receipt and follows the same synchronization procedure. Do not rerun the
+completed campaigns or broaden into the Enel repair under this freeze.
 
 Recovered session: 01a0d507-57b2-78f3-ade4-e61244191032. Baseline commit:
 dc4e424ab73bebc4503badd8666464eee388221c. Active branch:
@@ -31,3 +32,16 @@ calculation-unit layout, followed by a new method freeze and new source families
 Enel has now been inspected and cannot be reused as unseen evidence. Unrestricted
 English/legal correctness, complete dependency closure and future accuracy
 remain unestablished. See [next-phase.md](next-phase.md).
+
+## Integration evidence
+
+[The receipt](integration-receipt.json) records the implementation commit and
+verification of all 301 frozen files in the clean Catala checkout. A narrow
+stash, fdb677c13454e3adda72dc49a40dee860fc86ece, preserves ten overlapping
+prospectus files from before integration. Keep it as historical recovery data;
+applying it over the completed report would restore stale versions.
+
+All 2,181 unrelated files in the preflight snapshot remained present. Five
+assurance/monograph files changed while the separate campaign continued; none
+is part of the prospectus commit or the stash path list. The other 2,176 file
+hashes were unchanged. Main therefore remains dirty with that campaign's work.

@@ -20,8 +20,9 @@ future accuracy is established. The next parser study must preserve the Enel
 abstention and use a separate freeze.
 
 The shared main checkout contains an unrelated assurance campaign. Preserve its
-unfinished changes. Integration status and the narrow preservation receipt belong
-in the two-case recovery checkpoint. The following material is historical, with
+unfinished changes. Implementation commit 10272593 is pushed and synchronized with the clean
+Catala checkout. The [integration receipt](../bond-two-case-repair/integration-receipt.json)
+records the narrow preservation stash and concurrent-work checks. The following material is historical, with
 its original counts and limits retained for comparison.
 
 ## Historical v1 campaign and diagnosis
