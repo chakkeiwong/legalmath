@@ -9,8 +9,12 @@ G0–G7 execution and delivery checks are complete within the bounded protocol.
 The current report is `results.pdf` (eight pages), with Markdown, JSON, CSV and
 `CASE-INDEX.md`. The identical report build is `delivery/attempt-003`.
 `G7-final-review.md` records the final skeptical and rendered-page review;
-`delivery-verification.json` records the integrity audit. Repository commit,
-integration and push are the remaining delivery actions at this checkpoint.
+`delivery-verification.json` records the integrity audit. Implementation commit
+`c1f57414e5fbd9887b0e69cbc77b4b7f3c38a75f` is integrated into main and pushed to
+origin/main and origin/feature/bond-gap-closure. Remote identities were confirmed.
+`repository-integration.json` records that all 8,530 unrelated files were preserved
+and all 1,302 campaign files match between main and the isolated worktree. This
+checkpoint update records that completed delivery; no further experiment is running.
 
 Final evidence: focused attempt-008 passes 498 tests; regression attempt-003
 passes 734. Corpus attempt-003 returns 14 qualified positives and 16 qualified

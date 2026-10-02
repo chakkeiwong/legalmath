@@ -2,8 +2,9 @@
 
 The bounded plan has completed its engineering, source-investigation and delivery
 work. The four-case source challenge is incomplete, and no claim that all legal
-or validation gaps are closed is justified. Final evidence and pending repository
-integration are recorded in `RESET.md` and `G7-final-review.md`.
+or validation gaps are closed is justified. Final evidence and completed repository
+integration are recorded in `RESET.md`, `G7-final-review.md` and
+`repository-integration.json`.
 
 The next scientific work needs a new acquisition protocol and fresh families
 selected after candidate-002. Obtain two corporate bundles and further capital
