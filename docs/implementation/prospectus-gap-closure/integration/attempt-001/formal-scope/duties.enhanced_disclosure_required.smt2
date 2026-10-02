@@ -1,0 +1,17 @@
+; benchmark generated from python API
+(set-info :status unknown)
+(declare-fun in_scope_product () Bool)
+(declare-fun registered_institution () Bool)
+(declare-fun faq9_exception () Bool)
+(declare-fun bcd_exempt () Bool)
+(declare-fun loss_absorption_fund () Bool)
+(assert
+ (let (($x25 (ite faq9_exception false (ite registered_institution in_scope_product false))))
+(let (($x68 (ite bcd_exempt false $x25)))
+(let (($x70 (ite loss_absorption_fund false $x68)))
+(let (($x9 (not loss_absorption_fund)))
+(let (($x15 (not bcd_exempt)))
+(let (($x83 (not faq9_exception)))
+(let (($x78 (and registered_institution in_scope_product $x83 $x15 $x9)))
+(and (distinct $x78 $x70) true)))))))))
+(check-sat)

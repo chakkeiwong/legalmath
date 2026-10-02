@@ -16,6 +16,7 @@ from legalmath.prospectus.loss_absorption_reader import analyze_issue
 
 def source_versions():
     paths = sorted((ROOT / 'src/legalmath/prospectus').glob('loss_absorption*.py'))
+    paths += [ROOT/'src/legalmath/prospectus/money_witness.py', ROOT/'src/legalmath/prospectus/source_obligations.py', ROOT/'src/legalmath/prospectus/feature_investigation.py']
     paths += [Path(__file__), ROOT / 'scripts/build_bond_feature_inventory.py']
     return {str(p.relative_to(ROOT)): sha(p.read_bytes()) for p in paths}
 
@@ -74,7 +75,7 @@ def run(inventory, output, checks=False, plan='docs/plans/bond-reader-repair-pro
             from legalmath.prospectus.loss_absorption_checks import native, prove
             completed = subprocess.run([sys.executable,'-m','pytest','tests/prospectus/test_loss_absorption.py',
                 'tests/prospectus/test_loss_absorption_repair.py','tests/prospectus/test_loss_absorption_two_case.py',
-                'tests/prospectus/test_bond_report_presentation.py','-q',
+                'tests/prospectus/test_bond_report_presentation.py','tests/prospectus/test_gap_closure.py','tests/prospectus/test_feature_investigation.py','-q',
                 '--junitxml='+str(output/'tests.xml')],cwd=ROOT,capture_output=True,text=True,timeout=120)
             (output/'tests.log').write_text(completed.stdout+completed.stderr)
             if completed.returncode: raise ValueError('Controlled tests failed; see tests.log')

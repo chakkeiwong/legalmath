@@ -163,7 +163,15 @@ def clause_features(text, *, scope='operative', definitions='', context=''):
             'corporate_issuance_authorisation','tax_consequence_of_hypothetical_mechanism',
             'principal_repaid_in_partial_redemption','repurchase_or_redemption_cancellation',
             'distribution_only','unresolved_statutory_scope'}
-    if any(r['disposition'] in exempt for r in candidates):return ordinary
+    if any(r['disposition'] in exempt for r in candidates):
+        # An optional conversion does not exempt a distinct, action-bound
+        # principal write-down in the same sentence. Other exempt contexts
+        # remain subject to their existing scope checks.
+        if all(r['disposition'] in {'holder_optional_conversion','preferred_share_conversion'}
+               for r in candidates if r['disposition'] in exempt):
+            separate=[r for r in semantic_features(text,definitions) if r['kind']=='principal_write_down']
+            if separate:return ordinary+separate
+        return ordinary
     semantic=semantic_features(text,definitions)
     if semantic:
         return [r for r in ordinary if r['kind']!='candidate']+semantic
@@ -172,6 +180,17 @@ def clause_features(text, *, scope='operative', definitions='', context=''):
     if mechanism_candidates:
         return ordinary+[{'kind':'candidate','disposition':'unresolved_action_or_polarity','origin':None}]
     alternative_loss=match(r'\b(?:forfeit\w*|extinguish\w*|haircut)\b',text)
+    alternative_loss = alternative_loss or match(
+        r'\bsurrender\w*\s+(?:(?:all|any|their|the|its)\s+)*(?:rights?|claims?)\b.{0,80}\b(?:principal|repayment)\b'
+        r'|\b(?:principal|repayment|nominal|face value)\b.{0,60}\b(?:lapse|impairment|impaired|abandon)\w*\b'
+        r'|\bimpairment\s+of\s+(?:the\s+)?principal\b'
+        r'|\bdischarg\w*\b.{0,50}\bwithout\b.{0,30}\b(?:payment|repayment)\b', text)
+    conditional_denial = match(
+        r'\b(?:cannot\s+(?:be\s+)?(?:written|converted)|not convertible|not be written)\b',text) and match(
+        r'\b(?:save where|provided that|subject to)\b',text)
+    if conditional_denial:
+        ordinary=[r for r in ordinary if r['kind'] not in {'no_conversion','no_write_down'}]
+        ordinary.append({'kind':'candidate','disposition':'unresolved_conditional_negation','origin':None})
     alternative_loss=alternative_loss or match(r'waiv\w*\s+(?:(?:their|the|all|any|rights?|claims?|to|for|of)\s+)*(?:principal|repayment)',text)
     missing_dependency=match(r'\b(?:schedule|appendix|supplement|incorporated document|conditions)\b.{0,100}\b(?:unavailable|not (?:provided|included|supplied)|missing)\b',text)
     if RISK.search(text) and (alternative_loss or missing_dependency):

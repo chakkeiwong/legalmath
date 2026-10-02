@@ -69,12 +69,23 @@ def semantic_features(text,definitions=''):
         kind,_=RULES[name]
         for m in pattern.finditer(text):
             before=text[max(0,m.start()-110):m.start()]
+            # A quoted heading names another passage; its words do not themselves
+            # assert a power here. Only exclude the quoted relation, preserving
+            # a separate operative action after the closing quotation.
+            in_heading=False
+            for heading in re.finditer(r'\b(?:headed|entitled|titled)\s*["“]',text,re.I):
+                closing='”' if text[heading.end()-1]=='“' else '"'
+                end=text.find(closing,heading.end())
+                if heading.end()<=m.start() and (end<0 or m.end()<=end):
+                    in_heading=True;break
+            if in_heading:continue
+            if re.search(r'\bwhen,?\s+if at all\b',before,re.I):continue
             if re.search(r'\b(?:other|another)\s*$',before,re.I):continue
             if re.search(r'\b(?:interest|coupon|dividend)\s+(?:on|of|in respect of)\s*$',before,re.I):continue
             if re.search(r'\b(?:whether|would|could|if the terms were|hypothetically)\b',before,re.I):continue
             if re.search(r'(?:notify|confirm|report|state|disclose|determine)\b.{0,60}$',before,re.I) and kind.startswith('no_') is False:
                 continue
-            if kind.startswith('no_') and re.search(r'\b(?:unless|except|until|at the start|at the option)\b',text,re.I):continue
+            if kind.startswith('no_') and re.search(r'\b(?:unless|except|until|at the start|at the option|save where|provided that|subject to)\b',text,re.I):continue
             option_scope=text[m.start('action'):] if name=='numbered_mandatory_conversion' else text
             if kind=='mandatory_common_conversion' and re.search(
                     r'\b(?:holder|investor)\w*.{0,30}\b(?:option|request|elect\w*)\b|'
@@ -138,18 +149,39 @@ def series_binding(text,issue):
 
 def exact_repayment(text):
     """A final-redemption field must equal its explicitly named calculation unit."""
-    money=r'(?P<currency>£|€|GBP|EUR|USD|US\$)\s*(?P<amount>\d[\d,]*(?:\.\d+)?)'
-    heading=r'(?<!per )\bCalculation Amount(?:\s*\([^)]{0,180}\))?\s*:\s*'
+    money=r'(?P<currency>£|€|GBP|EUR|USD|US\$)\s*(?P<amount>(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)(?![\d,]|\.\d)'
+    label=r'(?:\s*\((?:Applicable to (?:the )?Notes in definitive Form\.?|see Conditions|in definitive form|in relation to calculation of interest in global form see Conditions|in relation to calculation of interest on Notes in global form or registered definitive form see Conditions)\))?'
+    separator=r'(?:\s*:\s*|\s+)'
+    heading=r'(?<!per )\bCalculation Amount'+label+separator
     unit=list(re.finditer(heading+money,text,re.I))
     aliases=list(re.finditer(heading+r'Specified Denominations\b',text,re.I))
-    final=list(re.finditer(r'\bFinal Redemption Amount(?: of each Note)?\s*:\s*'+money+r'\s+per\s+Calculation Amount',text,re.I))
-    if not final:return None
+    final=list(re.finditer(r'\bFinal Redemption Amount(?: of each Note)?'+label+separator+money+r'\s+per\s+Calculation Amount',text,re.I))
+    if aliases and unit:
+        return {'status':'unresolved','reason':'Duplicate numeric and aliased calculation fields'}
+    if len(list(re.finditer(r'\bFinal Redemption Amount(?: of each Note)?'+label+separator+r'(?:£|€|GBP|EUR|USD|US\$)\s*\d',text,re.I)))>1:
+        return {'status':'unresolved','reason':'Duplicate final redemption fields across layouts'}
+    if not final:
+        inline = list(re.finditer(r'\bFinal Redemption Amount of each Note'+separator+money+
+            r'\s+per Note of\s+'+money.replace('currency','unit_currency').replace('amount','unit_amount')+
+            r'\s+Specified Denomination\b', text, re.I))
+        if inline:
+            if len(inline)!=1: return {'status':'unresolved','reason':'Ambiguous per-note redemption fields'}
+            m=inline[0]
+            currency=lambda v:{'£':'GBP','€':'EUR','US$':'USD'}.get(v.upper(),v.upper())
+            value=Fraction(m['amount'].replace(',',''))
+            if currency(m['currency'])!=currency(m['unit_currency']) or value!=Fraction(m['unit_amount'].replace(',','')) or value<=0:
+                return {'status':'unresolved','reason':'Per-note redemption differs from explicit denomination'}
+            return {'status':'equal','format':'per_note','currency':currency(m['currency']),'amount':str(value),
+                'fields':[{'field':'final_redemption_per_note','start':m.start(),'end':m.end(),'quote':m.group()}]}
+    if not final:
+        return ({'status':'unresolved','reason':'Unsupported final redemption money field'}
+                if re.search(r'Final Redemption Amount(?: of each Note)?'+label+separator+r'(?:£|€|GBP|EUR|USD|US\$)\s*\d',text,re.I) else None)
     alias_fields=[]
     if aliases and not unit:
         if len(aliases)!=1:return {'status':'unresolved','reason':'Ambiguous calculation-unit alias'}
         # Denomination becomes the calculation unit only through this explicit
         # equality, never by assuming that a minimum denomination is principal.
-        unit=list(re.finditer(r'\bSpecified Denominations\s*:\s*'+money,text,re.I))
+        unit=list(re.finditer(r'\bSpecified Denominations'+separator+money,text,re.I))
         alias_fields=[{'field':'calculation_amount_alias','start':aliases[0].start(),'end':aliases[0].end(),'quote':aliases[0].group()}]
     if len(unit)!=1 or len(final)!=1:return {'status':'unresolved','reason':'Ambiguous repayment/calculation fields'}
     currency=lambda m:{'£':'GBP','€':'EUR','US$':'USD'}.get(m['currency'].upper(),m['currency'].upper())

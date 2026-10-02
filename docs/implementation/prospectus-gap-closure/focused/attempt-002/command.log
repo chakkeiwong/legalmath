@@ -1,0 +1,222 @@
+..........................................FFFF.......................... [ 14%]
+........................................................................ [ 29%]
+........................................................................ [ 44%]
+........................................................................ [ 59%]
+........................................................................ [ 74%]
+........................................................................ [ 89%]
+.....................................................                    [100%]
+=================================== FAILURES ===================================
+__ test_actual_bank_dispatch_does_not_promote_feature_to_scope_or_permission ___
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-691/test_actual_bank_dispatch_does0')
+
+    def test_actual_bank_dispatch_does_not_promote_feature_to_scope_or_permission(tmp_path):
+        issue, docs, row, store, bank = setup(tmp_path)
+        assert row["answer"] is True
+>       r = integration.investigate(row, issue, docs, tmp_path, bank, store)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/prospectus/test_feature_investigation.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/prospectus/feature_investigation.py:37: in investigate
+    joined_receipt = eligibility.investigate(request, store)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/prospectus/eligibility.py:130: in investigate
+    bank = engine.investigate(bank_request, store)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/transaction/engine.py:111: in investigate
+    registry = Registry(store, store.json(request["registry_sha256"]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <legalmath.transaction.evidence.Registry object at 0x70a61ec7e510>
+store = <legalmath.transaction.evidence.Store object at 0x70a621833ad0>
+records = {'account': {'blob': '5d57ecef668824295d75e937e2777dbb45cad7fd8be740c8dd3a71dda26d774a', 'dependencies': [], 'effectiv...6104dc05777bae', 'dependencies': [], 'effective_from': '2026-09-01T00:00:00+00:00', 'effective_until': None, ...}, ...}
+
+    def __init__(self, store, records):
+        self.store, self.records = store, records
+        if not isinstance(records, dict):
+            raise ValueError("Source registry required")
+        for key, row in records.items():
+            fields(row, SOURCE_FIELDS)
+            if not isinstance(key, str) or not key:
+                raise ValueError("Source identifier required")
+            store.path(row["blob"])
+            if row["kind"] not in {"law", "facts", "policy", "route", "sanctions", "specification"}:
+                raise ValueError("Unknown evidence kind")
+            if row["provenance"] not in {"official_retrieval", "supplied", "synthetic"}:
+>               raise ValueError("Unknown evidence provenance")
+E               ValueError: Unknown evidence provenance
+
+src/legalmath/transaction/evidence.py:81: ValueError
+_ test_actual_bank_preserves_separate_scope_staleness_and_conflict[statutory_only] _
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-691/test_actual_bank_preserves_sep0')
+case = 'statutory_only'
+
+    @pytest.mark.parametrize("case", ["statutory_only", "stale", "conflict"])
+    def test_actual_bank_preserves_separate_scope_staleness_and_conflict(tmp_path, case):
+        issue, docs, row, store, bank = setup(tmp_path)
+        records = store.json(bank["registry_sha256"])
+        values = {"debt_legal_form": True, "qualifying_wrapper": False,
+                  "qualifying_contingent_loss_absorption": False, "plain_debt_or_deposit": False}
+        records["explicit_scope"] = record(store.put(values), "facts", "synthetic:explicit-scope", "2026-01-01T00:00:00Z",
+            media_type="application/json", provenance="synthetic", effective_from="2026-01-01T00:00:00Z",
+            fresh_until="2026-02-01T00:00:00Z" if case == "stale" else "2027-01-01T00:00:00Z")
+        assertions = {k: [{"source": "explicit_scope", "pointer": "/"+k}] for k in values}
+        if case == "conflict":
+            records["contrary_scope"] = {**records["explicit_scope"], "blob": store.put({"qualifying_contingent_loss_absorption": True})}
+            assertions["qualifying_contingent_loss_absorption"].append({"source": "contrary_scope", "pointer": "/qualifying_contingent_loss_absorption"})
+        bank["registry_sha256"] = store.put(records)
+>       r = integration.investigate(row, issue, docs, tmp_path, bank, store, product_assertions_sha256=store.put(assertions))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/prospectus/test_feature_investigation.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/prospectus/feature_investigation.py:37: in investigate
+    joined_receipt = eligibility.investigate(request, store)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/prospectus/eligibility.py:130: in investigate
+    bank = engine.investigate(bank_request, store)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/transaction/engine.py:111: in investigate
+    registry = Registry(store, store.json(request["registry_sha256"]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <legalmath.transaction.evidence.Registry object at 0x70a61ea653d0>
+store = <legalmath.transaction.evidence.Store object at 0x70a61ebce9d0>
+records = {'account': {'blob': '5d57ecef668824295d75e937e2777dbb45cad7fd8be740c8dd3a71dda26d774a', 'dependencies': [], 'effectiv...6104dc05777bae', 'dependencies': [], 'effective_from': '2026-09-01T00:00:00+00:00', 'effective_until': None, ...}, ...}
+
+    def __init__(self, store, records):
+        self.store, self.records = store, records
+        if not isinstance(records, dict):
+            raise ValueError("Source registry required")
+        for key, row in records.items():
+            fields(row, SOURCE_FIELDS)
+            if not isinstance(key, str) or not key:
+                raise ValueError("Source identifier required")
+            store.path(row["blob"])
+            if row["kind"] not in {"law", "facts", "policy", "route", "sanctions", "specification"}:
+                raise ValueError("Unknown evidence kind")
+            if row["provenance"] not in {"official_retrieval", "supplied", "synthetic"}:
+>               raise ValueError("Unknown evidence provenance")
+E               ValueError: Unknown evidence provenance
+
+src/legalmath/transaction/evidence.py:81: ValueError
+___ test_actual_bank_preserves_separate_scope_staleness_and_conflict[stale] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-691/test_actual_bank_preserves_sep1')
+case = 'stale'
+
+    @pytest.mark.parametrize("case", ["statutory_only", "stale", "conflict"])
+    def test_actual_bank_preserves_separate_scope_staleness_and_conflict(tmp_path, case):
+        issue, docs, row, store, bank = setup(tmp_path)
+        records = store.json(bank["registry_sha256"])
+        values = {"debt_legal_form": True, "qualifying_wrapper": False,
+                  "qualifying_contingent_loss_absorption": False, "plain_debt_or_deposit": False}
+        records["explicit_scope"] = record(store.put(values), "facts", "synthetic:explicit-scope", "2026-01-01T00:00:00Z",
+            media_type="application/json", provenance="synthetic", effective_from="2026-01-01T00:00:00Z",
+            fresh_until="2026-02-01T00:00:00Z" if case == "stale" else "2027-01-01T00:00:00Z")
+        assertions = {k: [{"source": "explicit_scope", "pointer": "/"+k}] for k in values}
+        if case == "conflict":
+            records["contrary_scope"] = {**records["explicit_scope"], "blob": store.put({"qualifying_contingent_loss_absorption": True})}
+            assertions["qualifying_contingent_loss_absorption"].append({"source": "contrary_scope", "pointer": "/qualifying_contingent_loss_absorption"})
+        bank["registry_sha256"] = store.put(records)
+>       r = integration.investigate(row, issue, docs, tmp_path, bank, store, product_assertions_sha256=store.put(assertions))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/prospectus/test_feature_investigation.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/prospectus/feature_investigation.py:37: in investigate
+    joined_receipt = eligibility.investigate(request, store)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/prospectus/eligibility.py:130: in investigate
+    bank = engine.investigate(bank_request, store)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/transaction/engine.py:111: in investigate
+    registry = Registry(store, store.json(request["registry_sha256"]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <legalmath.transaction.evidence.Registry object at 0x70a61ec9c610>
+store = <legalmath.transaction.evidence.Store object at 0x70a61eb56dd0>
+records = {'account': {'blob': '5d57ecef668824295d75e937e2777dbb45cad7fd8be740c8dd3a71dda26d774a', 'dependencies': [], 'effectiv...6104dc05777bae', 'dependencies': [], 'effective_from': '2026-09-01T00:00:00+00:00', 'effective_until': None, ...}, ...}
+
+    def __init__(self, store, records):
+        self.store, self.records = store, records
+        if not isinstance(records, dict):
+            raise ValueError("Source registry required")
+        for key, row in records.items():
+            fields(row, SOURCE_FIELDS)
+            if not isinstance(key, str) or not key:
+                raise ValueError("Source identifier required")
+            store.path(row["blob"])
+            if row["kind"] not in {"law", "facts", "policy", "route", "sanctions", "specification"}:
+                raise ValueError("Unknown evidence kind")
+            if row["provenance"] not in {"official_retrieval", "supplied", "synthetic"}:
+>               raise ValueError("Unknown evidence provenance")
+E               ValueError: Unknown evidence provenance
+
+src/legalmath/transaction/evidence.py:81: ValueError
+__ test_actual_bank_preserves_separate_scope_staleness_and_conflict[conflict] __
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-691/test_actual_bank_preserves_sep2')
+case = 'conflict'
+
+    @pytest.mark.parametrize("case", ["statutory_only", "stale", "conflict"])
+    def test_actual_bank_preserves_separate_scope_staleness_and_conflict(tmp_path, case):
+        issue, docs, row, store, bank = setup(tmp_path)
+        records = store.json(bank["registry_sha256"])
+        values = {"debt_legal_form": True, "qualifying_wrapper": False,
+                  "qualifying_contingent_loss_absorption": False, "plain_debt_or_deposit": False}
+        records["explicit_scope"] = record(store.put(values), "facts", "synthetic:explicit-scope", "2026-01-01T00:00:00Z",
+            media_type="application/json", provenance="synthetic", effective_from="2026-01-01T00:00:00Z",
+            fresh_until="2026-02-01T00:00:00Z" if case == "stale" else "2027-01-01T00:00:00Z")
+        assertions = {k: [{"source": "explicit_scope", "pointer": "/"+k}] for k in values}
+        if case == "conflict":
+            records["contrary_scope"] = {**records["explicit_scope"], "blob": store.put({"qualifying_contingent_loss_absorption": True})}
+            assertions["qualifying_contingent_loss_absorption"].append({"source": "contrary_scope", "pointer": "/qualifying_contingent_loss_absorption"})
+        bank["registry_sha256"] = store.put(records)
+>       r = integration.investigate(row, issue, docs, tmp_path, bank, store, product_assertions_sha256=store.put(assertions))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/prospectus/test_feature_investigation.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/prospectus/feature_investigation.py:37: in investigate
+    joined_receipt = eligibility.investigate(request, store)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/prospectus/eligibility.py:130: in investigate
+    bank = engine.investigate(bank_request, store)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/transaction/engine.py:111: in investigate
+    registry = Registry(store, store.json(request["registry_sha256"]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <legalmath.transaction.evidence.Registry object at 0x70a61ece9810>
+store = <legalmath.transaction.evidence.Store object at 0x70a61ebdabd0>
+records = {'account': {'blob': '5d57ecef668824295d75e937e2777dbb45cad7fd8be740c8dd3a71dda26d774a', 'dependencies': [], 'effectiv...82fbab5a34e1121888cddaefc50b269fab494', 'dependencies': [], 'effective_from': None, 'effective_until': None, ...}, ...}
+
+    def __init__(self, store, records):
+        self.store, self.records = store, records
+        if not isinstance(records, dict):
+            raise ValueError("Source registry required")
+        for key, row in records.items():
+            fields(row, SOURCE_FIELDS)
+            if not isinstance(key, str) or not key:
+                raise ValueError("Source identifier required")
+            store.path(row["blob"])
+            if row["kind"] not in {"law", "facts", "policy", "route", "sanctions", "specification"}:
+                raise ValueError("Unknown evidence kind")
+            if row["provenance"] not in {"official_retrieval", "supplied", "synthetic"}:
+>               raise ValueError("Unknown evidence provenance")
+E               ValueError: Unknown evidence provenance
+
+src/legalmath/transaction/evidence.py:81: ValueError
+=========================== short test summary info ============================
+FAILED tests/prospectus/test_feature_investigation.py::test_actual_bank_dispatch_does_not_promote_feature_to_scope_or_permission
+FAILED tests/prospectus/test_feature_investigation.py::test_actual_bank_preserves_separate_scope_staleness_and_conflict[statutory_only]
+FAILED tests/prospectus/test_feature_investigation.py::test_actual_bank_preserves_separate_scope_staleness_and_conflict[stale]
+FAILED tests/prospectus/test_feature_investigation.py::test_actual_bank_preserves_separate_scope_staleness_and_conflict[conflict]
+4 failed, 481 passed in 0.86s

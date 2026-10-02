@@ -72,6 +72,8 @@ def check(row,documents):
             r=e['repayment_derivation']
             if r['status']!='equal' or Fraction(r['amount'])<=0:raise ValueError('Invalid monetary derivation')
             if exact_repayment(source['text'])!=r:raise ValueError('Monetary relation does not replay')
+            from .money_witness import verify as verify_money
+            verify_money(source['text'],r)
             for f in r['fields']:
                 if source['text'][f['start']:f['end']]!=f['quote']:raise ValueError('Monetary source field changed')
     for name,opposite in [('principal_write_down','no_write_down'),('mandatory_common_conversion','no_conversion')]:
