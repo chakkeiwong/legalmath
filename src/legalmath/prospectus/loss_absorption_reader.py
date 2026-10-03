@@ -11,6 +11,7 @@ from .common import digest, read, sha
 from .loss_absorption import FACTS, decide, explain
 from .loss_absorption_witnesses import (RISK, COMPILED, semantic_features, validate_semantic_witness,
                                        series_binding, exact_repayment)
+from . import reader_scope
 
 
 def norm(text):
@@ -62,11 +63,20 @@ def _candidate_features(text, *, scope='operative', definitions='', context=''):
              or (match(DEBT+r'.{0,40}\b(?:shall|will) (?:be )?(?:finally )?redeemed\b', text)
                  and match(r'final redemption amount\s*\([^)]{0,150}\bis (?:its |the )?nominal amount\)'
                            r'|final redemption amount (?:is|equals) (?:its |the )?nominal amount', text)))
-            and not match(r'no repayment|if the claim for|interest.{0,50}payable semi', text))
+            and not match(r'no repayment|if the claim for|interest.{0,50}payable semi', text)
+            and not match(r'\b(?:not|never|cannot)\b.{0,80}\b(?:redeemed|repaid|repay|redeem)\b'
+                          r'|\bredemption\b.{0,60}\b(?:not|never)\b.{0,30}\b100'
+                          r'|\b(?:redeemed|repaid)\b.{0,30}\b(?:not|never)\b.{0,30}\b100', text))
     if cash and scope != 'foreign':
         add('cash_repayment')
     if match(DEBT, text) and match(r'\b(?:unsecured|unsubordinated|subordinated)\b.{0,100}\b(?:obligations?|indebtedness)\b|\bdebt (?:securities|instruments)\b', text) and scope != 'foreign':
         add('debt')
+    if reader_scope.deferred_interest_forfeiture(text):
+        add('candidate', 'distribution_only'); return result
+    if scope != 'foreign' and reader_scope.partial_redemption(text):
+        add('candidate', 'principal_repaid_in_partial_redemption'); return result
+    if scope != 'foreign' and reader_scope.redemption_floor(text, context):
+        add('candidate', 'principal_repaid_in_partial_redemption'); return result
     if not WATCH.search(text):
         return result
     if scope == 'foreign':
@@ -204,7 +214,22 @@ def clause_features(text, *, scope='operative', definitions='', context=''):
 def segments(text):
     # Join page boundaries before segmenting so a page split cannot hide a clause.
     start = 0
-    for boundary in re.finditer(r'(?<=[.;])\s+(?=[A-Z“"(])', text):
+    independent = (r',\s+(?:and|but|whereas)\s+(?=(?:the\s+)?'
+                   r'(?:(?:principal|nominal)\s+amount\s+of\s+(?:the\s+)?Notes\s+(?:shall|will|may|must)'
+                   r'|holders\s+shall\s+(?:surrender|forfeit)'
+                   r'|Issuer\s+(?:shall|will|must)\s+(?:write|reduce|convert)))')
+    for boundary in re.finditer(r'(?<=[.;])\s+(?=[A-Z“"(])|' + independent, text):
+        if boundary.group().startswith(','):
+            head = text[start:boundary.start()]
+            tail = text[boundary.end():]
+            stop = re.search(r'(?<=[.;])\s+(?=[A-Z“"(])', tail)
+            tail = tail[:stop.start()] if stop else tail
+            # A shared consent/conditional head still governs coordinated actions.
+            # Split only an explicit independent loss condition; a reduction by
+            # cash paid is still part of the redemption relation.
+            if (match(r'\b(?:if|unless|provided that|subject to|with the consent)\b', head)
+                    or not match(r'\b(?:Solvency Event|Trigger Event|Capital Event|bail.in|surrender|forfeit)\b', tail)):
+                continue
         end = boundary.start()
         if end > start:
             yield start, end
@@ -219,6 +244,7 @@ def analyze_document(row, document, selection, issue=None):
     selected = selection.get('operative_pages', [[1, len(starts)]])
     shelf = selection.get('shelf_pages', [])
     priority = selection.get('evidence_priority_pages', [])
+    reader_scope.validate(selection, len(starts))
     def page_scope(page):
         return 'operative' if any(a <= page <= b for a, b in selected) else 'shelf' if any(a <= page <= b for a, b in shelf) else 'foreign'
     # Preserve offsets but exclude definitions belonging to unselected pages.
@@ -228,6 +254,11 @@ def analyze_document(row, document, selection, issue=None):
     cuts = [0] + [starts[i] for i in range(1, len(starts)) if page_scope(i) != page_scope(i+1)] + [len(text)]
     spans = [(left + a, left + b) for left, right in zip(cuts, cuts[1:])
              for a, b in segments(text[left:right])]
+    predecessors = {}
+    for (a, b), (start, end) in zip(spans, spans[1:]):
+        if (text[b:start].strip() == '' and
+                bisect_right(cuts, a) == bisect_right(cuts, start)):
+            predecessors[start] = (a, b)
     # Keep a scoped numbered obligation together even when semicolons would
     # separate the action from its governing actor and modal. Never join across
     # a declared source-section boundary. Retain the remainder of the action's
@@ -242,7 +273,8 @@ def analyze_document(row, document, selection, issue=None):
         clause = text[start:end]
         page = bisect_right(starts, start)
         scope = page_scope(page)
-        previous = text[max(0,start-1200):start]
+        antecedent = predecessors.get(start)
+        previous = text[antecedent[0]:antecedent[1]] if antecedent else ''
         for feature in clause_features(clause, scope=scope, definitions=definition_text, context=previous):
             binding=series_binding(clause,issue or {})
             if binding=='other_issue':
@@ -252,14 +284,25 @@ def analyze_document(row, document, selection, issue=None):
                     'quote': clause, 'scope': scope,
                     'priority': 0 if any(a <= page <= b for a,b in priority) else 1 if scope == 'operative' else 2,
                     'issue_id':(issue or {}).get('id'),'issue_binding':binding,**feature}
-            item['id'] = digest(item)[:24]
             if text[start:end] != item['quote'] or not (0 <= start < end <= len(text)):
                 raise ValueError('Invalid quotation location')
+            if antecedent and reader_scope.redemption_floor(clause, previous):
+                item['context_witness'] = {'start': antecedent[0], 'end': antecedent[1],
+                    'quote': previous, 'page': bisect_right(starts, antecedent[0]),
+                    'end_page': bisect_right(starts, antecedent[1]-1)}
+            item['id'] = digest(item)[:24]
             evidence.append(item)
     repayment=exact_repayment(text)
     if repayment and repayment['status']=='equal':
         fields=repayment['fields'];start=min(f['start'] for f in fields);end=max(f['end'] for f in fields)
-        if all(page_scope(bisect_right(starts,f['start']))=='operative' for f in fields):
+        # A benchmark bond in the intervening text does not bind these fields.
+        # Include only the fields and explicit statements assigning them to an issue.
+        assignments = re.findall(r'\b(?:these |the )?(?:fields|amounts)\s+(?:apply|relate)\s+to\s+[^.]{1,160}',
+                                 text[start:end], re.I)
+        bound_text = ' '.join([f['quote'] for f in fields] + assignments)
+        if (all(page_scope(p)=='operative' for f in fields for p in range(
+                bisect_right(starts,f['start']), bisect_right(starts,f['end']-1)+1))
+                and series_binding(bound_text, issue or {}) != 'other_issue'):
             item={'document':row['id'],'source_sha256':document['source_sha256'],'start':start,'end':end,
                   'page':bisect_right(starts,start),'end_page':bisect_right(starts,end-1),'quote':text[start:end],
                   'scope':'operative','priority':0,'kind':'cash_repayment','disposition':'applicable','origin':None,
@@ -323,6 +366,7 @@ def analyze_issue(issue, documents, root):
         try:
             document = load_document(row, root)
             text, starts = joined(document)
+            reader_scope.validate(selection, len(starts))
             checked_documents[key]={'text':text,'sha256':row['sha256'],
                                     'definition_text':definition_scope(text,starts,selection)}
             if any(norm(marker).lower() not in text.lower() for marker in selection.get('required_markers', [])):

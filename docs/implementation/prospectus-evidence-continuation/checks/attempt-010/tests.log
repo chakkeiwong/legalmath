@@ -1,0 +1,71 @@
+.......................................FF............................... [ 60%]
+...............................................                          [100%]
+=================================== FAILURES ===================================
+________ test_completed_refresh_keeps_only_consolidated_remaining_work _________
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-793/test_completed_refresh_keeps_o0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7280f691b4d0>
+
+    def test_completed_refresh_keeps_only_consolidated_remaining_work(tmp_path, monkeypatch):
+        current = setup(tmp_path, monkeypatch)
+        monkeypatch.setattr(ec, "execute", lambda phase, directory, current: {
+            "status": "QUALIFIED",
+            "remaining": ["Actual external evidence still needed"] if phase == "C4"
+            else ["Temporary review requirement for " + phase],
+        })
+        for phase in ec.PHASES:
+            ec.run_phase(phase, current)
+        refreshed = ec.refresh(current)
+        assert refreshed["next_phase"] is None
+>       assert refreshed["remaining"] == ["Actual external evidence still needed"]
+E       AssertionError: assert ['Temporary r...still needed'] == ['Actual exte...still needed']
+E         
+E         At index 0 diff: 'Temporary review requirement for C0' != 'Actual external evidence still needed'
+E         Left contains 4 more items, first extra item: 'Temporary review requirement for C1'
+E         Use -v to get more diff
+
+tests/prospectus/test_continuation_control.py:170: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{"phase": "C0", "status": "RUNNING", "directory": "out/phases/C0/attempt-001"}
+{"phase": "C0", "status": "QUALIFIED", "directory": "out/phases/C0/attempt-001", "inputs": "9e0e4570b3dfa4c64a9d9358004bd9796efe119bfb831f2a84cf18c44f7aa651", "receipt_sha256": "9f3c7df9ee9e3765a964119bfc9a0d391a57a0bac5a4cf2e3bba9e2f2d16b06d"}
+{"phase": "C1", "status": "RUNNING", "directory": "out/phases/C1/attempt-001"}
+{"phase": "C1", "status": "QUALIFIED", "directory": "out/phases/C1/attempt-001", "inputs": "d36e5716b0638c94a8d92a3653f3c9ffc683713f5e2988dc5bd76b354c24aa1f", "receipt_sha256": "fa212b2477cea02e4844ee835efb9e1be067e41951b23c47a5ef4e7b9abcb40a"}
+{"phase": "C2", "status": "RUNNING", "directory": "out/phases/C2/attempt-001"}
+{"phase": "C2", "status": "QUALIFIED", "directory": "out/phases/C2/attempt-001", "inputs": "c10e847358027070e0655938d8708bdff5cb1a169877e8354461967234c23377", "receipt_sha256": "9682899bd05549900390e9b2e890bc80db5252cce6d87c75450811a57081fdf0"}
+{"phase": "C3", "status": "RUNNING", "directory": "out/phases/C3/attempt-001"}
+{"phase": "C3", "status": "QUALIFIED", "directory": "out/phases/C3/attempt-001", "inputs": "1e8941abc85c444f94cd25663efda60cb19824aa2d00704b9f763801f22d8c22", "receipt_sha256": "24638873260600386fecdd681c11d62c21cf4357067376d560b64ae4e4107376"}
+{"phase": "C4", "status": "RUNNING", "directory": "out/phases/C4/attempt-001"}
+{"phase": "C4", "status": "QUALIFIED", "directory": "out/phases/C4/attempt-001", "inputs": "25435ee0ce811b51dc6c8295e97068e8b2bc252f78e246f0398b3ad4f09dead8", "receipt_sha256": "76bbea61e60e0f4c8d4108a0b19bbe95874d498dfb7981fbf8ea1571964a7187"}
+_____________ test_each_phase_plan_routes_from_actual_dependencies _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-793/test_each_phase_plan_routes_fr0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7280f691af90>
+
+    def test_each_phase_plan_routes_from_actual_dependencies(tmp_path, monkeypatch):
+        current = setup(tmp_path, monkeypatch)
+        ec.run_phase("C0", current)
+        good = ec.execute
+        monkeypatch.setattr(ec, "execute", lambda phase, directory, current: {
+            "status": "FAILED", "remaining": ["Repair reader"]
+        } if phase == "C1" else good(phase, directory, current))
+        ec.run_phase("C1", current)
+        ec.run_phase("C3", current)
+        local = ec.c.read(tmp_path / current["phases"]["C3"]["directory"] / "next-phase-plan.json")
+>       assert local["next_phase"] == "C1"
+E       AssertionError: assert 'C4' == 'C1'
+E         
+E         - C1
+E         + C4
+
+tests/prospectus/test_continuation_control.py:184: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{"phase": "C0", "status": "RUNNING", "directory": "out/phases/C0/attempt-001"}
+{"phase": "C0", "status": "PASS", "directory": "out/phases/C0/attempt-001", "inputs": "9e0e4570b3dfa4c64a9d9358004bd9796efe119bfb831f2a84cf18c44f7aa651", "receipt_sha256": "4cf69dc71d34faad4b31c7217c434ac522ac7acdc7864fa5fc9145b3ba7507cd"}
+{"phase": "C1", "status": "RUNNING", "directory": "out/phases/C1/attempt-001"}
+{"phase": "C1", "status": "FAILED", "directory": "out/phases/C1/attempt-001", "inputs": "daecdbc342a489e53be1c6a8640bf0375ec135c11091470310ed8246fcc68a68", "receipt_sha256": "356d84fc588cf88e932b9cfa4de3539171a71c6e4912867acb365933759597b4"}
+{"phase": "C3", "status": "RUNNING", "directory": "out/phases/C3/attempt-001"}
+{"phase": "C3", "status": "PASS", "directory": "out/phases/C3/attempt-001", "inputs": "da971765939c870da06b6f9e2ce237941968cc62ab3d39ec74580df37e65a131", "receipt_sha256": "19e76986f2522843cd481a8692e35673b8674ee81eb8c64ab2937aef77ab66a7"}
+=========================== short test summary info ============================
+FAILED tests/prospectus/test_continuation_control.py::test_completed_refresh_keeps_only_consolidated_remaining_work
+FAILED tests/prospectus/test_continuation_control.py::test_each_phase_plan_routes_from_actual_dependencies
+2 failed, 117 passed in 0.51s

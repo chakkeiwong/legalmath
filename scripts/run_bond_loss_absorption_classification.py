@@ -17,6 +17,7 @@ from legalmath.prospectus.loss_absorption_reader import analyze_issue
 def source_versions():
     paths = sorted((ROOT / 'src/legalmath/prospectus').glob('loss_absorption*.py'))
     paths += [ROOT/'src/legalmath/prospectus/money_witness.py', ROOT/'src/legalmath/prospectus/source_obligations.py', ROOT/'src/legalmath/prospectus/feature_investigation.py']
+    paths += [ROOT/'src/legalmath/prospectus/reader_scope.py']
     paths += [Path(__file__), ROOT / 'scripts/build_bond_feature_inventory.py']
     return {str(p.relative_to(ROOT)): sha(p.read_bytes()) for p in paths}
 
