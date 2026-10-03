@@ -1,0 +1,57 @@
+# Retained source index
+
+Links refer to exact retained sources; selection does not establish complete contracts.
+
+- tesco-2033: [tesco-2025-final](../../../../../prospectus/classification-additions/originals/tesco-2025-final.pdf) — SHA-256 8491fa56184d2a501aea2347392eac2b20f94456bc6a19bdc013b10fc0558b63
+- tesco-2033: [tesco-2025-base](../../../../../prospectus/classification-additions/originals/tesco-2025-base.pdf) — SHA-256 2f568de738bb2f2672e7a66d571064104ddbd9352eb3e5da5ae93a5f26b089b1
+- tesco-2033: [tesco-2025-supplement](../../../../../prospectus/classification-additions/originals/tesco-2025-supplement.pdf) — SHA-256 452843ae0f17b0d625da6dfc6ee0424609227ed91556bd65b1b4473152e6a9c7
+- veolia-2031: [veolia-2031-final](../../../../../prospectus/classification-additions/originals/veolia-2031-final.pdf) — SHA-256 81542de35f4769b3505755c2d2a80206710dc6a2bb6aa072584ec35848211933
+- veolia-2031: [veolia-2026-base](../../../../../prospectus/classification-additions/originals/veolia-2026-base.pdf) — SHA-256 daa38432a8ba398e3666f49282f248763d1918fe6ee3445f215f5f66adbe5200
+- veolia-2036: [veolia-2036-final](../../../../../prospectus/classification-additions/originals/veolia-2036-final.pdf) — SHA-256 0c283f13114ce94e520713e976394ee5e361148a860a3f99cf3d714687d6e101
+- veolia-2036: [veolia-2026-base](../../../../../prospectus/classification-additions/originals/veolia-2026-base.pdf) — SHA-256 daa38432a8ba398e3666f49282f248763d1918fe6ee3445f215f5f66adbe5200
+- deutsche-at1-2025: [deutsche-at1-2025](../../../../../prospectus/classification-additions/originals/deutsche-at1-2025.pdf) — SHA-256 896cf911fc68cdf9c2e83cdb78e39b0e8443ef18a0f0527788381b158e544ac4
+- sogecap-rt1-2025: [sogecap-rt1-2025](../../../../../prospectus/classification-additions/originals/sogecap-rt1-2025.pdf) — SHA-256 6eaa7d89c1f4ab8199b55139951febb5172303b451a96809d89be7fccc627158
+- ubs-sgd-at1-2024: [ubs-sgd-at1-2024-final-published](../../../../../prospectus/originals/ubs-sgd-at1-2024-final-published.pdf) — SHA-256 9549d2725727ab50eaaedbbeb420c3f6cb4b27f6976a1dcf55a12c50134a0a88
+- barclays-at1-2025: [barclays-at1-2025](../../../../../prospectus/originals/barclays-at1-2025.pdf) — SHA-256 4031c18b1a8a8ebdb2fa7cad080e886b250cb723871ba37cf32647116d83e201
+- hsbc-at1-2026-2031: [hsbc-at1-2026-specific](../../../../../prospectus/originals/hsbc-at1-2026-specific.pdf) — SHA-256 7be31aeec41aacecc6c4f3f78d4be61d89ad39113a708b9c5496851adb565fe2
+- hsbc-at1-2026-2036: [hsbc-at1-2026-specific](../../../../../prospectus/originals/hsbc-at1-2026-specific.pdf) — SHA-256 7be31aeec41aacecc6c4f3f78d4be61d89ad39113a708b9c5496851adb565fe2
+- standard-chartered-at1-2025: [standard-chartered-at1-2025-executed-deed](../../../../../prospectus/classification-additions/originals/standard-chartered-at1-2025-executed-deed.pdf) — SHA-256 924792e5d67edd5e05b8aba58820dc20da9fd55a88884f904364ac5cbf1f819e
+- apple-senior-2025.1: [apple-senior-2025](../../../../../prospectus/classification-controls/originals/apple-senior-2025.pdf) — SHA-256 7ec29e302d13ab090596c4d001298e35f21f226d3bea30108768f9805c68d064
+- apple-senior-2025.2: [apple-senior-2025](../../../../../prospectus/classification-controls/originals/apple-senior-2025.pdf) — SHA-256 7ec29e302d13ab090596c4d001298e35f21f226d3bea30108768f9805c68d064
+- apple-senior-2025.3: [apple-senior-2025](../../../../../prospectus/classification-controls/originals/apple-senior-2025.pdf) — SHA-256 7ec29e302d13ab090596c4d001298e35f21f226d3bea30108768f9805c68d064
+- apple-senior-2025.4: [apple-senior-2025](../../../../../prospectus/classification-controls/originals/apple-senior-2025.pdf) — SHA-256 7ec29e302d13ab090596c4d001298e35f21f226d3bea30108768f9805c68d064
+- duke-senior-2024.1: [duke-senior-2024](../../../../../prospectus/classification-controls/originals/duke-senior-2024.pdf) — SHA-256 4fd6219d3dc098811f5f6fa98573eed7524f8cf3af7fbd659654ee2ced873d30
+- duke-senior-2024.2: [duke-senior-2024](../../../../../prospectus/classification-controls/originals/duke-senior-2024.pdf) — SHA-256 4fd6219d3dc098811f5f6fa98573eed7524f8cf3af7fbd659654ee2ced873d30
+- southern-junior-2025a.1: [southern-junior-2025a](../../../../../prospectus/classification-controls/originals/southern-junior-2025a.pdf) — SHA-256 142a5001e791bbeb10f6e60cecdd23facd2848abaab979fd062c6922a05aa617
+- duke-junior-2024.1: [duke-junior-2024](../../../../../prospectus/classification-controls/originals/duke-junior-2024.pdf) — SHA-256 1a395cf160a62cc7e5b3932aa6b520561fe8aa20ac14de1458782fb0bf4b8b0e
+- nwm-series-14-2025: [nwm-2025-final](../../../../../prospectus/bank-senior-controls/originals/nwm-2025-final.pdf) — SHA-256 4124cc6e5169b1ed67cc3944e1aabf19c8a8357eeebd2a4b118a6ae879de62e2
+- nwm-series-14-2025: [nwm-2025-base](../../../../../prospectus/bank-senior-controls/originals/nwm-2025-base.pdf) — SHA-256 20adbeec4e246fd0976890d52f9fe7821d7d5322628c2e1718d408fec2b77f81
+- nwm-series-14-2025: [nwm-2025-registration](../../../../../prospectus/bank-senior-controls/originals/nwm-2025-registration.pdf) — SHA-256 1b3b5e61a991a4729c3cbf64720c3436b51a75e4faae2234020176d1b2942f23
+- bpce-2025-23: [bpce-2025-23-final](../../../../../prospectus/bank-senior-controls/originals/bpce-2025-23-final.pdf) — SHA-256 74e3a8da8cbd463bd99d72bc09bfba22a77d41858a9dca8bc49a1e39b542da0a
+- bpce-2025-23: [bpce-2025-base](../../../../../prospectus/bank-senior-controls/originals/bpce-2025-base.pdf) — SHA-256 c8ff5116bc6f3573616fd45f3059f553bb68a91420edf095fb6e93b0acee7f6b
+- cba-series-6700: [cba-2025-6700-final](../../../../../prospectus/bank-senior-controls/originals/cba-2025-6700-final.pdf) — SHA-256 2ca9441452ae154a409fec8bf8d7aa929f8094ab54aefcd9ce5f05fde0596a69
+- cba-series-6700: [cba-2025-base](../../../../../prospectus/bank-senior-controls/originals/cba-2025-base.pdf) — SHA-256 aa6b407e17a09695873bcf7a2164a093e77ea675b2c22ca7863aea842290fc1d
+- cba-series-6700: [cba-2025-emtn-supplement](../../../../../prospectus/bank-senior-controls/originals/cba-2025-emtn-supplement.pdf) — SHA-256 93718cba54a4809416eff3c30c4703f19b0fb49945d475588949b74a7d7b3a74
+- compass-senior-2035: [compass-2035-final](../../../../../prospectus/classification-holdout/originals/compass-2035-final.pdf) — SHA-256 69f7c27cc38dd7a967ad30e1b2f047c69d01b234c73f0f59f051604d9390d509
+- compass-senior-2035: [compass-2025-base](../../../../../prospectus/classification-holdout/originals/compass-2025-base.pdf) — SHA-256 4066fd74ce2d4c2287e2fd9e102eebfeabd7070590b36b0d9ba7eb8203af4d66
+- compass-senior-2035: [compass-2025-supplement](../../../../../prospectus/classification-holdout/originals/compass-2025-supplement.pdf) — SHA-256 16d07cbe1d254981f41d41cf646375b5dd20eb0ebd09689cc3dd76cd90f960ec
+- ing-at1-2025: [ing-at1-us456837bt90](../../../../../prospectus/classification-holdout/originals/ing-at1-us456837bt90.pdf) — SHA-256 04e9cd315199e5b312c13e845c4e9791f8c5c771d3ae2c3623dc9e39554819f8
+- shell-senior-2030: [shell-2030-final](../../../../../prospectus/classification-holdout-v2/originals/shell-2030-final.pdf) — SHA-256 c061e908364253cc162615b81f429cb15f3796ed46b2c0e146afa2fb2046aceb
+- shell-senior-2030: [shell-2020-base](../../../../../prospectus/classification-holdout-v2/originals/shell-2020-base.pdf) — SHA-256 7dd7a0c929662d7d55f983d8e082eb981ac8a74ae4c0279d999dea1944be83f4
+- danske-dkk-at1-2026: [danske-dkk-at1-2026-final](../../../../../prospectus/classification-holdout-v2/originals/danske-dkk-at1-2026-final.pdf) — SHA-256 f174057b83aabca759ef11736d8f7c7fcf128bf7f106344c08e967b8ad692986
+- danske-dkk-at1-2026: [danske-at1-2026-base](../../../../../prospectus/classification-holdout-v2/originals/danske-at1-2026-base.pdf) — SHA-256 c98433c49d34658d4a33324c5622c3ddc73ddce2314916ce1911eaa1b9dd5bb6
+- lloyds-at1-2025: [lloyds-at1-2025-yahoo-filing](../../../../../prospectus/originals/lloyds-at1-2025-yahoo-filing.html) — SHA-256 71c015af8f2a73c9dad1a72ca99e7391bce7849f34ee758bf3524fe199c41ea0
+- santander-at1-eur-2025: [santander-at1-2025](../../../../../prospectus/classification-reader-v2-fresh/originals/santander-at1-2025.pdf) — SHA-256 c1e45a8613048b1298549bb1517e655e6afda390e36c7277650234a6931c47fe
+- unilever-capital-2030: [unilever-2030-final](../../../../../prospectus/classification-reader-v2-fresh/originals/unilever-2030-final.pdf) — SHA-256 0a7169032aadae46127675bd77bc02c7fd021dea43b2b45202abd7eb32dfb63e
+- unilever-capital-2030: [unilever-2025-base](../../../../../prospectus/classification-reader-v2-repair/originals/unilever-2025-base.pdf) — SHA-256 137a373d8f5ba484b19445c98068a8fe077bd47c320b8cff00d0e635f95ea2c5
+- abn-amro-at1-2025: [abn-at1-2025](../../../../../prospectus/classification-two-case-fresh/originals/abn-at1-2025.pdf) — SHA-256 b2f66baa18f3cd1fd48dfbcc2ee416e63a00f699dc73c8d53f587b58a1d10fed
+- enel-senior-2028: [enel-2025-final](../../../../../prospectus/classification-two-case-fresh/originals/enel-2025-final.pdf) — SHA-256 a0a42fedebf5b54c9ae4e7fadd075493d7787d5ded81e64803543b6f79ac034b
+- enel-senior-2028: [enel-2024-base](../../../../../prospectus/classification-two-case-fresh/originals/enel-2024-base.pdf) — SHA-256 9c3004127b5421724fc4fe6ac023cbce74c2291178689caedd1ff4d1733d70f0
+- enel-senior-2028: [enel-2025-supplement](../../../../../prospectus/classification-two-case-fresh/originals/enel-2025-supplement.pdf) — SHA-256 01e5449af7ddbb9aad8470a0a6dff6a0d563c996e4fd456580173e0d4e82bde6
+- kbc-at1-2025: [kbc-at1-2025](../../../../../prospectus/gap-closure/acquisitions/012-kbc-at1-final/response.body) — SHA-256 b011fc96ec624326cff64631f6449b66cc5e7c63d191d9bdee5e28ab490a6aad
+- intesa-at1-2026-nc6: [intesa-at1-2026](../../../../../prospectus/gap-closure/acquisitions/030-intesa-at1-final/response.body) — SHA-256 bcd1aa9bb4fe2f2710a8afb086a59a87ed02139cddb965bb842483466e42d1be
+- basf-senior-2032: [basf-2032-final](../../../../../prospectus/evidence-master/requests/044-basf-final/response.body) — SHA-256 34c23622c9c9ede54d254ca191bc0c827e748fa0289f0ebd50fa3d8fbcd83085
+- lvmh-senior-2029: [lvmh-2029-final](../../../../../prospectus/evidence-master/requests/048-lvmh-final/response.body) — SHA-256 5d7fecb12e3ad9e904ba6cea7b23d10523b1c7bb9b1a29dba7c1ab1991caa3ae
+- lvmh-senior-2029: [lvmh-2024-base-supplements](../../../../../prospectus/evidence-master/requests/049-lvmh-base/response.body) — SHA-256 c224e5a4aae76f2f11fa1b8fece705f6112273ef8346dd52fab946331b581a83
+- bbva-at1-series15-2025: [bbva-at1-2025-offering](../../../../../prospectus/evidence-master/requests/046-bbva-offering/response.body) — SHA-256 2f32af70cdee5cfb8a3f5190ea58b51411922de2290568987a297b5931e9fca8
+- seb-at1-usd-2024: [seb-at1-2024-information](../../../../../prospectus/evidence-master/requests/050-seb-pdf/response.body) — SHA-256 76f510479585e1015d61d35c9cfc5d451a35f47f62c0bfce5d3e8d10de2df364

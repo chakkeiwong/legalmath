@@ -58,7 +58,10 @@ def _candidate_features(text, *, scope='operative', definitions='', context=''):
     def add(kind, disposition='applicable', origin=None):
         result.append({'kind': kind, 'disposition': disposition, 'origin': origin})
     cash = (match(DEBT, text) and match(r'\b(?:redeem\w*|repay\w*|matur\w*|redemption)\b', text) and
-            match(r'100(?:\.0+)?\s*(?:%|per cent)|entire principal|redemption at par|final redemption amount.{0,80}nominal amount', text)
+            (match(r'100(?:\.0+)?\s*(?:%|per cent)|entire principal|redemption at par', text)
+             or (match(DEBT+r'.{0,40}\b(?:shall|will) (?:be )?(?:finally )?redeemed\b', text)
+                 and match(r'final redemption amount\s*\([^)]{0,150}\bis (?:its |the )?nominal amount\)'
+                           r'|final redemption amount (?:is|equals) (?:its |the )?nominal amount', text)))
             and not match(r'no repayment|if the claim for|interest.{0,50}payable semi', text))
     if cash and scope != 'foreign':
         add('cash_repayment')
