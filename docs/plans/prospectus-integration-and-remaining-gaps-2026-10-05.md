@@ -87,6 +87,17 @@ and Python caches are excluded.
 The focused whitespace check finds only a final blank line in the historical
 jurisdiction plan and phase dispatcher. Their exact bytes are retained because
 they are bound in the execution evidence; neither finding changes behavior.
-A clean checkout verification is required before push. The historical run manifests retain the commit and interpreter of the
-original experiments; they are not rewritten to pretend those experiments ran
-after this integration.
+The clean checkout verification passed for commit `df64b03f` in
+`/tmp/prospectus-sync-20261005/checkout` using
+`python3 -m scripts.run_prospectus_corner_repair verify`. Receipt
+`phases/023-verify/receipt.json` in that temporary checkout records the result:
+293 frozen method files, 681 candidate Python files, all 22 prior phase receipts,
+the accepted 885-test record, acquired sources, candidate patch, report and four
+visually inspected PDF pages all passed their integrity checks. The final run
+manifest remains SHA-256
+`fca1f51d4b24075e47c5e0e06fcce08db1303e586693ec195a9aa9dc8d2ef36f`.
+This check used only committed project files and made no source requests. It
+verifies the saved results; it does not rerun the test suite or adjudicate law.
+The following documentation-only commit records this verification. The historical
+run manifests retain the commit and interpreter of the original experiments;
+they are not rewritten to pretend those experiments ran after this integration.
