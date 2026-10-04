@@ -1,0 +1,27 @@
+from pathlib import Path
+import json,hashlib
+from mathdevmcp.literature_local_audit import literature_local_audit
+root=Path(__file__).resolve().parents[1];review=root/'docs/monograph/review/revision'
+rows=[
+('catala2021','Modeled compilation preservation','The modeled source and target calculi, evaluation relation and theorem side conditions; the production compiler is a separate implementation.','A separate RuleIR and Java generator are used; the paper theorem has not been instantiated for them.'),
+('dates2024','Abstract date arithmetic soundness','The source calendar, abstract month addition and its stated semantic cases.','Exact local date policy and all calendar boundary cases need a matching proof; the paper reports an unformalized supporting soundness proof.'),
+('reachability2026','Undecidability and decidable fragments','The exact Stipula operational model and the separately defined fragment restrictions.','The book reports source-scoped results and does not infer undecidability or decidability of every regulatory control.'),
+('eflintstable2025','Stable-model correspondence','The supported eFLINT norm specification and finite grounding/translation restrictions.','No local eFLINT translation or semantic-equivalence proof is implemented here.'),
+('ghose2007','Repair minimality','The source annotation, trace abstractions, repair operations and selected repair-distance ordering.','Legal acceptability of a proposed amendment is outside that optimization objective.'),
+('compliancehard2015','NP/coNP complexity','The paper’s finite acyclic process and specified achievement/maintenance obligations; existential versus universal compliance distinguished.','Not a general complexity theorem for all law, live processes or the bank’s implementation.'),
+('permissions2012','Soundness completeness and linear algorithms','The finite defeasible theory, constructive negative proof tags and the stated data-structure costs.','The bank’s absence of a prohibition record does not instantiate a proof of weak permission.'),
+('gbs2011','Logarithmic query bound','Finite binary hypothesis class containing the truth, specified coherence/neighborliness and the required oracle assumptions.','Legal alternatives can be incomplete and review answers can remain disputed; only a question-selection heuristic is borrowed.'),
+('conformal2022','Marginal finite-sample coverage','Fixed scoring rule, exchangeable calibration/test examples, finite n at least one, 0 < alpha < 1, inclusive order-statistic threshold and infinity endpoint.','These assumptions are stated for the illustration; exchangeability and complete interpretation labels have not been established for a bank corpus.'),
+('semantic2023','Entropy of meaning classes','An actual probability distribution on an equivalence partition, nonnegative masses summing to one and the zero-mass limiting convention.','Model NLI labels are fallible; neutral-inclusive source code is not mathematical equivalence or a legal correctness test.'),
+('lats2024','Search-value exploration score','Positive visit counts and parent count for the written UCT score; statistical search guarantees would need additional reward/process assumptions.','Legal correctness rewards are not directly observed and real payments cannot be rolled back; no convergence guarantee is imported.'),
+('roundtrip2026','Roundtrip formal equivalence','A successfully formalized pair within the supported solver theory; distinguish satisfiable, unsatisfiable and unknown outcomes.','Equivalence between two translations does not prove faithfulness to the original English.'),
+('difference-query','SMT counterexample meaning','Same admitted typed domain, declared output projection and faithful encoding for both candidate formulas.','A solver witness compares encodings under assumptions and does not decide the correct source interpretation.'),
+('release-invariant','No unresolved material issue at release','Complete material-issue inventory, atomic checks, exact versions and legitimate reviewer authority.','Local scripted tests exercise selected paths; production identity, complete issue detection and every deployed transition remain unproved.'),
+('zero-errors','Binomial upper confidence bound','IID Bernoulli trials with fixed error probability, n at least one and 0 < alpha < 1.','Circular-derived test cases are clustered; no empirical small bank-error probability is inferred from an engineering test suite.')]
+out=[]
+for key,target,required,local in rows:
+ request={'theorem_id':key+':'+target,'theorem_assumptions':[{'id':'required-scope','text':required}], 'local_assumptions':[{'id':'required-scope','text':local,'status':'unreviewed'}], 'local_context':'Transfer to the actual bank product, not the stated teaching illustration'}
+ response=literature_local_audit(**request)
+ out.append({'claim':target,'request':request,'response':response,'author_disposition':'Retain as a source-scoped result or explicitly conditional teaching result. Do not promote into a theorem of the bank product.'})
+(review/'mathdevmcp-prose-audit.json').write_text(json.dumps({'expanded_sha256':hashlib.sha256((review/'expanded.tex').read_bytes()).hexdigest(),'method':'MathDevMCP.literature_local_audit checks supplied assumption records, not theorem truth. The source reading judgments are separate.','claims':out},indent=2)+'\n')
+print('Recorded',len(out),'prose-claim applicability audits; all product transfers remain unreviewed.')

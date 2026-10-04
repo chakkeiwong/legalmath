@@ -1,0 +1,960 @@
+--- /dev/null
++++ b/src/legalmath/prospectus/cancellation.py
+@@ -0,0 +1,127 @@
++"""Source-bound unpaid-cancellation constructions and condition evaluation.
++
++These are bounded English readings, not findings that a condition occurred.
++"""
++import re
++
++
++def find(pattern, text):
++    return re.search(pattern, text, re.I | re.S)
++
++
++def slot(match, kind):
++    return {"kind": kind, "start": match.start(), "end": match.end(), "quote": match.group()}
++
++
++def cancellation_features(text):
++    action = find(r"\b(?:such\s+unpaid\s+amounts|any\s+amount\s+outstanding|"
++                  r"any\s+amount\s+in\s+respect\s+of\s+principal|"
++                  r"(?:the\s+)?unpaid\s+(?:principal|balance|amounts?))\b"
++                  r"(?:(?!\b(?:shall|will|must)\b).){0,260}?\b(?:shall|will|must)\s+"
++                  r"(?:\([^)]{1,200}\)\s*)?be\s+(?:(?:finally|and|definitively|permanently)\s+)*"
++                  r"(?:cancelled|canceled|extinguished|discharged)\b"
++                  r"(?:\s+and\s+discharged\s+in\s+full)?", text)
++    if not action:
++        # Do not silently treat negated redemption or failed payment as paid cancellation.
++        unpaid = find(r"insufficient\s+(?:\w+\s+){0,4}funds|cannot\s+be\s+redeemed"
++                      r"|unpaid\s+(?:principal|amounts?|balance)|amounts?\s+unpaid", text)
++        loss = find(r"\b(?:cancelled|canceled|discharged|extinguished)\b", text)
++        if unpaid and loss and find(r"\b(?:notes?|principal|noteholders)\b", text):
++            return [{"kind": "candidate", "disposition": "unresolved_unpaid_cancellation",
++                     "origin": None, "cancellation_context": text}]
++        return []
++    before = text[max(0, action.start() - 140):action.start()]
++    if find(r"\b(?:whether|hypothetically|would|could|notify|report|headed|entitled)\b", before):
++        return [{"kind": "candidate", "disposition": "unresolved_reported_cancellation",
++                 "origin": None, "cancellation_context": text}]
++    # Interest-only arrears are outside the principal-loss relation.
++    if not find(r"\bprincipal\b", action.group()) and not (
++        find(r"\bunpaid\s+amounts\b", action.group()) and
++        find(r"outstanding\s+under\s+the\s+Transaction\s+Documents\s+or\s+the\s+Notes", text)):
++        return [{"kind": "candidate", "disposition": "unresolved_unpaid_cancellation",
++                 "origin": None, "cancellation_context": text}]
++    requirements, exceptions = [], []
++    def required(kind, pattern):
++        match = find(pattern, text)
++        if match:
++            requirements.append(slot(match, kind))
++        return bool(match)
++    def excepted(kind, pattern):
++        match = find(pattern, text)
++        if match:
++            exceptions.append(slot(match, kind))
++        return bool(match)
++
++    insufficient = required("insufficient_funds", r"\binsufficient\s+(?:\w+\s+){0,4}funds\b")
++    final = required("at_final_maturity", r"\bon\s+the\s+Final\s+Maturity\s+Date\b")
++    later = required("at_cancellation_date", r"\buntil\s+the\s+Cancellation\s+Date,\s+at\s+which\s+date\b")
++    certificate = required("servicer_certificate",
++                           r"\bif\s+the\s+Servicer\s+has\s+certified\s+to\s+the\s+Representative\s+of\s+the\s+Noteholders\b")
++    exhausted = required("no_further_recoveries",
++                         r"\bno\s+(?:\d+\s+)?reasonable\s+likelihood\s+of\s+there\s+being\s+any\s+further\s+realisations\b")
++    notice = required("representative_notice",
++                      r"\bthe\s+Representative\s+of\s+the\s+Noteholders\s+has\s+given\s+notice\s+on\s+the\s+basis\s+of\s+such\s+certificate\b")
++    withholding = excepted("improper_withholding_or_refusal",
++                           r"\bunless\s+payment\s+of\s+such\s+amounts\s+is\s+being\s+improperly\s+withheld\s+or\s+refused\b")
++    misconduct = find(r"\bin\s+the\s+absence\s+of\s+gross\s+negligence\s*(?:\([^)]*\)\s*)?"
++                      r"or\s+wilful\s+misconduct\s*(?:\([^)]*\)\s*)?on\s+the\s+part\s+of\s+the\s+Issuer\b", text)
++    if misconduct:
++        exceptions += [slot(misconduct, "issuer_gross_negligence"),
++                       slot(misconduct, "issuer_wilful_misconduct")]
++    if insufficient and final and withholding:
++        construction = "insufficient_funds_final_cancellation"
++        complete = True
++    elif insufficient and later and misconduct:
++        construction = "deferred_cancellation"
++        complete = True
++    elif certificate and exhausted and notice:
++        construction = "certified_exhaustion"
++        complete = True
++    elif not find(r"\b(?:if|unless|except|subject\s+to|provided|until)\b", text):
++        construction = "unconditional_unpaid_cancellation"
++        complete = True
++    else:
++        construction = "unresolved_cancellation_conditions"
++        complete = False
++    # Qualifiers outside the supported constructions veto an unconditional reading.
++    known_exception_ranges = [(s["start"], s["end"]) for s in exceptions]
++    extra_exception = any(not any(a <= m.start() < b for a,b in known_exception_ranges)
++                          for m in re.finditer(r"\b(?:unless|except|in the absence of)\b", text, re.I))
++    if extra_exception or len(re.findall(r"\bif\b", text, re.I)) > 1:
++        complete = False
++    if construction == "unconditional_unpaid_cancellation" and not find(r"\b(?:the|these)\s+Notes\b", text):
++        complete = False
++    if find(r"\b(?:subject\s+to|provided\s+that|except\s+(?:where|when|if))\b", text):
++        complete = False
++    witness = {"rule": "unpaid_cancellation", "construction": construction,
++               "relation": {"start": action.start(), "end": action.end(), "quote": action.group()},
++               "requirements": requirements, "exceptions": exceptions,
++               "source_clause": text, "conditions_complete": complete,
++               "mapping_status": "BOUNDED_ENGLISH_CONSTRUCTION_NOT_LEGAL_PROOF"}
++    return [{"kind": "principal_write_down" if complete else "candidate",
++             "disposition": "applicable" if complete else "unresolved_cancellation_conditions",
++             "origin": "contractual", "semantic_witness": witness}]
++
++
++def valid_cancellation_witness(item):
++    return any(f.get("semantic_witness") == item.get("semantic_witness") and
++               f["kind"] == item.get("kind") and f["disposition"] == item.get("disposition")
++               for f in cancellation_features(item["quote"]))
++
++
++def evaluate_cancellation(witness, facts):
++    """Three-valued evaluation of reviewed conditions; missing facts stay unknown."""
++    if not isinstance(facts, dict) or any(type(v) is not bool and v is not None for v in facts.values()):
++        raise ValueError("Cancellation facts must be true, false or unknown")
++    if not witness.get("conditions_complete"):
++        return None
++    expected = next((f["semantic_witness"] for f in cancellation_features(witness.get("source_clause", ""))
++                     if f.get("semantic_witness") == witness), None)
++    if expected is None:
++        raise ValueError("Cancellation witness does not replay")
++    requirements = [facts.get("unpaid_principal")] + [
++        facts.get(s["kind"]) for s in witness["requirements"]]
++    exceptions = [facts.get(s["kind"]) for s in witness["exceptions"]]
++    if False in requirements or True in exceptions:
++        return False
++    return True if all(v is True for v in requirements) and all(v is False for v in exceptions) else None
+--- /dev/null
++++ b/src/legalmath/prospectus/document_intake.py
+@@ -0,0 +1,79 @@
++"""Explicit extraction coverage and dated document dependency validation."""
++from datetime import date
++from pathlib import Path
++from .common import sha
++
++
++def extraction_coverage(document, selection):
++    pages = document["pages"]
++    selected = {p for a,b in selection.get("operative_pages", [[1,len(pages)]])
++                for p in range(a,b+1)}
++    reviewed = document.get("reviewed_blank_pages", [])
++    if (not isinstance(reviewed, list) or any(type(p) is not int or p not in selected for p in reviewed)):
++        raise ValueError("Invalid reviewed blank pages")
++    # A declaration alone is insufficient: every blank disposition needs a reviewed source record.
++    reviews = document.get("blank_page_reviews", {})
++    for p in reviewed:
++        if not isinstance(reviews.get(str(p)), dict) or not reviews[str(p)].get("reviewed_image_sha256"):
++            raise ValueError("Blank-page review provenance missing")
++    empty = [p for p in sorted(selected) if not pages[p-1]["text"].strip() and p not in reviewed]
++    status = "OCR_REQUIRED" if len(empty) == len(selected) else "PARTIAL_TEXT" if empty else "TEXT_PRESENT"
++    return {"status": status, "empty_selected_pages": empty,
++            "selected_pages": sorted(selected), "reviewed_blank_pages": reviewed,
++            "coverage_complete": not empty, "automatic_ocr_performed": False}
++
++
++def validate_bundle(issue, documents, root):
++    """Validate a reviewed dependency contract, never infer editions from recency."""
++    contract = issue.get("document_contract")
++    if contract is None:
++        return {"status": "NOT_DECLARED", "issues": [], "legal_completeness": "NOT_ESTABLISHED"}
++    problems, bound = [], []
++    if not isinstance(contract, dict):
++        raise ValueError("Document contract must be an object")
++    required = contract.get("required_documents", [])
++    if not required or len({r["id"] for r in required}) != len(required):
++        raise ValueError("Nonempty distinct required documents needed")
++    if issue.get("issuer") != contract.get("issuer"):
++        problems.append("ISSUER_MISMATCH")
++    if issue.get("security_class") != contract.get("security_class"):
++        problems.append("SECURITY_CLASS_MISMATCH")
++    if issue.get("issue_date") != contract.get("issue_date"):
++        problems.append("ISSUE_DATE_MISMATCH")
++    issued = date.fromisoformat(contract["issue_date"])
++    selected = [s["id"] for s in issue["documents"]]
++    expected = {r["id"] for r in required}
++    if set(selected) != expected or len(selected) != len(set(selected)):
++        problems.append("DEPENDENCY_SET_MISMATCH")
++    for expected_row in required:
++        key = expected_row["id"]
++        actual = documents.get(key)
++        if actual is None:
++            problems.append("MISSING_DOCUMENT:" + key)
++            continue
++        fields = ("sha256", "role", "edition_date", "base_id")
++        if any(actual.get(k) != expected_row.get(k) for k in fields):
++            problems.append("EDITION_OR_ROLE_MISMATCH:" + key)
++        if date.fromisoformat(actual["edition_date"]) > issued:
++            problems.append("POST_ISSUE_DOCUMENT:" + key)
++        if contract["issuer"] not in actual.get("programme_issuers", []):
++            problems.append("ISSUER_NOT_COVERED:" + key)
++        if actual.get("role") == "final_terms":
++            if actual.get("issuer") != contract["issuer"]:
++                problems.append("FINAL_TERMS_ISSUER_MISMATCH:" + key)
++            if actual.get("security_class") != contract["security_class"]:
++                problems.append("FINAL_TERMS_CLASS_MISMATCH:" + key)
++            if set(actual.get("identifiers", [])) != set(issue.get("identifiers", [])):
++                problems.append("FINAL_TERMS_IDENTIFIER_MISMATCH:" + key)
++        if actual.get("role") == "supplement" and actual.get("base_id") not in expected:
++            problems.append("SUPPLEMENT_BASE_MISSING:" + key)
++        source = Path(root) / actual["original"]
++        if not source.is_file() or sha(source.read_bytes()) != expected_row["sha256"]:
++            problems.append("SOURCE_CHANGED:" + key)
++        bound.append({"id": key, "sha256": expected_row["sha256"], "role": expected_row["role"]})
++    problems.extend("OPEN_DEPENDENCY:" + x for x in contract.get("unresolved_dependencies", []))
++    if contract.get("precedence_reviewed") is not True:
++        problems.append("PRECEDENCE_NOT_REVIEWED")
++    return {"status": "UNRESOLVED" if problems else "BOUND",
++            "issues": sorted(set(problems)), "source_bindings": bound,
++            "legal_completeness": "NOT_INDEPENDENTLY_ADJUDICATED"}
+--- /dev/null
++++ b/src/legalmath/prospectus/external_law.py
+@@ -0,0 +1,150 @@
++"""Typed, source-bound legal-premise evaluation with explicit scope and uncertainty.
++
++The engine evaluates declared interpretations. It does not derive or adjudicate
++those interpretations from unrestricted legal prose.
++"""
++from datetime import date
++from fractions import Fraction
++from pathlib import Path
++import re
++from .common import digest, read, sha
++
++
++def truth_all(values):
++    return False if False in values else None if None in values else True
++
++
++def expression(node, facts):
++    if type(node) is bool or node is None:
++        return node
++    if not isinstance(node, dict) or len(node) != 1:
++        raise ValueError("One typed operator required")
++    op, value = next(iter(node.items()))
++    if op == "fact":
++        values = facts.get(value, [])
++        if not isinstance(values, list):
++            raise ValueError("Fact must retain a list of observations")
++        present = [v for v in values if v is not None]
++        if any(type(v) is not bool for v in present):
++            raise ValueError("Boolean premise expected")
++        return present[0] if present and len(set(present)) == 1 else None
++    if op in ("all", "any"):
++        if not isinstance(value,list) or not value:
++            raise ValueError("Nonempty expression list required")
++        values = [expression(n, facts) for n in value]
++        return truth_all(values) if op == "all" else True if True in values else None if None in values else False
++    if op == "not":
++        result = expression(value, facts)
++        return None if result is None else not result
++    if op == "elapsed_days_at_least":
++        if not isinstance(value,list) or len(value)!=3 or type(value[2]) is not int or value[2]<0:
++            raise ValueError("Two date premise names and a nonnegative day count required")
++        dates=[]
++        for name in value[:2]:
++            values=facts.get(name,[])
++            if not values or any(v is None for v in values) or len(set(values))!=1:
++                return None
++            dates.append(date.fromisoformat(values[0]))
++        return (dates[1]-dates[0]).days >= value[2]
++    if op in ("before", "on_or_after"):
++        if not isinstance(value,list) or len(value)!=2:
++            raise ValueError("Two date premises required")
++        dates=[]
++        for name in value:
++            values=facts.get(name,[])
++            if not isinstance(values,list):
++                raise ValueError("Date premise must retain observations")
++            if not values or any(v is None for v in values) or len(set(values)) != 1:
++                return None
++            dates.append(date.fromisoformat(values[0]))
++        return dates[0]<dates[1] if op=="before" else dates[0]>=dates[1]
++    raise ValueError("Unknown rule operator: " + str(op))
++
++
++def check_anchors(anchors, sources, root):
++    if not anchors:
++        raise ValueError("A source-bound rule needs anchors")
++    checked=[]
++    for anchor in anchors:
++        source=sources[anchor["source_key"]]
++        original=Path(root)/source["original"]
++        text_path=Path(root)/source["text"]
++        if sha(original.read_bytes()) != anchor["source_sha256"] or source["sha256"] != anchor["source_sha256"]:
++            raise ValueError("Changed legal source")
++        if sha(text_path.read_bytes()) != source["text_sha256"]:
++            raise ValueError("Changed legal extraction")
++        text=text_path.read_text()
++        if "paragraph" in anchor:
++            parts=re.split(r"\n(?=\d+\n)",text)
++            paragraphs={p.split("\n",1)[0]:p.split("\n",1)[1] for p in parts if re.match(r"^\d+\n",p)}
++            text=paragraphs.get(str(anchor["paragraph"]),"")
++        elif "page" in anchor:
++            pages=text.split("\f")
++            if pages and not pages[-1].strip():pages.pop()
++            if type(anchor["page"]) is not int or not 1 <= anchor["page"] <= len(pages):
++                raise ValueError("Invalid bound source page")
++            text=pages[anchor["page"]-1]
++        norm=lambda value:" ".join(value.split())
++        if norm(anchor["quote"]) not in norm(text):
++            raise ValueError("Source anchor does not replay")
++        checked.append(dict(anchor))
++    return checked
++
++
++def evaluate_rule(rule, context, sources, root):
++    anchors=check_anchors(rule["anchors"],sources,root)
++    problems=[]
++    for field, allowed in rule["scope"].items():
++        actual=context.get(field)
++        if actual is None:
++            problems.append("MISSING_SCOPE:"+field)
++        elif actual not in allowed:
++            problems.append("OUT_OF_SCOPE:"+field)
++    known=context.get("known_at")
++    if not known:
++        problems.append("MISSING_KNOWLEDGE_DATE")
++    elif date.fromisoformat(known)<date.fromisoformat(rule["source_date"]):
++        problems.append("SOURCE_POSTDATES_KNOWLEDGE")
++    facts=context.get("facts",{})
++    # Sources may contain assumptions, allegations and dissents. Keep their role;
++    # they cannot become findings by changing only the requested result name.
++    if context.get("requested_stage") != rule["stage"]:
++        problems.append("STAGE_MISMATCH")
++    value=expression(rule["condition"],facts) if not problems else None
++    if value is None and not problems:
++        problems.append("MISSING_OR_CONFLICTING_PREMISE")
++    result={"rule_id":rule["id"],"conclusion":rule["conclusion"],
++            "stage":rule["stage"],"value_under_declared_premises":value,
++            "status":"UNRESOLVED" if problems else "CONDITIONAL",
++            "issues":problems,"anchors":anchors,"rule_hash":digest(rule),
++            "context_hash":digest(context),"independent_legal_adjudication":False,
++            "source_interpretation":"DECLARED_AND_ANCHORED_NOT_INDEPENDENTLY_PROVED",
++            "certified_legal_answer":None,"may_execute_transaction":False}
++    if rule.get("arithmetic") and value is True:
++        # Exact complement of an expressly supplied remaining percentage.
++        name=rule["arithmetic"]["remaining_percent"]
++        values=facts.get(name,[])
++        if not isinstance(values,list) or len(values)!=1 or not isinstance(values[0],str):
++            result["status"]="UNRESOLVED";result["issues"].append("MISSING_REMAINING_PERCENT")
++        else:
++            remaining=Fraction(values[0])
++            if not 0<=remaining<=100:
++                raise ValueError("Percentage outside 0..100")
++            result["reported_remaining_percent"]=str(remaining)
++            result["implied_reduction_percent"]=str(100-remaining)
++            result["ultimate_recovery"]="NOT_ESTABLISHED"
++    result["receipt_hash"]=digest(result)
++    return result
++
++
++def investigate(issue, documents, context_packet, root):
++    """Join contractual reading, dependency checks and scoped external-law outputs."""
++    from .loss_absorption_reader import analyze_issue
++    contractual=analyze_issue(issue,documents,root)
++    legal=[evaluate_rule(r,context_packet["context"],context_packet["sources"],root)
++           for r in context_packet["rules"]]
++    return {"contractual":contractual,"external_law":legal,
++            "status":"UNRESOLVED" if contractual["answer"] is None or any(
++                r["status"]=="UNRESOLVED" for r in legal) else "CONDITIONAL",
++            "certified_legal_answer":None,"may_execute_transaction":False,
++            "qualification":"Contractual features and external legal conclusions retain their distinct source, date and premise conditions."}
+--- a/src/legalmath/prospectus/loss_absorption_reader.py
++++ b/src/legalmath/prospectus/loss_absorption_reader.py
+@@ -12,6 +12,8 @@
+ from .loss_absorption_witnesses import (RISK, COMPILED, semantic_features, validate_semantic_witness,
+                                        series_binding, exact_repayment)
+ from . import reader_scope
++from .cancellation import cancellation_features
++from .document_intake import extraction_coverage, validate_bundle
+ 
+ 
+ def norm(text):
+@@ -71,8 +73,13 @@
+         add('cash_repayment')
+     if match(DEBT, text) and match(r'\b(?:unsecured|unsubordinated|subordinated)\b.{0,100}\b(?:obligations?|indebtedness)\b|\bdebt (?:securities|instruments)\b', text) and scope != 'foreign':
+         add('debt')
++    unpaid = cancellation_features(text) if scope != 'foreign' else []
++    if unpaid:
++        return result + unpaid
+     if reader_scope.deferred_interest_forfeiture(text):
+         add('candidate', 'distribution_only'); return result
++    if scope != 'foreign' and reader_scope.paid_amortisation(text):
++        add('candidate', 'principal_repaid_in_partial_redemption'); return result
+     if scope != 'foreign' and reader_scope.partial_redemption(text):
+         add('candidate', 'principal_repaid_in_partial_redemption'); return result
+     if scope != 'foreign' and reader_scope.redemption_floor(text, context):
+@@ -218,7 +225,7 @@
+                    r'(?:(?:principal|nominal)\s+amount\s+of\s+(?:the\s+)?Notes\s+(?:shall|will|may|must)'
+                    r'|holders\s+shall\s+(?:surrender|forfeit)'
+                    r'|Issuer\s+(?:shall|will|must)\s+(?:write|reduce|convert)))')
+-    for boundary in re.finditer(r'(?<=[.;])\s+(?=[A-Z“"(])|' + independent, text):
++    for boundary in re.finditer(r'(?<=[.;])\s+(?=[A-Z“"(])|\s+(?=\d{1,2}(?:\.\d{1,2}){1,4}\s+[A-Za-z])|' + independent, text):
+         if boundary.group().startswith(','):
+             head = text[start:boundary.start()]
+             tail = text[boundary.end():]
+@@ -337,7 +344,7 @@
+             1 if match(r'"|“',text[:1]) else 0, item['page'], item['start'])
+ 
+ 
+-def load_document(row, root):
++def load_document(row, root, *, check_identity=True):
+     original, path = Path(root) / row['original'], Path(root) / row['text']
+     if not original.exists() or not path.exists():
+         raise ValueError('Missing document: ' + row['id'])
+@@ -351,22 +358,31 @@
+     if document.get('preliminary_indicator'):
+         raise ValueError('Preliminary terms cannot replace final terms: ' + row['id'])
+     text, _ = joined(document)
+-    if any(norm(marker).lower() not in text.lower() for marker in row.get('identity_markers', [])):
++    if check_identity and any(norm(marker).lower() not in text.lower() for marker in row.get('identity_markers', [])):
+         raise ValueError('Document identity/edition mismatch: ' + row['id'])
+     return document
+ 
+ 
+ def analyze_issue(issue, documents, root):
+     evidence, issues, coverage, checked_documents = [], [], [], {}
++    extraction = []
++    bundle = validate_bundle(issue, documents, root)
++    issues.extend(bundle['issues'])
+     for selection in issue['documents']:
+         key = selection['id']
+         if key not in documents:
+             issues.append('Missing required source ' + key); continue
+         row = documents[key]
+         try:
+-            document = load_document(row, root)
++            document = load_document(row, root, check_identity=False)
+             text, starts = joined(document)
+             reader_scope.validate(selection, len(starts))
++            extraction_check = extraction_coverage(document, selection)
++            extraction.append({'document': key, **extraction_check})
++            if not extraction_check['coverage_complete']:
++                raise ValueError(extraction_check['status'] + ': ' + key + ' selected pages ' + str(extraction_check['empty_selected_pages']))
++            if any(norm(marker).lower() not in text.lower() for marker in row.get('identity_markers', [])):
++                raise ValueError('Document identity/edition mismatch: ' + key)
+             checked_documents[key]={'text':text,'sha256':row['sha256'],
+                                     'definition_text':definition_scope(text,starts,selection)}
+             if any(norm(marker).lower() not in text.lower() for marker in selection.get('required_markers', [])):
+@@ -409,7 +425,8 @@
+     if facts['debt'] is None:
+         issues.append('Debt status is not established from the selected terms')
+     # Physical/identity/dependency failures defeat even a plausible positive.
+-    hard_failure = len(coverage) != len(issue['documents']) or bool(issue.get('unresolved_operative_dependencies'))
++    hard_failure = (len(coverage) != len(issue['documents']) or bool(issue.get('unresolved_operative_dependencies'))
++                    or bundle['status'] == 'UNRESOLVED')
+     if hard_failure:
+         facts = dict.fromkeys(FACTS, None)
+     decision = decide(facts)
+@@ -431,6 +448,7 @@
+                           ordinary_features=[ordinary[e['disposition']] for e in evidence if e['disposition'] in ordinary])
+     result={**{k: v for k, v in issue.items() if k != 'documents'}, **decision, 'summary_reason': explanation,
+             'facts': facts, 'evidence': evidence, 'coverage': coverage, 'open_issues': issues,'derivation':derivation,
++            'extraction': extraction, 'document_binding': bundle,
+             'certified_legal_answer':None,
+             'qualification': 'Conditional on the declared issue/document scope and bounded English analysis. Source meaning, relevance of omitted material and later amendments are not independently proved.',
+             'legal_entailment': 'NOT_PROVED', 'human_quality_evidence': False}
+--- a/src/legalmath/prospectus/loss_absorption_witnesses.py
++++ b/src/legalmath/prospectus/loss_absorption_witnesses.py
+@@ -5,6 +5,7 @@
+ """
+ import re
+ from fractions import Fraction
++from .cancellation import cancellation_features, valid_cancellation_witness
+ 
+ 
+ DEBT=r'(?:(?:the|these|each|our|such)\s+)?(?:Notes?|(?:Preferred\s+)?(?:Securities|Security)|Bonds?|Debentures?)'
+@@ -64,7 +65,7 @@
+ 
+ 
+ def semantic_features(text,definitions=''):
+-    text=clean(text);result=[]
++    text=clean(text);result=cancellation_features(text)
+     for name,pattern in COMPILED.items():
+         kind,_=RULES[name]
+         for m in pattern.finditer(text):
+@@ -117,6 +118,8 @@
+     """Replay the construction and every source slot; distrust supplied fact kinds."""
+     record=item.get('semantic_witness')
+     if not record:return False
++    if record.get('rule') == 'unpaid_cancellation':
++        return valid_cancellation_witness(item)
+     text=clean(item['quote']);rule=record.get('rule')
+     if rule not in RULES or item['kind']!=RULES[rule][0]:return False
+     relation=record.get('relation',{})
+--- a/src/legalmath/prospectus/reader_scope.py
++++ b/src/legalmath/prospectus/reader_scope.py
+@@ -45,6 +45,37 @@
+         text.strip(), re.I) is not None
+ 
+ 
++
++
++def paid_amortisation(text):
++    """Recognize reduction caused by the same scheduled principal payment.
++
++    Any separate loss wording defeats this clause-level exclusion. Scope still
++    needs a caller-reviewed issue selection; programme options are not issues.
++    """
++    patterns = (
++        r"upon payment of the relevant Amorti[sz]ation Amount\s+(?:the Notes:\s*)?"
++        r"(?:the\s+)?outstanding principal amount of such Note shall be reduced "
++        r"by the same proportion which the relevant Amorti[sz]ation Amount bears "
++        r"to the aggregate of all Amorti[sz]ation Amounts",
++        r"each Note outstanding on an Amorti[sz]ation Date shall be partially redeemed "
++        r"on such Amorti[sz]ation Date at the specified Amorti[sz]ation Amount and "
++        r"the outstanding principal amount of such Note shall be reduced "
++        r"(?:accordingly|\[accordingly \(insert for Notes which are not Zero Coupon Notes\)\]"
++        r"/\[in accordance with paragraph \[17\] above \(insert for Notes which are Zero Coupon Notes\)\])",
++    )
++    for pattern in patterns:
++        match = re.search(pattern, text, re.I)
++        if not match:
++            continue
++        remainder = text[:match.start()] + " " + text[match.end():]
++        if re.search(r"\b(?:reduc\w*|cancel\w*|extinguish\w*|discharg\w*|unpaid|"
++                     r"bail.in|write.down|written.down|convert\w*|loss)\b", remainder, re.I):
++            continue
++        return True
++    return False
++
++
+ def redemption_floor(text, previous):
+     return partial_redemption(previous) and re.fullmatch(
+         r"In no event, the outstanding nominal amount of each Note (?:\d+ )?following such reduction "
+--- /dev/null
++++ b/tests/prospectus/fixtures/corner-mizuho.json
+@@ -0,0 +1,93 @@
++{
++  "baseline": "docs/implementation/prospectus-difficulty-2026-10-04/run-001/case-105635287.json",
++  "witnesses": [
++    {
++      "document": "hard-pdf-105635287",
++      "source_sha256": "2b5cb44bd6beede085dd6017460ca05cbd0ee2ea59614263a7bf82a3bcea474b",
++      "start": 428635,
++      "end": 429253,
++      "page": 125,
++      "end_page": 126,
++      "quote": "(v) Provisions relating to early If any Zero Coupon Note is redeemed or otherwise redemption of Zero Coupon becomes due and payable prior to the Final Maturity Notes: Date, such Zero Coupon Note shall be redeemed at its Reference Price. 113 (vi) Provisions relating to If any Zero Coupon Notes are Amortizing Notes, then amortization of Zero Coupon upon payment of the relevant Amortization Amount the Notes: outstanding principal amount of such Note shall be reduced by the same proportion which the relevant Amortization Amount bears to the aggregate of all Amortization Amounts Provisions Relating to Redemption 18.",
++      "scope": "operative",
++      "priority": 1,
++      "issue_id": "case-105635287",
++      "issue_binding": "shared_terms_scope_premise",
++      "kind": "principal_write_down",
++      "disposition": "applicable",
++      "origin": "contractual",
++      "semantic_witness": {
++        "rule": "amount_write_down",
++        "relation": {
++          "start": 409,
++          "end": 467,
++          "quote": "outstanding principal amount of such Note shall be reduced"
++        },
++        "slots": {
++          "subject": {
++            "start": 409,
++            "end": 450,
++            "text": "outstanding principal amount of such Note"
++          },
++          "modal": {
++            "start": 451,
++            "end": 456,
++            "text": "shall"
++          },
++          "action": {
++            "start": 457,
++            "end": 467,
++            "text": "be reduced"
++          }
++        },
++        "definitions": [],
++        "mapping_status": "BOUNDED_ENGLISH_CONSTRUCTION_NOT_LEGAL_PROOF"
++      },
++      "id": "b43d63b56e7d8c55c95ed7d3"
++    },
++    {
++      "document": "hard-pdf-105635287",
++      "source_sha256": "2b5cb44bd6beede085dd6017460ca05cbd0ee2ea59614263a7bf82a3bcea474b",
++      "start": 435707,
++      "end": 436097,
++      "page": 128,
++      "end_page": 128,
++      "quote": "Amortizing Notes: [Applicable – each Note outstanding on an Amortization Date shall be partially redeemed on such Amortization Date at the specified Amortization Amount and the outstanding principal amount of such Note shall be reduced [accordingly (insert for Notes which are not Zero Coupon Notes)]/[in accordance with paragraph [17] above (insert for Notes which are Zero Coupon Notes)].",
++      "scope": "operative",
++      "priority": 1,
++      "issue_id": "case-105635287",
++      "issue_binding": "shared_terms_scope_premise",
++      "kind": "principal_write_down",
++      "disposition": "applicable",
++      "origin": "contractual",
++      "semantic_witness": {
++        "rule": "amount_write_down",
++        "relation": {
++          "start": 177,
++          "end": 235,
++          "quote": "outstanding principal amount of such Note shall be reduced"
++        },
++        "slots": {
++          "subject": {
++            "start": 177,
++            "end": 218,
++            "text": "outstanding principal amount of such Note"
++          },
++          "modal": {
++            "start": 219,
++            "end": 224,
++            "text": "shall"
++          },
++          "action": {
++            "start": 225,
++            "end": 235,
++            "text": "be reduced"
++          }
++        },
++        "definitions": [],
++        "mapping_status": "BOUNDED_ENGLISH_CONSTRUCTION_NOT_LEGAL_PROOF"
++      },
++      "id": "b5ceca3984cffbfc9712a953"
++    }
++  ]
++}
+--- /dev/null
++++ b/tests/prospectus/test_corner_amortisation.py
+@@ -0,0 +1,33 @@
++
++"""Paired real amortisation and unpaid-loss controls."""
++from copy import deepcopy
++from pathlib import Path
++import json
++import pytest
++from legalmath.prospectus import loss_absorption_reader as reader
++from legalmath.prospectus.reader_scope import paid_amortisation
++
++DATA=Path(__file__).parent/"fixtures/corner-mizuho.json"
++ROWS=json.loads(DATA.read_text())["witnesses"]
++
++@pytest.mark.parametrize("row", ROWS, ids=lambda r:r["id"])
++def test_retained_paid_amortisation(row):
++    assert paid_amortisation(row["quote"])
++    features=reader.clause_features(row["quote"])
++    assert any(f["disposition"]=="principal_repaid_in_partial_redemption" for f in features)
++    assert not any(f["kind"]=="principal_write_down" and f["disposition"]=="applicable" for f in features)
++
++@pytest.mark.parametrize("row", ROWS, ids=lambda r:r["id"])
++def test_payment_words_cannot_hide_separate_loss(row):
++    text=row["quote"]+" The unpaid principal of the Notes shall be cancelled."
++    assert not paid_amortisation(text)
++    assert any(f["kind"]=="principal_write_down" for f in reader.clause_features(text))
++
++@pytest.mark.parametrize("text", [
++    "Without payment of the relevant Amortization Amount the outstanding principal amount of such Note shall be reduced by the same proportion which the relevant Amortization Amount bears to the aggregate of all Amortization Amounts.",
++    "Each Note outstanding on an Amortization Date shall not be partially redeemed on such Amortization Date at the specified Amortization Amount and the outstanding principal amount of such Note shall be reduced accordingly.",
++    "The Issuer discusses amortization. On a Trigger Event the principal amount of the Notes shall be written down.",
++])
++def test_missing_payment_relation_cannot_use_paid_exclusion(text):
++    assert not paid_amortisation(text)
++    assert not any(f["disposition"]=="principal_repaid_in_partial_redemption" for f in reader.clause_features(text))
+--- /dev/null
++++ b/tests/prospectus/test_corner_external_law.py
+@@ -0,0 +1,118 @@
++"""Truth tables, time/scope changes and source-tampering checks for legal rules."""
++from copy import deepcopy
++from itertools import product
++import json
++import pytest
++from legalmath.prospectus.common import sha
++from legalmath.prospectus.external_law import expression, evaluate_rule, investigate
++from tests.prospectus.test_loss_absorption import fixture, ORDINARY
++
++
++@pytest.mark.parametrize("a,b", product([True,False,None], repeat=2))
++def test_three_valued_conjunction(a,b):
++    value=expression({"all":[{"fact":"a"},{"fact":"b"}]},{"a":[a],"b":[b]})
++    expected=False if a is False or b is False else True if a is True and b is True else None
++    assert value is expected
++
++
++def test_conflicting_observations_and_missing_fact_stay_unknown():
++    assert expression({"fact":"a"},{"a":[True,False]}) is None
++    assert expression({"fact":"a"},{}) is None
++
++
++def legal_fixture(tmp_path):
++    original=tmp_path/"law.pdf";original.write_bytes(b"retained primary source fixture")
++    text=tmp_path/"text.txt";text.write_text("1\nThe measure preceded proceedings.\n2\nAn appeal is not a suspension.")
++    key="law"
++    sources={key:{"original":str(original),"sha256":sha(original.read_bytes()),
++                  "text":str(text),"text_sha256":sha(text.read_bytes())}}
++    rule={"id":"recognition", "anchors":[{"source_key":key,"source_sha256":sources[key]["sha256"],
++          "paragraph":1,"quote":"The measure preceded proceedings."}],
++          "scope":{"claim_type":["bond"],"forum":["ES"]},"source_date":"2024-09-05",
++          "stage":"recognition","conclusion":"pre_suit_recognition_under_reviewed_premises",
++          "condition":{"all":[{"before":["measure","suit"]},{"not":{"fact":"suspended"}}]}}
++    context={"claim_type":"bond","forum":"ES","known_at":"2026-10-04","requested_stage":"recognition",
++             "facts":{"measure":["2015-12-29"],"suit":["2017-01-01"],"suspended":[False]}}
++    return rule,context,sources
++
++
++def test_valid_rule_then_later_measure_changes_result(tmp_path):
++    rule,ctx,sources=legal_fixture(tmp_path)
++    assert evaluate_rule(rule,ctx,sources,tmp_path)["value_under_declared_premises"] is True
++    ctx["facts"]["measure"]=["2018-01-01"]
++    assert evaluate_rule(rule,ctx,sources,tmp_path)["value_under_declared_premises"] is False
++
++
++@pytest.mark.parametrize("field,value",[
++    ("claim_type","shares"),("forum","UK"),("known_at","2023-01-01"),
++    ("requested_stage","debt_discharge"),("claim_type",None)])
++def test_wrong_scope_or_stage_cannot_inherit_holding(tmp_path,field,value):
++    rule,ctx,sources=legal_fixture(tmp_path);ctx[field]=value
++    result=evaluate_rule(rule,ctx,sources,tmp_path)
++    assert result["status"]=="UNRESOLVED"
++    assert result["value_under_declared_premises"] is None
++
++
++@pytest.mark.parametrize("what",["original","text","quote","paragraph"])
++def test_rejects_changed_or_mislocated_source(tmp_path,what):
++    rule,ctx,sources=legal_fixture(tmp_path)
++    if what in ("original","text"):
++        from pathlib import Path
++        Path(sources["law"][what]).write_bytes(b"changed")
++    elif what=="quote":rule["anchors"][0]["quote"]="The debt was discharged."
++    else:rule["anchors"][0]["paragraph"]=2
++    with pytest.raises(ValueError):evaluate_rule(rule,ctx,sources,tmp_path)
++
++
++def test_challengeability_does_not_supply_unsuspended_premise(tmp_path):
++    rule,ctx,sources=legal_fixture(tmp_path)
++    ctx["facts"].pop("suspended")
++    ctx["facts"]["challengeable"]=[True]
++    assert evaluate_rule(rule,ctx,sources,tmp_path)["status"]=="UNRESOLVED"
++
++
++def test_join_keeps_contract_and_law_separate(tmp_path):
++    issue,documents,_=fixture(tmp_path,[ORDINARY])
++    rule,ctx,sources=legal_fixture(tmp_path)
++    result=investigate(issue,documents,{"rules":[rule],"context":ctx,"sources":sources},tmp_path)
++    assert result["contractual"]["answer"] is False
++    assert result["external_law"][0]["value_under_declared_premises"] is True
++    assert result["certified_legal_answer"] is None and not result["may_execute_transaction"]
++
++
++def test_exact_haircut_complement_and_not_final_recovery(tmp_path):
++    rule,ctx,sources=legal_fixture(tmp_path)
++    rule["arithmetic"]={"remaining_percent":"remaining"}
++    ctx["facts"]["remaining"]=["46.02"]
++    result=evaluate_rule(rule,ctx,sources,tmp_path)
++    assert result["implied_reduction_percent"]=="2699/50"
++    assert result["ultimate_recovery"]=="NOT_ESTABLISHED"
++
++@pytest.mark.parametrize("end,expected",[("2011-04-30",False),("2011-05-01",True),("2011-05-02",True)])
++def test_execution_delay_boundary(end,expected):
++    assert expression({"elapsed_days_at_least":["notice","execution",120]},
++                      {"notice":["2011-01-01"],"execution":[end]}) is expected
++    assert expression({"elapsed_days_at_least":["notice","execution",120]},
++                      {"execution":[end]}) is None
++
++def test_pdf_page_anchor_cannot_use_unbound_derivative(tmp_path):
++    rule,ctx,sources=legal_fixture(tmp_path)
++    rule["anchors"][0].pop("paragraph")
++    rule["anchors"][0]["page"]=2
++    # An attacker supplies a pages.json with the wanted quote at a wrong page.
++    (tmp_path/"pages.json").write_text(json.dumps({"pages":[{"text":""},{"text":rule["anchors"][0]["quote"]}]}))
++    with pytest.raises(ValueError):
++        evaluate_rule(rule,ctx,sources,tmp_path)
++
++def test_pdf_anchor_on_bound_text_page(tmp_path):
++    rule,ctx,sources=legal_fixture(tmp_path)
++    rule["anchors"][0].pop("paragraph")
++    rule["anchors"][0]["page"]=2
++    from pathlib import Path
++    path=Path(sources["law"]["text"])
++    path.write_text("Unrelated first page.\fThe measure preceded proceedings.\f")
++    sources["law"]["text_sha256"]=sha(path.read_bytes())
++    assert evaluate_rule(rule,ctx,sources,tmp_path)["status"]=="CONDITIONAL"
++    rule["anchors"][0]["page"]=0
++    with pytest.raises(ValueError):evaluate_rule(rule,ctx,sources,tmp_path)
++
+--- /dev/null
++++ b/tests/prospectus/test_corner_intake.py
+@@ -0,0 +1,65 @@
++"""Bundle identity and empty-extraction integration checks."""
++from copy import deepcopy
++from pathlib import Path
++import pytest
++from legalmath.prospectus.document_intake import extraction_coverage, validate_bundle
++from legalmath.prospectus.loss_absorption_reader import analyze_issue
++from tests.prospectus.test_loss_absorption import fixture, ORDINARY
++
++
++def bundle(tmp_path):
++    issue, docs, _ = fixture(tmp_path, [ORDINARY])
++    key = issue["documents"][0]["id"]
++    issue.update(issuer="Issuer", security_class="senior", issue_date="2014-01-20", identifiers=["PTBENKOM0012"])
++    docs[key].update(role="final_terms", edition_date="2014-01-20", base_id=None,
++                     issuer="Issuer", programme_issuers=["Issuer"], security_class="senior",
++                     identifiers=["PTBENKOM0012"])
++    issue["document_contract"] = {
++        "issuer":"Issuer", "security_class":"senior", "issue_date":"2014-01-20",
++        "required_documents":[{k:docs[key].get(k) for k in ("id","sha256","role","edition_date","base_id")}],
++        "unresolved_dependencies":[], "precedence_reviewed":True}
++    return issue, docs, key
++
++
++def test_complete_bundle_can_bind(tmp_path):
++    issue, docs, _ = bundle(tmp_path)
++    assert validate_bundle(issue, docs, tmp_path)["status"] == "BOUND"
++
++
++@pytest.mark.parametrize("change", ["issuer", "class", "date", "id", "future", "base", "source", "missing", "duplicate", "precedence", "financials"])
++def test_bundle_refuses_wrong_identity_and_incomplete_dependencies(tmp_path, change):
++    issue, docs, key = bundle(tmp_path)
++    if change == "issuer": docs[key]["issuer"] = "Guarantor"
++    elif change == "class": docs[key]["security_class"] = "subordinated"
++    elif change == "date": docs[key]["edition_date"] = "2013-07-17"
++    elif change == "id": docs[key]["identifiers"] = ["PTBEQKOM0019"]
++    elif change == "future": docs[key]["edition_date"] = "2014-04-23"
++    elif change == "base": docs[key]["base_id"] = "newest-base"
++    elif change == "source": (tmp_path / docs[key]["original"]).write_bytes(b"changed")
++    elif change == "missing": issue["documents"] = []
++    elif change == "duplicate": issue["documents"] *= 2
++    elif change == "precedence": issue["document_contract"]["precedence_reviewed"] = False
++    else: issue["document_contract"]["unresolved_dependencies"] = ["incorporated financial report"]
++    assert validate_bundle(issue, docs, tmp_path)["status"] == "UNRESOLVED"
++    if change != "source":
++        result = analyze_issue(issue, docs, tmp_path)
++        assert result["answer"] is None and result["facts"]["coverage_complete"] is None
++
++
++@pytest.mark.parametrize("pages,expected", [([""],"OCR_REQUIRED"),([ORDINARY,""],"PARTIAL_TEXT")])
++def test_empty_text_is_explicit_and_blocks_negative(tmp_path, pages, expected):
++    issue, docs, _ = fixture(tmp_path, pages)
++    result = analyze_issue(issue, docs, tmp_path)
++    assert result["answer"] is None
++    assert result["extraction"][0]["status"] == expected
++    assert any(expected in s for s in result["open_issues"])
++
++
++def test_foreign_blank_page_does_not_invalidate_selected_text(tmp_path):
++    issue, docs, _ = fixture(tmp_path, [ORDINARY,""], operative=[[1,1]])
++    assert analyze_issue(issue, docs, tmp_path)["answer"] is False
++
++
++def test_blank_declaration_requires_review_provenance():
++    with pytest.raises(ValueError):
++        extraction_coverage({"pages":[{"text":""}],"reviewed_blank_pages":[1]}, {})
+--- /dev/null
++++ b/tests/prospectus/test_corner_repair.py
+@@ -0,0 +1,108 @@
++"""Source-based cancellation conditions and adversarial payment controls."""
++from copy import deepcopy
++from pathlib import Path
++import json
++import pytest
++import legalmath.prospectus.loss_absorption_reader as reader
++from legalmath.prospectus.cancellation import cancellation_features, evaluate_cancellation, valid_cancellation_witness
++from tests.prospectus.test_loss_absorption import fixture, ORDINARY
++
++ROOT = Path(__file__).resolve().parents[2]
++assert reader.__file__.startswith(str(ROOT / "src")), reader.__file__
++
++
++def source(key, pages):
++    values = json.loads((ROOT / "docs/prospectus/corner-cases-2026-10-04/sources" /
++                         key / "pages.json").read_text())["pages"]
++    return [values[n-1]["text"] for n in pages]
++
++
++def case(key, pages, marker):
++    text, _ = reader.joined({"pages": [{"text": s} for s in source(key, pages)]})
++    return next(text[a:b] for a,b in reader.segments(text) if marker in text[a:b])
++
++
++CLAUSES = [
++    ("final", case("jur-more-hypo-1314069", [140], "If the Issuer has insufficient"),
++     {"insufficient_funds", "at_final_maturity"}, {"improper_withholding_or_refusal"}),
++    ("exhaustion", case("jur-more-hypo-1314069", [144,145], "the Noteholders shall have no further claim"),
++     {"servicer_certificate", "no_further_recoveries", "representative_notice"}, set()),
++    ("later", case("jur-more-hypo-843665", [121], "If the Notes cannot be redeemed in full"),
++     {"insufficient_funds", "at_cancellation_date"}, {"issuer_gross_negligence", "issuer_wilful_misconduct"})
++]
++
++
++@pytest.mark.parametrize("name,clause,requirements,exceptions", CLAUSES)
++def test_real_conditions_and_exceptions(name, clause, requirements, exceptions, tmp_path):
++    features = reader.clause_features(clause)
++    assert not any(f["disposition"] == "repurchase_or_redemption_cancellation" for f in features)
++    loss = next(f for f in features if f["kind"] == "principal_write_down")
++    w = loss["semantic_witness"]
++    assert {s["kind"] for s in w["requirements"]} == requirements
++    assert {s["kind"] for s in w["exceptions"]} == exceptions
++    for s in w["requirements"] + w["exceptions"]:
++        assert clause[s["start"]:s["end"]] == s["quote"]
++    facts = {**{k: True for k in requirements}, **{k: False for k in exceptions},
++             "unpaid_principal": True}
++    assert evaluate_cancellation(w, facts) is True
++    for key in requirements | exceptions | {"unpaid_principal"}:
++        assert evaluate_cancellation(w, {**facts, key: not facts[key]}) is False
++        assert evaluate_cancellation(w, {**facts, key: None}) is None
++    issue, docs, _ = fixture(tmp_path, [ORDINARY + " " + clause])
++    result = reader.analyze_issue(issue, docs, tmp_path)
++    assert result["facts"]["principal_write_down"] is True
++    assert result["certified_legal_answer"] is None
++
++
++@pytest.mark.parametrize("name,clause,requirements,exceptions", CLAUSES)
++def test_qualifier_tamper_and_missing_condition(name, clause, requirements, exceptions):
++    f = next(f for f in cancellation_features(clause) if "semantic_witness" in f)
++    item = {**f, "quote": clause}
++    assert valid_cancellation_witness(item)
++    damaged = deepcopy(item)
++    if damaged["semantic_witness"]["exceptions"]:
++        damaged["semantic_witness"]["exceptions"].pop()
++    else:
++        damaged["semantic_witness"]["requirements"].pop()
++    assert not valid_cancellation_witness(damaged)
++    with pytest.raises(ValueError):
++        evaluate_cancellation(damaged["semantic_witness"], {"unpaid_principal": True})
++
++
++@pytest.mark.parametrize("clause", [
++    "The Notes purchased or redeemed shall be cancelled.",
++    "The Notes have been repaid in full and shall be cancelled.",
++    "The Notes shall be cancelled after delivery of the Conversion Shares to holders.",
++    "The principal amount is reduced by the cash instalment actually paid.",
++    "Unpaid interest shall be cancelled.",
++    "The unpaid principal shall not be cancelled.",
++])
++def test_payment_interest_and_negation_controls(clause, tmp_path):
++    issue, docs, _ = fixture(tmp_path, [ORDINARY + " " + clause])
++    result = reader.analyze_issue(issue, docs, tmp_path)
++    assert result["facts"]["principal_write_down"] is not True
++
++
++def test_remaining_unpaid_balance_is_distinct_from_paid_amount():
++    clause = "The repaid Notes are cancelled; the unpaid principal of the Notes shall be cancelled."
++    features = reader.clause_features(clause)
++    assert any(f["kind"] == "principal_write_down" for f in features)
++    assert not any(f["disposition"] == "repurchase_or_redemption_cancellation" for f in features)
++
++
++def test_missing_certificate_or_notice_blocks_complete_reading():
++    clause = CLAUSES[1][1].replace("the Representative of the Noteholders has given notice",
++                                  "the Representative of the Noteholders may consider giving notice")
++    features = reader.clause_features(clause)
++    assert not any(f["kind"] == "principal_write_down" and f["disposition"] == "applicable" for f in features)
++    assert any(f["disposition"].startswith("unresolved") for f in features)
++
++
++def test_cross_page_condition_keeps_certificate_and_notice(tmp_path):
++    pages = source("jur-more-hypo-1314069", [144,145])
++    issue, docs, _ = fixture(tmp_path, [ORDINARY + " " + pages[0], pages[1]])
++    result = reader.analyze_issue(issue, docs, tmp_path)
++    item = next(e for e in result["evidence"] if e.get("semantic_witness", {}).get("construction") == "certified_exhaustion")
++    assert item["page"] == 1 and item["end_page"] == 2
++    assert "if the Servicer has certified" in item["quote"]
++    assert "has given notice" in item["quote"]
