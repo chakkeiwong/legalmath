@@ -50,7 +50,27 @@ Its `run-manifest.json` binds the accepted tests, comparisons, legal scenarios,
 inputs and report. The four-page addendum was rendered and visually inspected;
 human prose acceptance remains pending.
 
-## Ordered closure plan
+## Earlier campaign gaps that remain open
+
+The corner-case repair is narrower than the original 36-issue campaign. The
+latest saved S1/007, S2/017, S3/004, S4/004, S5/004, S6/005 and S7/005 results
+under `docs/implementation/prospectus-evidence-closure/phases/` still require:
+
+| Existing gap | Work to close it | Acceptance evidence |
+| --- | --- | --- |
+| G10/G11/G18: 4,990 open reference records across 36 issues | Review actual page fidelity, language, edition, applicability, incorporation, amendments and document precedence; admit each exact source to the correct issue. These are reference records, not 4,990 distinct missing documents. | Each discharged reference has a version-bound admission and source anchor; remaining dependencies stay open. |
+| G12–G17: operative source packages | Finish BASF's 2022 base/2023 supplement and German Option I review; Enel's executed agency/guarantee/covenant; Unilever's separate agreements and amendments; Lloyds' authenticated SEC filing/exhibit; SEB's July 2023 fiscal agency agreement and relevant 2024 supplements; LVMH/BBVA's applicable agreements and incorporation. Review already recovered files before seeking additional copies. | Exact instruments and amendments admitted after review. A download or unsigned agreement does not establish an operative instrument. |
+| G19/G20/G24–G26: authority, dates and actual facts | Establish IC-1's date-specific applicability and related circulars; obtain actual product, event, client and bank evidence with independently established observation and effective dates. | Real investigations retain all 14 duties and distinguish unknown facts from evidenced facts. Do not backdate new acquisitions into an earlier knowledge cutoff. |
+| G31: unresolved clause semantics in the original cohort | Review 1,467 unresolved records grouped into 1,307 unique source spans, prioritize constructions that affect decisions, and make source-supported repairs with adverse counterexamples. | Reviewed controlling meanings, retained qualifiers and issue selections, plus regressions for each implemented repair. The five newer candidate controls do not close this original inventory. |
+| G21–G23: incomplete financial calculations | Implement applicable rounding, corporate-action price adjustments, legal time-counting and notice rules, settlement, additional issuer profiles and actual numerical inputs. The Deutsche/BBVA/SEB adapters currently support conditional demonstrations. | Calculations derived from admitted terms, boundary and corporate-action tests, independently checked examples, and downstream bank-investigation results with actual evidenced inputs. Supplied scenario prices do not establish an adjustment engine. |
+| G30/G31/G32: unseen validation and intended-use acceptance | Freeze an exact unexposed cohort and method, obtain independent source adjudication, allocate requests within the existing 25-request remainder when feasible, and obtain qualified review for the actual versions, dates and intended use. | Completed validation protocol, independent labels, recorded disputes and scoped human acceptance. Existing exposed cases, internal checks and a branch merge do not grant transaction permission. |
+
+These engineering, factual and source-admission gaps remain distinct from the
+newer OCR and jurisdiction scenarios below. Historical reset notes contain older
+budgets and statuses; use the latest phase receipts and the 187/212 cumulative
+source-request ledger for current decisions.
+
+## Ordered closure plan for the new corner cases
 
 | Remaining gap | Work to close it | Acceptance evidence |
 | --- | --- | --- |
