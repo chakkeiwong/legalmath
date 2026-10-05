@@ -95,5 +95,8 @@ Its contents are checked before and after integration. Receipt-bound logs and
 LaTeX support files are included even when global ignore rules would normally
 hide them; unbound runtime locks and caches are excluded.
 
+The [integration verification](INTEGRATION-VERIFICATION.md) records the successful
+merge, clean-checkout test results and preservation of unrelated main work.
+
 Engineering completion and Git delivery do not establish a complete contract,
 general legal accuracy or production readiness.
