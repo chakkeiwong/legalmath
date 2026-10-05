@@ -1,0 +1,130 @@
+\section{Keeping the complete question inside a bounded request}
+\label{sec:lossless-context}
+
+The authentication circular exposes a practical obstacle to the whole-source
+check. Its retained source contains 263 units. A processing exercise assigned a
+synthetic concern to every unit, completed the smaller coverage requests, and
+then assembled their concerns for reconciliation. The final request occupied
+382,396 bytes against a configured limit of 200,000. The source had not been
+lost: the unfinished step was the comparison of all the proposed concerns with
+the source as a whole. Finishing each smaller request could not answer that
+global question. In particular, an exception recorded near the end could still
+change a proposed duty recorded near the beginning.
+
+This failure calls for a distinction between repeated representation and new
+information. The coverage records occupied 221,974 bytes. They repeated field
+names, source quotations, unit identifiers and some identical explanations.
+The source itself remained in the request, so an exact quotation could often be
+located there without printing it again. Removing that repetition has a
+different effect from replacing several concerns with a summary: an exact
+reference can recover every original word, whereas a summary requires a further
+interpretation of what matters. The capacity repair therefore uses readable
+tables and exact references, and checks that they reconstruct the prior request.
+
+\subsection{What the shorter representation says}
+
+The complete source, the proposed interpretation, every question definition and
+the response schema remain literal text in the request. A coverage table
+declares its columns once: the unit, its proposed disposition, related questions,
+related units, evidence and rationale. Each row supplies one value for each
+declared column. A separate concern table retains the concern identifier, related
+questions and units, evidence, explanation and original identifier from its
+smaller coverage request. Keeping both identifiers preserves the connection
+between a global concern and the earlier response that introduced it.
+
+The source units have a fixed order. A unit number in a table refers to that
+position in the unchanged source list. An evidence entry contains three
+integers: the unit number and the beginning and end positions of the quoted
+text. Positions count Unicode codepoints, starting at zero; the ending position
+is excluded. For example, in the string ``A\,B\,C'', positions zero through
+one select the first character. The implementation also exercises non-ASCII
+characters, combining marks, line breaks and non-breaking spaces. It never
+normalizes a quotation or uses the length of its UTF-8 encoding as a character
+position. A quotation must occur exactly once in its unit, preserving the
+pre-existing source-evidence rule.
+
+Rationales and explanations receive a similarly exact treatment. A list stores
+each distinct complete string, and the row identifies its position in that list.
+Two different explanations therefore remain different even when they concern
+the same source passage. A long explanation is retained in full. Questions and
+concern identifiers stay literal, so the recipient can follow them without
+inferring which question an abbreviated label was meant to denote. The
+source-span selection table uses declared columns too; its literal span
+identifiers remain available for the response. The response still selects these
+identifiers under the existing schema, and the source-reference resolver still
+checks the selected quotations against the exact source.
+
+\subsection{The check that permits dispatch}
+
+Let $R$ denote the complete original request after its source-span table has
+been prepared. Let $E(R)$ be the readable table representation, and let $D$ be
+the deterministic decoder. The system retains $R$ locally before applying the
+encoder. Its dispatch condition is equality of the canonical JSON bytes:
+\begin{equation}
+ \operatorname{bytes}\bigl(D(E(R))\bigr)
+   = \operatorname{bytes}(R).
+ \label{eq:lossless-request-roundtrip}
+\end{equation}
+Here canonical JSON fixes the representation of the same JSON value for the
+comparison. The check covers the entire request, including the unchanged source,
+question definitions, coverage hashes, response schema and instructions. It
+therefore compares more than the number of reconstructed rows.
+
+The inverse is straightforward to inspect. A row recovers its named fields by
+the declared column order. A unit index recovers the original identifier from
+the source list. A quotation recovers the indicated contiguous substring, and
+an explanation index recovers its complete string. Applying these operations to
+every row restores the two record lists in their original order. The decoder
+also rejects unknown columns, wrong row lengths, invalid indices, ambiguous
+quotations and unused explanation strings. It rebuilds and verifies the
+source-reference table, then checks the reconstructed request against the hash
+held with the original request. The hash printed inside the transmitted object
+is not accepted as its own independent authenticity evidence.
+
+This is an executed preservation check on each request. It is not a Lean proof
+of the Python implementation or a proof that a model understands tables. The
+distinction matters because a model could receive every word and still attach
+an exception to the wrong duty. The later reconciliation therefore remains
+subject to the same question, evidence and uncertainty checks. It must account
+for every concern and every question; a revised interpretation invalidates all
+its previous coverage and requires that coverage to be performed again.
+
+\subsection{What the executed capacity result establishes}
+
+The retained 382,396-byte request becomes 175,016 bytes under this encoding,
+leaving 24,984 bytes below the unchanged limit. Decoding reproduces the original
+request exactly. All 263 source units and all 263 concerns survive. An offline
+integration run then processes the same full source, recreates the same coverage
+records, and completes the final reconciliation using a synthetic response
+provider. Its final dispositions retain all concerns as unresolved. This
+exercise demonstrates that the whole-context control flow can finish within
+the byte bound; it supplies no legal answer to the authentication circular.
+
+The first integration diagnostic also exposed an instructive harness mistake.
+Its synthetic respondent described an unencoded reading as an executable
+proposal. The validator rejected that response. The repair changed the
+synthetic response to retain uncertainty, preserving both the failed diagnostic
+and the rejection rule. Changing the rule to make the exercise succeed would
+have concealed the same error that the interpretation procedures are intended
+to detect.
+
+A second capacity challenge gives each unit a long, unique rationale and each
+concern additional evidence. Its exact representation exceeds the same limit.
+The system retains that request and its successful round-trip check, then stops
+before provider dispatch. This outcome is necessary: an encoding cannot promise
+to fit an arbitrarily large collection of different explanations into a fixed
+request. A future source that reaches this limit needs a separately justified
+capacity or reasoning strategy. Dropping qualifications would change the
+question being investigated.
+
+The new encoding is an explicit optional protocol,
+\texttt{readable-tables.v1}. Existing recorded routes retain their identities;
+a changed encoding cannot reuse a journal as though its request protocol were
+unchanged. No live model call was used in this capacity exercise, and the
+exhausted original allowance and issue histories remain intact. Model
+comprehension of this representation is untested. The subsequent executable
+quotation and date-proof extensions are described in
+Section~\ref{sec:executable-dates}. Unresolved incorporated sources and an
+observed prospective evaluation window remain open.
+The flow chart on page~\pageref{map:lossless-context} connects the preservation
+check to those continuing uncertainties.

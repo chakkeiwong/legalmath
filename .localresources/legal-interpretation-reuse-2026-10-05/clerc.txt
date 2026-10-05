@@ -1,0 +1,1018 @@
+                                                                C LERC: A Dataset for Legal Case Retrieval
+                                                               and Retrieval-Augmented Analysis Generation
+                                                                Abe Bohan Hou♣ Orion Weller♣ Guanghui Qin♣
+                                                                Eugene Yang♣ Dawn Lawrie♣ Nils Holzenberger♠
+                                                                  Andrew Blair-Stanek♢♣ Benjamin Van Durme♣
+                                                                             ♣
+                                                                               Johns Hopkins University
+                                                                    ♠
+                                                                      Télécom Paris, Institut Polytechnique de Paris
+                                                                    ♢
+                                                                      University of Maryland, Carey School of Law
+
+                                                                Abstract                               To support the development of information re-
+                                             Legal professionals need to write analyses that        trieval and generative language models in writing
+                                             rely on citations to relevant precedents, i.e., pre-   legal documents, we build a dataset based on ex-
+                                             vious case decisions. Intelligence systems as-         isting case law, i.e., the precedents. Case law is
+arXiv:2406.17186v2 [cs.CL] 27 Jun 2024
+
+
+
+
+                                             sisting legal professionals in writing such doc-       written by judges to explain the court’s reasoning
+                                             uments provide great benefits but are challeng-        for its resolution of legal disputes based on concrete
+                                             ing to design. Such systems need to help lo-           facts and laws. It is foundational for legal analyses
+                                             cate, summarize, and reason over salient prece-
+                                                                                                    for Common Law and some Civil Law jurisdictions
+                                             dents in order to be useful. To enable systems
+                                             for such tasks, we work with legal profession-         (Ma et al., 2021; Mahari et al., 2023). Curating a
+                                             als to transform a large open-source legal cor-        quality dataset based on case law is valuable for
+                                             pus into a dataset1 supporting two important           two main reasons. First, given that case law is care-
+                                             backbone tasks: information retrieval (IR) and         fully written and serves as a strong prediction of
+                                             retrieval-augmented generation (RAG). This             future case law, the data is valuable for developing
+                                             dataset C LERC (Case Law Evaluation and                legal intelligence systems. Second, given the desire
+                                             Retrieval Corpus), is constructed for training
+                                                                                                    for retrieval accuracy and text generation quality,
+                                             and evaluating models on their ability to (1)
+                                             find corresponding citations for a given piece
+                                                                                                    high-quality training data is critical for producing
+                                             of legal analysis and to (2) compile the text          effective models.
+                                             of these citations (as well as previous context)          Thus, we build a dataset, C LERC (Case Law
+                                             into a cogent analysis that supports a reasoning       Evaluation and Retrieval Corpus), as a step towards
+                                             goal. We benchmark state-of-the-art models on          enabling collaborative AI systems that assist legal
+                                             C LERC, showing that current approaches still          professionals, while also providing AI researchers
+                                             struggle: GPT-4o generates analyses with the
+                                                                                                    with a challenging and real-world evaluation set.
+                                             highest ROUGE F-scores but hallucinates the
+                                             most, while zero-shot IR models only achieve           C LERC is built upon digitized case law from the
+                                             48.3% recall@1000.                                     Caselaw Access Project (CAP)2 (CAP, 2024) by
+                                                                                                    Harvard Law School, which contains over 1.84
+                                         1   Introduction                                           million federal case documents with an average
+                                         Writing legal analyses is a central task of lawyers.       of 11.54 citations per document (see a taxonomy
+                                         For example, in the U.S. legal system, litigation          of U.S. legal data in Figure 6). We transform this
+                                         attorneys draft motions and briefs, citing relevant        corpus into a comprehensive task dataset that can
+                                         cases (case law) to support their analysis. From           be used for information retrieval (IR) and retrieval-
+                                         a corpus of millions of cases, finding the rele-           augmented generation (RAG). Compared with ex-
+                                         vant files and weaving them into a persuasive              isting precedent datasets (Henderson et al., 2022;
+                                         whole requires substantial time and effort. En-            Santosh et al., 2024; Mahari et al., 2023; Ma et al.,
+                                         hancing lawyers’ capacity to retrieve relevant cases       2021; Guha et al., 2023), we offer the following
+                                         and generate legal analyses presents difficult chal-       novel contributions:
+                                         lenges across various fields, including informa-
+                                         tion retrieval, natural language processing, and the         1. Through working with legal professionals, we
+                                         broader AI community.                                           provide a formulation of legal case retrieval
+                                            1
+                                              Code/data is publicly available at https://github.
+                                                                                                         and generation tasks that balance the needs
+                                         com/bohanhou14/CLERC and https://huggingface.co/
+                                                                                                       2
+                                         datasets/jhu-clsp/CLERC                                           https://case.law/
+                                                                                                           Reference:                 Generation:
+                                                                                                           The second               Another issue
+                                                                                                     remaining issue is a            raised by the
+                                                                                                         request by the          Secretary is a claim
+                                                                                                         Secretary for a          that Defendants
+                                                   Co-write                                                prospective           failed to pay Hogar
+                                                 Legal Analysis                                    injunction restraining        employees for their
+                                                                                                       Defendants from             work on secular
+                                                                                   CLERC/generation future violations of         holidays. The Court
+                                                                                                    the FLSA….See Reich              ﬁnds that the
+                                                                                                      v. Petroleum Sales,          employees were
+                                                                                                    Inc., 30 F.3d 654, 657;       not paid for their
+                   Legal document (memo,
+                                                                                                      Martin v. Coventry           work on secular
+                   analysis, motion, briefs)
+                                                                                                       Fire Dist., 981 F.2d            holidays, …
+                                                                                                            1358, 1362
+                                                                    Retrieval-Augmented
+                                                                     Analysis Generation
+                                     Create
+                                                                                                                                  Citation           Citation
+                                                                                                    Rouge-L:      BART-F:         Recall:           Precision:
+                                                                                                      0.175        -2.77             0%                 0%
+
+
+
+                             “...There are two remaining issues
+                              raised by the Secretary. One is a                                      Reich v. Petro Sales, Inc., 30 F.3d 654, 657 (1994)
+                                                                                                                         relevant.     Similarity:
+                               claim that Defendants violated                                                                                0.86
+                              the FLSA’s requirement that an                                              Ashton v. Kentucky, 384 U.S. 195 (1966)
+                                 employer keep proper payroll                                                         not relevant. Similarity:
+                                                                     Case                                                                    0.74
+                                   records. See 29 U.S.C.A. §      Retrieval                         Martin v. Coventy Fire Dist., 981 F.2d 1358 (1992)
+                                 211(c)...The second remaining    Assistance          CLERC/doc
+                                                                                                                        relevant.     Similarity:
+              Lawyer                        issue is ____”                                                                                   0.57
+                                                                                    CLERC/passage
+
+
+
+
+Figure 1: An overview of how C LERC enables systems that empower legal professionals: retrieval models for
+CLERC/doc and CLERC/passage that assist with finding relevant cases to support the analysis, and retrieval-
+augmented generation systems with CLERC/generation that aid in legal analysis generation.
+
+
+        and perspectives of legal professionals with                      annotated and custom-based ontology. Although
+        computational feasibility.                                        many new datasets exist for countries outside of the
+                                                                          United States (Ma et al., 2021; Li et al., 2024; San-
+    2. We build an open-source pipeline for trans-                        tosh et al., 2024; Goebel et al., 2024), few existed
+       forming CAP into a large-scale, high-quality                       in the United States before the large U.S. case law
+       dataset designed for training and evaluating                       resource, CAP, was released to the public in 2023
+       models on legal IR and RAG tasks.                                  (Mahari, 2021). A summary of more related work
+    3. We conduct a comprehensive evaluation                              of legal IR can also be found in Locke and Zuccon
+       of long-context case retrieval and retrieval-                      (2022). Due to the recent advances of Large Lan-
+       augmented legal analysis generation on                             guage Models (LLMs) and RAG, legal generation
+       C LERC with state-of-the-art methods, reveal-                      is a new field with preliminary works, including
+       ing that IR models struggle to retrieve relevant                   analysis generation using small datasets or small-
+       documents and LLMs frequently hallucinate.                         scale models (Tuvey and Sen, 2023; Li and Zhang,
+                                                                          2021; Lin and Cheng, 2024), generating stories to
+2       Related Work                                                      educate about legal concepts (Jiang et al., 2024),
+                                                                          generating legal summaries (Gesnouin et al., 2024;
+In this section, we provide an overview of long-                          Shen et al., 2022), and profiling hallucinations in
+context retrieval and RAG, including existing ap-                         legal generation (Dahl et al., 2024; Magesh et al.,
+plications in the legal domain.                                           2024). In comparison, we provide an extensive
+                                                                          benchmark on retrieving citations and generat-
+2.1      Legal Case Retrieval and Generation
+                                                                          ing long-form legal analysis, which is a core task
+Case law retrieval is a longstanding problem aimed                        for lawyers that requires substantial time and effort.
+at helping legal experts find cases to cite (Wil-
+son, 1962). Techniques range from lexical search                          2.2        Long-Context Generation
+(Blair and Maron, 1985) to more recent seman-
+tic similarity-based approaches (Ebietomere and                           LLMs are limited in context length due to concerns
+Ekuobase, 2019; Askari et al., 2021). Overall, most                       of efficiency and performance (Li et al., 2023).
+legal retrieval is done through WestLaw3 or Lexis-                        Benchmarks have been introduced to measure the
+Nexis,4 or services offered by Thomson Reuters,5                          effectiveness of LLMs, including Shaham et al.
+which charge large sums for access to a manually                          (2022); Tay et al. (2020); Dong et al. (2024). Vari-
+    3
+                                                                          ous methods were proposed to solve this problem,
+     https://legal.thomsonreuters.com/en/westlaw
+    4                                                                     such as efficient attention (Beltagy et al., 2020;
+     https://www.lexisnexis.com/
+   5
+     https://legal.thomsonreuters.com/en/products/                        Choromanski et al., 2021; Qin et al., 2024a, inter
+court-express                                                             alia), recurrence (Dai et al., 2019; Bulatov et al.,
+      Query: . . . Summary judgment should be granted where “the pleadings, depositions, answers to interrogatories
+      and admissions on file, together with the affidavits, if any, show there is no genuine issue as to any material fact
+      and that the moving party is entitled to judgment as a matter of law.” Fed.R.Civ.P. 56(c). The moving party has
+      the responsibility of informing the Court of portions of the record or affidavits that demonstrate the absence of a
+      triable issue. Celotex Corp. v. Catrett, 477 U.S. 317, 322, 106 S.Ct. 2548, 91 L.Ed.2d 265 (1986). The moving party
+      may meet its burden of showing an absence of disputed material facts by demonstrating “that there is an absence of
+      evidence to support the non-moving party’s case.” Id. at 325, 106 S.Ct. 2548. Any doubt as to the existence of a
+      genuine issue for trial is resolved against the moving party. Anderson v. Liberty Lobby, Inc., 477 U.S. 242,
+      255, 106 S.Ct. 2505, 91 L.Ed.2d 202 (1986); . . .
+
+Figure 2: A depiction of a query from C LERC. “Fed.R.Civ.P. 56(c)” cites a federal statute. Underlined violet is the
+query’s central citation sentence. The brown italicized sentence is a direct quote from Celotex Corp. v. Catrett,
+making this query a direct query. The red citations in teletype fonts are non-central citations. We define
+single-removed as a data view which masks only the central citation and its salient sentence, while all-removed
+masks all citations from the passage. All references to statutes are retained.
+
+2022), context length generalization (Su et al.,                 to September 21, 2021. To prepare CLERC/doc,
+2024; Chen et al., 2023), and RAG (Lewis et al.,                 we concatenate all types of opinions (e.g., major-
+2020), while some recent work challenges the ef-                 ity, dissenting, concurring opinions) in every case
+fectiveness of those methods (Liu et al., 2024; Qin              document and remove the newline characters. To
+et al., 2023). Recent proprietary LLMs are reported              prepare CLERC/passage, we split documents into
+to extend the context length up to 1 million tokens,             chunks of 350 words, with a sliding window of 175
+such as Gemini 1.5 (Reid et al., 2024), Claude                   words. We discuss the CLERC/generation prepa-
+3 (Anthropic, 2024), and GPT-4 (Josh Achiam                      ration process in Section 3.3 in more detail.
+et al., 2024). More specific to legal texts, generative             Our final dataset consists of 1.84M documents
+models on long contexts are commonly used for le-                with over 20.7M total citations, 23.7M passages for
+gal case outcome prediction (Qin et al., 2024b; Cao              retrieval, and 6k passages for generation. Details
+et al., 2024), but long-context generation datasets              and summary statistics are presented in Table 1.
+on legal cases are largely absent from the literature.
+                                                                  3.2   Case Retrieval
+2.3     Long-Document Retrieval                                   Query Definition As lawyers write legal analy-
+Many state-of-the-art neural retrieval models, be-                ses, they need to find case documents to support
+cause of their reliance on BERT models (Devlin                    their texts. To simulate this use case, we define a
+et al., 2018), have a context limit of 512 tokens                 query as a block of text, taken from a case docu-
+(Khattab and Zaharia, 2020; Santhanam et al.,                     ment, with its citation in the middle (a.k.a the cen-
+2022; Ren et al., 2021; Karpukhin et al., 2020a).                 tral citation) removed. The relevant passage of a
+Accompanied by the advances in long-context                       query is defined as the passage its central citation
+LLMs (Brown et al., 2020; Touvron et al., 2023;                   cites to. We provide both left and right contexts, as
+Josh Achiam et al., 2024), there are also rising in-              legal analysis involves context from both sides.
+terests in long-context retrieval models (Fu et al.,
+                                                                 Direct and Indirect Queries A case document
+2023; Günther et al., 2023; Wang et al., 2023).
+                                                                 may cite another case in the form of a direct quote.
+However, existing benchmarks lack insights on how
+                                                                 (Review, 2020). We define two kinds of legal
+both BERT-based and long-context models perform
+                                                                 queries based on whether the central citation con-
+on well-defined legal retrieval tasks (Thakur et al.,
+                                                                 tains a direct quote (direct) or not (indirect).
+2021; Saad-Falcon et al., 2024; Shen et al., 2022).
+                                                                 Ideally, using only this direct quote to retrieve
+                                                                 should yield an almost perfect accuracy through an
+3     Dataset Construction
+                                                                 exact string match. We build a heuristic program to
+3.1     Dataset Preprocessing                                    recognize such direct quotes (detailed in Appendix
+                                                                 D.1), and classify queries into direct and indirect
+C LERC contains a collection of long case docu-                  queries. We retrieve with only direct quotes in
+ments (CLERC/doc) and chunked documents for re-                  Table 5 and Section D.2.
+trieval (CLERC/passage) as well as for generation
+(CLERC/generation). We obtain the collection                      Data Views We define two data views of legal
+of raw case documents from CAP (CAP, 2024),                       queries depending on whether all (all-removed)
+including all federal case law in U.S. history up                 or only the central (single-removed) citation in-
+                                                                        Citation Density of CLERC/doc
+Number of Citations Per 100 Words in a Paragraph
+                                                                                                                                       3.3    Legal Analysis Generation
+                                                   8   Likely Section                                                           7.90
+                                                                Introduction                                             7.24          We prepare CLERC/generation to assess the abil-
+                                                   7            History and Facts                                 6.80
+                                                                Law and Reasoning
+                                                                                      6.20
+                                                                                             6.55   6.56   6.57                        ity of LLMs to generate realistic legal analyses
+                                                   6                                                                                   from previously written text and given references.
+                                                                               5.22
+                                                   5                                                                                   To evaluate the generation quality, we feed in the
+                                                   4
+                                                                                                                                       preceding contexts of a target analytical paragraph
+                                                                 3.50
+                                                                                                                                       (reference) and other relevant cases cited by the
+                                                   3
+                                                                                                                                       paragraph, prompt LLMs to generate a new analyt-
+                                                   2
+                                                       1.40                                                                            ical paragraph, and compare the generation with
+                                                   1                                                                                   the reference from the original document.
+                                                   0
+                                                                    2                  4             6             8            10     Analytical Paragraphs Identification We ob-
+                                                                 Position of Paragraph (in Deciles of Doc Length)                      serve that case documents usually start with intro-
+                                                                                                                                       ducing the basic facts about the cases, and then
+Figure 3: Number of citations per 100 words in a para-
+                                                                                                                                       make multiple legal analyses while citing other rel-
+graph, arranged by the positions (in deciles) of para-
+graphs in the document. Documents tend to cite more
+                                                                                                                                       evant cases (see Figure 5) (Lippmann, 2018). To
+often in later paragraphs. Case law typically has                                                                                      prepare the reference for evaluating analysis gen-
+different sections (e.g. Intro, Facts, Reasoning, etc).                                                                                eration, we only use paragraphs (blocks of text
+Deciles with the same color code likely belong to the                                                                                  separated by newline characters) containing legal
+same general sections of case law..                                                                                                    analyses and discard the rest.
+                                                                                                                                          Our rule of thumb to determine if a paragraph
+formation is removed. Since each kind of query                                                                                         is a suitable reference is whether it has a large
+has two data views, this leads to a total of four                                                                                      number of case citations, as the analytical claims
+categories of queries, illustrated in Figure 2.                                                                                        are supported by case. In Figure 3, we plot the
+                                                                                                                                       trend of citation density in case law documents
+Query Construction First, we identify case ci-                                                                                         (only the majority opinion), discovering that cases
+tations in documents. For every case citation, we                                                                                      cite more often, which is consistent with our prior
+expand a window of 300 words centered on this                                                                                          observation.
+citation to construct a query, as legal analysis uses
+                                                                                                                                       Reference Selection We sample analytical para-
+context from both sides. We experimented with
+                                                                                                                                       graphs from case texts as reference for evaluating
+various query lengths and found that including 300
+                                                                                                                                       analysis generation. As we observe that analysis
+words yields the highest recall (summarized in Fig-
+                                                                                                                                       tends to occur in later paragraphs of a case doc-
+ure 4), which indicates that this length provides
+                                                                                                                                       ument, we randomly sample from the last 33.3%
+enough critical information for retrieving relevant
+                                                                                                                                       of all paragraphs but exclude the last two para-
+cases without distracting the models to retrieve
+                                                                                                                                       graphs (which are usually short conclusions) and
+other cases, as we discuss in Section 4.1.2. We
+                                                                                                                                       paragraphs with fewer than two case citations.
+remove the central citation in this paragraph for
+single-removed queries and all case citations in                                                                                       Input Preparation After we sample the refer-
+this paragraph for all-removed queries.                                                                                                ence paragraph, we take all texts preceding the
+                                                                                                                                       reference as a part of the input. We concatenate the
+Query Extraction To identify the case citation                                                                                         most salient passages of relevant cases cited by the
+in a query, we use eyecite (Cushman et al., 2021),                                                                                     reference paragraph, whose chunks are selected via
+a Regex-based parser that recognizes case citations                                                                                    RankLlaMa (Ma et al., 2023).
+from the CAP corpus. We develop a heuristic and
+rule-based Python program to detect the sentence
+                                                                                                                                       4     Experiments
+boundary where the case citation is located. We                                                                                        In this section, we present experiment results of le-
+create the heuristic rules based on the Bluebook                                                                                       gal citation retrieval (Section 4.1) and legal analysis
+(Review, 2020) (detailed in D.1), which is the stan-                                                                                   generation (Section 4.2) with the proposed C LERC.
+dard citation guide for U.S. legal professionals. We
+manually evaluate the extraction accuracy on 1000                                                                                      4.1    Finding Legal Citations
+sentences and discovered that 87.8% of citation sen-                                                                                   Task Formulation Given a query paragraph q
+tences can be accurately identified and removed.                                                                                       with a central citation sentence s with left and right
+                                                                                 Recall of Queries with Different Lengths
+ Dataset Statistic       # instances (M) Avg len (words)
+                                                                          50
+                                                                                 R@1000
+ CLERC/doc                   1.84               2279                             R@100
+ CLERC/passage               23.7                350                             R@10
+ CLERC/queries               0.105               300                      40
+
+
+ C LERC                      25.5             N/A
+                                                                          30
+ LePaRD                      0.375          200 char
+
+
+
+
+                                                             Recall
+ ECtHR-PCR                   0.015           5530
+ LeCaRDv2                    0.055           4766                         20
+
+ CLERC/generation            0.006              3371
+                                                                          10
+
+Table 1: Dataset statistics. C LERC has the largest doc-
+ument and passage combined collection compared to                          0
+other legal retrieval datasets (Li et al., 2024; Mahari                            200        400     600      800          1000
+
+et al., 2023; T.Y.S.S et al., 2024). Additionally, C LERC                                 Query Length (# words)
+contributes a novel subset for legal analysis generation.
+                                                             Figure 4: Retrieval results of BM25 with C LERC queries
+ Type    R@5         R@10    R@100    R@1K nDCG@10           of length 100 to 1000 words. R@X represents Re-
+                                                             call@X. Queries with 300 words maximize recall and
+ ISR       7.9        11.8     27.6      48.3          5.4
+ IAR       7.5        11.1     25.1      43.9          5.2   are used for our main experiments.
+ DSR       7.0        11.0     26.7      48.5          5.0
+ DAR       6.8        9.88     24.9      46.3          4.6   retrieval and aggregate the scores by taking the
+                                                             highest-ranking passage of a document to represent
+Table 2: Retrieval results of BM25 with different types      the overall document score (MaxP) (Zhang et al.,
+of C LERC queries. I stands for indirect, D for direct,      2021). For long-context ColBERT, we perform
+SR for single-removed, and AR for all-removed.               and evaluate document-level retrieval and truncate
+E.g. ISR refers to indirect single-removed. All              documents over the context lengths (2048, 4096).
+numbers are in percentage. R@X represents Recall@X.
+ISR queries are the easiest queries to retrieve and          Bi-Encoders We also benchmark the perfor-
+are used for our main retrieval experiments.                 mance of state-of-the-art Bi-Encoders, including
+                                                             BGE-large-en-v1.5 (Xiao et al., 2023), E5-large-v2
+contexts l and r (q = l ◦ s ◦ r, where ◦ indicates           (Wang et al., 2022), Contriever-MSMarco (Izacard
+string concatenation), retrieve the relevant cited           et al., 2021). For DPR models, we adopt the Teva-
+passages or documents R = {da , ..., db } from a             tron pipeline (Gao et al., 2022) and evaluate the
+collection D = {d1 , ...dN }.                                base DPR model (Karpukhin et al., 2020b) trained
+                                                             on QA datasets. We also fine-tune BERT-base-
+4.1.1   Experimental Setup
+                                                             uncased7 (Devlin et al., 2018) and LegalBERT8
+Metrics and Data We benchmark the perfor-                    (Holzenberger et al., 2020) on 327K triples from
+mance of popular retrieval methods and models                CLERC/passage for 10 epochs with a temperature
+in Table 3 and evaluate with Recall@10, 100,                 of 0.01 and a learning rate of 10−4 , with a con-
+1000, and nDCG@10. We evaluate with 2851                     trastive learning-to-rank objective.
+indirect single-removed queries and provide
+ablation studies on the effect of query types and            Compute Please see Appendix A for the com-
+lengths in Table 2 and Figure 4.                             pute setup and hours of the experiments.
+Late Interaction Models We run ColBERTv2                     4.1.2             Ablation Studies
+(Santhanam et al., 2022) and long-context Jina-              Query Types We run retrieval experiments with
+ColBERT (Günther et al., 2023) experiments with              BM25 on all four types of C LERC queries. Table 2
+the PLAID-X implementation (Yang et al., 2024).              shows that single-removed are the easiest queries
+Due to the large size of the collection and GPU              to retrieve, whereas all-removed queries remove
+memory required by ColBERT indexing, we split                non-central case citations and lose additional con-
+CLERC/doc and CLERC/passage into four shards                 textual information contained by them.
+for processing. For ColBERTv2, which has a con-
+text limit of 512 tokens,6 we conduct passage-level                   7
+                                                                  https://huggingface.co/jhu-clsp/
+                                                             BERT-DPR-CLERC-ft
+   6                                                            8
+    ColBERT generally assumes a max query token limit of          https://huggingface.co/jhu-clsp/
+32, which we remove to incorporate our longer queries.       LegalBERT-DPR-CLERC-ft
+                                                                                                Metrics
+     Type                  Params      Length     Model
+                                                                           R@10 ↑      R@100 ↑      R@1K ↑       nDCG@10 ↑
+     Sparse                N/A         N/A        BM25                     11.7        27.8               48.3         5.40
+                           110M        512        ColBERTv2                2.2         7.1                17.6         1.05
+     Late Interaction      110M        2048       Jina-ColBERT-v1-en       2.1         5.8                14.2         1.15
+                           110M        4096       Jina-ColBERT-v1-en       2.2         6.9                16.1         1.19
+                           110M        512        DPR                      4.9         13.1               26.2         2.24
+                           110M        512        BGE En v1.5              7.7         23.2               42.4         3.43
+     Bi-Encoders
+                           110M        512        E5 v2                    8.4         24.3               42.3         3.67
+                           110M        512        Contriever-MSMarco       9.3         24.8               41.4         4.22
+                           110M        512        ft-DPR                   18.6        40.9               63.1        11.59
+     Fine-Tuned
+                           110M        512        ft-LegalBERT DPR         23.2        46.9               68.5        14.67
+
+Table 3: Retrieval results on CLERC/doc and CLERC/passage, evaluated with Recall@10, @100, @1000 and
+nDCG@10. Overall, zero-shot models are particularly bad due to distribution shifts between standard retrieval
+training data and the legal domain (Section 5.1). Models fine-tuned on legal data show effectively improved results.
+
+ Model                  R1 ×100     ↑ R2×100 ↑ RL×100               ↑ BF            ↑ CR ×100 ↑ CP×100           ↑ CFP×100 ↓
+ Mistral-7B-v0.3        23.78 / 18.48 8.00 / 4.63 21.89 / 16.78 -3.35 / -3.57        42.67 / 0.32   32.65 / 0.70    5.27 / 25.28
+ gemma-1.1-7b-it        18.33 / 16.82 5.28 / 3.99 16.70 / 14.81 -3.71 / -3.62        37.22 / 0.00   36.59 / 0.00    4.34 / 84.62
+ GPT-4o                 26.82 / 19.87 10.04 / 5.56 24.89 / 17.93 -3.33 / -3.64       89.87 / 3.28   52.84 / 7.66    6.41 / 71.49
+ Llama-3                25.16 / 18.68 8.91 / 4.68 23.42 / 16.86 -3.16 / -3.48        62.64 / 0.07   33.41 / 0.84    4.60 / 7.17
+ Avg Score                     18.55             4.73       16.71           -3.52           0.84          2.13            40.64
+  + ref                        23.50             7.96       21.70           -3.38          54.88         36.39             5.13
+ Avg Gain (%)                + 26.63          + 68.08     + 29.87          + 3.98      + 6471.43     + 1603.76          - 87.37
+
+Table 4: Analysis generation results on CLERC/generation, evaluated with F-scores of ROUGE and BARTScore
+(BF), CR, CP, and CFP. All models are instruct versions, and Llama-3 is shortened from Meta-Llama-3-8B-Instruct.
+Left / right column results correspond to prompting with / without the texts of cited cases. GPT-4o generates
+analyses with the highest ROUGE F-scores but hallucinates the most. Prompting with cited cases shows
+effective improvement across all metrics, especially boosting CR and CP and lowering CFP, making more factual
+citations in generations.
+
+Query Length We also evaluate the effect of                          2022) perform the worst, followed by Bi-Encoder
+query length on BM25 across the range of 100                         models which score around 42% R@1K. BM25
+to 1000 words. Figure 4 shows that longer query                      performs the best at 48.3% R@1K among all zero-
+length improves recall and maximizes it at 300                       shot models. We show later in Section 5.1 that this
+words. Queries with more than 300 words are                          poor performance is due to domain shift to legal
+harder to retrieve, since as length increases, there                 text and the struggles of models with long queries.
+are also more distracting contextual information                        Domain shift can be alleviated through train-
+about non-central citations that cause the retriever                 ing: fine-tuning BERT-base with the DPR architec-
+to find irrelevant passages (see Section 5.1 for ex-                 ture on C LERC’s training set, we find a 36+ percent
+amples and qualitative analysis). Another limita-                    gain in R@1K, indicating that training on longer
+tion of increased query length is that it will raise the             queries and legal text effectively improves perfor-
+computational cost and storage, which is especially                  mance in legal case retrieval, and it achieves the
+challenging to token-level late-interaction models                   second highest performance after fine-tuned Legal-
+like ColBERT (Khattab and Zaharia, 2020).                            BERT DPR, which is based on a model pretrained
+                                                                     with legal texts (Holzenberger et al., 2020) and
+4.1.3    Main Results and Analysis                                   experiences less domain shift.
+We show main results of the retrieval task in Ta-                       We also experiment with multiple Cross-
+ble 3. Overall, we see that no zero-shot model                       Encoders and attach the results and analysis in D.3.
+scores higher than 50% R@1K, indicating poor
+performance at retrieving case citations. Due to                     4.2 Generating Legal Analyses from Citations
+the large size of the corpus, we find that late inter-               Task Formulation Suppose a case document
+action models like ColBERTv2 (Santhanam et al.,                      consisting of paragraphs {p1 , p2 , . . . , pN }, given
+  FINDINGS OF FACT AND CONCLUSIONS OF LAW
+  PAEZ, District Judge.
+  I. INTRODUCTION
+  The Board of Trustees of the Aircondi-tioning and Refrigeration Industry Health and Welfare Trust Fund (“Health Fund”),
+  the Board of Trustees of the Aircondition-ing and Refrigeration Industry Retirement Trust Fund (“Retirement Fund”), and
+  the Board of Trustees of the Airconditioning and Refrigeration Industry Defined Contribution Retirement Plan (“401(k)
+  Plan”) (collectively, the “Trust Funds”) brought this action against J.R.D. Mechanical Services, Inc. ...(Omitted for brevity)...
+
+  II. FINDINGS OF FACT
+  1. Defendant J.R.D. is a California corporation and at all material times was an employer within the meaning of section 3(5)
+  of ERISA, 29 U.S.C. § 1002(5) ...(Omitted for brevity)...
+
+  III. CONCLUSIONS OF LAW
+  Based on the forgoing findings of fact, the Court makes the following conclusions of law: ...(Omitted for brevity)...
+
+  “‘Any’ control over disposition of plan money makes the person who has the control a fiduciary.” IT Corp. v. General Am.
+  Life Ins. Co., 107 F.3d 1415, 1421 (9th Cir.1997), cert. denied, 522 U.S. 1068, 118 5.Ct. 738, 139 L.Ed.2d 675 (1998).
+  Thus, “a person with authority to direct payment of a plan’s money [is] deemed a fiduciary.” Id. Divers’ status as a corporate
+  officer does not exempt him from liability. See Kayes v. Pacific Lumber Co., 51 F.3d 1449, 1459 (9th Cir.1995) (“This court
+  has held corporate officers to be liable as fiduciaries on the basis of their conduct and authority with respect to ERISA
+  plans.”). Rather, he is liable because, as established by the factual findings, he exercised authority and control over the
+  management and disposition of the Trust Funds’ assets.
+  ...(Omitted for brevity)...
+
+Figure 5: Example case document (99 F. Supp. 2d 1115). Blue texts are analytical texts and italicized texts are
+case citations. This is a typical case document which starts with introductions and facts (I and II) about the
+case and then dives into legal analyses and reasoning at later paragraphs (III). See casetext link for full text:
+https://casetext.com/case/board-of-trustees-of-aircondition-v-jrd-mech.
+
+Rt = {r1 , r2 , ...rT }, a set of relevant passages                 the fraction of relevant citations being generated,
+or documents, and a prefix of case document                         and CP measures the fraction of generated cita-
+(p1 , p2 , . . . , pt−1 ), a model is asked to continue             tions being relevant. CFP measures the fraction of
+to generate the next paragraph p̂t . The genera-                    the generated citations being hallucinated, which
+tion quality is measured by the similarity between                  means that they come from unlisted sources. See
+pt and p̂t . In practice, the gold paragraph pt is                  an example calculation in Figure 8.
+randomly sampled from the last third of the para-
+graphs, i.e. ⌊ 2N    3 ⌋ ≤ t ≤ N − 2, and Rt is selected
+                                                                    Metrics, Data, and Models We evaluate le-
+as the citations used in pt .                                       gal analysis generation with ROUGE (Lin, 2004),
+                                                                    BARTScore (Yuan et al., 2021), CP, CR, and CFP.
+4.2.1    Experimental Setup                                            We run greedy generations on the test set (1k in-
+Citation Metrics To measure the faithfulness                        stances) of CLERC/generation with Meta-Llama-
+and degree of hallucination of legal analysis gen-                  3-8B-Instruct,9 Mistral-7B-Instruct-v0.3 (Jiang
+eration, we adopt Citation Recall (CR) and Cita-                    et al., 2023), GPT-4o (Josh Achiam et al., 2024),
+tion Precision (CP) from Liu et al. (2023) and also                 and Gemma-1.1-7b-it (Reid et al., 2024). We use
+propose Citation False Positive rate (CFP). Sup-                    FastChat (Zheng et al., 2023) to host the open
+pose a piece of generated text contains citations                   source models and the OpenAI API to access GPT-
+{c1 , . . . , cM } and a set of citations that should be            4o.10 All the experiments are done using greedy
+cited, Cr , we define the following metrics:                        decoding with a temperature of 1. Readers may
+                                                                    refer to Appendix C for the prompts used.
+                  1 [ci ∈ Cr ]
+           PM
+              i
+  CR =
+                  |Cr |                                             Ablation study To study the effect of retrieved
+                  1 [ci ∈ Cr ]                                      cases on generation, we perform an ablation
+           PM
+              i
+  CP =                                                              study by not providing any citation documents
+                   M
+                  PM h                  W                  i      to the model. The model is asked to generate
+                    i 1 ci ∈ Cr ∨
+                                             t−1
+                                             j=1 ci ⊑ pj            the text solely based on the previous text, i.e.
+CFP = 1 −
+                                      M                             (p1 , p2 , . . . , pt−1 ).
+where 1 is the indicator function, and a ⊑ b in-                        9
+                                                                            https://github.com/meta-llama/llama3
+                                                                       10
+dicates that a is a substring of b. CR measures                             https://platform.openai.com/playground
+4.2.2    Results and Analysis                                  models can be easily be “distracted” and re-
+Table 4 shows results of analysis generation on                trieve non-central citations, usually due to the
+CLERC/generation. GPT-4o overall demonstrates                  many overlaps of distractor words. In the highest
+the highest performance in terms of F-scores of                ranked case, 228 F.R.D. 536, the word “Elk Run”
+ROUGE, CP, and CR, while Meta-Llama-3-8B-                      appears 45 times, which is the name of a sued com-
+Instruct scores highest in BARTScore and second-               pany in the referenced case. In the second-highest
+highest across multiple metrics.                               case, 309 F.R.D. 476, the word “Boilerplate” ap-
+   Under the full prompt, GPT-4o hallucinates                  pears 67 times, whereas “Boilerplate objection” is a
+the most, as reflected by its CFP score (see Figure            common type of objection raised in court (Baicker-
+8). Gemma-1.1-7b-it achieves both the minimum                  McKee and Janssen, 2022). These distractor words
+CFP with the full prompt and the worst CFP with                are often common words and legal jargon, which
+the shortened prompt, which shows that it is most              can have many occurrences in irrelevant documents
+sensitive to prompting under our setting.                      and make it harder for popular models to retrieve.
+   Prompting with the texts of cited cases effec-              Hence, this domain shift (and our results in Table 3)
+tively boosts performance, helping models cite                 show how important fine-tuning on legal data is for
+more comprehensively, precisely, and with less hal-            legal retrieval models.
+lucination, which is crucial for legal writing.                5.2   Limitations in Analysis Generation and
+   However, even with the full prompt, generations                   Metrics
+have low CP and CR and considerably high CFP,
+which is concerning for legal applications. More-              As discussed in Section 4.2.2, the current mod-
+over, CP, CR, and CFP overestimate analysis                    els struggle on the citation metrics. However, we
+quality. As we will discuss in Section 5.2, high               show an example to illustrate that scoring high
+scores on the citation metrics do not imply that               on current citation metrics does not imply good
+outputs are factual and analytically sound.                    generation quality. We sample and show a frag-
+                                                               ment of gold paragraph from 99 F. Supp. 2d 1115
+5     Discussion                                               (C.D. Cal. 1999) in Figure 5:
+                                                                     Divers’ status as a corporate officer does not ex-
+5.1     Limitations in Case Retrieval                                empt him from liability. See Kayes v. Pacific
+                                                                     Lumber Co., 51 F.3d 1449, 1459 (9th Cir.1995)
+We analyze why popular retrieval models struggle
+on the C LERC retrieval task, as shown in Table 3.             where the red italicized texts describe the analytical
+As an example, consider this shortened query:                  claim, supported by the case citation in blue. On
+                                                               the other hand, Llama-3-8B outputs:
+      · · · (Omitted for brevity) · · · St. Paul Reins. Co.,
+      Ltd. v. Commercial Fin. Corp., 198 F.R.D. 508,                 As previously stated, 29 U.S.C. § 1002(21)(A)
+      512 (N.D.Iowa 2000) (Boilerplate objections, in-               defines a fiduciary as a person who exercises any
+      cluding that a particul ar document request was                authority or control respecting management or
+      oppressive, burdensome and harassing, were “[i]n               disposition of [a plan’s] assets. P51 F.3d 1449,
+      eve ry respect ... textbook examples of what                   1459 (9th Cir.1995).
+      federal courts have routinely deeme d to be im-
+      proper objections.”) · · · (Omitted for brevity) · · ·      While the generation makes the correct citation
+      Elk Run’s Second Set of Interrogatories The court        (“P51 F.3d 1449, 1459 (9th Cir.1995)”) and scores
+      notes that Plaintiffs answers to Elk Run’s second
+      set of interrogatories are utterly deficient because     high on the citation metrics, it fails to generate
+      they are not answered under oath, signed by the          an analytical claim that can be supported by
+      person making the answers as required by Rule            the citation. From the gold paragraph, the citation
+      33(b)(1) of the Federal Rules of Civil Procedure
+      and REDACTED In addition to the deficiency               should support the claim “corporate officer has lia-
+      outlined above, the court finds that the answers         bility.” However, the generated claim only defines
+      to interrogatory numbers 1 and 2 are inadequate,         what a fiduciary is, which was already defined in
+      unresponsive, and inconsistent with the require-
+      ments of Rule 33. · · · (Omitted for brevity) · · ·      the previous context, rather than conveying useful
+                                                               new information for reasoning. See an additional
+where REDACTED is a placeholder for the re-                    example of GPT-4o hallucination in Appendix E.
+moved central citation sentence, and we highlight                 Therefore, we welcome the development of auto-
+underlined red words as “distractor” words.                    mated metrics that focus on evaluating the factual
+  After examining the full texts of top-ranked re-             recall aspect of text generation. One such approach
+sults when searching with BM25, we discover that               could be extending metrics such as FActScore (Min
+et al., 2023) to the legal domain. However, as ex-         Arian Askari, Suzan Verberne, O Alonso, S Marchesin,
+tracting the legal analyses itself is non-trivial in the     M Najork, and G Silvello. 2021. Combining lexical
+                                                             and neural retrieval with longformer-based summa-
+legal domain, we leave this to future work.
+                                                             rization for effective case law retrieval. In DESIRES,
+                                                             pages 162–170.
+6   Conclusion
+                                                           Steven Baicker-McKee and William M. Janssen. 2022.
+Case law data is a high-quality resource for build-          Federal Civil Rules Handbook. Thomson Reuters.
+ing intelligence systems to assist legal profession-
+als. Through an interdisciplinary effort with legal        Iz Beltagy, Matthew E. Peters, and Arman Cohan. 2020.
+                                                              Longformer: The Long-Document Transformer.
+professionals, we transform the digitized corpus
+of case law (CAP, 2024) into C LERC, a dataset             David C Blair and Melvin E Maron. 1985. An evalua-
+designed for training and evaluating models on               tion of retrieval effectiveness for a full-text document-
+                                                             retrieval system. Communications of the ACM,
+long-context case retrieval and analysis generation
+                                                             28(3):289–299.
+tasks. We hope our work opens the gate for more
+exciting discoveries in AI built with legal text data.     Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie
+                                                             Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind
+7   Limitations                                              Neelakantan, Pranav Shyam, Girish Sastry, Amanda
+                                                             Askell, Sandhini Agarwal, Ariel Herbert-Voss,
+Our work provides an initial step into developing            Gretchen Krueger, Tom Henighan, Rewon Child,
+systems that can aid legal professionals. However,           Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu,
+                                                             Clemens Winter, Christopher Hesse, Mark Chen, Eric
+as we’ve shown, current systems are not well-suited          Sigler, Mateusz Litwin, Scott Gray, Benjamin Chess,
+to helping legal professionals on these tasks at the         Jack Clark, Christopher Berner, Sam McCandlish,
+current moment, even those that are fine-tuned.              Alec Radford, Ilya Sutskever, and Dario Amodei.
+   We use the legal data provided by CAP, which              2020. Language models are few-shot learners.
+gathered the data through OCR. As such, our data           Aydar Bulatov, Yuri Kuratov, and Mikhail S. Burtsev.
+may contain small OCR errors, although our analy-            2022. Recurrent Memory Transformer. In Proceed-
+sis has found it to be generally of high quality.            ings of Conference on Neural Information Processing
+                                                             Systems (NeurIPS).
+Ethical Considerations                                     Lang Cao, Zifeng Wang, Cao Xiao, and Jimeng Sun.
+                                                             2024. PILOT: Legal Case Outcome Prediction with
+In this work, we curate our dataset based on the
+                                                             Case Law.
+corpus of historical U.S. federal case law. How-
+ever, past case law might contain racisim, sexism,         CAP. 2024. Caselaw access project.
+and all other ideologies that people have consid-
+                                                           Shouyuan Chen, Sherman Wong, Liangjian Chen, and
+ered controversial or undesirable for society and            Yuandong Tian. 2023. Extending Context Window of
+people’s well-being. Building legal intelligence             Large Language Models via Positional Interpolation.
+systems on case law data has the risk of propagat-
+                                                           Krzysztof Choromanski, Valerii Likhosherstov, David
+ing such historical biases and ideologies, which we          Dohan, Xingyou Song, Andreea Gane, Tamas Sar-
+caution the NLP community to be aware of and                 los, Peter Hawkins, Jared Davis, Afroz Mohiuddin,
+encourage future endeavors to address.                       Lukasz Kaiser, David Belanger, Lucy Colwell, and
+                                                             Adrian Weller. 2021. Rethinking Attention with Per-
+Acknowledgement                                              formers. In Proceedings of International Conference
+                                                             on Learning Representations (ICLR).
+This work was supported in part by the U.S. Na-
+                                                           Jack Cushman, Matthew Dahl, and Michael Lissner.
+tional Science Foundation under grant 2204926.                2021. eyecite: A tool for parsing legal citations.
+Opinions, findings, and conclusions or recommen-             Journal of Open Source Software, 6(66):3617.
+dations expressed in this article come from the
+authors and do not reflect the views of the National       Matthew Dahl, Varun Magesh, Mirac Suzgun, and
+                                                            Daniel E. Ho. 2024. Large legal fictions: Profiling
+Science Foundation. We alsothank Amy Wang for               legal hallucinations in large language models. ArXiv,
+her advice on the visual designs in this paper.             abs/2401.01301.
+
+                                                           Zihang Dai, Zhilin Yang, Yiming Yang, Jaime Car-
+References                                                   bonell, Quoc Le, and Ruslan Salakhutdinov. 2019.
+                                                             Transformer-XL: Attentive language models beyond
+Anthropic. 2024. The Claude 3 Model Family: Opus,            a fixed-length context. In Proceedings of the 57th
+  Sonnet, Haiku.                                             Annual Meeting of the Association for Computational
+  Linguistics, pages 2978–2988, Florence, Italy. Asso-    Michael Günther, Georgios Mastrapas, Bo Wang, Han
+  ciation for Computational Linguistics.                    Xiao, and Jonathan Geuter. 2023. Jina embeddings:
+                                                            A novel set of high-performance sentence embed-
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and               ding models. In Proceedings of the 3rd Workshop for
+   Kristina Toutanova. 2018. Bert: Pre-training of deep     Natural Language Processing Open Source Software
+   bidirectional transformers for language understand-     (NLP-OSS 2023), pages 8–18, Singapore. Associa-
+   ing. arXiv preprint arXiv:1810.04805.                    tion for Computational Linguistics.
+Zican Dong, Tianyi Tang, Junyi Li, Wayne Xin Zhao,        Peter Henderson, Mark Krass, Lucia Zheng, Neel Guha,
+  and Ji-Rong Wen. 2024. BAMBOO: A Comprehen-               Christopher Manning, Dan Jurafsky, and Daniel E
+  sive Benchmark for Evaluating Long Text Modeling          Ho. 2022. Pile of law: Learning responsible data
+  Capacities of Large Language Models. In Proceed-          filtering from the law and a 256gb open-source legal
+  ings of Language Resources and Evaluation Confer-         dataset.
+  ence (LREC).
+                                                          Nils Holzenberger, Andrew Blair-Stanek, and Ben-
+Esingbemi Princewill Ebietomere and Godspower Os-           jamin Van Durme. 2020. A dataset for statutory
+  aretin Ekuobase. 2019. A semantic retrieval system        reasoning in tax law entailment and question answer-
+  for case law. Applied Computer Systems, 24(1):38–         ing. In NLLP@KDD.
+  48.
+                                                          Gautier Izacard, Mathilde Caron, Lucas Hosseini, Se-
+Daniel Y Fu, Simran Arora, Jessica Grogan, Isys John-       bastian Riedel, Piotr Bojanowski, Armand Joulin,
+  son, Sabri Eyuboglu, Armin W Thomas, Benjamin             and Edouard Grave. 2021. Unsupervised dense infor-
+  Spector, Michael Poli, Atri Rudra, and Christopher        mation retrieval with contrastive learning.
+  Ré. 2023. Monarch mixer: A simple sub-quadratic
+  gemm-based architecture. In Advances in Neural          Albert Qiaochu Jiang, Alexandre Sablayrolles, Arthur
+  Information Processing Systems.                           Mensch, Chris Bamford, Devendra Singh Chap-
+                                                            lot, Diego de Las Casas, Florian Bressand, Gi-
+Luyu Gao, Xueguang Ma, Jimmy J. Lin, and Jamie              anna Lengyel, Guillaume Lample, Lucile Saulnier,
+  Callan. 2022. Tevatron: An efficient and flexible         L’elio Renard Lavaud, Marie-Anne Lachaux, Pierre
+  toolkit for dense retrieval. ArXiv, abs/2203.05765.       Stock, Teven Le Scao, Thibaut Lavril, Thomas Wang,
+                                                            Timothée Lacroix, and William El Sayed. 2023. Mis-
+Joseph Gesnouin, Yannis Tannier, Christophe Gomes Da        tral 7b. ArXiv, abs/2310.06825.
+   Silva, Hatim Tapory, Camille Brier, Hugo Simon,
+   Raphael Rozenberg, Hermann Woehrel, Mehdi El           Hang Jiang, Xiajie Zhang, Robert Mahari, Daniel
+  Yakaabi, Thomas Binder, Guillaume Marie, Emilie           Kessler, Eric Ma, Tal August, Irene Li, Alex ’Sandy’
+   Caron, Mathile Nogueira, Thomas Fontas, Laure Puy-       Pentland, Yoon Kim, Jad Kabbara, and Deb Roy.
+   debois, Marie Theophile, Stephane Morandi, Mael          2024. Leveraging large language models for learning
+   Petit, David Creissac, Pauline Ennouchy, Elise Vale-     complex legal concepts through storytelling. ArXiv,
+   toux, Celine Visade, Severine Balloux, Emmanuel          abs/2402.17019.
+   Cortes, Pierre-Etienne Devineau, Ulrich Tan, Es-
+   ther Mac Namara, and Su Yang. 2024. Llamande-          Josh Achiam, Steven Adler, Sandhini Agarwal, and et
+   ment: Large language models for summarization of         al. 2024. GPT-4 Technical Report.
+   french legislative proposals. ArXiv, abs/2401.16182.
+                                                          Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick
+Randy Goebel, Yoshinobu Kano, Mi-Young Kim, Ju-             Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and
+  liano Rabelo, Ken Satoh, and Masaharu Yoshioka.           Wen-tau Yih. 2020a. Dense passage retrieval for
+  2024. Overview and discussion of the competition          open-domain question answering. In Proceedings
+  on legal information, extraction/entailment (coliee)      of the 2020 Conference on Empirical Methods in
+  2023. The Review of Socionetwork Strategies.              Natural Language Processing (EMNLP), pages 6769–
+                                                            6781, Online. Association for Computational Lin-
+Neel Guha, Julian Nyarko, Daniel E. Ho, Christo-            guistics.
+  pher Ré, Adam Chilton, Aditya Narayana, Alex
+  Chohlas-Wood, Austin Peters, Brandon Waldon,            Vladimir Karpukhin, Barlas Oğuz, Sewon Min, Patrick
+  Daniel N. Rockmore, Diego Zambrano, Dmitry Tal-           Lewis, Ledell Yu Wu, Sergey Edunov, Danqi Chen,
+  isman, Enam Hoque, Faiz Surani, Frank Fagan, Galit        and Wen tau Yih. 2020b. Dense passage re-
+  Sarfaty, Gregory M. Dickinson, Haggai Porat, Jason        trieval for open-domain question answering. ArXiv,
+  Hegland, Jessica Wu, Joe Nudell, Joel Niklaus, John       abs/2004.04906.
+  Nay, Jonathan H. Choi, Kevin Tobia, Margaret Hagan,
+  Megan Ma, Michael Livermore, Nikon Rasumov-             Omar Khattab and Matei Zaharia. 2020. Colbert: Ef-
+  Rahe, Nils Holzenberger, Noam Kolt, Peter Hender-        ficient and effective passage search via contextual-
+  son, Sean Rehaag, Sharad Goel, Shang Gao, Spencer        ized late interaction over BERT. In Proceedings of
+  Williams, Sunny Gandhi, Tom Zur, Varun Iyer, and         the 43rd International ACM SIGIR conference on
+  Zehua Li. 2023. Legalbench: A collaboratively built      research and development in Information Retrieval,
+  benchmark for measuring legal reasoning in large         SIGIR 2020, Virtual Event, China, July 25-30, 2020,
+  language models. Preprint, arXiv:2308.11462.             pages 39–48. ACM.
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio        Varun Magesh, Faiz Surani, Matthew Dahl, Mirac Suz-
+  Petroni, Vladimir Karpukhin, Naman Goyal, Hein-             gun, Christopher D. Manning, and Daniel E. Ho.
+  rich Kuttler, Mike Lewis, Wen-tau Yih, Tim Rock-            2024. Hallucination-free? assessing the reliability of
+  taschel, Sebastian Riedel, and Douwe Kiela. 2020.           leading ai legal research tools.
+  Retrieval-Augmented Generation for Knowledge-
+  Intensive NLP Tasks. In Proceedings of Confer-            Robert Mahari. 2021. Autolaw: Augmented legal rea-
+  ence on Neural Information Processing Systems               soning through legal precedent prediction. ArXiv,
+  (NeurIPS).                                                  abs/2106.16034.
+
+Dacheng Li, Rulin Shao, Anze Xie, Ying Sheng, Lian-         Robert Mahari, Dominik Stammbach, Elliott Ash, and
+  min Zheng, Joseph E Gonzalez, Ion Stoica, Xuezhe            Alex’Sandy’ Pentland. 2023. Lepard: A large-scale
+  Ma, and Hao Zhang. 2023. How Long Can Context               dataset of judges citing precedents. arXiv preprint.
+  Length of Open-Source LLMs truly Promise? In              Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis,
+  Proceedings of Workshop on Instruction Tuning and           Wen-tau Yih, Pang Koh, Mohit Iyyer, Luke Zettle-
+  Instruction Following.                                      moyer, and Hannaneh Hajishirzi. 2023. FActScore:
+                                                              Fine-grained atomic evaluation of factual precision
+Haitao Li, Yunqiu Shao, Yueyue Wu, Qingyao Ai, Yix-           in long form text generation. In Proceedings of the
+  iao Ma, and Yiqun Liu. 2024. Lecardv2: A large-             2023 Conference on Empirical Methods in Natural
+  scale chinese legal case retrieval dataset. ArXiv           Language Processing, pages 12076–12100, Singa-
+  preprint.                                                   pore. Association for Computational Linguistics.
+Quanzhi Li and Qiong Zhang. 2021. Court opinion             Rodrigo Nogueira, Zhiying Jiang, Ronak Pradeep, and
+  generation from case fact description with legal basis.     Jimmy J. Lin. 2020. Document ranking with a pre-
+  In AAAI Conference on Artificial Intelligence.              trained sequence-to-sequence model. In Findings.
+
+Chin-Yew Lin. 2004. Rouge: A package for automatic          Guanghui Qin, Yukun Feng, and Benjamin Van Durme.
+  evaluation of summaries. In Annual Meeting of the           2023. The NLP task effectiveness of long-range
+  Association for Computational Linguistics.                  transformers. In Proceedings of the 17th Conference
+                                                              of the European Chapter of the Association for Com-
+Chun-Hsien Lin and Pu-Jen Cheng. 2024. Legal docu-            putational Linguistics, pages 3774–3790, Dubrovnik,
+  ments drafting with fine-tuned pre-trained large lan-       Croatia. Association for Computational Linguistics.
+  guage model. Software Engineering & Trends.
+                                                            Guanghui Qin, Corby Rosset, Ethan C Chau, Nikhil Rao,
+                                                              and Benjamin Van Durme. 2024a. Dodo: Dynamic
+Matthew Lippmann. 2018. Criminal Procedure, 3rd               contextual compression for decoder-only lms. In
+ edition. SAGE Publications, Inc, Thousand Oaks,              Proceedings of the 2024 Conference on Association
+ CA.                                                          for Computational Linguistics (ACL).
+Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paran-        Weicong Qin, Zelin Cao, Weijie Yu, Zihua Si, Sirui
+  jape, Michele Bevilacqua, Fabio Petroni, and Percy         Chen, and Jun Xu. 2024b. Explicitly Integrating
+  Liang. 2024. Lost in the Middle: How Language              Judgment Prediction with Legal Document Retrieval:
+  Models Use Long Contexts. Transactions of the Asso-        A Law-Guided Generative Approach.
+  ciation for Computational Linguistics (TACL), pages
+  157–173.                                                  Machel Reid, Nikolay Savinov, Denis Teplyashin, and
+                                                             et al. 2024. Gemini 1.5: Unlocking multimodal un-
+Nelson F. Liu, Tianyi Zhang, and Percy Liang. 2023.          derstanding across millions of tokens of context.
+  Evaluating verifiability in generative search engines.
+  ArXiv, abs/2304.09848.                                    Ruiyang Ren, Yingqi Qu, Jing Liu, Wayne Xin Zhao,
+                                                              QiaoQiao She, Hua Wu, Haifeng Wang, and Ji-Rong
+Daniel Locke and Guido Zuccon. 2022. Case law                 Wen. 2021. RocketQAv2: A joint training method
+  retrieval: problems, methods, challenges and eval-          for dense passage retrieval and passage re-ranking.
+  uations in the last 20 years.      arXiv preprint           In Proceedings of the 2021 Conference on Empiri-
+  arXiv:2202.07209.                                           cal Methods in Natural Language Processing, pages
+                                                              2825–2835, Online and Punta Cana, Dominican Re-
+                                                              public. Association for Computational Linguistics.
+Xueguang Ma, Liang Wang, Nan Yang, Furu Wei, and
+  Jimmy Lin. 2023. Fine-tuning llama for multi-stage        Columbia Law Review. 2020. The Bluebook: A Uni-
+  text retrieval. ArXiv, abs/2310.08319.                      form System of Citation. The Harvard LawReview
+                                                              Association Gannett House, 1511 Massachusetts Av-
+Yixiao Ma, Yunqiu Shao, Yueyue Wu, Yiqun Liu,                 enue Cambridge, Massachusetts 02138 U.S.A.
+  Ruizhe Zhang, Min Zhang, and Shaoping Ma. 2021.
+  Lecard: A legal case retrieval dataset for chinese law    Jon Saad-Falcon, Daniel Y. Fu, Simran Arora, Neel
+  system. In Proceedings of the 44th International            Guha, and Christopher Ré. 2024. Benchmarking and
+  ACM SIGIR Conference on Research and Develop-               building long-context retrieval models with loco and
+  ment in Information Retrieval, pages 2342–2348.             m2-bert. arXiv preprint arXiv:2402.07440.
+Keshav Santhanam, Omar Khattab, Jon Saad-Falcon,            Liang Wang, Nan Yang, Xiaolong Huang, Binx-
+  Christopher Potts, and Matei Zaharia. 2022. Col-            ing Jiao, Linjun Yang, Daxin Jiang, Rangan Ma-
+  BERTv2: Effective and efficient retrieval via               jumder, and Furu Wei. 2022. Text embeddings by
+  lightweight late interaction. In Proceedings of the         weakly-supervised contrastive pre-training. ArXiv,
+  2022 Conference of the North American Chapter of            abs/2212.03533.
+  the Association for Computational Linguistics: Hu-
+  man Language Technologies, pages 3715–3734, Seat-         Liang Wang, Nan Yang, Xiaolong Huang, Linjun Yang,
+  tle, United States. Association for Computational           Rangan Majumder, and Furu Wei. 2023. Improving
+  Linguistics.                                                text embeddings with large language models. arXiv
+                                                              preprint arXiv:2401.00368.
+T. Y. S. S. Santosh, Rashid Haddad, and Matthias Grab-
+   mair. 2024. Ecthr-pcr: A dataset for precedent un-       Orion Weller, Benjamin Chang, Sean MacAvaney, Kyle
+   derstanding and prior case retrieval in the european       Lo, Arman Cohan, Benjamin Van Durme, Dawn
+   court of human rights. In Proceedings of the 2024          Lawrie, and Luca Soldaini. 2024. Followir: Eval-
+   Joint International Conference on Computational            uating and teaching information retrieval models to
+   Linguistics, Language Resources and Evaluation,            follow instructions. ArXiv, abs/2403.15246.
+   LREC/COLING 2024, 20-25 May, 2024, Torino, Italy,
+   pages 5473–5483. ELRA and ICCL.                          Robert A Wilson. 1962. Computer retrieval of case law.
+                                                              Sw. LJ, 16:409.
+Uri Shaham, Elad Segal, Maor Ivgi, Avia Efrat, Ori
+  Yoran, Adi Haviv, Ankit Gupta, Wenhan Xiong,              Shitao Xiao, Zheng Liu, Peitian Zhang, and Niklas
+  Mor Geva, Jonathan Berant, and Omer Levy. 2022.             Muennighoff. 2023. C-pack: Packaged resources
+  SCROLLS: Standardized CompaRison over long lan-             to advance general chinese embedding. Preprint,
+  guage sequences. In Proceedings of the 2022 Con-            arXiv:2309.07597.
+  ference on Empirical Methods in Natural Language          Eugene Yang, Dawn Lawrie, James Mayfield, Dou-
+  Processing, pages 12007–12021, Abu Dhabi, United            glas W. Oard, and Scott Miller. 2024. Translate-
+  Arab Emirates. Association for Computational Lin-           distill: Learning cross-language dense retrieval by
+  guistics.                                                   translation and distillation. In Proceedings of the
+Zejiang Shen, Kyle Lo, Lauren Jane Yu, Nathan                 46th European Conference on Information Retrieval
+  Dahlberg, Margo Schlanger, and Doug Downey.                 (ECIR).
+  2022. Multi-lexsum: Real-world summaries of
+                                                            Weizhe Yuan, Graham Neubig, and Pengfei Liu. 2021.
+  civil rights lawsuits at multiple granularities. ArXiv,
+                                                             Bartscore: Evaluating generated text as text genera-
+  abs/2206.10883.
+                                                             tion. ArXiv, abs/2106.11520.
+Jianlin Su, Murtadha Ahmed, Yu Lu, Shengfeng Pan,
+   Wen Bo, and Yunfeng Liu. 2024. RoFormer: En-             Xinyu Crystina Zhang, Andrew Yates, and Jimmy J. Lin.
+   hanced transformer with Rotary Position Embedding.         2021. Comparing score aggregation approaches for
+   Neurocomputing, page 127063.                               document retrieval with pretrained transformers. In
+                                                              European Conference on Information Retrieval.
+Yi Tay, Mostafa Dehghani, Samira Abnar, Yikang Shen,
+   Dara Bahri, Philip Pham, Jinfeng Rao, Liu Yang,          Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan
+   Sebastian Ruder, and Donald Metzler. 2020. Long            Zhuang, Zhanghao Wu, Yonghao Zhuang, Zi Lin,
+   Range Arena: A Benchmark for Efficient Transform-          Zhuohan Li, Dacheng Li, Eric. P Xing, Hao Zhang,
+   ers.                                                       Joseph E. Gonzalez, and Ion Stoica. 2023. Judg-
+                                                              ing llm-as-a-judge with mt-bench and chatbot arena.
+Nandan Thakur, Nils Reimers, Andreas Rücklé, Ab-              Preprint, arXiv:2306.05685.
+  hishek Srivastava, and Iryna Gurevych. 2021. Beir:
+  A heterogenous benchmark for zero-shot evaluation         A    Compute Infrastructure
+  of information retrieval models. ArXiv preprint,
+  abs/2104.08663.                                           We run our experiments on 24GB Nvidia Quadro
+                                                            RTX 6000 GPUs for retrieval and 80GB Nvidia
+Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier
+  Martinet, Marie-Anne Lachaux, Timothée Lacroix,           A100s for RAG experiments. Retrieval indexing
+  Baptiste Rozière, Naman Goyal, Eric Hambro, Faisal        takes around 60 hours for a BERT-base sized model
+  Azhar, Aurelien Rodriguez, Armand Joulin, Edouard         on one GPU. For RAG experiments, they take ap-
+  Grave, and Guillaume Lample. 2023. Llama: Open            proximately 2 hours per model on one GPU.
+  and efficient foundation language models. arXiv
+  preprint arXiv:2302.13971.
+                                                            B   U.S. Legal Data Taxonomy
+Oscar Tuvey and Procheta Sen. 2023. Automated argu-
+  ment generation from legal facts. arXiv:2310.05680.       Figure 6 shows a taxonomy of U.S. legal data. We
+                                                            use that data from CAP, which provides U.S. fed-
+Santosh T.Y.S.S, Rashid Gustav Haddad, and Matthias
+  Grabmair. 2024. Ecthr-pcr: A dataset for precedent
+                                                            eral cases. Note that U.S. legal text can vary widely
+  understanding and prior case retrieval in the european    according to the type, however, we use federal case
+  court of human rights. ArXiv preprint.                    law due to its widespread usage and availability.
+                                                      Administrative                       Legislative
+                                Constitution           Regulations          Case Law        History                 Statutes
+
+
+
+                                               State Court                                               Federal
+                                                  Cases                                                   Cases
+
+                                                                                        transform
+                                                                            CLERC                         CAP
+
+
+
+Figure 6: A taxonomy of U.S. legal data. C LERC is a subset of federal cases, which are a subset of case law. C LERC
+contains millions of documents and has much room for improvement.
+                                                    Administrative      Case Law          Legislative
+                               Constitution                                                                        Statutes
+                                                     Regulations                           History
+
+C    Prompt for Argument Generation                                          {previous_text}
+                                                                        Federal
+                                                     State Court                            Tax Court
+                                                        Cases               Cases          Memorandum
+                                                                                            Decisions
+
+
+                                                                        CLERC       Continue to write it following the
+User prompt:                                                                        style of my writeup.       Your answer
+Here are some reference articles for                                                contains 100 to 400 words. Wrap your
+legal cases:                                                                        answer with <answer></answer>.     Make
+# Reference case {case_key_1}                                                       your answer concise and avoid redundant
+{text of cited case 1}                                                              languages.
+# Reference case {case_key_2}
+{text of cited case 2}
+...                                                                                 D     Additional Experimental Results
+# Reference case {case_key_N}
+{text of cited case N}                                                              D.1     Parse Direct Quotes and Filter Queries
+                                                                                    We design a simple heuristics program to parse
+Here is the text               I’ve            written                 so           direct quotes. CAP uses special double quotation
+far:                                                                                marks for all direct quotes, which have unicode val-
+# Paragrah                                                                          ues of 8220 and 8221. We extract all texts quoted
+{previous_text}                                                                     by these special quotation marks, and we pair them
+                                                                                    with the nearest case citation.
+Continue to write it following the style                                               To locate and filter the central citation sentences
+of my writeup.      Your answer contains                                            in the queries, we design an involved RegEx pro-
+100 to 400 words. You must explicitly                                               gram. The high-level overview is that it will find
+use the reference cases and mention                                                 the start of the citation sentence, which is usually
+their reference ids, i.e. {case_key_1},                                             some Entity A v. Entity B, and we recognize the
+{case_key_2} . . . {case_key_N}. Wrap your                                          start by referring to the metadata of CAP. There
+answer with <answer></answer>.        Make                                          are other variant formats to start a citation sentence,
+your answer concise and avoid redundant                                             such as Id., See., and In re, and we also accomodate
+languages.                                                                          these formats in the filter program (Review, 2020).
+                                                                                    We find the end of the citation by locating some
+   {previous_text} refers to the previous                                           notable punctuations, such as closing parenthesis,
+context before the reference paragraph, i.e.                                        semicolon, etc. In the event that we find outlier
+(p1 , p2 , . . . , pt−1 ) defined in Section 4.2. {text                             citation sentences, we would report them as failure
+cited case i} refers to the reference articles, i.e.                                cases. The average failure rate is around 11%.
+Rt defined in Section 4.2, and {case_key_i} are                                        For more specific details, please refer to our code
+the associated citation keys.                                                       and repo.
+   For the ablation study, we experiment prompting
+LLMs without explicitly providing the text of cited                                 D.2     Retrieve with Direct Quote
+cases with the following prompt:                                                    Around 33% of the time, we find that case docu-
+                                                                                    ments cite other cases in the form of direct quo-
+                                                                                    tations. We parse such direct quotes from case
+  User prompt:                                                                      documents and used them as queries for retrieval,
+Here is the text I’ve written so far:                                               expecting a near-perfect accuracy. However, con-
+# Paragrah                                                                          ducting exact matches with grep, we only retrieve
+      Types of alterations in direct quote:
+      Contextual clarification:
+      Query: “A reading of the entire [Wage] Act clearly shows that the purpose of the Act is to assist...”
+      Original: “A reading of the entire Act clearly shows that the purpose of the Act is to assist...”
+
+      Rephrases:
+      Query: “punishable for a term of imprisonment exceeding one year.”
+      Original: “punishable by imprisonment for more than one year.”
+
+      Punctuation changes:
+      Query: “an account of the time, place, and specific content of the false representations as well as the identities of the
+      parties to the misrepresentations.”
+      Original: an account “of the time, place, and specific content of the false representations as well as the identities of the
+      parties to the misrepresentations.”
+
+       Figure 7: Direct quote may experience different types of alterations and degrade retrieval performance.
+
+16% of the direct quotes. We discover that at least                   rerank the top-100 outputs of E5 (Wang et al.,
+25.4% of the direct quotes experience subtle alter-                   2023) with RankLlama (Ma et al., 2023), MonoT5-
+ations with the use of square brackets (see Figure                    3B (Nogueira et al., 2020), and FollowIR (Weller
+7), which partly causes the low recall.                               et al., 2024). We discover that reranking with cross-
+   Therefore, we further conduct retrieval exper-                     encoders degrades the retrieval performance. A
+iments of direct quotes with BM25 and n-gram                          possible explanation is that due to domain mis-
+match, in the hope that these “soft” term match-                      match, rerankers are unable to rerank long-context
+ing methods could overcome subtle alterations and                     legal data that have distinct styles and length from
+yield a higher recall. Results in Table 5 show that                   the data rerankers were trained on.
+the highest Recall@1000 is only 66.7%, which is
+far from perfect.                                                     E     Qualitative Example
+   By examining the case texts, we attribute this                     Please see Figure 8 for an example of problematic
+result to mainly three reasons. First, direct quote,                  legal analysis generated by GPT-4o, which exhibits
+when being cited, commonly experiences slight                         hallucination and achieves low citation precision
+alterations in punctuation, wording, and pronouns                     and recall. We discover that citations from the
+for clarification purposes or due to human errors                     cited cases are a possible source of hallucination,
+(see Figure 7).                                                       meaning that the model confuses the cases they
+   Second, when retrieving a direct quote that con-                   should cite with the citations in those cases. It is
+sists of common words or widely used legal terms,                     possible to mitigate this with more refined prompt
+soft term matching methods could retrieve multiple                    engineering, which we will leave to future works.
+false positive documents that contain multiple oc-
+currences of these common terms and push down
+the ranking of the actual positive document.
+   Third, direct quotes often appear in contexts of
+various neighboring case citations that point to a
+set of candidate documents. Unless investigating
+and searching all candidate documents, it is not
+apparent which direct quote corresponds to which
+case. While we develop a program (see Section
+D.2) to determine the correspondence based on the
+proximity of direct quotes to citations, this corre-
+spondence determination is imperfect and remains
+an open question to be addressed in future works.
+
+D.3     Retrieve with Cross-Encoders
+We conduct additional retrieval experiments with
+the same data and metrics setup in Section 4.1
+using multiple Cross-Encoders in Table 6. We
+                  Recall@5 ↑     Recall@10 ↑      Recall@100 ↑     Recall@1000 ↑    nDCG@10 ↑
+      BM25               18.8            25.2               45.7             66.7              15.8
+      5-gram             30.3            36.4               44.7             44.8              23.0
+      12-gram            31.1            35.7               40.1             40.1              22.8
+
+Table 5: Retrieval experiment results using direct quote as query. All numbers are in percentage.
+
+
+
+
+                                                                              Metrics
+           Type                 Params   Length     Model
+                                                                       R@10     nDCG@10
+           Bi-Encoders          110M     512        E5                 8.4              3.67
+                                7B       512        E5 + RankLlama     4.7              2.14
+           Cross-Encoders       3B       512        E5 + MonoT5        4.2              2.00
+                                7B       512        E5 + FollowIR      5.1              2.14
+
+         Table 6: Retrieval results with Cross-Encoders. All numbers are in percentage
+  Gold paragraph:
+  A pro se complaint, “however unlawfully pleaded,” is held “to less stringent standards than formal pleadings drafted by
+  lawyers.” Hughes v. Rowe, 449 U.S. 5, 9, 101 S.Ct. 173, 66 L.Ed.2d 163 (1980). The court’s role is to ensure that claims
+  of pro se litigants are given “fair and meaningful consideration.” Matzker v. Herr, 748 F.2d 1142, 1146 (7th Cir.1984).
+  Accordingly, pro se complaints must be liberally construed. Estelle v. Gamble, 429 U.S. 97, 106, 97 S.Ct. 285, 50 L.Ed.2d
+  251 (1976). The complaint need not specify the correct legal theory, nor point to the correct statute in order to survive a
+  motion to dismiss. Bartholet v. Reishauer A.G. (Zurich), 953 F.2d 1073, 1078 (7th Cir.1992). Finally, a district court
+  may dismiss a complaint only if “it appears beyond doubt that the plaintiff can prove no set of facts in support of his claim
+  which would entitle him to relief.” Hughes, supra, 449 U.S. at 10, 101 S.Ct. 173.
+
+  GPT-4o generation:
+  Liberal Construction of Pro Se Complaints
+
+  The City contends that Mr. Cleaves’ complaint should be dismissed because it fails to state a claim upon which
+  relief can be granted. However, it is well-established that complaints filed by pro se litigants must be held to less
+  stringent standards than those drafted by lawyers. As the Supreme Court noted in Haines v. Kerner, “however inartfully
+  pleaded,” a pro se complaint must be liberally construed and should not be dismissed unless it appears beyond doubt that
+  the plaintiff can prove no set of facts in support of his claim which would entitle him to relief (404 U.S. 519, 520-21 (1972)).
+
+  Similarly, in Hughes v. Rowe, the Court reiterated this principle, emphasizing that the district court’s role
+  is to ensure that pro se litigants’ claims are given fair and meaningful consideration (449 U.S. 5, 9-10,
+  101 S.Ct. 173, 175, 66 L.Ed.2d 163 (1980)). Courts must determine whether the plaintiff should be allowed to
+  present evidence on his claims before deciding on a motion to dismiss (748 F.2d 1142).
+
+  Additionally, considering the liberal standards applied to such cases as set forth in Estelle v. Gamble (429 U.S. 97, 106
+  (1976)), and in light of the notice-pleading standard of the Federal Rules of Civil Procedure (Rule 8(a)), Mr. Cleaves’
+  allegations, though detailed, sufficiently provide the City with notice of the claims and underlying facts.
+
+  Therefore, the City’s motion to dismiss Mr. Cleaves’ pro se complaint is denied as it fails to demonstrate that there are no
+  conceivable facts under which Mr. Cleaves could prevail.
+
+  Reference texts:
+  449 U.S. 5
+  purports to justify or explain the segregation of petitioner for two days in advance of the disciplinary hearing. II Petitioner’s
+  complaint, like most prisoner complaints filed in the Northern District of Illinois, was not prepared by counsel. It is settled
+  law that the allegations of such a complaint, “however inartfully pleaded” are held “to less stringent standards than formal
+  pleadings drafted by lawyers ....” Haines v. Kerner, 404 U. S. 519, 520 (1972). See also Maclin v. Paulson, 627 F. 2d 83, 86
+  (CA7 1980); French v. Heyne, 547 F. 2d 994, 996 (CA7 1976). · · · (omitted for brevity) · · ·
+  748 F.2d 1142
+  magistrate erred in applying the deliberate indifference standard in dismissing this complaint. III. Our inquiry turns,
+  therefore, to the question of whether Matzker stated a cause of action when judged under due process standards. A complaint
+  drafted by a pro se litigant “however inartfully pleaded,” is held “to less stringent standards than formal pleadings drafted by
+  lawyers.” Hughes v. Rowe, 449 U.S. 5, 9, 101 S.Ct. 173, 175, 66 L.Ed.2d 163 (1980). The district court’s role is to ensure
+  that the claims of pro se litigants are given “fair and meaningful consideration.” · · · (omitted for brevity) · · ·
+  429 U.S. 97
+  to evidence deliberate indifference to serious medical needs. It is only such indifference that can offend “evolving standards
+  of decency” in violation of the Eighth Amendment. Ill Against this backdrop, we now consider whether respondent’s
+  complaint states a cognizable § 1983 claim. The handwritten pro se document is to be liberally construed. · · · (omitted for
+  brevity) · · ·
+  953 F.2d 1073
+  it done so, ERISA still would govern unless the plan were “unfunded.” The exemption recognizes that a suit concerning
+  an unfunded plan is one directly against the employer’s assets, and as ERISA leaves excess benefit plans substantively
+  unregulated there is no reason to oust state law. · · · (omitted for brevity) · · ·
+
+
+Figure 8: Example GPT-4o generation that exhibits hallucination and low citation precision and recall. The input
+of generation is all referenced texts concatenated with all paragraphs before the gold paragraph in the original
+case document. The generation is supposed to generate all citations in the gold paragraph. Green italicized texts
+are citations successfully generated, yellow texts in teletype fonts are citation missed in generation, and
+red underlined texts are hallucinated citations. GPT-4o should cite all referenced cases (449 U.S. 5, 748 F.2d 1142,
+429 U.S. 97, 953 F.2d 1073). Instead, since we provide the actual texts of referenced cases, GPT-4o hallucinates
+citations from citations in referenced cases, which we underline with red color. In summary, the generation
+achieves the following results on citation metrics: CP = 3/5, CR = 3/4, CF P = 2/5.
+

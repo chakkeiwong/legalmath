@@ -5,11 +5,23 @@
 [Current assurance increment](../implementation/assurance-new-grant/README.md) ·
 [Instrument evidence](../implementation/instrument-evidence-closure/README.md)
 
-The current built draft contains a **359-page monograph**
-and a **78-page technical companion**. The monograph opens with an
-executive summary, a **24-page illustrated process guide** and ten chapters.
+The current built draft contains a **381-page monograph**
+and an **89-page technical companion**. The monograph opens with an
+executive summary, a **25-page illustrated process guide** and ten chapters.
 It follows circulars, prospectuses and transaction questions through
 interpretation, evidence, mathematics, execution and qualified assessments.
+
+The 5 October interpretation review adds section **6.40**, “What case law can
+contribute to an interpretation,” covering the remaining responsibility and
+request-condition disputes, precedent comparison, argumentation, evidence
+classification and precise executable readings. The
+[master program](../plans/legal-interpretation-master-program.md) supplies nine
+concrete implementation phases with repair and next-phase refresh requirements.
+Its [author review](../implementation/legal-interpretation-program/program-review.md)
+and [Claude handoff](../implementation/legal-interpretation-program/claude-handoff.md)
+distinguish proposed implementation from completed documentation. The current
+executive summary now reflects the controlling machine-only quality requirement.
+No product implementation phase or new model assessment was run for this addition.
 
 The latest assurance increment explains continued investigations, complete
 source context with bounded answers, repaired question identities and future
