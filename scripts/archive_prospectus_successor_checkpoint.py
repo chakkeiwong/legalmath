@@ -40,9 +40,13 @@ def contained(relative):
 
 
 def main():
+    global REL, OUT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["inventory", "pack", "verify", "restore"])
+    parser.add_argument("--campaign", choices=["successor", "repair"], default="successor")
     args = parser.parse_args()
+    REL = Path("docs/implementation/prospectus-" + args.campaign + "-2026-10-06")
+    OUT = ROOT / REL / "checkpoint"
     if args.command in {"inventory", "pack"}:
         files = [(p.stat().st_size, p) for p in untracked() if p.is_relative_to(ROOT / REL)]
         large = sorted(((n, p) for n, p in files if n >= LIMIT), reverse=True)
@@ -68,11 +72,11 @@ def main():
                 "archive": str(packed.relative_to(ROOT)), "archive_sha256": sha(packed),
                 "archive_bytes": packed.stat().st_size})
         manifest = {"format": "gzip-by-sha256.v1", "threshold_bytes": LIMIT, "files": records,
-            "restore_command": "python3 -m scripts.archive_prospectus_successor_checkpoint restore"}
+            "restore_command": "python3 -m scripts.archive_prospectus_successor_checkpoint restore --campaign " + args.campaign}
         (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
         ignore = ROOT / ".gitignore"
         old = ignore.read_text()
-        marker = "# Oversized successor evidence: exact bytes in checkpoint/manifest.json."
+        marker = "# Oversized " + args.campaign + " evidence: exact bytes in checkpoint/manifest.json."
         if marker in old:
             raise ValueError("Archive ignore block already exists")
         ignore.write_text(old.rstrip() + "\n\n" + marker + "\n" +

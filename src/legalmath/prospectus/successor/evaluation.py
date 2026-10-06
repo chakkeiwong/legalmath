@@ -4,13 +4,17 @@ from .contracts import digest
 VALUES = {"YES", "NO", "UNKNOWN", "CONFLICT"}
 
 
-def score(predictions, labels, cohort, identities):
+def score(predictions, labels, cohort, identities, method_sha256=None):
     if not cohort or len({c["id"] for c in cohort}) != len(cohort):
         raise ValueError("Distinct frozen cohort required")
     if len(set(identities.get("readers", []))) < 2 or not identities.get("adjudicator"):
         return {"status": "BLOCKED_INDEPENDENT_REVIEW", "scores": None}
-    if identities.get("implementer") in identities["readers"]:
-        raise ValueError("Implementer cannot provide independent first reading")
+    reviewers = identities["readers"] + [identities["adjudicator"]]
+    if len(set(reviewers)) != len(reviewers) or identities.get("implementer") in reviewers:
+        raise ValueError("Implementer, readers and adjudicator must be independent")
+    if not identities.get("implementer") or not isinstance(method_sha256, str) or len(method_sha256) != 64:
+        raise ValueError("Implementer identity and evaluated method hash required")
+    cohort_hash = digest(cohort)
     by_label, by_prediction = {}, {}
     for row in labels:
         key = (row["id"], row["question"])
@@ -18,6 +22,11 @@ def score(predictions, labels, cohort, identities):
             raise ValueError("Invalid independent label")
         if set(row["readers"]) != set(identities["readers"]) or not row.get("evidence"):
             raise ValueError("Unreviewed or unbound label")
+        if row.get("cohort_sha256") != cohort_hash or row.get("adjudicator") != identities["adjudicator"]:
+            raise ValueError("Label is not bound to this cohort and adjudicator")
+        if not all(isinstance(e, dict) and {"source_sha256", "quote", "start", "end"} <= set(e)
+                   and len(e["source_sha256"]) == 64 and e["quote"] and e["end"] > e["start"] for e in row["evidence"]):
+            raise ValueError("Label source occurrences required")
         by_label[key] = row
     for row in predictions:
         key = (row["id"], row["question"])
@@ -43,5 +52,8 @@ def score(predictions, labels, cohort, identities):
     for c in counts.values():
         c["useful_coverage"]=c["C"]/c["D"] if c["D"] else None
         c["wrong_supported_fraction"]=c["W"]/(c["C"]+c["W"]) if c["C"]+c["W"] else None
-    return {"status":"FINITE_DESCRIPTIVE_ONLY","counts":counts,"cohort_sha256":digest(cohort),
-            "statistically_supported_ranking":False,"population_accuracy":None}
+    report = {"status":"FINITE_DESCRIPTIVE_ONLY","counts":counts,"cohort_sha256":cohort_hash,
+              "method_sha256":method_sha256,"identities":identities,"labels_sha256":digest(labels),
+              "predictions_sha256":digest(predictions),"scope":sorted(counts),
+              "statistically_supported_ranking":False,"population_accuracy":None}
+    return {**report, "evaluation_sha256":digest(report)}

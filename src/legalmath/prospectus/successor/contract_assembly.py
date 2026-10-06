@@ -35,7 +35,7 @@ def assemble(graph, specification=None):
         text = unit["raw"]
         edits = sorted(op.get("edits", []), key=lambda e: e["start"])
         cursor = 0
-        fragments = []
+        fragments, character_map, output_offset = [], [], 0
         for edit in edits:
             start, end = edit["start"], edit["end"]
             if not cursor <= start <= end <= len(text) or text[start:end] != edit["old"]:
@@ -43,10 +43,20 @@ def assemble(graph, specification=None):
             if not edit.get("reason") or not edit.get("basis"):
                 raise ValueError("Deletion/substitution requires source basis")
             evidence = [anchor(graph, a) for a in edit["basis"]]
+            if start > cursor:
+                character_map.append({"start":output_offset,"end":output_offset+start-cursor,
+                                      "unit":unit["id"],"source_start":cursor,"source_end":start,"operation":"Text"})
+                output_offset += start-cursor
+            character_map.append({"start":output_offset,"end":output_offset+len(edit["new"]),
+                                  "unit":unit["id"],"source_start":start,"source_end":end,
+                                  "operation":"Substitution","basis":evidence,"reason":edit["reason"]})
+            output_offset += len(edit["new"])
             fragments.extend([text[cursor:start], edit["new"]])
             trace.append({**edit, "unit": unit["id"], "basis": evidence})
             cursor = end
         fragments.append(text[cursor:])
+        character_map.append({"start":output_offset,"end":output_offset+len(text)-cursor,
+                              "unit":unit["id"],"source_start":cursor,"source_end":len(text),"operation":"Text"})
         transformed = "".join(fragments)
         if not text.strip() and role == "OPERATIVE":
             role = "UNKNOWN"
@@ -54,12 +64,17 @@ def assemble(graph, specification=None):
             unresolved.append(unit["id"])
         assembled.append({"unit": unit["id"], "role": role, "reason": op["reason"],
             "text": transformed, "original_sha256": unit["text_sha256"],
+            "character_map": character_map,
             "questions": op.get("questions", ["Q1", "Q2"]), "order": op.get("order", len(assembled)),
             "context": op.get("context", unit["parent"]), "language": unit["language"],
             "source": {"document": unit["document"], "page": unit["page"], "bbox": unit["bbox"]}})
     assembled.sort(key=lambda r: r["order"])
-    return {"version": "assembled-contract.v1", "source_graph_sha256": digest(graph),
+    result = {"version": "assembled-contract.v2", "source_graph_sha256": digest(graph),
         "units": assembled, "operations": trace, "unresolved": unresolved,
         "status": "PARTIAL" if unresolved else "COMPLETE_UNDER_SUPPLIED_DISPOSITIONS",
         "independent_legal_review": False,
         "continuous_text": "\n".join(r["text"] for r in assembled if r["role"] in {"OPERATIVE", "UNKNOWN"})}
+    if specification.get("ast"):
+        from .construction_ast import assemble as construct_ast
+        return construct_ast(graph, specification["ast"], result)
+    return result

@@ -21,8 +21,21 @@ def main():
     phase.add_argument("--phase", choices=[f"P{i}" for i in range(9)], required=True)
     commands.add_parser("run")
     commands.add_parser("status")
+    check = commands.add_parser("check")
+    check.add_argument("tests", nargs="*", default=["tests/prospectus_successor", "tests/prospectus/test_closure_mechanisms.py"])
+    check.add_argument("--junitxml", help="Preserve the regression result for the execution record")
+    repair = commands.add_parser("repair")
+    repair.add_argument("--record", required=True)
     args = parser.parse_args()
-    if args.command == "status":
+    if args.command == "check":
+        import pytest
+        outputs = ["--junitxml=" + args.junitxml] if args.junitxml else []
+        raise SystemExit(pytest.main(["-q", *args.tests, *outputs]))
+    elif args.command == "repair":
+        from legalmath.prospectus.successor.controller import admit_record
+        from legalmath.prospectus.successor.contracts import read
+        result = admit_record(ROOT, read(args.record))
+    elif args.command == "status":
         result = refresh(ROOT)
     elif args.command == "phase":
         result = execute(ROOT, args.phase)

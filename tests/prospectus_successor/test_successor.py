@@ -16,6 +16,18 @@ PREFIX = "The Notes are unsecured obligations of the Issuer. The Notes will be r
 TIME = "2026-01-01T00:00:00Z"
 
 
+def legal_inputs(r, tmp_path):
+    graph = source_graph.build(r["bundle"], tmp_path)
+    u = graph["units"][0]
+    source = {"unit":u["id"],"document":u["document"],"source_sha256":u["source_sha256"],
+              "start":0,"end":len(u["raw"]),"quote":u["raw"]}
+    basis = {"id":"law","authority":"synthetic","jurisdiction":"X","edition":"1","source":source,
+             "valid_from":TIME,"known_from":TIME,"premises":list(AUTHORITY_FACTS),"instrument_id":"synthetic"}
+    facts = [{"name":n,"basis_id":"law","instrument_id":"synthetic","jurisdiction":"X","value":True,
+              "source":source,"valid_from":TIME,"known_from":TIME,"observed_at":TIME} for n in AUTHORITY_FACTS]
+    return graph, basis, facts
+
+
 def request(tmp_path, texts):
     path=tmp_path/"source.txt"
     path.write_text("\f".join(texts))
@@ -117,13 +129,10 @@ def test_month_order_and_missing_convention():
 
 def test_dated_authority_counterfactual(tmp_path):
     r=request(tmp_path,[PREFIX])
-    basis={"id":"law","authority":"synthetic","jurisdiction":"X","edition":"1","source":"synthetic:1",
-        "valid_from":TIME,"known_from":TIME,"premises":list(AUTHORITY_FACTS)}
-    facts=[{"name":n,"basis_id":"law","instrument_id":"synthetic","value":True,"source":"synthetic:fact",
-        "known_from":TIME,"observed_at":TIME} for n in AUTHORITY_FACTS]
-    assert law_facts.assess(r["bundle"],[basis],facts)["status"]=="YES"
+    g, basis, facts = legal_inputs(r, tmp_path)
+    assert law_facts.assess(r["bundle"],[basis],facts,g)["status"]=="YES"
     basis["known_from"]="2027-01-01T00:00:00Z"
-    assert law_facts.assess(r["bundle"],[basis],facts)["status"]=="UNKNOWN"
+    assert law_facts.assess(r["bundle"],[basis],facts,g)["status"]=="UNKNOWN"
 
 
 def test_no_independent_review_no_release():
@@ -192,18 +201,15 @@ def test_financial_missing_premises_and_wrong_source(tmp_path):
 
 def test_legal_fact_conflict_is_retained(tmp_path):
     r=request(tmp_path,[PREFIX])
-    b={"id":"law","authority":"synthetic","jurisdiction":"X","edition":"1","source":"s",
-       "valid_from":TIME,"known_from":TIME,"premises":list(AUTHORITY_FACTS)}
-    facts=[{"name":n,"basis_id":"law","instrument_id":"synthetic","value":True,"source":"f",
-        "known_from":TIME,"observed_at":TIME} for n in AUTHORITY_FACTS]
+    g, b, facts = legal_inputs(r, tmp_path)
     facts.append({**facts[0],"value":False})
-    assert law_facts.assess(r["bundle"],[b],facts)["status"]=="CONFLICT"
+    assert law_facts.assess(r["bundle"],[b],facts,g)["status"]=="CONFLICT"
 
 
 def test_controller_receipt_mutation_invalidates_descendant(tmp_path,monkeypatch):
     from legalmath.prospectus.successor import controller as c
     from legalmath.prospectus.successor.contracts import write
-    monkeypatch.setattr(c,"bindings",lambda root:{"code":"fixed"})
+    monkeypatch.setattr(c,"bindings",lambda root,phase=None:{"code":"fixed"})
     state={}
     for phase in ("P0","P1"):
         p=tmp_path/phase;p.mkdir()
@@ -221,17 +227,18 @@ def test_controller_receipt_mutation_invalidates_descendant(tmp_path,monkeypatch
 def test_evaluator_accounts_for_finite_denominator():
     cohort=[{"id":"a","questions":["Q1"]},{"id":"b","questions":["Q1"]}]
     ids={"readers":["r1","r2"],"adjudicator":"r3","implementer":"author"}
-    labels=[{"id":k,"question":"Q1","value":v,"blinded":True,"readers":["r1","r2"],"evidence":["s"]}
+    labels=[{"id":k,"question":"Q1","value":v,"blinded":True,"readers":["r1","r2"],
+             "adjudicator":"r3","cohort_sha256":digest(cohort),
+             "evidence":[{"source_sha256":"a"*64,"quote":"s","start":0,"end":1}]}
         for k,v in [("a","YES"),("b","NO")]]
     predictions=[{k:r[k] for k in ("id","question","value")} for r in labels]
-    out=score(predictions,labels,cohort,ids)
+    out=score(predictions,labels,cohort,ids,"b"*64)
     assert out["counts"]["Q1"]["correct_positive"]==1
     assert out["counts"]["Q1"]["correct_negative"]==1
     assert out["counts"]["Q1"]["N"]==2
-    with pytest.raises(ValueError):score(predictions[:1],labels,cohort,ids)
+    with pytest.raises(ValueError):score(predictions[:1],labels,cohort,ids,"b"*64)
 
 
 def test_guarded_release_needs_both_positive_and_negative():
     ev={"status":"FINITE_DESCRIPTIVE_ONLY","counts":{"Q1":{"W":0,"C":1,"undecidable":0}}}
     assert release(ev,[{"question":"Q1"}],[{"reviewer":"a","accepted":True},{"reviewer":"b","accepted":True}])["status"]=="BLOCKED"
-

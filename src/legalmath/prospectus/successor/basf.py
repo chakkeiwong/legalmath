@@ -37,8 +37,23 @@ def construct(graph, admission):
         raw += line["raw"] + "\n"
         source_map.append({"start": start, "end": len(raw)-1, "unit": line["id"],
                            "page": line["page"], "bbox": line["bbox"]})
+    decisions = {d["id"]: d for d in admission["decisions"]}
+    # Printed p112 has no closing bracket for the long-coupon alternative.
+    # Its margin rule and the next definition delimit this explicitly unselected
+    # branch. Never insert punctuation or let its stack swallow the whole contract.
+    malformed = []
+    if decisions["long_stub"]["selected"] is False:
+        starts = [m.start() for m in re.finditer(re.escape("[die Summe aus:"), raw)]
+        if len(starts) == 1:
+            a = starts[0]
+            b = raw.find('["Bezugsperiode" bezeichnet', a)
+            if b < 0 or not any(s["start"] <= a <= s["end"] and s["page"] == 112 for s in source_map):
+                raise ValueError("Reviewed malformed-branch geometry changed")
+            malformed.append((a,b))
     pairs, stack, unbalanced = [], [], []
     for i, ch in enumerate(raw):
+        if any(a <= i < b for a,b in malformed):
+            continue
         if ch == "[":
             stack.append(i)
         elif ch == "]":
@@ -48,7 +63,6 @@ def construct(graph, admission):
             else:
                 unbalanced.append(i)
     unbalanced += stack
-    decisions = {d["id"]: d for d in admission["decisions"]}
     # Each rule locates a full balanced source branch, not just an anchor quote.
     deletion_rules = [
         ("permanent_global", r"^\[\(3\) Dauerglobal", "permanent"),
@@ -57,10 +71,39 @@ def construct(graph, admission):
         ("canada", r"^\[\(5\) Interest Act \(Canada\)", None),
         ("rmb_settlement", r"^\[\(7\) \(a\) Zahlungsverschiebung", None),
         ("finance_successor", r"^\[\(d\) sichergestellt ist, dass sich die Verpflichtungen der Garantin", None),
+        ("cbf", r"^\[Clearstream Banking AG,", "cbf"),
+        ("cds", r"^\[CDS & Co\.", "cds"),
+        ("classical_global", r"^\[Die Schuldverschreibungen werden in Form einer Classical", "classical_global"),
+        ("cds_ownership", r"^\[Das wirtschaftliche Eigentum an der Dauerglobalurkunde", "cds"),
+        ("cds_holder", r"^\[Im Fall von Schuldverschreibungen, die durch eine Dauerglobalurkunde", "cds"),
+        ("different_rates", r"^\[Die Schuldverschreibungen werden bezogen auf ihren Gesamtnennbetrag wie folgt", "different_rates"),
+        ("initial_broken", r"^\[Sofern der erste Zinszahlungstag nicht der erste Jahrestag", "initial_broken"),
+        ("final_broken", r"^\[Sofern der Fälligkeitstag kein Festzinstermin", "final_broken"),
+        ("actual_365", r"^\[die tatsächliche Anzahl von Tagen im Zinsberechnungszeitraum, dividiert durch 365", "actual_365"),
+        ("bond_basis", r"^\[die Anzahl von Tagen im Zinsberechnungszeitraum, dividiert durch 360", "bond_basis"),
+        ("eurobond_basis", r"^\[die Anzahl der Tage im Zinsberechnungszeitraum, dividiert durch 360", "eurobond_basis"),
+        ("cds_payment", r"^\[Zahlung von Kapital und Zinsen, Erfüllung", "cds"),
+        ("payment_centres", r"^\[ein Tag.*?Geschäftsbanken", "payment_centres"),
+        ("transaction_call_reference", r"^\[Falls die Emittentin das Wahlrecht hat, die Schuldverschreibungen vorzeitig nach Veröffentlichung", "transaction_call"),
+        ("rmb_call", r"^\[\[\(7\)\] Vorzeitige Rückzahlung", "rmb_call"),
+        ("transaction_call", r"^\[\[\(9\)\] Vorzeitige Rückzahlung", "transaction_call"),
+        ("canadian_agent", r"^\[Fiscal Agent und", "cds"),
+        ("representative_terms", r"^\[Gemeinsamer Vertreter ist", "representative_terms"),
+        ("english_controls", r"^\[Diese Anleihebedingungen sind in englischer Sprache", "english_controls"),
+        ("annual_short", r"^\[die Anzahl von Tagen.*?geteilt durch die Anzahl der Tage", "annual_short"),
+        ("multiple_periods", r"^\[die Anzahl von Tagen.*?geteilt durch das Produkt", "multiple_periods"),
+        ("short_reference_adjustment", r"^\[Im Fall eines ersten oder letzten kurzen Zinsberechnungszeitraumes", "annual_short"),
+        ("long_reference_adjustment", r"^\[Im Fall eines ersten oder letzten langen Zinsberechnungszeitraumes", "long_stub"),
+        ("uk_benchmark", r"^\[durch HM Treasury", "uk_benchmark"),
+        ("swiss_benchmark", r"^\[Schweizer Franken-Referenz", "swiss_benchmark"),
+        ("us_benchmark", r"^\[Referenz-U.S.", "us_benchmark"),
     ]
-    edits, applied = [], []
+    edits = [{"start":a,"end":b,"old":raw[a:b],"new":"","reason":"Unselected long-coupon alternative; printed p112 margin boundary",
+              "basis":decisions["long_stub"]["source"],"review":"IMPLEMENTER_SOURCE_IMAGE_REVIEW"} for a,b in malformed]
+    applied = [{"rule":"long_stub_malformed","status":"DELETED","start":a,"end":b,
+                "source_defect":"Missing closing bracket in printed source, not repaired by insertion"} for a,b in malformed]
     for name, pattern, selection in deletion_rules:
-        matches = [(a,b,d) for a,b,d in pairs if re.search(pattern, raw[a:b])]
+        matches = [(a,b,d) for a,b,d in pairs if re.search(pattern, " ".join(raw[a:b].split()))]
         if selection and selection not in decisions:
             continue
         if selection and decisions[selection]["selected"]:
@@ -73,12 +116,55 @@ def construct(graph, admission):
         edits.append({"start": a, "end": b, "old": raw[a:b], "new": "", "reason": name,
                       "basis": basis, "review": "IMPLEMENTER_PROPOSAL"})
         applied.append({"rule": name, "status": "DELETED", "start": a, "end": b})
+    # Selected brackets are syntax around a branch, not contractual characters.
+    # Remove only their own delimiters; nested unresolved fields stay explicit.
+    resolved_pairs = set()
+    selected_rules = [
+        ("temporary_global", r"^\[\(3\) Vorläufige Globalurkunde", False),
+        ("new_global", r"^\[Die Schuldverschreibungen werden in Form einer New Global", False),
+        ("single_rate", r"^\[Die Schuldverschreibungen werden bezogen auf ihren Gesamtnennbetrag verzinst", False),
+        ("annual_no_stub", r"^\[die tatsächliche Anzahl von Tagen.*?jeweiligen Zinsperiode", False),
+        # Printed p112 says this definition applies to ALL Actual/Actual options.
+        # The unchecked final-terms reference-period item does not delete it.
+        ("icma", r'^\["Bezugsperiode" bezeichnet', False),
+        ("payment_target", r"^\[ein Tag.*?Trans-European", False),
+        ("change_of_control", r"^\[\(3\) Kontrollwechsel", False),
+        ("dated_call", r"^\[\[\(4\)\] Vorzeitige Rückzahlung", False),
+        ("make_whole_call", r"^\[\[\(5\)\] Vorzeitige Rückzahlung", False),
+        ("cleanup_call", r"^\[\[\(8\)\] Rückkauf", False),
+        ("higher_pv", r"^\[\(b\) Für die Zwecke", False),
+        ("euro_benchmark", r"^\[Euro-Referenz-Anleihe", False),
+        ("representative_vote", r"^\[Die Gläubiger können durch Mehrheitsbeschluß", False),
+        ("notice_web", r"^\[\(1\) Bekanntmachung", False),
+        ("notice_clearing", r"^\[\(1\) Mitteilungen an das Clearing System", False),
+        ("german_controls", r"^\[Diese Anleihebedingungen sind in deutscher Sprache abgefasst. Eine Übersetzung", False),
+        ("new_global", r"^\[Falls die Globalurkunde eine NGN ist", True),
+        ("temporary_global", r"^\[Falls die vorläufige Globalurkunde eine NGN ist", True),
+        ("temporary_global", r"^\[Die Zahlung von Zinsen auf Schuldverschreibungen, die durch die vorläufige", False),
+    ]
+    for selection, pattern, instruction in selected_rules:
+        if not decisions[selection]["selected"]:
+            continue
+        matches = [(a,b) for a,b,_ in pairs if re.search(pattern," ".join(raw[a:b].split()))]
+        if len(matches) != 1:
+            applied.append({"rule":selection+":selected", "status":"UNRESOLVED", "matches":len(matches)})
+            continue
+        a,b = matches[0]
+        opening_end = raw.index(":",a,b)+1 if instruction else a+1
+        for left,right in ((a,opening_end),(b-1,b)):
+            edits.append({"start":left,"end":right,"old":raw[left:right],"new":"",
+                          "reason":"Selected branch "+selection,"basis":decisions[selection]["source"],
+                          "review":"IMPLEMENTER_SOURCE_READING"})
+        resolved_pairs.add((a,b))
+        applied.append({"rule":selection+":selected","status":"SELECTED","start":a,"end":b})
     # Only source-supported scalars; unresolved placeholders remain literal.
     substitutions = [
         ("[BASF SE] [BASF Finance Europe N.V.]", "BASF SE", "issuer"),
         ('["BASF"]["BASF Finance"]', '"BASF"', "issuer"),
         ("[festgelegte Währung]", "Euro (EUR)", "currency"),
         ("[festgelegte Stückelung]", "EUR 100.000", "denomination"),
+        ("[Zinssatz]", "4,250", "rate"),
+        ("[erster Zinszahlungstag]", "8. März 2024", "first_interest"),
     ]
     context = {c["id"]: c for c in admission["issue_context"]}
     for old, new, key in substitutions:
@@ -89,22 +175,32 @@ def construct(graph, admission):
                 "reason": "Final terms " + key, "basis": context[key]["source"],
                 "review": "IMPLEMENTER_PROPOSAL"})
     edits.sort(key=lambda e:e["start"])
-    cursor, parts, output_map = 0, [], []
+    cursor, parts, output_map, character_map = 0, [], [], []
+    output_offset = 0
+    def append_part(left, right, text, operation, basis=None):
+        nonlocal output_offset
+        parts.append(text)
+        if text:
+            character_map.append({"start":output_offset,"end":output_offset+len(text),
+                                  "raw_start":left,"raw_end":right,"operation":operation,"basis":basis})
+            output_offset += len(text)
     for e in edits:
         if e["start"] < cursor or raw[e["start"]:e["end"]] != e["old"]:
             raise ValueError("BASF assembly overlap")
-        parts.append(raw[cursor:e["start"]])
-        parts.append(e["new"])
+        append_part(cursor,e["start"],raw[cursor:e["start"]],"COPY")
+        append_part(e["start"],e["end"],e["new"],"SUBSTITUTE",e["basis"])
         output_map.append({**e, "source_units": [s["unit"] for s in source_map if
             s["start"] < e["end"] and s["end"] > e["start"]]})
         cursor=e["end"]
-    parts.append(raw[cursor:])
+    append_part(cursor,len(raw),raw[cursor:],"COPY")
     candidate="".join(parts)
     remaining=[{"start":a,"end":b,"depth":d,"preview":" ".join(raw[a:min(b,a+200)].split())}
-        for a,b,d in sorted(pairs) if not any(e["start"] <= a and b <= e["end"] for e in edits)]
+        for a,b,d in sorted(pairs) if (a,b) not in resolved_pairs and not any(e["start"] <= a and b <= e["end"] for e in edits)]
     return {"instrument_id": admission["issue_id"], "source_sha256": SHA,
+        "source_defects": [{"start":a,"end":b,"kind":"missing bracket in unselected long-coupon alternative",
+                            "source_page":112,"decision":"excluded by final terms long_stub=false"} for a,b in malformed],
         "raw_body": raw, "source_map": source_map, "unit_accounting": accounting,
-        "candidate_text": candidate, "operations": output_map, "rules": applied,
+        "candidate_text": candidate, "character_map":character_map, "operations": output_map, "rules": applied,
         "remaining_brackets": remaining, "unbalanced_offsets": unbalanced,
         "conditional_branches": admission["conditional_branches"],
         "annual_range_discrepancy": admission["annual_2022"]["range_discrepancy"],
@@ -139,6 +235,8 @@ def as_assembly(graph, construction):
             text="".join(parts)
             if not text.strip() and u["raw"].strip():
                 role="EXCLUDED"
+        if not u["visible"]:
+            role="EXCLUDED"
         units.append({"unit":u["id"],"text":text,"role":role,"questions":["Q1","Q2"],
             "context":u["document"]+":german-option-i" if mapping else u["document"]+":"+u["parent"],
             "source":{"document":u["document"],"page":u["page"],"bbox":u["bbox"]},
@@ -148,4 +246,3 @@ def as_assembly(graph, construction):
         "units":units,"operations":construction["operations"],"status":"PARTIAL",
         "unresolved":[u["unit"] for u in units if u["role"]=="UNKNOWN"],
         "continuous_text":construction["candidate_text"],"independent_legal_review":False}
-

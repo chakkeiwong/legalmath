@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import os
 
-VERSION = "prospectus-successor.v1"
+VERSION = "prospectus-successor.v2"
 QUESTIONS = {
     "Q1": "Contractual principal loss; statutory disclosure reported separately",
     "Q2": "Compulsory common conversion, possible common and common-only alternatives",
@@ -39,6 +39,11 @@ def write(path, value):
         stream.flush()
         os.fsync(stream.fileno())
     os.replace(tmp, path)
+    descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def bound_path(root, relative):
@@ -92,6 +97,10 @@ class QueryResult:
 
 
 def validate_request(request):
+    from .anchors import fields
+    fields(request, {"version", "bundle", "assembly", "construction", "clauses", "scope",
+                     "reference_dispositions", "law_bases", "law_relation", "facts",
+                     "financial_scenario", "bank", "observations"}, {"version", "bundle"})
     if request.get("version") != VERSION:
         raise ValueError("Unsupported request version")
     bundle = request["bundle"]

@@ -1,8 +1,11 @@
 # Production repair program for P0–P6
 
-Status: **reviewed proposal, with isolated reference checks executed**.
-Production implementation is not claimed complete. This replaces repeated
-unchanged phase execution as the proposed route to delivery. Baseline:
+Status: **reviewed and executed in production, with incomplete contract and
+legal acceptance obligations** (updated 7 October 2026).
+The [execution record](prospectus-phase-repair-execution-2026-10-06.md) and
+[results](../implementation/prospectus-repair-2026-10-06/RESULT.md) distinguish
+implemented repairs from remaining R2--R6 obligations. This replaces repeated
+unchanged phase execution as the route to delivery. Diagnostic baseline:
 `7fd9c4e864c22da1e8a5df8ed7bc5c59331eb25f`.
 Evidence: [diagnosis](../implementation/prospectus-phase-roots-2026-10-06/ROOT-CAUSE-AND-SOLUTION.md),
 [probes](../implementation/prospectus-phase-roots-2026-10-06/counterexamples.json),
@@ -252,8 +255,8 @@ python3 -m scripts.audit_prospectus_phase_roots
 python3 -m scripts.check_prospectus_phase_reference
 ```
 
-The first reproduces the pinned **current defects** and is expected to need a
-separate forward regression mode after production repair; do not overwrite its
+The first records **historical baseline defects**; do not rerun it against the
+repaired production code expecting its old assertions to pass, or overwrite its
 historical observations with changed expected behavior. The second checks
 isolated specifications and is not a delivery command.
 
@@ -265,9 +268,11 @@ python3 -m scripts.prospectus_delivery phase --phase P4
 python3 -m scripts.prospectus_delivery phase --phase P6
 ```
 
-Do not run those now and call reuse a repair. The production repair interface,
-forward regressions and new run directory must be implemented before accepting
-new receipts. Local source/docs/test edits and offline checks are already within
+The production repair interface, forward regressions and separate run directory
+are now implemented. The exact verification command is
+`python3 -m scripts.verify_prospectus_repairs`; bounded follow-up repairs may use
+`--focused` while preserving the preceding broader result. Reuse is still not
+a repair. Local source/docs/test edits and offline checks are already within
 the authorized scope. Group any genuine new network/model/resource permissions
 only after the concrete command and evidence need are known.
 
