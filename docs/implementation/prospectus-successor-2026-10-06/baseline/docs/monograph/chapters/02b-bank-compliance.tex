@@ -1,0 +1,417 @@
+\section{The bank and the transaction also determine eligibility}
+\label{sec:bank-compliance}
+
+An ordinary bond can have straightforward payment terms and still be unavailable
+for a particular transaction. The client may be prohibited from acquiring it;
+the bank may be prohibited from dealing in it; or the bank may lack information
+needed to establish which restrictions apply. The CoCo example therefore exposes
+a general question. After explaining what an instrument promises, the system
+must establish what the participating institutions and clients may do with it.
+Changing the instrument from an AT1 bond to a preferred share, a fund or an
+ordinary equity does not remove that question.
+
+\subsection{Identify the institution before selecting its rules}
+
+Consider a private-banking service provided through a Hong Kong office.
+JPMorgan's public Asia disclosure identifies JPMorgan Chase Bank, N.A., Hong
+Kong or Singapore branch as the provider of dealing, advisory, discretionary
+management, banking and custody services, as notified to the client. It also
+describes the Hong Kong branch's local regulatory supervision. The same page
+identifies other legal entities in other jurisdictions. Consequently, the
+J.P. Morgan brand alone cannot identify the legal person undertaking a trade;
+the account and service documents must establish that person and its capacity
+\citep[Asia service-provider disclosure]{jpmprivatebank2026}.
+
+The US Treasury's Office of Foreign Assets Control (OFAC) includes foreign
+branches of US entities among US persons. A separately incorporated foreign
+subsidiary requires a program-specific inquiry: some programs extend obligations
+to subsidiaries owned or controlled by US persons. The system must preserve
+that relationship and apply the particular program's definition
+\citep[FAQ 11]{ofacuspersons2024}. For the Chinese securities regime, Executive
+Order 13959, as amended by Executive Order 14032, includes foreign branches
+within its US-entity definition, alongside US citizens, lawful permanent
+residents and persons in the United States. The investor's and the bank's
+statuses must therefore be recorded separately
+\citep[replacement section 3(d)]{eo140322021}.
+
+The account's booking entity is only the beginning. Advice, execution, custody
+and payment processing may involve different entities. Each participant needs
+an identified role, location and applicable obligations. A decision about an
+advisory service cannot automatically authorize principal dealing by the bank,
+and permission for a purchase cannot automatically authorize a subsequent
+transfer or conversion. These are distinctions the proposed data model must
+retain even when a particular legal rule ultimately treats two cases alike.
+
+\subsection{A US intermediary is different from a US investor}
+
+The Chinese military-industrial securities restrictions supply a useful
+counterexample to an overly broad institutional rule. Suppose, conditionally,
+that the issuer is designated, the security is covered, the restriction has
+taken effect, and no relevant authorization or divestment exception applies.
+A purchase by a US person is then prohibited under the amended executive order.
+Neither Chinese state ownership alone nor an instrument's AT1 label establishes
+these premises; designation, security coverage and dates require their own
+evidence \citep[replacement section 1]{eo140322021}.
+
+Now change the bank's capacity while preserving those instrument facts. OFAC
+permits specified investment advisory and management services for a non-US
+person when the underlying transaction is otherwise permissible. Its guidance
+explicitly addresses the ultimate benefit of US persons and evasion. This means
+that a US bank's involvement does not by itself establish that every non-US
+client transaction is prohibited \citep[FAQ 902]{ofaccmicservices2021}. OFAC also
+states that US financial institutions may continue to intermediate qualifying
+transactions between non-US persons. Conversely, a prohibited transaction under
+this particular order must be rejected; the order does not itself require an
+asset freeze \citep[FAQ 1048]{ofaccmicintermediation2022}. The system therefore
+needs the actual service and beneficial parties, rather than an undifferentiated
+``US bank involved'' flag.
+
+Time and action introduce another distinction. OFAC permits continued holding
+after the relevant divestment period, although a purchase or sale after that
+period requires authorization. An instruction to sell an existing holding can
+therefore require a different answer from an instruction to retain it
+\citep[FAQ 1046]{ofaccmicholding2022}. The exact prohibition and divestment dates
+depend on the designation history; an old prospectus cannot supply later list
+changes \citep[FAQ 899]{ofaccmicdates2021}. Automatic conversions, redemptions
+and other corporate actions require their own analysis. The present conditional
+implementation supports buying, selling and holding; it leaves an unsupported
+action unresolved.
+
+Ownership also has program-specific meaning. Under OFAC's blocking ownership
+rule, suppose blocked person X owns half of company A and A owns half of company
+B. A becomes blocked through X's ownership, and B becomes blocked through A's
+ownership. Multiplying the two fractions and treating B as merely one-quarter
+owned by X misses the applicable propagation. Multiple blocked owners' direct
+stakes must also be aggregated \citep[FAQ 401, examples 1--3]{ofacownership2014}.
+Under the Chinese military-industrial securities regime, however, a subsidiary
+must itself be designated: the blocking ownership rule does not apply merely
+because its parent appears solely on the Chinese military-industrial securities list
+\citep[FAQ 857]{ofaccmicsubs2021}. A reusable ownership graph consequently needs
+a rule that states which relationships have legal consequences in each program.
+
+\subsection{Compliance includes institutional and account obligations}
+
+Sanctions are one source of additional restrictions. The retained regulation of
+the Office of the Comptroller of the Currency (OCC) requires national banks to maintain a written Bank Secrecy Act
+compliance program, with internal controls, independent testing, designated
+responsibility and personnel training. It also addresses customer identification
+within that program \citep[12 CFR 21.21(c)--(d), 2025 edition]{occbsa2025}.
+These obligations concern the institution's conduct and controls. Reading a
+security's prospectus cannot establish that the bank has performed them.
+
+Applicability still precedes assessment. In the retained 2025 rules,
+31 CFR 1010.620(a) addresses defined private-banking accounts established,
+maintained, administered or managed in the United States. The account definition
+adds conditions concerning the required minimum aggregate assets, non-US owners
+and a liaison with the institution. Thus neither the commercial description
+``private banking'' nor a Hong Kong office address alone decides whether that
+particular US provision applies. Its substantive requirements include ownership,
+source-of-funds and account-activity inquiries, with enhanced scrutiny for the
+specified foreign political figures
+\citep[31 CFR 1010.605(m), 2025 edition]{fincenprivatebankdef2025}
+\citep[31 CFR 1010.620(a)--(d), 2025 edition]{fincenprivatebankdd2025}.
+Those editions illustrate the scope distinction; their preservation does not
+establish that every provision remains current for a later transaction.
+
+The proposed system separates these institutional and account requirements from
+product distribution and conduct rules. It also reserves a distinct place for
+the bank's internal policies and the client's mandate. An internal restricted
+list or product policy can prevent a service even where the examined public law
+does not prohibit it. The repository has not received JPMorgan's actual internal
+policies, so their requirements and permitted exceptions remain missing inputs.
+They must not be reconstructed from a public marketing disclosure.
+
+Finally, execution and custody require the actual settlement route and relevant
+reporting duties. A requirement to investigate an account, reject a trade,
+freeze specified property or make a report has a different legal effect. The
+decision must preserve those distinctions. A generic negative eligibility flag
+cannot safely stand for all four actions, and satisfying one duty does not
+establish that all the others have been performed.
+
+\subsection{Compose the obligations without erasing qualifications}
+
+The common front end now needs to supply two kinds of information together:
+the instrument's sourced terms and the transaction's parties, institutions,
+services and dates. Rule packs selected for that context supply the applicable
+requirements. In the Python implementation these are organized into seven
+assessment categories: scope and coverage; sanctions; bank regulation and
+licensing; client and account controls; product distribution and conduct; bank
+policy and mandate; and settlement, custody and reporting. The categories are
+a software design choice. They do not assert that every relevant rule has
+already been discovered or implemented.
+
+Each required assessment carries a result, a reason, source references and a
+recorded validity interval. A finding that a rule does not apply needs evidence
+just as a finding that its requirements are satisfied does. Unknown, conflicting,
+expired and missing findings prevent an affirmative result. The binding also
+identifies the instrument, client, booking entity, establishment, service,
+action, transaction time, knowledge time, and content hashes for the facts,
+settlement route and policy snapshot. Changing any of them invalidates the
+earlier bound finding. Checking a source's hash establishes unchanged bytes;
+the scope assessment must separately address legal currentness and meaning.
+
+The conjunction has a simple conditional justification. Let $R$ be the finite
+set of declared requirements. Let $S$ contain requirements supported as satisfied
+or inapplicable by valid, consistent findings for this context. Let $U$ contain
+requirements with unresolved findings, and let $C$ mean that every required
+assessment category is represented. The implementation's permission within
+that declared scope is
+\[
+   P = C \;\land\; (R\subseteq S) \;\land\; (U=\varnothing).
+\]
+A valid prohibition excludes its requirement from $S$, and a conflicting
+favorable finding also places that requirement in $U$. Either prevents $P$.
+An absent bank-policy assessment has the same practical consequence for
+permission, but its explanation is missing evidence rather than a proved legal
+prohibition. A favorable product assessment cannot alter either result.
+
+Representing every category still leaves a possible omission. A program could
+receive one favorable assessment in each category while never being asked
+about another applicable restriction. The integrated investigation therefore
+starts from a versioned inventory of fourteen declared obligations. A request
+cannot shorten that inventory or supply its own completed findings. Requirements
+without an executable interpretation remain visible, including other sanctions
+programs, licensing, issuer law and the unavailable internal bank policy. This
+prevents omissions within the declared inventory; discovering every obligation
+outside it remains a separate legal question.
+
+The factual references now retrieve the underlying documents. For a structured
+account record, the program reads the named field, checks its type and preserves
+disagreement between records. Source dependencies, effective dates, knowledge
+dates and amendments are checked separately. Consider the private-account
+definition above: the required minimum deposit and the places where the account
+is administered or managed enter the calculation as distinct premises. A large
+current balance cannot replace the required contractual minimum. A quoted
+provision or an unchanged document still does not establish that a proposed
+interpretation follows from it.
+
+The resulting conditional specifications use the shared RuleIR and Catala
+translation machinery. They include entity scope, selected sanctions,
+institutional controls, private-account diligence and reporting requirements,
+together with the existing product calculations. Formal-expression preservation
+is checked separately from compiled execution. An independently written
+mathematical specification supplies another comparison for the Boolean rules
+and exact monetary thresholds. Agreement between programs therefore supports
+their stated formal consequences while leaving the interpretation of the legal
+sources explicit.
+
+Changes after an assessment also matter. The event record distinguishes a new
+source, an account change, a different settlement route and a corporate action.
+Each requires reassessment before the earlier decision can be reused. Reporting
+and other duties retain their responsible party, trigger, deadline and supporting
+evidence. A recorded completion document establishes that evidence was supplied;
+it does not independently establish that the real action occurred. When the
+integrated example uses the preserved public documents without a real account
+or internal bank policy, its transaction decision consequently remains qualified.
+
+The checks enumerate every combination of satisfied, prohibited and unknown
+across the seven categories, giving $3^7=2{,}187$ cases. Further cases challenge
+conflicts, non-applicability, missing policy, source changes and changed entity,
+action or time. The ownership calculation has an independent finite check: for
+each of 512 three-entity graph and initial-blocking combinations, the test
+intersects every ownership-closed superset of the initial blocked entities and
+compares that set with the implementation's result. The algorithm is monotone
+and terminates on a finite graph; induction shows that every closed superset
+contains each entity it adds. Its terminal set is therefore the least closed
+superset under the supplied ownership premises.
+
+No human quality labels are used in these checks. They establish properties of
+the declared formal rules and the handling of missing evidence. Correctness of
+a new legal interpretation, completeness of an ownership register and coverage
+of future amendments remain separate obligations. The system can generalize by
+applying checked semantics to new supported facts and qualifying unsupported
+situations; it cannot turn today's finite legal collection into a proof about
+every law that might govern a future transaction.
+
+\subsection{One investor, two CoCo offering decisions}
+\label{sec:coco-purchaser-cases}
+
+A useful positive and negative test can hold the investor fixed while changing
+the security. Consider a hypothetical individual resident and located in the
+United States, buying USD~200,000 principal for their own account and benefit.
+Compare the original offering terms of two actual contingent convertible
+securities: Barclays PLC's February 2025 issue and Standard Chartered PLC's
+January 2025 issue. The question is whether that investor satisfies the
+specified US purchaser conditions. Approval below means passing this particular
+condition; it does not mean that a regulator approved the investment or that
+the bank may execute the transaction. The different issue dates are retained:
+this is a comparison of preserved offering terms, not an assertion that both
+primary offers are open today.
+
+The relevant investor category needs explanation before either document can be
+applied. A \emph{qualified institutional buyer}, or QIB, is a category defined
+by Rule~144A for specified institutions and accounts. An individual's wealth
+or Hong Kong professional-investor status does not turn that individual into
+a QIB. For this case, non-QIB status is an explicit hypothetical premise.
+Regulation~S uses a separate definition of US person, which includes a natural
+person resident in the United States. The branch and account exceptions in that
+definition also show why the sanctions definition of US person discussed above
+must not simply be reused. The comparison retains both the purchaser's status
+and the beneficiary of the purchase
+\citep[Rule~144A(a)(1); Regulation~S, section~230.902(k)]{rule144acoco2025,regsdefinitions2025}.
+
+The first security is Barclays PLC's USD~1.5~billion 7.625\% Fixed Rate Resetting
+Perpetual Subordinated Contingent Convertible Securities, with international
+securities identification number (ISIN)
+\texttt{US06738EDC66}. The supplement is dated 18~February 2025 and identifies
+25~February as the expected delivery date. It identifies its Form~F-3
+registration statement; the underwriting section describes an offer directly
+to the public. The minimum denomination is USD~200,000, with USD~1,000 increments.
+These affirmative offering provisions support the declared public US
+distribution route. In particular, ``registered form'', which describes how
+ownership is recorded, is not itself the evidence of Securities Act registration
+\citep[cover; pp.~S-6, S-22 and S-99]{barclayscoco2025}.
+
+The second security is Standard Chartered PLC's USD~1~billion 7.625\% Fixed Rate
+Resetting Perpetual Subordinated Contingent Convertible Securities. Its offering
+circular is dated 8~January 2025 and specifies issue on 16~January. The restricted
+and offshore identifiers are \texttt{US853254DF47} and \texttt{USG84228GP72}.
+It has the same minimum denomination and increment. Its US distribution,
+however, is limited to QIBs; the alternative described in the circular is an
+offshore distribution to non-US persons. The purchaser representations also
+distinguish acquisition for one's own account from acquisition for a QIB's
+account. Our individual satisfies neither the institutional route nor the
+offshore route \citep[pp.~i, 14--15, 140 and 148--149]{standardcharteredcoco2025}.
+
+The order size therefore does not explain the difference. Under the declared
+interpretations, the comparison is:
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+Original issue & Distribution relevant to this purchaser & Purchaser condition \\
+\midrule
+Barclays, February 2025 & Public US offering & Pass \\
+Standard Chartered, January 2025 & QIB-only US distribution & Fail \\
+\bottomrule
+\end{tabularx}
+\end{center}
+Neither row establishes SFC product approval or an entitlement to an allocation
+from the underwriters.
+
+The conditional rule can now be stated precisely. Let $R$ mean that the
+declared route is the public US distribution, and $T$ that it is the specified
+Rule~144A/Regulation~S distribution. Let $Q$ mean that the purchaser is a QIB
+and buys for its own account or a QIB's account. Finally, let $O$ mean that the
+transaction is offshore, the purchaser and beneficial account satisfy the
+specified non-US conditions, and the purchaser is not an issuer affiliate.
+The selected purchaser condition is
+\[
+   G = R \;\lor\; \bigl[T\land(Q\lor O)\bigr].
+\]
+For Barclays, the declared public distribution makes $R$ true. For Standard
+Chartered, $R$ is false and $T$ is true, but our investor makes both $Q$ and $O$
+false. The equation therefore yields opposite results from the same investor
+premises. It represents these purchaser conditions, not every condition of
+either securities-law exemption, every jurisdiction's selling restrictions or
+the effectiveness of a registration statement.
+
+Changing the purchaser tests whether this result has been tied incorrectly to
+an issuer's name. A QIB buying for its own account changes the Standard
+Chartered result to a pass under the same declared rule. A bank that is a QIB
+but buys for a non-QIB customer's account does not satisfy $Q$ merely through
+the bank's status. Moving the original individual offshore also leaves a
+problem: US-person status and US beneficial ownership do not disappear with
+the location of execution. These changes distinguish purchaser, account and
+geography without supplying an answer label for either issuer.
+
+The loss mechanisms remain relevant to the other assessments. Both documents
+describe contingent conversion and regulatory powers that can reduce or
+extinguish an investment. Passing a purchaser condition is consequently no
+evidence of principal protection. Hong Kong distribution, suitability,
+sanctions, bank authority, internal policy and settlement still require their
+own conclusions. The US purchaser comparison cannot replace those conclusions
+\citep[Barclays cover and pp.~S-16, S-102; Standard Chartered pp.~i, 140--142]{barclayscoco2025,standardcharteredcoco2025}.
+
+The executable comparison reproduces the two results through both RuleIR and
+Catala. Its 157 input cases produce 314 executions: each backend computes the
+independently derived result for 138 complete cases and abstains on 19 cases
+with missing, conflicting or expired evidence. A separate mathematical check
+compares the implemented expression with an independently written relation
+over all $2^9=512$ assignments of its nine Boolean premises. A proof checks
+preservation of the declared formal expression in the shared model, and six
+deliberately wrong variants are detected, including omission of the beneficial
+account condition. The focused regression suite passes 165 tests. These results
+establish conditional formal and software properties. The legal interpretation
+and completeness of the applicable requirements remain unproved.
+
+In the integrated bank investigation, the Barclays purchaser result remains
+qualified by missing transaction evidence. The Standard Chartered result
+additionally prevents proceeding under the declared offering route. Both retain
+all seven assessment categories and the fourteen declared bank obligations;
+neither permits execution of an actual trade. The preserved prospectuses,
+explicit interpretation proposals, synthetic investor premises and reproducible
+checks make this a useful test without human \mbox{quality labels}. New issuers can
+reuse the checked relation when its premises and scope apply; new offering
+terms or unsupported legal situations require a new interpretation or a
+qualified answer. The finite pair cannot establish future legal correctness.
+
+\subsection{Connecting the loss provisions to the selling rules}
+\label{sec:joined-eligibility}
+
+The next calculation follows the same investment from its loss mechanism to
+the Hong Kong selling requirements. The provisions surveyed in
+Section~\ref{sec:coco-legal-risk} supply the questions: what legal form does the
+instrument take, which contingent loss mechanism applies, which institution
+provides the service, and what is known about the purchaser? A contractual
+write-down, a conversion and a regulator's power are separate facts. The
+retained UBS notes provide for conversion. Cancelling their debt principal
+would not, by itself, establish that the shares received are worth zero.
+
+The implementation connects seven conditional calculations. It considers direct
+debt with the specified contingent loss features and separately records whether
+an investment product falls within the related-product provisions. An
+equity-form preferred share does not become direct debt merely because it can
+lose value. Related-product scope remains document-dependent; the program does
+not invent a percentage threshold for a fund's principal strategy. It then
+examines the intermediary arrangement, the PI restriction, the specified PI
+exemptions, the resulting duties, the issuer's legal powers and any exercise of
+those powers. Each conclusion retains its required premises.
+
+The execution-broker exception shows why this decomposition matters. The
+earlier calculation accepted an established exception as one premise. The new
+calculation expands it into the specific adviser or asset-manager arrangement,
+an order placed through that arrangement, the adviser's regulatory status,
+execution and custody services only, absence of direct customer contact, the
+written allocation of responsibility, written customer notification and the
+continuing arrangement. A direct customer request and circumvention each
+prevent reliance on the exception. These are proposed formal consequences of
+the retained FAQ, not evidence that a customer's arrangements meet its
+conditions. A bare assertion that the exception applies cannot bypass an
+unknown condition or contradict a known one.
+
+Duties are computed separately from the selling restriction. The specified
+institutional and corporate PI exemptions affect risk rating, enhanced
+suitability and disclosure; the PI selling restriction remains separate.
+Loss-absorption funds receive the specified treatment for enhanced suitability
+and disclosure, with other SFC requirements retained. Discretionary portfolio
+management can change the level at which an assessment is performed. It does
+not supply evidence that the assessment has been performed. Additional
+disclosure flexibility referred to by the FAQ still needs its own applicable
+authority and conditions.
+
+A regulator's power requires a further chain. The jurisdiction, entity,
+instrument, legal basis, triggering circumstances and procedure must support
+the particular power. An applicable order must then have been issued, its
+suspension status matters, and implementation is another event. The calculation
+therefore distinguishes authority from an operative order and an implemented
+loss. It cannot infer any of them from the word AT1. For the UK examples, the
+joined report retains a missing instrument-specific UK resolution basis. For
+UBS, it retains the dated Swiss source and its currentness qualification.
+
+Contractual amounts use exact rational arithmetic under explicitly supplied
+event conditions. A hypothetical conversion of principal 3,777 at a
+same-currency conversion price of 37.77 gives 100 shares and zero remaining
+debt principal. The market value of those shares is a different quantity.
+If notice, timing or other instrument-specific event conditions are unknown,
+the calculation remains unknown. Section~\ref{sec:ubs-terms} develops the
+instrument-specific notice and share calculations beyond this generic example,
+including the price branches that still prevent a unique result.
+
+The joined result recomputes the bank assessment and retains all fourteen
+obligations in its seven categories. It compares the shared PI premise across
+the product and bank inputs, preserving contradictory observations. A changed
+source, fact document, mandate or execution route requires reassessment.
+These calculations supplement the broader product-law obligation; they do not
+mark it complete. With the retained public documents and no actual account,
+mandate or transaction evidence, the UBS, Barclays and Standard Chartered
+reports remain qualified and cannot authorize execution.

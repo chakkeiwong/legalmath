@@ -102,10 +102,15 @@ def main():
     acceptance.add_argument("--out", required=True)
     acceptance.add_argument("--jdk", default=".localresources/java-toolchain/jdk-17.0.20.1+1")
     acceptance.add_argument("--repository", default=".")
+    from .prospectus.successor.service import configure as prospectus_configure
+    prospectus_configure(subs.add_parser("prospectus", help="Source-linked prospectus assessment"))
     args = parser.parse_args()
     from .canonical import loads
     try:
-        if args.command == 'rules':
+        if args.command == 'prospectus':
+            from .prospectus.successor.service import dispatch
+            result = dispatch(args)
+        elif args.command == 'rules':
             from .translation.cli import dispatch
             result = dispatch(args)
         elif args.command == 'catala-convert':
