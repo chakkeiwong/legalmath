@@ -1,5 +1,15 @@
 # Reset memo — prospectus successor, 6 October 2026
 
+**Subsequent audit:** the historical execution below was committed as
+7fd9c4e864c22da1e8a5df8ed7bc5c59331eb25f. The later
+[phase root-cause investigation](../prospectus-phase-roots-2026-10-06/ROOT-CAUSE-AND-SOLUTION.md)
+found reproducible false-premise, source/context and dataflow defects in addition
+to the recorded partial capabilities. Its [reset memo](../prospectus-phase-roots-2026-10-06/RESET-MEMO.md)
+and [repair program](../../plans/prospectus-phase-repair-2026-10-06.md) supersede
+the repair order below. The PDF counts and receipts below describe the preserved
+checkpoint, not the later manuscript revision. Production successor code has
+not yet been repaired by that investigation.
+
 Worktree: /home/chakwong/python/legalmath/.worktrees/bond-gap-closure.
 Branch: feature/prospectus-evidence-master.
 Baseline HEAD: da2c7a4336cbd1146a9d5b8896bc982d63668441.
