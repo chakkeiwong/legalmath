@@ -39,14 +39,103 @@ def contained(relative):
     return path
 
 
+def adoption_snapshots(command):
+    """Retain reconstruction for ignored snapshots, including old source bytes."""
+    manifest_path = ROOT / REL / "snapshot-manifest.json"
+    if command == "snapshot-inventory":
+        if manifest_path.exists():
+            raise ValueError("Snapshot manifest already exists; preserve it")
+        candidates = {}
+        for manifest in (ROOT / REL / "phases").glob("*/attempt-*/read-context.json"):
+            for row in json.loads(manifest.read_text())["records"]:
+                if row["kind"] in {"file", "external-file"} and row["sha256"]:
+                    candidates.setdefault(row["sha256"], set()).add(row["name"])
+        models = json.loads((ROOT / REL / "tool-setup/layout-model/receipt.json").read_text())
+        model_by_hash = {row["sha256"]: row for row in models["files"]}
+        records = []
+        archive = ROOT / REL / "snapshot-archive"
+        for path in sorted((ROOT / REL / "snapshots").iterdir()):
+            if path.name.startswith("."):
+                continue
+            identity = sha(path)
+            if identity != path.name:
+                raise ValueError("Snapshot is corrupt: " + str(path))
+            sources = sorted(candidates.get(identity, []))
+            usable = [name for name in sources if not Path(name).is_absolute()
+                      and (ROOT / name).is_file() and sha(ROOT / name) == identity]
+            row = {"snapshot": str(path.relative_to(ROOT)), "sha256": identity,
+                   "bytes": path.stat().st_size, "observed_sources": sources}
+            if usable:
+                row.update(kind="retained-file", source=usable[0])
+            elif identity in model_by_hash:
+                model = model_by_hash[identity]
+                row.update(kind="external-model", source=model["file"], url=model["url"],
+                           revision=models["revision"])
+            else:
+                archive.mkdir(parents=True, exist_ok=True)
+                packed = archive / (identity + ".gz")
+                with path.open("rb") as src, packed.open("wb") as dst:
+                    with gzip.GzipFile(filename="", fileobj=dst, mode="wb", mtime=0) as enc:
+                        shutil.copyfileobj(src, enc, 1024 * 1024)
+                with gzip.open(packed, "rb") as decoded:
+                    if sha_stream(decoded) != identity:
+                        raise ValueError("Snapshot archive mismatch")
+                row.update(kind="archived", archive=str(packed.relative_to(ROOT)), archive_sha256=sha(packed))
+            records.append(row)
+        manifest_path.write_text(json.dumps({"version": "adoption-snapshots.v1", "files": records,
+            "prerequisites": ["Restore retained historical repair checkpoints first when their source files are absent",
+                              "Download pinned model files from the recorded URLs only if external-model inputs are absent",
+                              "Tool environment recreation is separate; exact distribution bytes are checked in phase receipts"],
+            "restore_command": "python3 -m scripts.archive_prospectus_successor_checkpoint restore-snapshots --campaign adoption"}, indent=2) + "\n")
+    else:
+        for row in json.loads(manifest_path.read_text())["files"]:
+            destination = contained(row["snapshot"])
+            if destination.exists():
+                if sha(destination) != row["sha256"]:
+                    raise ValueError("Existing snapshot differs; refusing overwrite")
+                continue
+            if command == "verify-snapshots":
+                raise ValueError("Snapshot absent; run restore-snapshots")
+            source = Path(row.get("source", ""))
+            if row["kind"] == "retained-file":
+                source = (ROOT / source).resolve()
+                if not source.is_relative_to(ROOT):
+                    raise ValueError("Snapshot source escapes checkout")
+            elif row["kind"] == "external-model":
+                if not source.resolve().is_relative_to(Path("/tmp/prospectus-adoption-models")):
+                    raise ValueError("Snapshot model escapes declared directory")
+            else:
+                source = contained(row["archive"])
+                if sha(source) != row["archive_sha256"]:
+                    raise ValueError("Snapshot archive changed")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            fd, temporary = tempfile.mkstemp(dir=destination.parent, prefix=".restore-")
+            try:
+                opener = gzip.open if row["kind"] == "archived" else open
+                with opener(source, "rb") as src, os.fdopen(fd, "wb") as dst:
+                    shutil.copyfileobj(src, dst, 1024 * 1024)
+                if sha(Path(temporary)) != row["sha256"]:
+                    raise ValueError("Snapshot source differs from recorded hash")
+                os.replace(temporary, destination)
+            finally:
+                if Path(temporary).exists():
+                    Path(temporary).unlink()
+    print(json.dumps({"command": command, "manifest": str(manifest_path.relative_to(ROOT)), "status": "PASS"}))
+
+
 def main():
     global REL, OUT
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["inventory", "pack", "verify", "restore"])
-    parser.add_argument("--campaign", choices=["successor", "repair"], default="successor")
+    parser.add_argument("command", choices=["inventory", "pack", "verify", "restore", "snapshot-inventory", "restore-snapshots", "verify-snapshots"])
+    parser.add_argument("--campaign", choices=["successor", "repair", "adoption"], default="successor")
     args = parser.parse_args()
-    REL = Path("docs/implementation/prospectus-" + args.campaign + "-2026-10-06")
+    REL = Path("docs/implementation/prospectus-" + args.campaign + ("" if args.campaign == "adoption" else "-2026-10-06"))
     OUT = ROOT / REL / "checkpoint"
+    if "snapshot" in args.command:
+        if args.campaign != "adoption":
+            raise ValueError("Snapshot reconstruction applies to adoption only")
+        adoption_snapshots(args.command)
+        return
     if args.command in {"inventory", "pack"}:
         files = [(p.stat().st_size, p) for p in untracked() if p.is_relative_to(ROOT / REL)]
         large = sorted(((n, p) for n, p in files if n >= LIMIT), reverse=True)

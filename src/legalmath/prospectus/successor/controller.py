@@ -12,9 +12,32 @@ from .contracts import digest, read, write
 REL = "docs/implementation/prospectus-repair-2026-10-06"
 DAG = {"P0": [], "P1": ["P0"], "P2": ["P1"], "P3": ["P1", "P2"], "P4": ["P1", "P3"],
        "P5": ["P1", "P2", "P3"], "P6": ["P1", "P2", "P3", "P4", "P5"], "P7": ["P0", "P6"], "P8": ["P6", "P7"]}
+PROGRAM = "repair"
+PLAN = "docs/plans/prospectus-phase-repair-execution-2026-10-06.md"
+REPAIR_DAG = DAG.copy()
+
+
+def configure(program):
+    """Select a namespace in this controller; historical attempts stay immutable."""
+    global REL, DAG, PROGRAM, PLAN
+    if program not in {"repair", "adoption"}:
+        raise ValueError("Unknown phase program")
+    PROGRAM = program
+    REL = "docs/implementation/prospectus-" + ("adoption" if program == "adoption" else "repair-2026-10-06")
+    DAG = ({"A0": [], "A1": ["A0"], "A2": ["A0", "A1"], "A3": ["A0"], "A4": ["A0"],
+            "A5": ["A0", "A1", "A2", "A3", "A4"], "A6": ["A0", "A1", "A2", "A3", "A4", "A5"]}
+           if program == "adoption" else REPAIR_DAG.copy())
+    PLAN = "docs/plans/prospectus-" + ("adoption-execution-2026-10-07.md" if program == "adoption" else "phase-repair-execution-2026-10-06.md")
+
+
+def command(*arguments):
+    return ["python3", "-m", "scripts.prospectus_delivery", "--program", PROGRAM, *arguments]
 
 
 def handler(phase):
+    if PROGRAM == "adoption":
+        from . import adoption_jobs
+        return getattr(adoption_jobs, phase.lower(), None)
     from . import jobs
     return getattr(jobs, phase.lower(), None)
 
@@ -41,9 +64,12 @@ def publish_products(root, folder):
 
 
 def bindings(root, phase=None):
-    """Capabilities actually read by each phase; parent receipts bind products."""
+    """Conservative declared bindings; observed reads are recorded separately."""
     if phase is None:
         return {p: bindings(root, p) for p in DAG}
+    if PROGRAM == "adoption":
+        from .adoption_jobs import bindings as adoption_bindings
+        return adoption_bindings(root, phase)
     paths = list((root / "src/legalmath/prospectus/successor").glob("*.py"))
     paths += [root / "scripts/prospectus_delivery.py", root / "pyproject.toml"]
     paths += list((root / REL / "inputs" / phase).glob("*.json"))
@@ -145,6 +171,11 @@ def current(root, state):
                     valid[phase] = False
                     break
         if valid[phase]:
+            from .read_context import current as reads_current
+            observed = root / row["directory"] / "read-context.json"
+            if observed.exists() and not reads_current(root, read(observed)):
+                valid[phase] = False
+        if valid[phase]:
             for relative, expected in row.get("blobs",{}).items():
                 path=root/relative
                 if not path.is_file() or digest(path.read_bytes())!=expected:
@@ -166,24 +197,31 @@ def _refresh(root, state):
             "can_dispatch": callable(fn) and all(valid[d] for d in deps),
             "first_failed_interface": r.get("remaining", ["Implement registered phase"])[0] if r.get("remaining") else None,
             "remaining": r.get("remaining", []),
-            "command": ["python3", "-m", "scripts.prospectus_delivery", "phase", "--phase", phase],
+            "command": command("phase", "--phase", phase),
             "invalidation_set": [p for p in DAG if phase in ancestors(p)],
             "limits": {"attempts_per_identical_input": 3, "changed_inputs": "new bounded attempt group", "timeout_seconds": 1800}})
+        if PROGRAM == "adoption":
+            from .adoption_jobs import phase_plan
+            rows[-1]["reviewed_next_plan"] = phase_plan(phase, state)
     repairs = []
     for phase in DAG:
         for diagnostic in state.get(phase, {}).get("remaining", []):
             implementation = any(term in diagnostic.lower() for term in (
                 "bracket", "renumber", "incorporated", "construct remaining", "grammar", "rounding", "row/column", "margin"))
+            if PROGRAM == "adoption":
+                implementation = phase not in {"A4", "A6"} or "Full settlement" in diagnostic
             repairs.append({"id":phase+":"+digest(diagnostic)[:12], "target_phase":phase,
                 "diagnostic":diagnostic, "input_identity":state.get(phase,{}).get("input_identity"),
                 "kind":"IMPLEMENTATION_AND_SOURCE_REVIEW" if implementation else "EVIDENCE_ADMISSION",
                 "handler":None if implementation else "admit_record",
                 "acceptance_check":"Rerun target and re-evaluate this obligation against its source and regression",
-                "command":None if implementation else ["python3","-m","scripts.prospectus_delivery","repair","--record","<reviewed-record.json>"],
+                "command":None if implementation else command("repair","--record","<reviewed-record.json>"),
                 "required_code_or_source_change":diagnostic if implementation else None,
                 "required_external_record":None if implementation else diagnostic,
                 "attempt":state.get(phase,{}).get("attempt",0), "outcome":"OPEN; unchanged input is not a repair"})
-    result = {"phases": rows, "repair_obligations": repairs, "automatic_release": False}
+    result = {"program": PROGRAM, "phases": rows, "repair_obligations": repairs, "automatic_release": False,
+              "next_dispatch": next((r["command"] for r in rows if not r["current"] and r["can_dispatch"]), None),
+              "refresh_review": "Partial evidence permits independent phases; failed artifacts block dependent phases. Criteria unchanged."}
     write(root / REL / "repair-worklist.json", repairs)
     write(root / REL / "next-phase.json", result)
     return result
@@ -231,6 +269,10 @@ def admit_record(root, record):
     allowed = {"P0": {"review.json"}, "P1": {"request.json"}, "P2": {"assembly.json"},
                "P3": {"interpretation.json"}, "P4": {"cases.json", "law.json"}, "P5": {"scenarios.json", "scenario.json"},
                "P6": {"bank.json"}, "P7": {"labels.json", "predictions.json"}, "P8": {"support.json", "signoffs.json"}}
+    if PROGRAM == "adoption":
+        # Only advertise admissions actually consumed by registered jobs.
+        # A0–A3/A5 repairs currently change reviewed source/code, not inert files.
+        allowed = {"A4": {"coupon.json"}, "A6": {"review.json", "facts.json"}}
     if name not in allowed.get(phase, set()) or not record["reason"]:
         raise ValueError("Unknown phase admission or missing repair reason")
     out = root / REL
@@ -278,6 +320,9 @@ def execute(root, phase):
             return {"phase": phase, "execution": "REPAIR_REQUIRED", "reason": "Bounded attempt/repair cap"}
         folder = parent / f"attempt-{len(attempts)+1:03d}"
         folder.mkdir()
+        if PROGRAM == "adoption":
+            from .adoption_jobs import phase_plan
+            write(folder / "plan.json", phase_plan(phase, state))
         started = time.monotonic()
         write(folder / "started.json", {"phase": phase, "attempt": folder.name,
               "input_identity": identity, "method": method, "dependencies": dependencies,
@@ -288,7 +333,15 @@ def execute(root, phase):
         signal.signal(signal.SIGALRM, alarm)
         signal.alarm(1800)
         try:
-            result = fn(root, folder, state)
+            from .read_context import ReadContext, current as reads_current
+            context = ReadContext(root, out / "snapshots")
+            if "context" in inspect.signature(fn).parameters:
+                result = fn(root, folder, state, context=context)
+            else:
+                result = fn(root, folder, state)
+            write(folder / "read-context.json", context.manifest())
+            if not reads_current(root, context.manifest()):
+                raise ValueError("Observed input changed during execution")
             parents_current = current(root, state)
             if bindings(root, phase) != method_bindings or not all(parents_current[d] for d in DAG[phase]):
                 raise ValueError("Input changed during execution; receipt cannot be published as current")
@@ -300,18 +353,23 @@ def execute(root, phase):
             write(folder / "failure.json", {"error": str(exc), "traceback": traceback.format_exc()})
             result = {"execution": "FAILED", "engineering": "REPAIR_REQUIRED", "evidence": "PENDING",
                       "artifact_ready": False, "remaining": [str(exc)]}
+            if "context" in locals():
+                write(folder / "read-context.json", context.manifest())
         finally:
             signal.alarm(0)
             signal.signal(signal.SIGALRM, old_alarm)
         write(folder / "result.json", result)
-        manifest = {"phase": phase, "command": ["python3", "-m", "scripts.prospectus_delivery", "phase", "--phase", phase],
+        manifest = {"phase": phase, "command": command("phase", "--phase", phase),
             "git_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
             "environment": sys.executable, "python": sys.version, "cpu_gpu": "CPU; CUDA_VISIBLE_DEVICES=-1",
             "random_seeds": "N/A deterministic engineering", "wall_seconds": time.monotonic()-started,
-            "plan": "docs/plans/prospectus-phase-repair-execution-2026-10-06.md",
+            "plan": PLAN,
             "result_file": str((folder / "result.json").relative_to(root)), "input_bindings": method_bindings,
             "dependencies": dependencies, "data_version": identity}
         write(folder / "manifest.json", manifest)
+        (folder / "RESULT.md").write_text("# " + phase + " execution\n\n" + result["engineering"] + "\n\n"
+            + "Release: NOT_ACCEPTED.\n\n" + "\n".join("- " + r for r in result["remaining"]) + "\n\n"
+            + "See result.json and manifest.json for criteria, commands and preserved evidence.\n")
         outputs = {str(p.relative_to(folder)): digest(p.read_bytes()) for p in sorted(folder.rglob("*"))
                    if p.is_file() and p.name != "receipt.json"}
         blobs=publish_products(root,folder) if result.get("artifact_ready") else {}

@@ -1,0 +1,80 @@
+..........................................FF............................ [ 62%]
+..........................F................                              [100%]
+=================================== FAILURES ===================================
+___________ test_recover_published_receipt_after_interrupted_pointer ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-936/test_recover_published_receipt0')
+
+    def test_recover_published_receipt_after_interrupted_pointer(tmp_path):
+        folder=tmp_path/controller.REL/"phases/P0/attempt-001";folder.mkdir(parents=True)
+        write(folder/"result.json",{"status":"ok"})
+        record={"artifact_ready":True,"method":"m","dependencies":{}}
+        write(folder/"receipt.json",{"outputs":{"result.json":digest((folder/"result.json").read_bytes())},"state":record})
+        recovered=controller.recover(tmp_path)
+>       assert recovered["P0"]["method"]=="m"
+               ^^^^^^^^^^^^^^^
+E       KeyError: 'P0'
+
+tests/prospectus_successor/test_repairs.py:138: KeyError
+________________ test_changed_evidence_admission_is_real_repair ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-936/test_changed_evidence_admissio0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7434fcdff490>
+
+    def test_changed_evidence_admission_is_real_repair(tmp_path,monkeypatch):
+        monkeypatch.setattr(controller,"bindings",lambda root,phase=None:{"code":"fixed"})
+        record={"obligation_id":"test","phase":"P4","name":"cases.json","before_sha256":None,
+                "content":[],"reason":"Concrete admitted empty inventory for this negative test"}
+>       assert controller.admit_record(tmp_path,record)["outcome"].startswith("ADMITTED")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/prospectus_successor/test_repairs.py:146: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-chakwong/pytest-936/test_changed_evidence_admissio0')
+record = {'before_sha256': None, 'content': [], 'name': 'cases.json', 'obligation_id': 'test', ...}
+
+    def admit_record(root, record):
+        """Ingest a changed, reviewable input; no script/eval execution is accepted."""
+        from .anchors import fields
+        fields(record, {"obligation_id", "phase", "name", "before_sha256", "content", "reason"},
+               {"obligation_id", "phase", "name", "before_sha256", "content", "reason"})
+        phase, name = record["phase"], record["name"]
+        allowed = {"P0": {"review.json"}, "P1": {"request.json"}, "P2": {"assembly.json"},
+                   "P3": {"interpretation.json"}, "P4": {"cases.json", "law.json"}, "P5": {"scenarios.json", "scenario.json"},
+                   "P6": {"bank.json"}, "P7": {"labels.json", "predictions.json"}, "P8": {"support.json", "signoffs.json"}}
+        if PROGRAM == "adoption":
+            # Only advertise admissions actually consumed by registered jobs.
+            # A0–A3/A5 repairs currently change reviewed source/code, not inert files.
+            allowed = {"A4": {"coupon.json"}, "A6": {"review.json", "facts.json"}}
+        if name not in allowed.get(phase, set()) or not record["reason"]:
+>           raise ValueError("Unknown phase admission or missing repair reason")
+E           ValueError: Unknown phase admission or missing repair reason
+
+src/legalmath/prospectus/successor/controller.py:277: ValueError
+___________ test_controller_receipt_mutation_invalidates_descendant ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-936/test_controller_receipt_mutati0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7434fcf31410>
+
+    def test_controller_receipt_mutation_invalidates_descendant(tmp_path,monkeypatch):
+        from legalmath.prospectus.successor import controller as c
+        from legalmath.prospectus.successor.contracts import write
+        monkeypatch.setattr(c,"bindings",lambda root,phase=None:{"code":"fixed"})
+        state={}
+        for phase in ("P0","P1"):
+            p=tmp_path/phase;p.mkdir()
+            write(p/"result.json",{"value":1})
+            write(p/"receipt.json",{"outputs":{"result.json":digest((p/"result.json").read_bytes())}})
+            state[phase]={"method":digest({"code":"fixed"}),"artifact_ready":True,
+>               "dependencies":{d:state[d]["receipt_sha256"] for d in c.DAG[phase]},
+                                                                      ^^^^^^^^^^^^
+                "directory":phase,"receipt_sha256":digest((p/"receipt.json").read_bytes())}
+E           KeyError: 'P0'
+
+tests/prospectus_successor/test_successor.py:219: KeyError
+=========================== short test summary info ============================
+FAILED tests/prospectus_successor/test_repairs.py::test_recover_published_receipt_after_interrupted_pointer
+FAILED tests/prospectus_successor/test_repairs.py::test_changed_evidence_admission_is_real_repair
+FAILED tests/prospectus_successor/test_successor.py::test_controller_receipt_mutation_invalidates_descendant
+3 failed, 112 passed in 8.92s

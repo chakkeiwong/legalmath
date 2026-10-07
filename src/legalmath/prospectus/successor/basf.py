@@ -196,7 +196,39 @@ def construct(graph, admission):
     candidate="".join(parts)
     remaining=[{"start":a,"end":b,"depth":d,"preview":" ".join(raw[a:min(b,a+200)].split())}
         for a,b,d in sorted(pairs) if (a,b) not in resolved_pairs and not any(e["start"] <= a and b <= e["end"] for e in edits)]
+    # Project raw-body operations onto exact line occurrences independently of
+    # the output map. Margins remain visible obligations, including shared scope.
+    dispositions = []
+    by_id = {u["id"]: u for u in graph["units"]}
+    def record(unit, a, b, kind, reason, binding=None, use="body"):
+        if a == b:
+            return
+        dispositions.append({"source": {"unit": unit["id"], "document": unit["document"],
+            "source_sha256": unit["source_sha256"], "start": a, "end": b, "quote": unit["raw"][a:b]},
+            "disposition": kind, "use": ["basf-option-i", unit["id"], use], "reason": reason, "binding": binding})
+    for span in source_map:
+        unit = by_id[span["unit"]]
+        relevant_edits = [e for e in edits if e["start"] < span["end"] and e["end"] > span["start"]]
+        boundaries = sorted({span["start"], span["end"]} | {
+            max(span["start"], min(span["end"], e[k])) for e in relevant_edits for k in ("start", "end")})
+        for a, b in zip(boundaries, boundaries[1:]):
+            edit = next((e for e in relevant_edits if e["start"] <= a and b <= e["end"]), None)
+            kind = "COPIED" if edit is None else "REPLACED_TEMPLATE" if edit["new"] else "EXCLUDED_BY_CHOICE"
+            record(unit, a-span["start"], b-span["start"], kind,
+                   edit["reason"] if edit else "Unchanged proposal text; legal disposition pending",
+                   {"basis": edit["basis"], "reason": edit["reason"]} if edit else None)
+        for i, branch in enumerate(remaining):
+            a, b = max(branch["start"], span["start"]), min(branch["end"], span["end"])
+            if a < b:
+                record(unit, a-span["start"], b-span["start"], "UNRESOLVED", "Retained construction branch", use="branch:"+str(i))
+    for row in accounting:
+        if row["role"] in {"MARGIN_INSTRUCTION", "PAGE_HEADER", "UNREAD"}:
+            unit = by_id[row["unit"]]
+            record(unit, 0, len(unit["raw"]), "UNRESOLVED", "Margin/header requires source-bound scope disposition", use=row["role"])
+    from .intervals import check
+    interval_check = check(graph, dispositions, [r["unit"] for r in accounting if r["role"] != "OTHER_DOSSIER_SOURCE"])
     return {"instrument_id": admission["issue_id"], "source_sha256": SHA,
+        "disposition_version": "basf-occurrences.v1", "dispositions": dispositions, "interval_accounting": interval_check,
         "source_defects": [{"start":a,"end":b,"kind":"missing bracket in unselected long-coupon alternative",
                             "source_page":112,"decision":"excluded by final terms long_stub=false"} for a,b in malformed],
         "raw_body": raw, "source_map": source_map, "unit_accounting": accounting,

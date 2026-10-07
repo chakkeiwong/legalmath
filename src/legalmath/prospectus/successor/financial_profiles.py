@@ -107,11 +107,20 @@ def validate_scenario(issue, s):
         kernels.whole_shares(s["holdings"], "1", amount_field)
 
 
-def assess(bundle, scenario):
+def assess(bundle, scenario, graph=None):
     if scenario is None:
         return QueryResult("Q5", "UNSUPPORTED", unresolved=["No complete named financial scenario supplied"],
                            value={"inventory": INVENTORY}).json()
     issue = bundle["instrument_id"]
+    if isinstance(scenario, dict) and scenario.get("profile") == "fixed-coupon.v1":
+        from .fixed_coupon import calculate
+        try:
+            if scenario.get("issue_id") != issue:
+                raise ValueError("Coupon instrument differs from bundle")
+            value = calculate(scenario, graph)
+        except (KeyError, ValueError, TypeError) as exc:
+            return QueryResult("Q5", "UNSUPPORTED", unresolved=["Incomplete or invalid coupon premises: " + str(exc)]).json()
+        return QueryResult("Q5", "CONDITIONAL", value=value).json()
     profile = kernels.PROFILES.get(issue)
     if not profile:
         return QueryResult("Q5", "UNSUPPORTED", unresolved=["No supported profile for this instrument"]).json()

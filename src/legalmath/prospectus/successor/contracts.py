@@ -100,7 +100,7 @@ def validate_request(request):
     from .anchors import fields
     fields(request, {"version", "bundle", "assembly", "construction", "clauses", "scope",
                      "reference_dispositions", "law_bases", "law_relation", "facts",
-                     "financial_scenario", "bank", "observations"}, {"version", "bundle"})
+                     "financial_scenario", "bank", "observations", "predicate_engine", "predicate_constraints"}, {"version", "bundle"})
     if request.get("version") != VERSION:
         raise ValueError("Unsupported request version")
     bundle = request["bundle"]

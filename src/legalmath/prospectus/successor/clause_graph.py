@@ -118,6 +118,15 @@ def build(assembly, supplied=None):
             names(n["predicate"])
     edges = [{"from": n["id"], "to": target, "kind": key, "resolved": target in ids}
              for n in nodes for key in ("exceptions", "conditions") if isinstance(n[key], list) for target in n[key]]
+    from .reference_closure import KINDS
+    for n in nodes:
+        for edge in n.get("references", []):
+            if set(edge) - {"target", "kind", "reason", "authority"} or not edge.get("reason") or edge.get("kind") not in KINDS:
+                raise ValueError("Typed clause references require target, kind and reason")
+            # Priority is not inferred from mere adjacency or an author-supplied string.
+            edges.append({"from": n["id"], "to": edge["target"], "kind": edge["kind"],
+                          "resolved": edge["target"] in ids and edge["kind"] not in {"priority", "negation"},
+                          "authority": None})
     coverage = {u: set() for u in units}
     for n in nodes:
         for s in n["spans"]:
@@ -130,7 +139,7 @@ def build(assembly, supplied=None):
             "origin": "assisted-proposal" if supplied is not None else "automatic-bounded-grammar"}
 
 
-def active(node, by_id, observations):
+def active(node, by_id, observations, decision=decide):
     def expression(value, kind):
         if not isinstance(value, list):
             return value
@@ -138,37 +147,59 @@ def active(node, by_id, observations):
             return kind == "conditions"
         return {"all" if kind == "conditions" else "any":
                 [by_id.get(k, {}).get("predicate", "unresolved:" + k) for k in value]}
-    return decide({"all": [expression(node["conditions"], "conditions"),
+    return decision({"all": [expression(node["conditions"], "conditions"),
                            {"not": expression(node["exceptions"], "exceptions")}]}, observations)
 
 
-def evaluate(graph, assembly, scope, dependencies, observations=None):
+def evaluate(graph, assembly, scope, dependencies, observations=None, *, predicate_engine="finite",
+             predicate_constraints=(), source_graph=None):
     observations = observations or {}
+    if predicate_engine not in {"finite", "z3"} or predicate_constraints and predicate_engine != "z3":
+        raise ValueError("Named constraints require the explicit z3 engine")
+    def decision(expr, facts):
+        if predicate_engine == "finite":
+            return decide(expr, facts)
+        from .predicates import solve
+        return solve(expr, facts, predicate_constraints, graph=source_graph)
+    premise_status = decision(True, observations) if predicate_constraints else None
     results, by_id = {}, {n["id"]: n for n in graph["nodes"]}
     def answer(question, effects, conversion=None):
         relevant_units = {u["unit"] for u in assembly["units"] if question in u["questions"]}
-        relevant = [n for n in graph["nodes"] if question in n["questions"]]
+        from .reference_closure import close
+        closure = close(by_id, graph["edges"], {n["id"] for n in graph["nodes"] if question in n["questions"]})
+        relevant = [n for n in graph["nodes"] if n["id"] in closure["reachable"]]
         unresolved = [n["id"] for n in relevant if n["effect"] == "unknown"]
+        unresolved += closure["unresolved"]
+        for n in relevant:
+            for edge in graph["edges"]:
+                if edge["from"] == n["id"] and edge["kind"] in {"conditions", "exceptions"} and edge["to"] in by_id:
+                    target = by_id[edge["to"]]
+                    if target["conditions"] not in ([], True) or target["exceptions"] not in ([], False):
+                        unresolved.append("Nested predicate activation requires admitted expression: " + target["id"])
         unresolved += [u["unit"] for u in assembly["units"] if question in u["questions"] and u["role"] == "UNKNOWN"]
         unresolved += sorted(relevant_units.intersection(graph["uncovered_units"]))
         unresolved += [d["id"] for d in dependencies if question in d["questions"] and d["status"] != "RESOLVED"]
         if not scope.get(question, {}).get("complete", False):
             unresolved.append("Question scope not complete: " + question)
         positives, negatives, conflicts, mixed, repayments = [], [], [], [], []
+        if premise_status and premise_status["status"] == "CONFLICT":
+            conflicts.append("Conflicting admitted predicate constraints")
+        elif premise_status and premise_status["status"] == "UNKNOWN":
+            unresolved.append(premise_status.get("reason", "Unresolved predicate solver"))
         for n in relevant:
             if n["role"] != "OPERATIVE" or n["effect"] not in effects | {"repayment"}:
                 continue
             if n["actor"] == "unknown" or n["affected"] == "unknown":
                 unresolved.append("Missing actor/affected interest: " + n["id"])
                 continue
-            activation = active(n, by_id, observations)
+            activation = active(n, by_id, observations, decision)
             if activation["status"] == "NO":
                 continue
             if activation["status"] == "CONFLICT":
                 conflicts.append(n["id"])
                 continue
             if activation["status"] == "UNKNOWN":
-                unresolved.append("Unresolved condition/exception: " + n["id"])
+                unresolved.append("Unresolved condition/exception: " + n["id"] + ": " + activation.get("reason", "OPEN_PREMISES"))
                 continue
             if n["effect"] == "repayment":
                 if n["polarity"]:

@@ -14,11 +14,13 @@ def main():
         os.execv(str(application_python), [str(application_python), "-m", "scripts.prospectus_delivery", *sys.argv[1:]])
     # Checkout runner only. P6 separately verifies the installed CLI.
     sys.path.insert(0, str(ROOT / "src"))
+    from legalmath.prospectus.successor import controller
     from legalmath.prospectus.successor.controller import execute, refresh
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--program", choices=["repair", "adoption"], default="repair")
     commands = parser.add_subparsers(dest="command", required=True)
     phase = commands.add_parser("phase")
-    phase.add_argument("--phase", choices=[f"P{i}" for i in range(9)], required=True)
+    phase.add_argument("--phase", choices=[f"P{i}" for i in range(9)] + [f"A{i}" for i in range(7)], required=True)
     commands.add_parser("run")
     commands.add_parser("status")
     check = commands.add_parser("check")
@@ -28,10 +30,15 @@ def main():
     repair.add_argument("--record", required=True)
     args = parser.parse_args()
     if args.command == "check":
+        # The package-wide suite includes both controller programs. A CLI
+        # selection must not alter the initial module state of those tests.
         import pytest
         outputs = ["--junitxml=" + args.junitxml] if args.junitxml else []
         raise SystemExit(pytest.main(["-q", *args.tests, *outputs]))
-    elif args.command == "repair":
+    controller.configure(args.program)
+    if args.command == "phase" and args.phase not in controller.DAG:
+        parser.error("Phase does not belong to selected program")
+    if args.command == "repair":
         from legalmath.prospectus.successor.controller import admit_record
         from legalmath.prospectus.successor.contracts import read
         result = admit_record(ROOT, read(args.record))
@@ -40,7 +47,7 @@ def main():
     elif args.command == "phase":
         result = execute(ROOT, args.phase)
     else:
-        result = [execute(ROOT, f"P{i}") for i in range(9)]
+        result = [execute(ROOT, phase) for phase in controller.DAG]
     import json
     print(json.dumps(result, indent=2))
     rows = result if isinstance(result, list) else [result]

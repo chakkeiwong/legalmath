@@ -66,6 +66,7 @@ def dependencies(request, graph, assembly):
     if set(supplied) - {r["id"] for r in graph["references"]}:
         raise ValueError("Unknown reference disposition")
     raw_units = {u["id"]: u for u in graph["units"]}
+    edges = []
     for ref in graph["references"]:
         referencing = operative.get(ref["unit"])
         if referencing is None:
@@ -86,6 +87,28 @@ def dependencies(request, graph, assembly):
         result.append({"id": ref["id"], "questions": referencing["questions"],
                        "status": "RESOLVED" if resolved else "UNRESOLVED",
                        "targets": decision.get("targets", []) if decision else []})
+        kind = decision.get("kind", "reference") if decision else "reference"
+        from .reference_closure import KINDS
+        if kind not in KINDS:
+            raise ValueError("Unsupported reference kind")
+        authority = decision.get("authority") if decision else None
+        if authority is not None:
+            from .anchors import bind
+            bind(graph, authority)
+        for target in (decision.get("targets") if decision else None) or [None]:
+            edges.append({"id": ref["id"], "from": ref["unit"], "to": target, "kind": kind,
+                          "resolved": resolved, "authority": authority})
+    from .reference_closure import close
+    for question in ("Q1", "Q2"):
+        roots = {u for u, row in operative.items() if question in row["questions"] and u in raw_units}
+        for row in operative.values():
+            if question in row["questions"]:
+                roots.update(p["source"]["unit"] for p in row.get("character_map", [])
+                             if isinstance(p.get("source"), dict) and "unit" in p["source"])
+        closure = close(raw_units, edges, roots)
+        if closure["unresolved"]:
+            result.append({"id": "reference-closure:" + question, "questions": [question],
+                           "status": "UNRESOLVED", **closure})
     return result
 
 
@@ -95,13 +118,14 @@ def interpretation_product(source, construction, interpretation=None):
     bundle = request["bundle"]
     if interpretation is not None:
         from .anchors import fields
-        fields(interpretation, {"clauses", "scope", "observations", "reference_dispositions"})
+        fields(interpretation, {"clauses", "scope", "observations", "reference_dispositions", "predicate_engine", "predicate_constraints"})
         request = {**request, **interpretation}
     selected = verify(construction, "P2", bundle, {"P1": source["sha256"]})
     assembly = selected["assembly"]
     clauses = clause_graph.build(assembly, request.get("clauses"))
     deps = dependencies(request, graph, assembly)
-    questions = clause_graph.evaluate(clauses, assembly, request.get("scope", {}), deps, request.get("observations"))
+    questions = clause_graph.evaluate(clauses, assembly, request.get("scope", {}), deps, request.get("observations"),
+        predicate_engine=request.get("predicate_engine", "finite"), predicate_constraints=request.get("predicate_constraints", ()), source_graph=graph)
     return seal("P3", bundle, {"P1": source["sha256"], "P2": construction["sha256"]},
                 {"clauses": clauses, "dependencies": deps, "questions": questions,
                  "interpretation_input": interpretation, "scope": request.get("scope", {})})
@@ -126,7 +150,7 @@ def financial_product(source, construction, interpretation, cases=None, scenario
     verify(construction, "P2", request["bundle"], {"P1": source["sha256"]})
     verify(interpretation, "P3", request["bundle"], {"P1": source["sha256"], "P2": construction["sha256"]})
     supplied = scenario if scenario is not None else request.get("financial_scenario")
-    question = financial_profiles.assess(request["bundle"], supplied)
+    question = financial_profiles.assess(request["bundle"], supplied, verify(source, "P1")["graph"])
     return seal("P5", request["bundle"], {"P2": construction["sha256"], "P3": interpretation["sha256"]},
                 {"question": question, "cases": cases or [], "scenario_input": supplied})
 
