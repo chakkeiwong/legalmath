@@ -1,0 +1,4718 @@
+ACTUS: The algorithmic representation of financial contracts
+VERSION v1.1-843f7a3-2020-06-08
+
+NILS BUNDI
+ACTUS FINANCIAL RESEARCH FOUNDATION
+INFO@ACTUSFRF.ORG
+
+About this document
+This document provides the technical specifications of the Algorithmic Contract Types Unified Standards (ACTUS). It
+is developed, maintained, and released by the ACTUS Financial Research Foundation and provided by the same to the
+ACTUS Users Association under the terms of the open source license with which the document is published from time
+to time.
+Versions
+This document is versioned according to the following pattern: [major].[minor]-[revision]-[date] where [major] and [minor]
+are integers marking major and minor release, [revision] indicates the current revision in form of the respective git commit
+hash (short form), and [date] gives the respective date of the revision. Releases are recorded in the following table.
+Date
+2018-11-01
+2019-10-23
+
+Version
+1.0-RC
+1.0
+
+Description
+First draft version of the technical specifications covering the ”initial” 18 contracts.
+Stable release streamlined with dictionary. Specifically, this release includes following
+improvements to the draft version:
+• Fixed various naming conventions
+• Aligned state variable names with dictionary
+• Added ContractStructure and ”Composition”-section
+• Added settlementCurrency attribute and updated POF accordingly
+• Added exerciseDate and exerciseAmount terms and states for contracts with
+contingent payments
+• Removed default convention and updated POF accordingly
+• Moved Taxonomy, Event, State, Contract Role definitions to dictionary
+• Fixed various bugs and inconsistencies
+
+2020-06-08
+
+1.1
+
+Minor udpates and fixes for alignment with dictionary-v1.2
+Acknowledgements
+
+We would like to acknowledge all members of the ACTUS Users Association who contribute a lot of their time and
+expertise to the development, review, and testing of the ACTUS standards, in general, and this document, in particular.
+Without their valuable contributions the ACTUS standards would not exist in the form as they currently do.
+
+1
+
+ACTUS: The algorithmic representation of financial contracts
+
+2
+
+Contents
+About this document
+Versions
+Acknowledgements
+1. Introduction
+2. Notations
+2.1. Contract Attributes
+2.2. ∅-Operator
+2.3. t0 -Time
+2.4. State Variables
+2.5. Contract Events
+2.6. State Transition Functions
+2.7. Payoff Functions
+2.8. Date/Time
+2.9. Event Sequence
+2.10. Contract Lifetime
+3. Utility Functions
+3.1. Schedule
+3.2. Array Schedule
+3.3. End Of Month Shift Convention
+3.4. Business Day Shift Convention
+3.5. Business Day Calendar
+3.6. Year Fraction Convention
+3.7. Contract Role Sign Convention
+3.8. Annuity Amount Function
+3.9. Canonical Contract Payoff Function
+3.10. Settlement Currency FX Rate
+4. Contract Composition
+5. Risk Factor Observer
+6. Child Contract Observer
+7. Contract Types
+7.1. PAM: Principal At Maturity
+7.2. LAM: Linear Amortizer
+7.3. LAX: Exotic Linear Amortizer
+7.4. NAM: Negative Amortizer
+7.5. ANN: Annuity
+7.6. CLM: Call Money
+7.7. UMP: Undefined Maturity Profile
+7.8. CSH: Cash
+7.9. STK: Stock
+7.10. COM: Commodity
+7.11. FXOUT: Foreign Exchange Outright
+7.12. SWPPV: Plain Vanilla Interest Rate Swap
+7.13. SWAPS: Swap
+7.14. CAPFL: Cap-Floor
+7.15. OPTNS: Option
+7.16. FUTUR: Future
+7.17. CEG: Credit Enhancement Guarantee
+7.18. CEC: Credit Enhancement Collateral
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+1
+1
+1
+3
+3
+3
+3
+4
+4
+4
+4
+4
+4
+4
+4
+5
+5
+5
+5
+5
+5
+6
+6
+6
+6
+6
+7
+7
+7
+9
+9
+12
+15
+18
+19
+20
+21
+22
+22
+23
+23
+24
+25
+26
+27
+28
+29
+31
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+1. Introduction
+Financial contracts are legal agreements between two
+(or more) counterparties on the exchange of future cash
+flows. Such legal agreements are defined unambiguously
+by means of a set of contractual terms and logic. As a result, financial contracts can be described mathematically
+and represented digitally as machine readable algorithms.
+The benefits of representing financial contracts digitally
+are manifold; Traditionally, transaction processing has
+been a field in which tremendous efficiency gains could
+be realized by the introduction of machines and machine
+readable contracts. Or, financial analytics by nature of the
+domain builds on the availability of computable representations of these agreements where for reasons of tractability often times analytical approximations are used. Recently, the rise of distributed ledger and blockchain technologies and the various use cases for smart contracts has
+opened up new possibilities for natively digital financial
+contracts.
+In general, the exchange of cash flows between counterparties follows certain patterns. A typical cash flow
+exchange pattern is a bullet loan contract where principal
+is exchanged initially followed by cyclical interest payments and the principal is paid back (in a lump sum)
+at maturity of the contract. While the principal payments are fixed a variety of flavours exist for how the
+cyclical interest payments are determined and/or paid.
+As an example, interest payments may be due monthly,
+annually or according to arbitrary periods, they may
+be determined based on fixed or variable rates, different year fraction calculation methods may be used or
+there might be no interest due at all. Another popular pattern is that of amortizing loans for which, as
+opposed to bullet loans, principal may be paid out and
+paid back in portions of fixed or variable amounts and according to cyclical or custom schedules. Other types
+of financial contracts include but are not limited to
+shares, forwards, options, swaps, credit enhancements,
+repurchase agreements, securitization, etc. By focusing
+on the main distinguishing features, ACTUS describes
+the vast majority of all financial contracts with a set of
+about 32 generalized cash flow exchange patterns or Contract Types (CTs), respectively. The ACTUS taxonomy
+(https://github.com/actusfrf/actus-dictionary/
+blob/master/actus-dictionary-taxonomy.json) provides a classification system organizing financial contracts
+according to their distinguishing cash flow patterns. Apart
+from this classification system the taxonomy also includes
+a description of and real-world instruments covered for
+each contract.
+On the other hand, the legal agreements in financial contracts represent purely deterministic logic or the mechanics of finance, in other words. That is, a financial contract
+defines a fixed set of rules and conditions under which,
+given any external variables, the cash flow obligations can
+be determined unambiguously. For instance, in a fixed rate
+loan the cash flow obligations are defined explicitly. At the
+same time, a variable rate loan defines explicitly the rules
+under which the variable rate is fixed going forward such
+that the cash flow obligations can be derived unambiguously going forward. The same holds true for derivative
+contracts where the cash flow obligations arise given some
+
+3
+underlying reference instrument. Similarly, for analytical
+purposes, given some assumption of the evolution of this
+reference instrument the cash flow obligations conditioned
+on this assumption can be derived unabiguously.
+The properties of financial contracts described above build
+the foundation for a standardized, deterministic algorithmic description of the cash flow obligations arising from
+such agreements. Thereby, this description is technology
+agnostic and supports all use cases necessary for this very
+standard to be used throughout all finance functions from
+front office to back office and covering pricing, deal origination, transaction processing, as well as analytics, in
+general, and liquidity projections, valuation, P&L calculations and projections, and risk measurement and aggregation, in particular. Furthermore, this standard builds a
+formidable basis for distributed ledger-powered, natively
+digital financial state machines or smart contracts, in
+other words.
+In this document, we provide the technical specification
+of the ACTUS standards or the mathematical description
+of financial contracts, in other words. We start by providing some basic notations used throughout the document
+followed by an introduction of the generic functions upon
+which financial contracts build. We continue in the following sections with an introduction of some additional
+foundational concepts Composition, and Risk Factor Observer and Child Contract Observer. Finally, we define
+the various ACTUS contracts in the last section.
+2. Notations
+2.1. Contract Attributes. Contract Attributes (attributes) represent the legal contractual terms
+that define the exchange of cash-flows of a financial contract.
+These attributes are defined
+and described in the ACTUS dictionary (https:
+//github.com/actusfrf/actus-dictionary/blob/
+master/actus-dictionary-terms.json).
+Throughout
+this document attributes are referenced by their short
+name according to the dictionary. Further, vector-type
+attributes may be indexed with a subscript indicating
+that a specific vector-element is referenced.
+Example 1 (Contract Attribute). The ACTUS attribute
+Initial Exchange Date is referenced in short form IED.
+Example 2 (Element of Vector-Type Attribute). The
+ACTUS attribute Array Cycle Anchor Date of Principal
+Redemption is a vector-type attribute and referenced as
+ARPRANX. The i-th element of the vector is represented by
+ARPRANXi .
+2.2. ∅-Operator. The ∅-operator is used to indicate
+that a certain property is undefined or, in other words,
+that no value has been assigned to the respective property.
+In particular, for optional contract attributes it means
+that the attribute is not defined and for schedule times
+(see section 3.1) it means that the respective schedule is
+empty, i.e. no schedule time defined.
+Example 3 (Undefined Attribute). IPANX = ∅ indicates
+that attribute IPANX is undefined.
+Example 4 (Empty Schedule). ~tIP = ∅ means the same
+as ~tIP = {}, with {} the empty set, and states that the IP
+schedule ~tIP does not contain a schedule time.
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+2.3. t0 -Time. t0 represents SD of a contract and marks
+the time as per which the terms and implied state of a
+contract is represented. In general, from the contractual
+logic we are able to derive any contractual events and resulting states for any time t > t0 but not for times s < t0 .
+2.4. State Variables. State Variables (states) describe the state of a contract at a certain point
+in time t during its lifetime.
+Examples of such
+states are the (outstanding) Notional Principal, the
+applicable Nominal Interest Rate, or the current
+Contract Performance.
+The ACTUS dictionary
+(https://github.com/actusfrf/actus-dictionary/
+blob/master/actus-dictionary-states.json) defines
+all states and provides further information on their data
+type, format, etc.
+In general, states represent certain terms of a contract
+that change along the contract lifetime according to either scheduled events or unscheduled events. Therefore,
+states representing a contractual term carry the exact
+same names as their term-counterpart.
+States are written in their short form representation with
+first letter capitalized, printed in bold, and indexed with
+time.
+Example 5 (State Variables). Ntt refers to the state Notional Principal observed at time t.
+2.5. Contract Events. A Contract Event (event) ekt
+refers to any contractually scheduled or unscheduled event
+at a certain time t and of a certain type k. Contract
+events mark specific points in time during the lifetime of
+a contract at which a cash flow is being exchanged (see
+section 2.7) or the states of the contract are being updated (see section 2.6). The dictionary lists and describes
+all the event types k defined by the ACTUS standards
+(https://github.com/actusfrf/actus-dictionary/
+blob/master/actus-dictionary-event-types.json).
+Throughout this document event types k are written
+in the short form as defined in the dictionary.
+As an event always has an associated event time t and
+payoff c ∈ R we define two operators allowing to retrieve
+these quantities for any single event ekt or set of events
+{ekt , ejs , ...}
+( as follows;
+t
+if x = ekt
+τ (x) =
+{t, s, ...} else if x = {ekt , ejs , ...}
+(
+c
+if x = ekt
+f (x) =
+{c1 , c2 , ...} else if x = {ekt , ejs , ...}
+with c1 = f (ekt ), c2 = f (ejs ), ....
+Example 6 (Contract Events). The Initial Exchange
+Date event with event time s is written as eIED
+with
+s
+τ (eIED
+) = s and f (eIED
+) = c where for any contract
+s
+s
+CT c = P OF IED CT().
+2.6. State Transition Functions. State Transition
+Functions (STF) define the transition of states from a preevent to a post-event state when a certain event ekt applies.
+Thereby, the pre-event and post-event times are indexed
+with t− and t+ , respectively.
+These functions are specific to a certain event and contract. STFs are written according to the following pattern STF [event type] [contract type]() where [event type]
+and [contract type] refer to the respective event type and
+contract to which the STF belongs.
+
+4
+Example 7 (State Transition Functions). The STF
+for an IP event and PAM contract is written as
+STF IP PAM() and maps e.g. state Accrued Interest from
+a pre-event state Ipact− to post-event state Ipact+ .
+2.7. Payoff Functions. Payoff Functions (POF) define
+how the cash flow c ∈ R for a certain event ekt is being
+derived from current states and from the contract terms.
+If necessary, the resulting cash flow can be indexed with
+the event time ct . These functions are specific to a certain event and contract. POFs are written according to
+the following pattern POF [event type] [contract type]()
+where [event type] and [contract type] refer to the respective event and contract to which the STF belongs.
+Example 8 (Payoff Functions). The POF for an IP event
+eIP
+and PAM contract is written as POF IP PAM() with
+t
+f (eIP
+t ) = P OF IP P AM ().
+2.8. Date/Time. ACTUS builds on the ISO 8601
+date/time format. Hence, dates are generally expressed in
+the following format: [YYYY]-[MM]-[DD]T[hh]:[mm]:[ss].
+Time zone information is currently not supported.
+A special case is midnight. ISO 8601 recognizes both times
+00:00:00 and 24:00:00 each referring to midnight. Yet,
+while 24:00:00 refers to the end of one day, 00:00:00 refers
+to the beginning of the following day. In ACTUS the interpretation is the same why the time period (measured in
+any time unit) between the two points in time will always
+be zero.
+For brevity, we use the term time for a specific date-time
+variable.
+A note on implementation: As many implementations
+of the ISO 8601 format do not support the 24:00:00 format
+we interpret the timestamp 23:59:59 as midnight.
+2.9. Event Sequence. Contract Events of different
+types may occur at the same time, i.e. exactly the same
+point in time. In this case, the sequence of evaluating their
+STF and POF is decisive for the resulting cash flows and
+state transitions. Hence, we use an event sequence indicator that can be found for each event in the event-dictionary
+and implies the order of executing different events at the
+exact same time.
+2.10. Contract Lifetime. The lifetime of an ACTUS
+contract is the time period of its existence from the perspective of the analyzing user. For every point in time
+during its lifetime, an ACTUS contract can be analyzed
+in terms of current state and future cash flows.
+The lifetime of a contract starts with its SD and ends with
+min(M D, AM D, P R∗ , ST D, T D, tmax ).
+Note that P R∗ refers to the PR event of a maturity contract after which Nt=0.0 (i.e. at which the remaining
+outstanding principal is redeemed). Further, MD, AMD, and
+PR(Nt=0.0) in the definition above do only apply for maturity contracts but have to be considered infinity in all
+other cases. Similarly, STD only applies for certain contracts and is considered infinity for all others. Finally,
+tmax is a parameter that may be used to restrict the considered lifetime in an analysis. In particular, this parameter is used for contracts that do not have a natural end
+to their lifetime such as STK.
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+5
+
+3.1. Schedule. A schedule is a function S mapping times
+s, T with s < T and cycle c onto a sequence ~t of cyclic
+times
+
+3.3. End Of Month Shift Convention. For schedules
+~tk starting at time s which marks the end of a month
+with 30 or less days, e.g. April 30, and with a cycle c
+being a multiple of 1M- attribute EOM defines whether the
+schedule times are to fall on the 30th of all months (same
+day) or the 31st (end of month).
+
+
+{}
+
+
+
+s
+S(s, c, T ) = ~t =
+(s, T )
+
+
+
+(s = t1 , ..., tn = T )
+
+More specifically, EOM has an effect on a schedule ~tk only
+if:
+
+3. Utility Functions
+
+if s = ∅ ∧ T = ∅
+else if T = ∅
+else if c = ∅
+else
+
+with ti < ti+1 , i = 1, 2, ....
+While the schedule
+function can be used to create arbitrary sequences
+of times, it is usually used to generate sequences of
+cyclic events ~tk of a certain type k, e.g.
+k =
+IP for interest payment events (see dictionary for
+a list of all events https://github.com/actusfrf/actusdictionary/blob/master/actus-dictionary-event.json) and
+the following build inputs to the function
+s = kANX with kANX attribute cycle anchor date of
+event type k
+c = kCL with kCL event type k’s schedule cycle
+T is the schedule end date (in many cases the contract’s maturity date)
+Thereby, cycles kCL have format N P S where
+N is an integer
+P is a time period unit (D=Day, W=Week,
+M=Month, Q=Quarter, H=Half Year, Y=Year)
+S is a stub information (+=long last stub, −=short
+last stub)
+and with the stub defined as follows
+if tn−1 + c = T ∨ S =’-’ then no stub correction
+applies
+else tn is removed from the schedule
+Further, the schedule function takes a fourth, optional
+boolean argument B, i.e. S(s, c, T, B) indicating whether
+the schedule end date T belongs to the schedule or not.
+More specifically:
+B = T indicates that T is part of the schedule
+B = F means that T is not part of the schedule
+The sequence of schedule times ~tk may also be influenced
+by the EOF and BDC conventions and the full function syntax becomes S(s, c, T, EOMC, BDC). Due to such effects the
+sequence of schedule times can be non-equidistant or, in
+other words, tki − tki−1 6= tkj − tkj−1 , i 6= j.
+Note that for brevity we will omit the EOMC and BDC function arguments throughout this document.
+3.2. Array Schedule. Array Schedules are defined by
+vector-valued inputs ~s = (s0 , s1 , ..., sm ) and ~c =
+(c0 , c1 , ..., cm ) to the array schedule function
+
+s is the last day of a month with less than 31 days
+(Feb, April etc.)
+c = N P S with P ∈ (M, Q, HorY )
+As per the DD EOM can take one of the following values:
+EOM (EndOfMonth): times ti , i = 1, 2, ..., n − 1 are
+moved to the end of the respective months
+SD (SameDay): times ti , i = 1, 2, ..., n − 1 remain unchanged except in February, where it will go to the
+last day if the day of month of time s is higher
+than the number of days of February
+3.4. Business Day Shift Convention. In general, contract events are scheduled for business days only. Therefore, the BDC convention defines how scheduled times
+ti , i = 1, 2, ..., n − 1 are shifted in case they fall on a nonbusiness day:
+NULL: No shift
+SCF: Shift/Calculate following: The event is shifted to
+the following non working day. Calculation of the
+event happens after the shift
+SCMF: Shift/Calculate modified following: The event is
+shifted to the following non working day. However, if the following day happens to fall into the
+next month, then take preceeding non-working
+day. Calculation of the event happens after the
+shift
+CSF: Calculate/Shift following: Same like SCF however
+calculation of the event happens before the shift
+CSMF: Calculate/Shift modified following: Same like
+SCMF however calculation of the event happens
+before the shift
+SCP: Shift/Calculate preceding: The event is shifted to
+the last preceding non working day. Calculation
+of the event happens after the shift
+SCMP: Shift/Calculate modified preceding: The event is
+shifted to the last preceding non working day.
+However, if the preceding day happens to fall into
+the previous month, then take next non-working
+day. Calculation of the event happens after the
+shift
+CSP: Calculate/Shift preceding: Same like SCP however calculation of the event happens before the
+shift
+CSMP: Calculate/Shift modified preceding: Same like
+SCMP however calculation of the event happens
+before the shift
+
+~ s, ~c, T ) = (S(s0 , c0 , s1 − c0 ),
+S(~
+S(s1 , c1 , s2 − c1 ), ..., S(sm , cm , T ))
+Hence, array schedules are a generalization for regular
+schedules which coincide for m = 1. In accordance with
+regular schedules EOMC and BDC conventions also apply
+here.
+
+3.5. Business Day Calendar. Whether a specific day is
+a business day (cf. previous section) is defined by attribute
+CLDR. Such conventions generally depend on regional official holiday calendars. The Business Day Function interface allows determining for some CLDR whether any time t
+is a business day or not
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+B : t 7→ {true, f alse}
+where true indicates that t is a business day and f alse
+that it is a holiday.
+Example 9. Two standard CLDR implementations are the
+following
+• NoHoliday (default): every calendar day is a business day
+• MondayToFriday: all weekdays Monday, Tuesday, Wednesday, Thursday, and Friday are business days
+3.6. Year Fraction Convention. Interest income and
+other calculations are based on per annum interest rates.
+Therefore, the year-fraction function interface Y is used
+to calculate the fraction of a year between any two times
+s and t with t > s for which e.g. an (per annum) interest
+rate applies according to some day count convention DCC
+Y : s, t, DCC 7→ R
+Note, the year fraction function interface only defines the
+structure of year fraction functions but not an actual implementation thereof, or the respective DCC, respectively.
+Therefore, any DCC can be implemented according to the
+interface above supporting user-defined year fraction functions.
+For brevity we will omit the DCC function argument wherever this does not lead to confusion.
+3.7. Contract Role Sign Convention. The two parties to a contract are defined through attributes CRID and
+CPID. The first is the party initially creating the contract
+and the second is the counterparty, respectively. Thereby,
+both CRID/CPID can take any role in the contract or, more
+specifically, they can be the lender or borrower in a loan
+(PAM), fixed receiver or payer in an interest rate swap
+(SWAPS), etc.
+The role of the CRID is defined through attribute CNTRL.
+The role of CPID is derived as the opposite side to the
+contract. Apart from CNTRL the attributes are neutral to
+the role of CRID (or CPID).
+On the other hand, contractual cash flows generated by
+the POFs and certain states are role-sensitive. That is,
+from the perspective of the CRID these quantities represent
+either claims or obligations. Contract Role Sign function
+R maps the CNTRL attribute into +1 indicating a claim or
+−1 indicating an obligation
+R : CNTRL → {−1, +1}
+When multiplying with a cash flow x the Contract Role
+Sign function thereby defines the direction of that flow:
+
+6
+Value
+RPA
+RPL
+LG
+ST
+BUY
+SEL
+RFL
+PFL
+COL
+CNO
+GUA
+OBL
+UDL
+UDLP
+
+UDLM
+
+R
++1
+-1
++1
+-1
++1
+-1
++1
+-1
++1
++1
+-1
++1
++1
++1
+
+-1
+
+Table 1. Contract Role definitions.
+3.8. Annuity Amount Function. In an Annuity contract (ANN) the annuity amount is paid regularly from
+the borrower to the lender. Thereby, the annuity amount
+is comprised of a principal repayment portion and an interest portion and and dimensioned such that the total
+nominal amount n at time t is fully repaid at maturity T
+of the annuity. The Annuity Amount function A computes
+the annuity amount as follows
+
+A(s, T, n, a, r) = (n + a)
+
+Qm−1
+i=1 1 + rY (ti , ti+1 , )
+Pm−1
+Qm−1
+1 + i=1
+j=i 1 + rY (tj , tj+1 )
+
+with a the accrued interest as per time s, r the actual interest rate, ti , i = 1, 2, ..., m the schedule times
+inf t, t ∈ ~tP R ∧ t > s, m the number of times ti , and
+~tP R the PR-event schedule times of the Annuity contract
+as described in section 7.5.
+3.9. Canonical Contract Payoff Function. The
+canonical payoff of a contract x is defined as the sum of
+all future event payoffs evaluated under current risk factor
+conditions, or
+F (x, t) =
+
+X
+
+c
+
+c∈C
+
+with C = f (U ev (x, t | {Orf (i, s) = Orf (i, t)∀i ∧ s > t})).
+3.10. Settlement Currency FX Rate. Sometimes financial contracts are settled in a different currency (i.e.
+the settlement currency) CURS than the denomination currency CUR. Hence, payoffs are multiplied by the respective
+fx-rate which is derived by the following
+
+x > 0: x flows from CPID to CRID
+x < 0: x flows from CRID to CPID
+Table 1 defines the domain of the Contract Role Sign function, i.e. the range of attribute CNTRL, with meaning and
+Contract Role Sign to which the function maps.
+
+Meaning
+Real position asset
+Real position liability
+Long position
+Short position
+Protection buyer
+Protection seller
+Receive first (or fixed) leg
+Pay first (or fixed) leg
+Collateral instrument
+Close-out netting instrument
+The guarantor in a Guarantee
+The obligee in a Guarantee
+The underlying to a composed contract
+The underlying to a composed contract with positive sign
+The underlying to a composed contract with negative sign
+
+(
+CURS
+XCUR
+(t) =
+
+1
+f (t)
+
+if CURS == ∅ ∨ CURS == CUR
+else
+
+with f (t) = Orf (concat(CUR,’/’,CURS), t).
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+4. Contract Composition
+The payoff of Combined Contracts, see the taxonomy, is
+derived from certain quantities of child contracts (also
+called underlying instruments or simply underlyers). In
+general, such child contracts can be any ACTUS contract
+- Basic or Combined - as well as any number of contracts
+- a single contract or a set of contracts. Indeed, in reality
+this is what Option, Swap, Swaption, but also any kind of
+Asset/Mortgage/etc. backed securities represent; a hierarchical composition of different contracts linked by means
+of functional reationships. This compositional approach
+provides maximum flexibility and, hence, allows capturing
+any real world use case. We here refer to a referenced (i.e.
+of lower hierarchical level) contract as a child contract and
+to a referencing (i.e. of higher hierarchical level) contract
+as a parent contract.
+The ACTUS dictionary defines attribute CTST which captures the child contract(s) as part of the parent contract’s set of attributes. Thereby, attribute CTST is of type
+ContractReference[] with ContractReference a reference to a child contract (in JSON notation)
+{
+"object": ,
+"type": ,
+"role":
+}
+Consult the dictionary for more information (cf.
+https://github.com/actusfrf/actus-dictionary/
+blob/6e84435c70e1325e114c931badaa7e80b01a9a0d/
+actus-dictionary.json#L776.
+We will use the following notation to query reference objects from the CTST attribute
+CTSTtype
+role (i)
+where role and type filter the reference objects in CTST
+according to the respective values of fields type and role.
+For brevity, we will omit the index parameter i which indicates that we address the first (and usually only) reference
+object queried.
+Example 10 (Underlying MarketObject-reference).
+The MarketObject reference of a simple Underlying e.g.
+to an Option contract is referenced as
+arketObjectIdentif ier
+CTSTM
+(1) or, in short form, as
+U nderlying
+M arketObjectIdentif ier
+CTSTU nderlying
+.
+
+7
+accounted for when evaluating the payoff of financial contracts. Therefore, we consider a standardized interface
+Oo (i, t, S, M ) that allows for observing; (1) the state of a
+certain risk factor i at any time t if o =’rf’
+Orf : i, t, S, M 7→ R
+and (2) contractual but non-scheduled events if o =’ev’
+Oev : i, k, t, S, M 7→ {ekt , eks , ...}
+The parameters to the Risk Factor Observer interface are
+as follows:
+i : the identifier of the risk factor observed
+k : the type of events observed
+t : the time (post) which to observe the risk factor
+S : the inner states of the contract at time t
+M : the contract terms of the contract as per time t
+Note that the observer interface only defines the structure
+of an actual observer function but not the actual implementation. Thus, the interface allows for user-defined implementations of observer functions allowing e.g. for representing arbitrary assumptions on the evolution of future
+risk factor states which is key for any type of forwardlooking analysis.
+Example 12 (’rf’-Observer). The market-driven 3-month
+USD-Libor reference rate used as the variable rate in
+a variable rate loan contract is observed at any time t
+through Orf (MarketObjectCodeRateReset, t).
+Example 13 (’rf’-Observer). Unscheduled (pre-) repayments of outstanding notional in a mortgage contract is
+observed at any time t through Oev (CID, PR, t).
+For brevity we will omit the S and M function arguments
+wherever this does not lead to confusion.
+6. Child Contract Observer
+In order to evaluate the derived payoff of combined contracts, we consider a standardized interface U o that allows
+for observing on the parent level; (1) all future events,
+w.r.t. time t, if o =’ev’
+U ev : i, t, a 7→ {ekv , elw , ...}
+with v, w > t and event types k, l according to the schedule of the child contract, (2) a certain state variable x if
+o =’sv’
+
+Example 11 (FirstLeg Contract-reference). The Contract object representing the first leg e.g. to a Swaps contract is referenced as CTSTContract
+F irstLeg (1) or, in short form, as
+CTSTContract
+.
+F irstLeg
+
+or (3) a particular contract attribute x of the child contract if o =’ca’
+
+5. Risk Factor Observer
+
+U ca : i, x 7→ y
+
+The payoff of financial contracts always depends on the
+context in which it is evaluated and which is comprised
+of the following dimensions; counterparties, markets, and
+behavioral factors. We refer to these as the risk factors to
+which financial contracts are exposed to. This indicates
+that these factors are source of uncertainty because financial contracts only reference the factors but their dynamics
+is outside the control of any contractual agreement. Thus,
+such factors have to be observed and their changing states
+
+with y a variable of value type of the respective attribute
+as per DD.
+
+U sv : i, t, x, a 7→ R,
+
+The parameters to the Child Contract Observer interface
+are as follows:
+i : the identifier of the child contract observed
+t : for o ∈ {ev,sv} the time for which the respective
+quantity should be evaluated
+x : for o ∈ {sv,ca} the quantity to be evaluated
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+a : for o ∈ {ev,sv} a set of contract attributes to
+which the evaluated quantity should be conditioned
+Note that the observer interface only defines the structure
+of an actual observer function but not the actual implementation. Thus, the interface allows for user-defined implementations of observer functions allowing e.g. for using
+arbitrary data structures.
+Example 14 (’ev’-Observer). The future events, w.r.t.
+time t, of the first leg (i.e.
+child contract with
+Role=FirstLeg) of a SWAPS contract with CNTRL = P F L
+(i.e. pay first leg) can be evaluated as U ev (CTSTContract
+F irstLeg , t |
+{CNTRL = RP L}).
+
+8
+Example 15 (’sv’-Observer). The current state, w.r.t.
+time t, of state variable Nt of the first leg (i.e. child
+contract with Role=FirstLeg) of a SWAPS contract with
+CNTRL=RFL (i.e. receive first leg) can be evaluated as
+U sv (CTSTContract
+F irstLeg , t, Nt | {CNTRL = RP A}).
+Example 16 (’ca’-Observer). The contract attribute MOC
+of the child contract Child (i.e. child contract with
+Role=Underlying) of an OPTNS contract can be evaluated as U ca (CTSTContract
+U nderlying , MOC).
+For brevity we will omit the x and a function arguments
+wherever this does not lead to confusion.
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+9
+
+7. Contract Types
+7.1. PAM: Principal At Maturity.
+Event
+AD
+IED
+MD
+PP
+
+PY
+FP
+
+PRD
+TD
+IP
+
+IPCI
+
+RR
+
+Schedule
+~tAD = (t0 , t1 , ..., tn )
+tIED = IED
+tM D = (
+Mdt0
+∅
+if PPEF = ’N’
+~tP P =
+(~
+u, ~v ) else
+where
+~
+u = S(s, OPCL, T M D )
+
+PAM: Contract Schedule
+Comments
+With ti , i = 1, 2, ... a custom input
+
+~v = Oev (CID, PP, t)
+(
+∅
+if PYTP = ’O’
+P
+Y
+~t
+= PP
+~t
+else
+(
+∅
+if FER = ∅ ∨ FER = 0
+~tF P =
+S(s, FECL, T M D ) else
+
+tP RD = PRD
+tT D = (
+TD
+∅
+~tIP =
+S(s, IPCL, T M D )
+
+~tIP CI =
+
+if IPNR = ∅
+else
+
+(
+∅
+S(s, IPCL, IPCED)
+
+if IPCED = ∅
+else
+
+
+
+if RRANX = ∅ ∧ RRCL = ∅
+∅
+~tRR = ~t \ tRRY else ifRRNXT 6= ∅
+
+~
+t
+else
+where ~t = S(s, RRCL, T M D )
+
+with
+
+∅
+s = IED + OPCL
+
+
+OPANX
+
+if OPANX = ∅ ∧ OPCL = ∅
+else if OPANX = ∅
+else
+
+with
+
+∅
+s = IED + FECL
+
+
+FEANX
+
+if FEANX = ∅ ∧ FECL = ∅
+else if FEANX = ∅
+else
+
+with
+∅
+
+
+
+IPCED
+s=
+
+IED + IPCL
+
+
+
+IPANX
+
+if IPANX = ∅ ∧ IPCL = ∅
+else if IPCED 6= ∅
+else if IPANX = ∅
+else
+
+with
+
+∅
+s = IED + IPCL
+
+
+IPANX
+
+if IPANX = ∅ ∧ IPCL = ∅
+else if IPANX = ∅
+else
+
+with
+
+(
+
+s=
+
+IED + RRCL
+RRANX
+
+if RRANX = ∅
+else
+
+tRRY = inf t ∈ ~t | t > SD
+(
+
+RRF
+
+SC
+
+CE
+
+State
+Md
+Nt
+Ipnr
+
+∅
+if RRANX = ∅ ∧ RRCL = ∅
+inf t ∈ ~t | t > SD else
+where ~t = S(s, RRCL, T M D )
+(
+∅
+if SCEF = ’000’
+SC
+~t
+=
+S(s, SCCL, T M D ) else
+tRRF =
+
+with(
+s=
+
+IED + RRCL
+RRANX
+
+with
+
+∅
+s = IED + SCCL
+
+
+SCANX
+
+if RRANX = ∅
+else
+if SCANX = ∅ ∧ SCCL = ∅
+else if SCANX = ∅
+else
+
+~tCE = t(ek )|Prft− 6= Prft+ , ∀k
+
+PAM: State Variables Initialization
+Initialization per t0
+Comments
+Mdt0 =(MD
+0.0
+if IED > t0
+Ntt0 =
+R(CNTRL) × NT else
+(
+0.0
+if IED > t0
+Ipnrt0 =
+IPNR else
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+State
+Ipac
+
+Feac
+
+Nsc
+Isc
+Prf
+Sd
+
+10
+
+Continued from previous page
+Initialization per t0
+Comments
+
+
+0.0
+if
+IPNR
+=
+∅
+
+Ipact0 = IPAC
+else if IPAC 6= ∅ with t− = sup t ∈ ~tIP | t < t0
+
+
+−
+Y (t , t0 ) × Ntt0 × Ipnrt0 else
+
+
+0.0
+if FER = ∅
+
+
+
+FEAC
+tF P − = sup t ∈ ~tF P | t < t0
+else if FEAC 6= ∅
+Feact0 =
+with F P +
+
+Y (tF P − , t0 ) × Ntt0 × FER else if FEB = ’N’
+t
+= inf t ∈ ~tF P | t > t0
+
+
+FP−
+
+Y
+(t
+,t
+)
+
+0
+× FER
+else
+( Y (tF P − ,tF P + )
+SCIXSD if SCEF = ’[x]N[x]’
+Nsct0 =
+1.0
+else
+(
+SCIXSD if SCEF = ’I[x][x]’
+Isct0 =
+1.0
+else
+Prft0 = PRF
+Sdt0 = t0
+
+Event Payoff Function
+
+PAM: State Transition Functions and Payoff Functions
+State Transition Function
+Ipact+ = Ipact− + Y (Sdt− 1 , t)Ipnrt− Ntt−
+
+AD
+
+0.0
+
+IED
+
+CURS
+XCUR
+(t)R(CNTRL)(−1)(NT + PDIED)
+
+Sdt+ = t
+Ntt+ = R(CNTRL)NT
+(
+0.0
+if IPNR = ∅
+Ipnrt+ =
+IPNR else
+
+
+if IPAC 6= ∅
+IPAC
+Ipact+ = yNtt+ Ipnrt+ if IPANX 6= ∅ ∧ IPANX < t
+
+
+0.0
+else
+Sdt+ = t
+with
+y = Y (IPANX, t)
+Ntt+ = 0.0
+
+MD
+
+PP
+
+CURS
+XCUR
+(t)(Nsct− Ntt− + Isct− Ipact− + Feact− )
+
+Ipact+ = 0.0
+Feact+ = 0.0
+Sdt+ = t
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ntt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+
+CURS
+XCUR
+(t)f (Oev (CID, PP, t))
+
+Ntt+ = Ntt− − f (Oev (CID, PP, t))
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+
+PY
+
+CURS
+XCUR
+(t)R(CNTRL)PYRT
+
+if
+
+PYTP = ’A’
+
+cPYRT
+
+if
+
+PYTP = ’N’
+
+rf
+
+c max(0, Ipnrt− − O (RRMO, t))
+if PYTP = ’I’
+with
+CURS
+c = XCUR
+(t)R(CNTRL)Y (Sdt− , t)Ntt−
+
+tF P + = inf t ∈ ~tF P | t > t0
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ntt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Payoff Function
+FP
+
+PRD
+
+R(CNTRL)c
+
+if
+
+FEB = ’A’
+
+cY (Sdt− , t)Ntt− + Feact−
+with
+CURS
+c = XCUR
+(t)FER
+
+if
+
+FEB = ’N’
+
+CURS
+XCUR
+(t)R(CNTRL)(−1)(PPRD + Ipact− +
+Y (Sdt− , t)Ipnrt− Ntt− )
+
+11
+
+State Transition Function
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ntt−
+Feact+ = 0.0
+Sdt+ = t
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ntt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Ntt+ = 0.0
+Ipact+ = 0.0
+
+TD
+
+IP
+
+CURS
+XCUR
+(t)R(CNTRL)(PTD + Ipact− +
+Y (Sdt− , t)Ipnrt− Ntt− )
+
+CURS
+XCUR
+(t)Isct− (Ipact− +
+Y (Sdt− , t)Ipnrt− Ntt− )
+
+Feact+ = 0.0
+Ipnrt+ = 0.0
+Sdt+ = t
+Ipact+ = 0.0
+(
+Feact− + Y (Sdt− , t)Ntt− FER
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+Y (tF P − ,tF P + )
+
+if
+
+FEB = ’N’
+
+else
+
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Ntt+ = Ntt− + Ipact− + Y (Sdt− , t)Ntt− Ipnrt−
+IPCI
+
+Ipact+ = 0.0
+(
+Feact− + Y (Sdt− , t)Ntt− FER
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+Y (tF P − ,tF P + )
+
+0.0
+
+if
+
+FEB = ’N’
+
+else
+
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+
+RR
+
+tF P + = inf t ∈ ~tF P | t > t0
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ntt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+
+0.0
+
+Ipnrt+ = min(max(Ipnrt− + ∆r, RRLF), RRLC)
+Sdt+ = t
+with
+∆r = min(max(Orf (RRMO, t)RRMLT + RRSP − Ipnrt− , RRPF), RRPC)
+tF P − = sup t ∈ ~tF P | t < t0
+
+RRF
+
+tF P + = inf t ∈ ~tF P | t > t0
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ntt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+
+0.0
+
+Ipnrt+ = RRNXT
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Payoff Function
+
+SC
+
+12
+
+State Transition Function
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ntt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+(
+Nsct−
+if SCEF = [x]0[x]
+Nsct+ = Orf (SCMO,t)−SCIED
+else
+SCIED
+(
+Isct−
+if SCEF = 0[x][x]
+Isct+ = Orf (SCMO,t)−SCIED
+else
+SCIED
+
+0.0
+
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+CE
+
+tF P + = inf t ∈ ~tF P | t > t0
+STF AD PAM()
+
+0.0
+
+7.2. LAM: Linear Amortizer.
+Event Schedule
+AD
+IED
+PR
+tP R = S(s, PRCL, T M D , F )
+
+MD
+PP
+PY
+FP
+PRD
+TD
+IP
+IPCI
+
+tM D = Mdt0
+
+IPCB
+
+~tIP CB =
+
+LAM: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+with
+
+∅
+s = IED + PRCL
+
+
+PRANX
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+
+(
+∅
+S(s, IPCBCL, T M D )
+
+if IPCB 6= ’NTL’
+else
+
+RR
+RRF
+SC
+CE
+
+State
+Md
+
+Nt
+Ipnr
+Ipac
+Feac
+Nsc
+Isc
+
+if PRANX = ∅ ∧ PRCL = ∅
+else if PRANX = ∅
+else
+
+Initialization
+per t0
+(
+MD
+Mdt0 = −
+NT
+t + ceil( PRNXT
+)PRCL
+
+with
+
+∅
+s = IED + IPCBCL
+
+
+IPCBANX
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+
+if IPCBANX = ∅ ∧ IPCBCL = ∅
+else if IPCBANX = ∅
+else
+
+LAM: State Variables Initialization
+Comments
+if MD 6= ∅
+where
+
+PRANX
+t− = IED + PRCL
+
+
+sup t ∈ ~tP R | t < t0
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+
+if PRANX 6= ∅ ∧ PRANX ≥ t0
+else if IED + PRCL ≥ t0
+else
+
+Continued on next page
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+13
+
+Continued from previous page
+Comments
+Same as PAM
+Same as PAM
+(
+PRNXT
+if PRNXT 6= ∅
+Prnxt Prnxtt0 =
+with
+(s,T M D )
+NT(ceil( YY(s,s+PRCL)
+))−1 else
+
+if PRANX 6= ∅ ∧ PRANX > t0
+PRANX
+s = IED + PRCL else if PRANX = ∅ ∧ IED + PRCL > t0
+
+−
+t
+else
+and where t− = sup t ∈ ~tP R | t < t0
+
+
+if t0 < IED
+0.0
+Ipcb Ipcbt0 = R(CNTRL)NT
+else if IPCB = ’NT’
+
+
+R(CNTRL)IPCBA else
+State
+Prf
+Sd
+
+Initialization per t0
+
+Event Payoff Function
+AD
+POF AD PAM()
+
+IED
+
+PR
+
+LAM: State Transition Functions and Payoff Functions
+State Transition Function
+STF AD PAM()
+Ntt+ = R(CNTRL)NT
+Ipnrt+ = IPNR
+
+
+IPAC
+Ipact+ = yNtt+ Ipnrt+
+
+
+0.0
+
+POF IED PAM()
+
+CURS
+XCUR
+(t)R(CNTRL)Nsct− Prnxtt−
+
+if IPAC 6= ∅
+if IPANX 6= ∅ ∧ IPANX < t
+else
+
+Sdt+ = t
+(
+R(CNTRL)NT
+if IPCB = ’NT’
+Ipcbt+ =
+R(CNTRL)IPCBA else
+Ntt+ = Ntt− − R(CNTRL)Prnxtt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+(
+Ipcbt− if IPCB 6= ’NT’
+Ipcbt+ =
+else
+Ntt+
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Ntt+ = 0.0
+Ipact+ = 0.0
+
+MD
+
+Feact+ = 0.0
+
+POF MD PAM()
+
+Ipcbt+ = 0.0
+Sdt+ = t
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+PP
+
+Ntt+ = Ntt− − f (Oev (CID, PP, t))
+(
+Ipcbt− if IPCB 6= ’NT’
+Ipcbt+ =
+Ntt+
+else
+
+POF PP PAM()
+
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Payoff Function
+
+PY
+
+POF PY PAM()
+
+14
+
+State Transition Function
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+
+FP
+
+PRD
+
+POF FP PAM()
+
+Feact+ = 0.0
+
+CURS
+XCUR
+(t)R(CNTRL)(−1)(PPRD + Ipact− +
+Y (Sdt− , t)Ipnrt− Ipcbt− )
+
+Sdt+ = t
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+
+TD
+
+CURS
+XCUR
+(t)R(CNTRL)(PTD + Ipact− +
+
+IP
+
+Y (Sdt− , t)Ipnrt− Ipcbt− )
+CURS
+XCUR
+(t)Isct− (Ipact− +
+Y (Sdt− , t)Ipnrt− Ipcbt− )
+
+tF P + = inf t ∈ ~tF P | t > t0
+STF TD PAM()
+STF IP PAM()
+Ntt+ = Ntt− + Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+
+IPCI
+
+Ipact+ = 0.0
+(
+Feact− + Y (Sdt− , t)Ntt− FER
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+Y (tF P − ,tF P + )
+(
+Ipcbt− if IPCB 6= ’NT’
+Ipcbt+ =
+Ntt+
+else
+
+POF IPCI PAM()
+
+if
+
+FEB = ’N’
+
+else
+
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Ipcbt+ = Ntt−
+IPCB
+
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+
+0.0
+
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+
+RR
+
+tF P + = inf t ∈ ~tF P | t > t0
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+
+POF RR PAM()
+
+Ipnrt+ = min(max(Ipnrt− + ∆r, RRLF), RRLC)
+Sdt+ = t
+with
+∆r = min(max(Orf (RRMO, t)RRMLT + RRSP − Ipnrt− , RRPF), RRPC)
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Payoff Function
+
+RRF
+
+POF RRF PAM()
+
+15
+
+State Transition Function
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+Ipnrt+ = RRNXT
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+
+SC
+
+POF SC PAM()
+
+tF P + = inf t ∈ ~tF P | t > t0
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+(
+Nsct−
+if SCEF = [x]0[x]
+Nsct+ = Orf (SCMO,t)−SCIED
+else
+SCIED
+(
+Isct−
+if SCEF = 0[x][x]
+Isct+ = Orf (SCMO,t)−SCIED
+else
+SCIED
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+
+CE
+
+POF CE PAM()
+
+tF P + = inf t ∈ ~tF P | t > t0
+STF AD PAM()
+
+7.3. LAX: Exotic Linear Amortizer.
+LAX: Contract Schedule
+Event Schedule
+Comments
+AD
+Same as PAM
+IED
+Same as PAM
+(
+{t1 , t2 , ..., ti , ...}
+if ARPRCL = ∅
+~tP R =
+PR
+with (
+s1 ∪ s2 ∪ ... ∪ si ∪ ... else
+if | ARPRCL |=| ARPRANX |
+~ = ARPRCL
+C
+with
+{c
+,
+c
+,
+...,
+c
+}
+else
+1 2
+n
+~ i , ARPRANXi+1 ), i ∈ {1, 2, ..., | ARINCDEC |
+si = S(ARPRANXi , C
+where
+} | ARINCDECi = ’DEC’
+n =| ARPRANX |, ck = ARPRCL1 ∀k
+MD
+Same as PAM
+(
+{t
+,
+t
+,
+...,
+t
+,
+...}
+if
+ARPRCL
+=
+∅
+1
+2
+i
+~tP I =
+PI
+with (
+s1 ∪ s2 ∪ ... ∪ si ∪ ... else
+if | ARPRCL |=| ARPRANX |
+~ = ARPRCL
+C
+with
+{c
+,
+c
+,
+...,
+c
+}
+else
+1 2
+n
+~ i , ARPRANXi+1 ), i ∈ {1, 2, ..., | ARINCDEC |
+si = S(ARPRANXi , C
+where
+} | ARINCDECi = ’INC’
+n =| ARPRANX |, ck = ARPRCL1 ∀k
+~tP RF = ARPRANX
+PRF
+PP
+Same as PAM
+PY
+Same as PAM
+FP
+Same as PAM
+PRD
+Same as PAM
+TD
+Same as PAM
+~
+~tIP = S(ARIPANX,
+IP
+ARIPCL, Mdt0 )
+IPCI
+Same as PAM
+IPCB
+Same as LAM
+(
+{t
+,
+t
+,
+...,
+t
+,
+...}
+if
+ARRRCL
+=
+∅
+1 2
+i
+~tRR =
+RR
+with (
+s1 ∪ s2 ∪ ... ∪ si ∪ ... else
+if | ARRRCL |=| ARRRANX |
+~ = ARRRCL
+C
+with
+{c1 , c2 , ..., cn } else
+~ i , ARRRANXi+1 ), i ∈ {1, 2, ..., | ARFIXVAR |
+si = S(ARRRANXi , C
+where
+} | ARFIXVARi = ’V’
+n =| ARRRANX |, ck = ARRRCL1 ∀k
+Continued on next page
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+16
+
+Continued from previous page
+Event Schedule
+(
+{t1 , t2 , ..., ti , ...}
+if ARRRCL = ∅
+RRF
+~t
+=
+RRF
+s1 ∪ s2 ∪ ... ∪ si ∪ ... else
+with
+~ i , ARRRANXi+1 ), i ∈ {1, 2, ..., | ARFIXVAR |
+si = S(ARRRANXi , C
+} | ARFIXVARi = ’F’
+
+Comments
+with (
+~ =
+C
+
+if | ARRRCL |=| ARRRANX |
+else
+
+ARRRCL
+{c1 , c2 , ..., cn }
+
+where
+n =| ARRRANX |, ck = ARRRCL1 ∀k
+Same as PAM
+Same as PAM
+
+SC
+CE
+
+LAX: State Variables Initialization
+Initialization
+per
+t
+Comments
+0
+(
+MD
+if MD 6= ∅
+Md
+Mdt0 =
+where (
+inf t > t0 | N (t) = 0 else
+sup k ∈ N | ARPRANXk < t if t < max(ARPRANX)
+n(t) =
+with
+Pn(t)
+| ARPRANX |
+else
+N (t) = NT + i=1 (−1)k ARPRNXTi | si |
+(
+0 if ARINCDECi = ’INC’
+k=
+1 else
+(
+{ARPRANXi }
+if ARPRCL = ∅
+si =
+~
+S(ARPRANXi , Ci , Ti ) else
+(
+ARPRANXi+1 if i <| ARPRANX |
+Ti =
+t
+else
+(
+if | ARRRCL |=| ARRRANX |
+~ = ARRRCL
+C
+{c1 , c2 , ..., cn } else
+Nt
+Same as PAM
+Ipnr
+Same as PAM
+Ipac
+Same as PAM
+Feac
+Same as PAM
+Nsc
+Same as PAM
+Isc
+Same as PAM
+Prf
+Same as PAM
+Sd
+Same as PAM
+(
+0.0
+if t0 ≥ ARPRANX1
+Prnxt Prnxtt0 =
+where
+ARPRNXTi else
+i = sup k ∈ N | ARPRANX < t
+State
+
+k
+
+Ipcb
+
+Event
+AD
+IED
+PR
+MD
+
+0
+
+Same as LAM
+
+Payoff Function
+POF AD PAM()
+POF IED PAM()
+POF PR LAM()
+POF MD PAM()
+
+LAX: State Transition Functions and Payoff Functions
+State Transition Function
+STF AD PAM()
+STF IED LAM()
+STF PR LAM()
+STF MD LAM()
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Payoff Function
+
+PI
+
+CURS
+XCUR
+(t)R(CNTRL)(−1)Nsct− Prnxtt−
+
+17
+
+State Transition Function
+Ntt+ = Ntt− + R(CNTRL)Prnxtt−
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+(
+Ipcbt− if IPCB 6= ’NT’
+Ipcbt+ =
+Ntt+
+else
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Prnxtt+ = ARPRNXTi
+
+PRF
+
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+(
+Ipcbt− if IPCB 6= ’NT’
+Ipcbt+ =
+Ntt+
+else
+
+0.0
+
+Sdt+ = t
+with
+i = sup k ∈ N | ARPRANXk = t
+tF P − = sup t ∈ ~tF P | t < t0
+PP
+PY
+FP
+PRD
+TD
+IP
+IPCI
+IPCB
+
+POF PP PAM()
+POF PY PAM()
+POF FP PAM()
+POF PRD LAM()
+POF TD LAM()
+POF IP LAM()
+POF IPCI PAM()
+POF IPCB LAM()
+
+RR
+
+POF RR PAM()
+
+tF P + = inf t ∈ ~tF P | t > t0
+STF PP LAM()
+STF PY LAM()
+STF FP LAM()
+STF PRD LAM()
+STF TD PAM()
+STF IP PAM()
+STF IPCI LAM()
+STF IPCB LAM()
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+Ipnrt+ = min(max(Ipnrt− + ∆r, RRLF), RRLC)
+Sdt+ = t
+with
+∆r = min(max(Orf (RRMO, t)RRMLT + ARRATEi − Ipnrt− , RRPF), RRPC)
+i = sup k ∈ N | ARPRANXk = t
+t
+
+FP−
+
+= sup t ∈ ~tF P | t < t0
+
+FP+
+
+RRF
+
+POF RRF PAM()
+
+t
+= inf t ∈ ~tF P | t > t0
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+Ipnrt+ = ARRATEi
+Sdt+ = t
+with
+i = sup k ∈ N | ARRRANXk = t
+tF P − = sup t ∈ ~tF P | t < t0
+
+SC
+CE
+
+POF SC PAM()
+POF CE PAM()
+
+tF P + = inf t ∈ ~tF P | t > t0
+STF SC LAM()
+STF AD PAM()
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+18
+
+7.4. NAM: Negative Amortizer.
+Event Schedule
+AD
+IED
+PR
+MD
+PP
+PY
+FP
+PRD
+TD
+~tIP = (~
+IP
+u, ~v )
+where
+
+
+∅
+~
+u= ∅
+
+
+S(r, IPCL, T )
+
+NAM: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as LAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+with 
+IPCED
+
+
+
+IPANX
+if IPANX = ∅ ∧ IPCL = ∅
+r=
+if IPCED 6= ∅ ∧ IPCED ≥ T
+
+IED + IPCL
+
+
+
+else
+∅
+
+~v = S(s, PRCL, T M D )
+
+IPCI
+IPCB
+RR
+RRF
+SC
+CE
+
+T = s − PRCL
+(
+IED + PRCL
+s=
+PRANX
+Same as PAM
+Same as LAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+
+if IPCED 6= ∅
+else if IPANX 6= ∅
+else if IPCL 6= ∅
+else
+
+if PRANX = ∅
+else
+
+NAM: State Variables Initialization
+Initialization
+per
+t
+Comments
+0
+(
+MD
+if MD 6= ∅
+Md
+Mdt0 = −
+where
+t + nPRCL else
+
+PRANX
+with n = ceil( PRNXT−NTY (t−NT,t− +PRCL)IPNR )
+t− = IED + PRCL
+
+
+sup t ∈ tP R | t < t0
+Nt
+Same as PAM
+Ipnr
+Same as PAM
+Ipac
+Same as PAM
+Feac
+Same as PAM
+Nsc
+Same as PAM
+Isc
+Same as PAM
+Prf
+Same as PAM
+Sd
+Same as PAM
+Prnxt Prnxtt0 = R(CNTRL)PRNXT
+Ipcb
+Same as LAM
+State
+
+Event Payoff Function
+AD
+POF AD PAM()
+IED
+POF IED PAM()
+
+if PRANX 6= ∅ ∧ PRANX ≥ t0
+else if IED + PRCL ≥ t0
+else
+
+NAM: State Transition Functions and Payoff Functions
+State Transition Function
+STF AD PAM()
+STF IED LAM()
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Payoff Function
+
+PR
+
+CURS
+XCUR
+(t)Nsct− (Prnxtt− − Ipact− −
+Y (Sdt− , t)Ipnrt− Ipcbt− )
+
+19
+
+State Transition Function
+Ntt+ = Ntt− − (Prnxtt− − Ipact+ )
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+(
+Ipcbt− if IPCB 6= ’NT’
+Ipcbt+ =
+Ntt+
+else
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+
+MD
+PP
+PY
+FP
+PRD
+TD
+IP
+IPCI
+IPCB
+RR
+RRF
+SC
+CE
+
+POF MD PAM()
+POF PP PAM()
+POF PY PAM()
+POF FP PAM()
+POF PRD LAM()
+POF TD LAM()
+POF IP LAM()
+POF IPCI PAM()
+POF IPCB LAM()
+POF RR PAM()
+POF RRF PAM()
+POF SC PAM()
+POF CE PAM()
+
+tF P + = inf t ∈ ~tF P | t > t0
+STF MD LAM()
+STF PP LAM()
+STF PY LAM()
+STF FP LAM()
+STF PRD LAM()
+STF TD PAM()
+STF IP PAM()
+STF IPCI LAM()
+STF IPCB LAM()
+STF RR LAM()
+STF RRF LAM()
+STF SC LAM()
+STF AD PAM()
+
+7.5. ANN: Annuity.
+Event Schedule
+AD
+IED
+PR
+MD
+PP
+PY
+FP
+PRD
+TD
+IP
+IPCI
+IPCB
+RR
+RRF
+SC
+CE
+
+State
+Md
+Nt
+Ipnr
+Ipac
+Feac
+Nsc
+Isc
+Prf
+
+Initialization per t0
+
+ANN: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as LAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as NAM
+Same as PAM
+Same as LAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+
+ANN: State Variables Initialization
+Comments
+Same as NAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+State
+Sd
+
+Initialization per t0
+
+(
+R(CNTRL)PRNXT
+Prnxt Prnxtt0 =
+(NT + Ipact0 ) todo
+todo
+
+20
+
+Continued from previous page
+Comments
+Same as PAM
+if PRNXT 6= ∅
+where n = |~t| with |a| indicating the cardinality of
+else
+set a
+
+Ipcb
+
+Event
+AD
+IED
+PR
+MD
+PP
+PY
+FP
+PRD
+TD
+IP
+IPCI
+IPCB
+
+RR
+
+Same as LAM
+
+ANN: State Transition Functions and Payoff Functions
+Payoff Function
+State Transition Function
+POF AD PAM()
+STF AD PAM()
+POF IED PAM()
+STF IED LAM()
+POF PR NAM()
+STF PR NAM()
+POF MD PAM()
+STF MD LAM()
+POF PP PAM()
+STF PP LAM()
+POF PY PAM()
+STF PY LAM()
+POF FP PAM()
+STF FP LAM()
+POF PRD LAM()
+STF PRD LAM()
+POF TD LAM()
+STF TD PAM()
+POF IP LAM()
+STF IP PAM()
+POF IPCI PAM()
+STF IPCI LAM()
+POF IPCB LAM()
+STF IPCB LAM()
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+POF RR PAM()
+Ipnrt+ = min(max(Ipnrt− + ∆r, RRLF), RRLC)
+Prnxtt+ = A(t, Mdt+ , Ntt+ , Ipact+ , Ipnrt+ )
+Sdt+ = t
+with
+∆r = min(max(Orf (RRMO, t)RRMLT + RRSP − Ipnrt− , RRPF), RRPC)
+tF P − = sup t ∈ ~tF P | t < t0
+
+RRF
+
+POF RRF PAM()
+
+tF P + = inf t ∈ ~tF P | t > t0
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ipcbt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+else
+Y (tF P − ,tF P + )
+Ipnrt+ = RRNXT
+Prnxtt+ = A(t, Mdt+ , Ntt+ , Ipact+ , Ipnrt+ )
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+
+SC
+CE
+
+POF SC PAM()
+POF CE PAM()
+
+tF P + = inf t ∈ ~tF P | t > t0
+STF SC LAM()
+STF AD PAM()
+
+7.6. CLM: Call Money.
+Event Schedule
+AD
+IED
+PR
+FP
+IP
+tIP = Mdt0
+
+CLM: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Schedule
+(
+∅
+if IPNR = ∅
+IP
+CI
+~t
+=
+IPCI
+S(s, IPCL, Mdt0 ) else
+
+21
+
+Comments
+where
+(
+
+IPANX
+IED + IPCL
+Same as PAM
+Same as PAM
+Same as PAM
+s=
+
+RR
+RRF
+CE
+
+State
+Md
+Nt
+Ipnr
+Ipac
+Feac
+Prf
+Sd
+
+Event
+AD
+IED
+PR
+FP
+IP
+IPCI
+RR
+RRF
+CE
+
+if IPANX 6= ∅
+else
+
+CLM: State Variables Initialization
+Initialization per t0
+Comments
+
+
+MD
+if
+MD
+=
+6
+∅
+
+Mdt0 = s
+where
+else if Oev (CID, t0 ) 6= {}
+
+ max
+s = sup t ∈ τ (Oev (CID, t0 ))
+t
+else
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+
+CLM: State Transition Functions and Payoff Functions
+Payoff Function
+State Transition Function
+POF AD PAM()
+STF AD PAM()
+CURS
+XCUR
+(t)R(CNTRL)(−1)NT
+STF IED PAM()
+POF PR PAM()
+STF PR PAM()
+POF FP PAM()
+STF FP PAM()
+Ipact+ = 0.0
+CURS
+XCUR (t)(Ipact− + Y (Sdt− , t)Ipnrt− Ntt− )
+Sdt+ = t
+POF IPCI PAM()
+STF IPCI PAM()
+POF RR PAM()
+STF RR PAM()
+POF RRF PAM()
+STF RRF PAM()
+POF CE PAM()
+STF AD PAM()
+
+7.7. UMP: Undefined Maturity Profile.
+Event Schedule
+AD
+IED
+~tP R = Oev (CID, i, t0 )
+PR
+FP
+(
+∅
+IP
+CI
+~t
+IPCI
+=
+S(s, IPCL, Mdt0 )
+RR
+RRF
+CE
+
+UMP: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+with i ∈ {PR, PI}
+Same as PAM
+if IPNR = ∅
+where
+(
+else
+IPANX
+s=
+IED + IPCL
+Same as PAM
+Same as PAM
+Same as PAM
+
+if IPANX 6= ∅
+else
+
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+State
+
+State
+Md
+
+22
+
+Continued from previous page
+Comments
+
+Initialization per t0
+
+UMP: State Variables Initialization
+Initialization
+per
+t
+Comments
+0
+(
+s
+if Oev (CID, t0 ) 6= {}
+Mdt0 = max
+where
+t
+else
+s = sup t, t ∈ τ (Oev (CID, i, t ))
+0
+
+i ∈ {PR, PI}
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+
+Nt
+Ipnr
+Ipac
+Feac
+Prf
+Sd
+
+Event Payoff Function
+AD
+POF AD PAM()
+IED
+POF IED CLM()
+
+PR
+
+R
+f (eP
+t )
+
+UMP: State Transition Functions and Payoff Functions
+State Transition Function
+STF AD PAM()
+STF IED PAM()
+Ipact+ = Ipact− + Y (Sdt− , t)Ipnrt− Ntt−
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (t− ,t)
+FER
+else
+Y (t− ,t+ )
+R
+Ntt+ = Ntt− − f (eP
+t )
+
+FP
+IPCI
+RR
+RRF
+CE
+
+Sdt+ = t
+STF FP PAM()
+STF IPCI PAM()
+STF RR PAM()
+STF RRF PAM()
+STF AD PAM()
+
+POF FP PAM()
+POF IPCI PAM()
+POF RR PAM()
+POF RRF PAM()
+POF CE PAM()
+
+7.8. CSH: Cash.
+CSH: Contract Schedule
+Comments
+Same as PAM
+
+Event Schedule
+AD
+
+State
+Nt
+Sd
+
+Initialization per t0
+Ntt0 = R(CNTRL)NT
+
+Event Payoff Function
+AD
+POF AD PAM()
+
+CSH: State Variables Initialization
+Comments
+Same as PAM
+
+CSH: State Transition Functions and Payoff Functions
+State Transition Function
+Sdt+ = t
+
+7.9. STK: Stock.
+Event Schedule
+AD
+PRD
+TD
+(
+∅
+(f ix) DV (f ix)
+DV
+t
+=
+DVANX
+
+STK: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as PAM
+if DVNP = ∅
+else
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Schedule
+(
+∅
+if DVANX = ∅ ∧ DVCL = ∅
+DV
+~t
+=
+DV
+S(s, DVCL, tmax ) else
+
+23
+
+Comments
+where
+(
+
+DVANX
+DVANX + DVCL
+Same as PAM
+s=
+
+CE
+
+State
+Prf
+Sd
+
+Initialization per t0
+
+if DVNP = ∅
+else
+
+STK: State Variables Initialization
+Comments
+Same as PAM
+Same as PAM
+
+STK: State Transition Functions and Payoff Functions
+Event Payoff Function
+State Transition Function
+AD
+POF AD PAM()
+Sdt+ = t
+CURS
+PRD
+XCUR
+(t)R(CNTRL)(−1)PPRD
+Sdt+ = t
+CURS
+TD
+XCUR
+(t)R(CNTRL)PTD
+Sdt+ = t
+CURS
+DV(f ix) XCUR
+(t)R(CNTRL)DVNP
+Sdt+ = t
+CURS
+DV
+XCUR
+(t)R(CNTRL)Orf (concat(CID,”-DV”), t)
+Sdt+ = t
+with concat(x, y, z) indicates the string concatenation function
+CE
+POF CE PAM()
+STF AD STK()
+7.10. COM: Commodity.
+COM: Contract Schedule
+Comments
+Same as PAM
+Same as STK
+Same as STK
+
+Event Schedule
+AD
+PRD
+TD
+
+State
+Sd
+
+Initialization per t0
+
+Event
+AD
+PRD
+TD
+
+Payoff Function
+POF AD PAM()
+POF PRD STK()
+POF PRD STK()
+
+COM: State Variables Initialization
+Comments
+Same as STK
+
+COM: State Transition Functions and Payoff Functions
+State Transition Function
+STF AD STK()
+STF PRD STK()
+STF PRD STK()
+
+7.11. FXOUT: Foreign Exchange Outright.
+Event Schedule
+AD
+PRD
+TD
+(
+∅
+ST D
+STD
+t
+=
+Mdt0
+(
+∅
+STD(1) tST D =
+Mdt0
+(
+∅
+STD(2) tST D =
+Mdt0
+
+FXOUT: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as PAM
+if DS = ’D’
+else
+if DS = ’S’
+else
+if DS = ’S’
+else
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+24
+
+Continued from previous page
+Event Schedule
+CE
+
+State
+Md
+
+Comments
+Same as PAM
+
+Initialization
+per t0
+(
+MD
+if STD = ∅
+Mdt0 =
+STD else
+
+FXOUT: State Variables Initialization
+Comments
+
+Prf
+Sd
+
+Same as PAM
+Same as PAM
+
+FXOUT: State Transition Functions and Payoff Functions
+Payoff Function
+State Transition Function
+POF AD PAM()
+STF AD STK()
+POF PRD STK()
+STF PRD STK()
+POF TD STK()
+STF TD STK()
+CURS
+XCUR
+(t)R(CNTRL)(NT − Orf (i, Mdt )NT2)
+Sdt+ = t
+where
+i = concat(CUR2,”/”,CUR)
+and concat(x, y, z) indicates the string concatenation function
+CURS
+STD(1) XCUR
+(t)R(CNTRL)NT
+Sdt+ = t
+CURS
+STD(2) XCUR
+(t)R(CNTRL)(−1)NT2
+Sdt+ = t
+CE
+POF CE PAM()
+STF CD STK()
+Event
+AD
+PRD
+TD
+STD
+
+7.12. SWPPV: Plain Vanilla Interest Rate Swap.
+Event Schedule
+AD
+PRD
+TD
+IED
+PR
+
+
+∅
+IP
+~
+t = Mdt0
+IP
+
+
+S(s, IPCL, Mdt0 )
+
+IP(f ix)
+
+IP(var)
+RR
+
+SWPPV: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+Same as PAM
+if DS = ’D’
+where
+else ifIPCL = ∅
+(
+IPANX
+else
+s=
+IED + IPCL
+
+
+
+if DS = ’S’
+∅
+(f ix)
+~tIP
+= Mdt0
+else ifIPCL = ∅
+
+
+S(s, IPCL, Mdt0 ) else
+
+
+if DS = ’S’
+∅
+(var)
+~tIP
+= Mdt0
+else ifIPCL = ∅
+
+
+S(s, IPCL, Mdt0 ) else
+~tRR = S(s, RRCL, Mdt0 )
+
+where
+(
+
+RRANX
+IED + RRCL
+Same as PAM
+s=
+
+CE
+
+State
+Md
+Nt
+
+Initialization per t0
+
+if IPANX 6= ∅
+else
+
+if RRANX 6= ∅
+else
+
+SWPPV: State Variables Initialization
+Comments
+Same as PAM
+Same as PAM
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+State
+Ipnr
+Ipac
+Ipac1
+Ipac2
+Prf
+Sd
+
+25
+
+Continued from previous page
+Initialization
+per
+t
+Comments
+0
+(
+0.0
+if IED > t0
+Ipnrt0 =
+IPNR2 else
+(
+IPAC
+if IPAC 6= ∅
+Ipact0 =
+with t− = sup t, t ∈ tIP , t < t0
+−
+Y (t , t0 )Ntt0 (IPNR − Ipnrt0 ) else
+Ipac1t0 = Y (t− , t0 )Ntt0 IPNR
+with t− = sup t, t ∈ tIP , t < t0
+−
+Ipac2t0 = Y (t , t0 )Ntt0 Ipnrt0
+with t− = sup t, t ∈ tIP , t < t0
+Same as PAM
+Same as PAM
+
+SWPPV: State Transition Functions and Payoff Functions
+Event Payoff Function
+State Transition Function
+Ipact+ = Y (Sdt− , t)Ntt0 (IPNR − Ipnrt0 )
+AD
+
+Ipac1t+ = Y (Sdt− , t)Ntt0 IPNR
+
+POF AD PAM()
+
+Ipac2t+ = Y (Sdt− , t)Ntt0 Ipnrt0
+Sdt+ = t
+Ntt+ = R(CNTRL)NT
+Ipact+ = 0.0
+
+IED
+
+Ipac1t+ = 0.0
+
+0.0
+
+Ipac2t+ = 0.0
+Ipnrt+ = IPNR2
+Sdt+ = t
+Ntt+ = 0.0
+
+PR
+
+Ipnrt+ = 0.0
+
+0.0
+
+Sdt+ = t
+Ipact+ = Y (Sdt− , t)Ntt0 (IPNR − Ipnrt0 )
+PRD
+
+Ipac1t+ = Y (Sdt− , t)Ntt0 IPNR
+
+POF PRD STK()
+
+Ipac2t+ = Y (Sdt− , t)Ntt0 Ipnrt0
+Sdt+ = t
+Ntt+ = 0.0
+Ipact+ = 0.0
+
+TD
+
+Ipac1t+ = 0.0
+
+POF TD STK()
+
+Ipac2t+ = 0.0
+Ipnrt+ = 0.0
+
+IP
+
+CURS
+XCUR
+(t)R(CNTRL)(Ipact− + Y (Sdt− , t)(IPNR −
+Ipnrt− )Ntt− )
+
+CURS
+IP(f ix ) XCUR
+(t)R(CNTRL)(Ipac1t− +Y (Sdt− , t)IPNRNtt− )
+CURS
+IP(var) XCUR
+(t)R(CNTRL)(Ipac2t−
+Y (Sdt− , t)Ipnrt− Ntt− )
+
+−
+
+Sdt+ = t
+Ipact+ = 0.0
+Sdt+ = t
+Ipac1t+ = 0.0
+Sdt+ = t
+Ipac2t+ = 0.0
+Sdt+ = t
+Ipact+ = Y (Sdt− , t)Ntt0 (IPNR − Ipnrt0 )
+Ipac1t+ = Y (Sdt− , t)Ntt0 IPNR
+
+RR
+
+POF RR PAM()
+
+Ipac2t+ = Y (Sdt− , t)Ntt0 Ipnrt0
+Ipnrt+ = RRMLTOrf (RRMO, t) + RRSP
+
+CE
+
+POF CE PAM()
+
+Sdt+ = t
+STF AD SWPPV()
+
+7.13. SWAPS: Swap.
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+Event Schedule
+AD
+PRD
+TD
+(
+l,2
+{ek,1
+t } ∪ {es }
+k
+k
+{et } =
+k,1
+{et } + {el,2
+s }
+with
+l,2
+{ek,1
+t } + {es } = U ∪ V
+and
+l,2
+U = {ek,1
+t }4{es }
+
+26
+
+SWAPS: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as PAM
+if DS = ’D’
+with
+ev
+Contract
+(1)
+else
+{ek,1
+})
+t } = U (CTSTF irstLeg , t0 | {CNTRL = r
+ev
+Contract
+(2)
+{el,2
+})
+s } = U (CTSTSecondLeg , t0 | {CNTRL = r
+(
+RP A if CNTRL = RF L
+r(1) =
+RP L else
+(
+RP L if CNTRL = RF L
+r(2) =
+RP A else
+
+m
+V = {xm
+τ + yτ }
+l
+l,2
+where for any two events xkt ∈ {ek,1
+t }, ys ∈ {es } we have
+k
+l
+xt = ys ⇐⇒ t = s∧k = l, 4 is the distinct union-operator,
+and xkt + ysl = zτm with τ = t = s, m = k = l ∈ {IED,IP,PR}
+indicates that any two congruent events of type IED, IP, or
+PR are merged into a new aggregate event (see payoff and
+state transition function below).
+
+CE
+
+State
+Md
+Ipac
+
+Prf
+Sd
+
+Same as PAM
+
+SWAPS: State Variables Initialization
+Initialization per t0
+Comments
+sv
+Contract
+Mdt0 = max(U sv (CTSTContract
+F irstLeg , t0 , Tmd), U (CTSTSecondLeg , t0 , Tmd))
+(1)
+Ipact0 = U sv (CTSTContract
+}) + with (
+F irstLeg , t0 , Ipac | {CNTRL = r
+(2)
+sv
+Contract
+RP A
+U (CTSTSecondLeg , t0 , Ipac | {CNTRL = r })
+r(1) =
+RP L
+(
+RP L
+r(2) =
+RP A
+Same as PAM
+Same as PAM
+
+if CNTRL = RF L
+else
+if CNTRL = RF L
+else
+
+SWAPS: State Transition Functions and Payoff Functions
+Event Payoff Function
+State Transition Function
+(1)
+Ipact+ = U sv (CTSTContract
+})
+F irstLeg , t, Ipac | {CNTRL = r
+AD
+
+POF AD PAM()
+
+(2)
++ U sv (CTSTContract
+})
+SecondLeg , t, Ipac | {CNTRL = r
+(
+Feact− + Y (Sdt− , t)Ntt− FER if FEB = ’N’
+Feact+ =
+Y (t− ,t)
+FER
+else
+Y (t− ,t+ )
+
+Sdt+ = t
+(1)
+Ipact+ = U sv (CTSTContract
+})
+F irstLeg , t, Ipac | {CNTRL = r
+PRD
+
+TD
+
+CURS
+XCUR
+(t)((−1)PPRD
+(1)
++U sv (CTSTContract
+})
+F irstLeg , t, Ipac | {CNTRL = r
+sv
+Contract
++U (CTSTSecondLeg , t, Ipac | {CNTRL =
+r(2) }))
+CURS
+XCUR
+(t)(PTD
+(1)
++U sv (CTSTContract
+})
+F irstLeg , t, Ipac | {CNTRL = r
+sv
+Contract
++U (CTSTSecondLeg , t, Ipac | {CNTRL =
+r(2) }))
+
+(2)
++ U sv (CTSTContract
+})
+SecondLeg , t, Ipac | {CNTRL = r
+
+Sdt+ = t
+Ipact+ = 0.0
+Sdt+ = t
+
+(1)
+Ipact+ = U sv (CTSTContract
+})
+F irstLeg , t, Ipac | {CNTRL = r
+
+zτm
+
+m
+f (xm
+τ ) + f (yτ )
+
+CE
+
+POF CE PAM()
+
++ U sv (SecondLeg, t, Ipac | {CNTRL = r(2) })
+Sdt+ = t
+STF AD SWAPS()
+
+7.14. CAPFL: Cap-Floor.
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+27
+
+CAPFL: Contract Schedule
+Event Schedule
+Comments
+AD
+Same as PAM
+PRD
+Same as PAM
+TD
+Same as PAM
+k
+{ekt } = {xkt + ysl }
+for all events xkt ∈ U ev (CTSTContract
+U nderlying , t0 | {CNTRL =
+RP A}), ysl ∈ U ev (CTSTContract
+| {CNTRL =
+U nderlying , t0
+RP A, RRLC = RRLC, RRLF = RRLF}) with t = s ∧ k = l = IP .
+That is, any two congruent events of the child-contract
+schedule, evaluated once without RRLC, RRLF defined and
+once with the attributes defined, which are of type IP are
+merged into a new aggregate event (see payoff and state transition function below).
+CE
+Same as PAM
+
+State
+Md
+
+Ipac
+
+Prf
+Sd
+
+CAPFL: State Variables Initialization
+Initialization per t0
+Comments
+Mdt0 = max(U sv (CTSTContract
+U nderlying , t0 , Tmd | {CNTRL =
+RP A}),
+U sv (CTSTContract
+|
+{CNTRL
+=
+U nderlying , t0 , Tmd
+RP A, RRLC = RRLC, RRLF = RRLF}))
+Ipact0 = R(CNTRL)abs(
+(1)
+U sv (CTSTContract
+})
+U nderlying , t0 , Ipac | {CNTRL = r
+sv
+Contract
+|
+{CNTRL
+=
+−U (CTSTU nderlying , t0 , Ipac
+RP A, RRLC = RRLC, RRLF = RRLF}))
+Same as PAM
+Same as PAM
+
+CAPFL: State Transition Functions and Payoff Functions
+Event Payoff Function
+State Transition Function
+Ipact+ = R(CNTRL)abs(U sv (CTSTContract
+U nderlying , t, Ipac | {CNTRL = RP A})
+AD
+
+− U sv (CTSTContract
+U nderlying , t, Ipac | {CNTRL = RP A,
+
+POF AD PAM()
+
+RRLC = RRLC, RRLF = RRLF}))
+Sdt+ = t
+Ipact+ = R(CNTRL)abs(U sv (CTSTContract
+U nderlying , t, Ipac | {CNTRL = RP A})
+PRD
+
+CURS
+XCUR
+(t)((−1)PPRD + R(CNTRL)abs(
+U sv (CTSTContract
+| {CNTRL =
+U nderlying , t, Ipac
+RP A})−
+U sv (CTSTContract
+U nderlying , t, Ipac | {CNTRL = RP A,
+RRLC = RRLC, RRLF = RRLF})))
+
+TD
+
+CURS
+XCUR
+(t)(PTD + R(CNTRL)abs(
+U sv (CTSTContract
+| {CNTRL =
+U nderlying , t, Ipac
+RP A})−
+U sv (CTSTContract
+U nderlying , t, Ipac | {CNTRL = RP A,
+RRLC = RRLC, RRLF = RRLF})))
+
+zτm
+
+m
+R(CNTRL)abs(f (xm
+τ ) − f (yτ ))
+where abs(u) defines that the absolute value of u
+is taken.
+POF CE PAM()
+
+CE
+
+− U sv (CTSTContract
+U nderlying , t, Ipac | {CNTRL = RP A,
+RRLC = RRLC, RRLF = RRLF}))
+Sdt+ = t
+
+Ipact+ = 0.0
+Sdt+ = t
+
+Ipact+ = 0.0
+Sdt+ = t
+STF AD CAPFL()
+
+7.15. OPTNS: Option.
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+28
+
+Continued from previous page
+Event Schedule
+
+Event Schedule
+AD
+PRD
+TD
+MD
+tM D = MD
+
+
+Xdt0
+XD
+XD
+t
+= inf τ (eXD )
+
+
+∅
+(
+STD
+
+t
+
+ST D
+
+=
+
+∅
+XD + STD
+
+Comments
+OPTNS: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as PAM
+if Xdt0 6= ∅
+else if τ (eXD ) 6= ∅ ∧ OPXT 6=0 E 0
+else
+
+with
+eXD = e ∈ Oev (i, XD, t0 )|τ (e) ≤ Mdt0
+and
+i = CTSTContract
+CoveredContract (i)
+
+if XD = ∅
+else
+
+CE
+
+State
+Xd
+Xa
+Prf
+Sd
+
+Event
+AD
+PRD
+TD
+
+MD
+
+Same as PAM
+
+Initialization per t0
+Xdt0 = XD
+Xat0 = XA
+
+OPTNS: State Variables Initialization
+Comments
+
+Same as PAM
+Same as PAM
+
+OPTNS: State Transition Functions and Payoff Functions
+Payoff Function
+State Transition Function
+POF AD PAM()
+Sdt+ = t
+CURS
+XCUR
+(t)(−1)PPRD
+STF PRD STK()
+CURS
+XCUR
+(t)PTD
+STF TD STK()
+
+
+Xdt− if Xdt− 6= ∅
+Xdt+ = ∅
+else if x = 0.0
+
+0.0
+
+t
+else
+Sdt+ = t
+with 
+max(St − OPS1, 0)
+
+
+max(OPS1 − S , 0)
+t
+x=
+max(St − OPS1, 0)
+
+
+
++ max(OPS2 − St , 0)
+
+XD
+
+0.0
+
+STD
+
+CURS
+XCUR
+(t)R(CNTRL)Xat−
+
+CE
+
+POF CE PAM()
+
+if OPTP = ’C’
+else if OPTP = ’P’
+else
+
+St = Orf (U ca (CTSTContract
+U nderlying , M OC), t)
+
+max(St − OPS1, 0)
+if OPTP = ’C’
+
+
+
+max(OPS1 − S , 0)
+else if OPTP = ’P’
+t
+Xat+ =
+
+max(S
+−
+OPS1,
+0)
+else
+t
+
+
+
++ max(OPS2 − St , 0)
+Sdt+ = t
+with
+St = Orf (U ca (CTSTContract
+U nderlying , M OC), t)
+Xat+ = 0.0
+Sdt+ = t
+STF AD OPTNS()
+
+7.16. FUTUR: Future.
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+29
+
+Continued from previous page
+Event Schedule
+
+Comments
+FUTUR: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as PAM
+Same as OPTNS
+Same as OPTNS
+Same as OPTNS
+Same as PAM
+
+Event Schedule
+AD
+PRD
+TD
+MD
+XD
+STD
+CE
+
+State
+Xd
+Xa
+Prf
+Sd
+
+Event
+AD
+PRD
+TD
+MD
+
+Initialization per t0
+
+FUTUR: State Variables Initialization
+Comments
+Same as OPTNS
+Same as OPTNS
+Same as PAM
+Same as PAM
+
+FUTUR: State Transition Functions and Payoff Functions
+Payoff Function
+State Transition Function
+POF AD PAM()
+STF AD OPTNS()
+POF PRD OPTNS()
+STF PRD STK()
+POF TD OPTNS()
+STF TD (STK()
+∅ if x = 0.0
+Xdt+ =
+0.0
+t else
+Sdt+ = t
+with
+x = St − PFUT
+St = Orf (U ca (CTSTContract
+U nderlying , M OC), t)
+Xat+ = St − PFUT
+
+XD
+
+0.0
+
+STD
+CE
+
+POF STD OPTNS()
+POF CE PAM()
+
+Sdt+ = t
+with
+St = Orf (U ca (CTSTContract
+U nderlying , M OC), t)
+STF STD OPTNS()
+STF AD FUTUR()
+
+7.17. CEG: Credit Enhancement Guarantee.
+Event Schedule
+AD
+PRD
+TD
+(
+∅
+FP
+~
+FP
+t
+=
+S(s, FECL, T )
+
+(
+MD
+
+t
+
+MD
+
+=
+
+Mdt0
+∅
+
+CEG: Contract Schedule
+Comments
+Same as PAM
+Same as PAM
+Same as PAM
+if FER = ∅ ∨ FER = 0
+with
+else
+
+if FEANX = ∅ ∧ FECL = ∅
+∅
+s = PRD + FECL else if FEANX = ∅
+
+
+FEANX
+else
+(
+MD
+if tXD = ∅
+T = XD
+t
+else
+
+if tXD = ∅
+else
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+
+30
+
+Continued from previous page
+Event Schedule
+
+
+if Xdt0 6= ∅
+Xdt0
+XD
+CE
+XD
+t
+= inf τ (e ) else if τ (eCE ) 6= ∅
+
+
+∅
+else
+
+Comments
+with
+eCE = e ∈ Oev (i, CE, t0 )|Prfτ (e)+ == CET∧
+τ (e) ≤ Mdt0
+and
+i = CTSTContract
+CoveredContract (i)
+Same as OPTNS
+Same as PAM
+
+STD
+CE
+
+State
+Md
+
+Initialization
+per t0
+(
+MD
+Mdt0 =
+max(τ ({ekt }))
+
+CEG: State Variables Initialization
+Comments
+if MD 6= ∅
+with
+k,n
+k,2
+else
+{ekt } = {ek,1
+t } ∪ {et } ∪ ... ∪ {et }
+ev
+Contract
+{ek,i
+t } = U (CTSTCoveredContract (i), t0 | {
+
+})n =| CTSTContract
+CoveredContract |
+Nt
+
+Feac
+
+
+
+0.0
+Ntt0 = CECVR(CNTRL)NT
+
+P
+
+CECVR(CNTRL) |I|
+i=1 ni
+
+
+
+0.0
+
+
+
+FEAC
+Feact0 =
+−
+
+Ntt0 Y (t , t0 )FER
+
+FP−
+
+,t0 )
+ Y (t
+R(CNTRL)FER
+Y (tF P − ,tF P + )
+
+Xd
+Xa
+Prf
+Sd
+
+Event Payoff Function
+AD
+
+if t0 ≥ Mdt0
+else if NT 6= ∅
+else
+
+POF AD PAM()
+
+with 
+U sv (I(i), t0 , Nt | {x})
+
+
+
+U sv (I(i), t , Nt | {x})
+0
+ni =
+sv
+
++U
+(I(i),
+t0 , Ipac | {x})
+
+
+ rf ca
+O (U (I(i), M OC), t0 )
+where
+I = CTSTContract
+CoveredContract
+
+if CEGE = N O
+else if CEGE = N I
+else
+
+if FER = ∅
+else if FEAC 6= ∅
+with
+else if FEB = ’N’ tF P − = sup t ∈ ~tF P | t < t0
+else
+tF P + = inf t ∈ ~tF P | t > t0
+Same as OPTNS
+Same as OPTNS
+Same as PAM
+Same as PAM
+
+CEG: State Transition Functions and Payoff Functions
+State Transition Function
+(
+Feact− + Y (Sdt− , t)Ntt− FER
+Feact+ =
+Y (tF P − ,t)
+R(CNTRL)FER
+Y (tF P − ,tF P + )
+
+if
+
+FEB = ’N’
+
+else
+
+Sdt+ = t
+with
+tF P − = sup t ∈ ~tF P | t < t0
+tF P + = inf t ∈ ~tF P | t > t0
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Payoff Function
+
+PRD
+
+31
+
+State Transition
+Function
+(
+Ntt−
+if NT 6= ∅
+Ntt+ =
+P|I|
+ni else
+CECV i=1
+
+POF PRD STK()
+
+Feact+ = Feact0
+Sdt+ = t
+with
+ sv
+U (I(i), t, Nt | {})
+
+
+
+U sv (I(i), t, Nt | {})
+ni =
+
++U sv (I(i), t, Ipac | {})
+
+
+ rf ca
+O (U (I(i), M OC), t)
+t
+
+FP−
+
+~F P
+
+= sup t ∈ t
+
+FP+
+
+FP
+
+CURS
+XCUR
+(t)R(CNTRL)FER
+CURS
+XCUR
+(t)
+
+if
+−
+
+
+Feact− + Ntt− Y (t , t)FER
+
+| t < t0
+
+t
+= inf t ∈ t
+| t > t0
+where
+I = CTSTContract
+CoveredContract
+(
+Ntt−
+if NT 6= ∅
+Ntt+ =
+P|I|
+FEB = A
+ni else
+CECV i=1
+else Feact+ = 0.0
+
+t
+
+FP−
+
+~F P
+
+= sup t ∈ t
+
+FP+
+
+0.0
+
+POF XD OPTNS()
+
+if CEGE = N O
+else if CEGE = N I
+else
+
+| t < t0
+
+~F P
+
+t
+= inf t ∈ t
+| t > t0
+where
+I = CTSTContract
+CoveredContract
+Ntt+ = 0.0
+Sdt+ = t
+(
+
+Ntt−
+P
+CECV |I|
+i=1 ni
+
+(
+
+Feact− + Y (Sdt− , t)Ntt− FER
+
+if
+
+Y (tF P − ,t)
+R(CNTRL)FER
+Y (tF P − ,tF P + )
+
+else
+
+Ntt+ =
+XD
+
+else
+
+~F P
+
+Sdt+ = t
+with
+ sv
+U (I(i), t, Nt | {})
+
+
+U sv (I(i), t, Nt | {})
+ni =
+ +U sv (I(i), t, Ipac | {})
+
+
+ rf ca
+O (U (I(i), M OC), t)
+
+MD
+
+if CEGE = N O
+else if CEGE = N I
+
+Feact+ =
+
+else if
+else
+
+NT 6= ∅
+FEB = ’N’
+
+Xat+ = CECVNtt−
+Sdt+ = t
+with
+ sv
+U (I(i), t, Nt | {})
+
+
+U sv (I(i), t, Nt | {})
+ni =
+
++U sv (I(i), t, Ipac | {})
+
+
+ rf ca
+O (U (I(i), M OC), t)
+t
+
+FP−
+
+~F P
+
+= sup t ∈ t
+
+FP+
+
+if CEGE = N O
+else if CEGE = N I
+else
+
+| t < t0
+
+~F P
+
+t
+= inf t ∈ t
+| t > t0
+where
+I = CTSTContract
+CoveredContract
+Ntt+ = 0.0
+STD
+
+CURS
+XCUR
+(t) (Xat− + Feact− )
+
+Feact+ = 0.0
+
+CE
+
+POF CE PAM()
+
+Sdt+ = t
+STF AD CEG()
+
+7.18. CEC: Credit Enhancement Collateral.
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+CEC: Contract Schedule
+Comments
+Same as PAM
+Same as CEG
+Same as CEG
+Same as CEG
+
+Event Schedule
+AD
+XD
+STD
+MD
+
+State
+Md
+
+32
+
+Initialization
+per t0
+(
+MD
+Mdt0 =
+max(τ ({ekt }))
+
+CEC: State Variables Initialization
+Comments
+if MD 6= ∅
+with
+k,n
+k,2
+else
+{ekt } = {ek,1
+t } ∪ {et } ∪ ... ∪ {et }
+ev
+Contract
+{ek,i
+t } = U (CTSTCoveredContract (i), t0 | {
+
+})n =| CTSTContract
+CoveredContract |
+(
+Nt
+
+Ntt0 =
+
+0.0 
+
+P|I|
+P|J|
+n
+v
+,
+CECV
+min
+i
+j
+i=1
+j=1
+
+if
+
+t0 ≥ Mdt0
+
+else
+
+with 
+U sv (I(i), t0 , Nt | {})
+
+
+
+U sv (I(i), t , Nt | {})
+0
+ni =
+sv
+
++U
+(I(i),
+t0 , Ipac | {})
+
+
+ rf ca
+O (U (I(i), M OC), t0 )
+rf
+
+if CEGE = N O
+else if CEGE = N I
+else
+
+ca
+
+vj = O (U (J(j), M OC), t0 )
+I = CTSTContract
+CoveredContract
+J = CTSTContract
+CoveringContract
+Same as PAM
+
+Sd
+
+Event Payoff Function
+AD
+
+POF AD PAM()
+
+CEC: State Transition Functions and Payoff Functions
+State Transition Function
+(
+0.0 
+
+P|J|
+P|I|
+Ntt+ =
+min
+j=1 vj , CECV
+i=1 ni
+Sdt+ = t
+with 
+U sv (I(i), t0 , Nt | {})
+
+
+
+U sv (I(i), t , Nt | {})
+0
+ni =
+sv
+
++U (I(i), t0 , Ipac | {})
+
+
+ rf ca
+O (U (I(i), M OC), t0 )
+rf
+
+if
+
+t ≥ Mdt0
+
+else
+
+if CEGE = N O
+else if CEGE = N I
+else
+
+ca
+
+vj = O (U (J(j), M OC), t0 )
+I = CTSTContract
+CoveredContract
+
+XD
+
+J = CTSTContract
+CoveringContract
+
+
+|J|
+|I|
+X
+X
+Ntt+ = min 
+vj , CECV
+ni 
+
+POF XD OPTNS()
+
+j=1
+
+i=1
+
+Sdt+ = t
+with 
+U sv (I(i), t0 , Nt | {})
+
+
+
+U sv (I(i), t , Nt | {})
+0
+ni =
+sv
+
++U
+(I(i),
+t0 , Ipac | {})
+
+
+ rf ca
+O (U (I(i), M OC), t0 )
+rf
+
+if CEGE = N O
+else if CEGE = N I
+else
+
+ca
+
+vj = O (U (J(j), M OC), t0 )
+I = CTSTContract
+CoveredContract
+J = CTSTContract
+CoveringContract
+Continued on next page
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+ACTUS: The algorithmic representation of financial contracts
+Continued from previous page
+Event Payoff Function
+STD
+
+CURS
+XCUR
+(t)Ntt−
+
+MD
+
+0.0
+
+33
+
+State Transition Function
+Ntt+ = 0.0
+Sdt+ = t
+Ntt+ = 0.0
+Sdt+ = t
+
+Copyright c 2018–present by ACTUS Financial Research Foundation
+
+v1.1
+
+
