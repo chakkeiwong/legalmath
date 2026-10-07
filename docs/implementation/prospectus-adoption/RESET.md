@@ -91,3 +91,31 @@ are locally preserved and reconstructed via snapshot-manifest.json; large
 products use the existing lossless checkpoint tool with `--campaign adoption`.
 Do not edit immutable attempts or rerun the historical repair verifier to refresh
 this campaign. Use `python3 -m scripts.verify_prospectus_adoption`.
+
+The separate INCEpTION integration continuation now passes as `run-020`, with
+twelve exact packet exports, two persisted browser label edits, two empty curation
+exports and four cross-account denials. The server has stopped; offline evidence
+verification and 18 focused tests pass. See `../prospectus-inception/RESULT.md`
+and its reset memo for the actual commands, failed attempts and remaining limits.
+RESULT.md, REVIEW.md and NEXT-PROGRAM.md now distinguish this later server evidence
+from the earlier A3 Cassis-only receipt. New annotation authoring and real reader
+authentication remain open alongside source-complete terms and faithful meaning.
+The historical A0–A6 attempts, snapshots and generated state are preserved.
+
+The next source review found that top-edge sorting moved bold fragments ahead of
+preceding prose and interleaved two page-124 address blocks. Five original-image
+reviewed permutations now bind exact unit text, edition, geometry and order; the
+Canadian deletion rule distinguishes its full placeholder from the German agent
+label. All 1,578 body occurrences retain their exact text. See
+`../prospectus-basf-source-order/RESULT.md` and its reset memo for the failed first
+tests, corrected implementation and source images. A1's current unresolved count
+is 1,008 with 83 brackets. This repairs source order, not legal meaning.
+
+Adoption verification attempt-003 passed all 125 regression tests, all seven
+phases, seven-phase identical replay and current-state verification. Current
+receipts are A0 attempt-007 and A1–A6 attempt-005. Execution took 108.93 seconds,
+regression 9.28, replay 35.43 and status 5.29. Docling remains rejected for 14/53
+critical lines, and legal acceptance remains blocked. Historical receipts and the
+INCEpTION run-020 are unchanged; generated state and next-phase records now refer
+to the newly tested constructor. The existing 250 snapshot reconstruction records
+still cover all snapshots, with no stale retained reconstruction source.

@@ -1,28 +1,35 @@
 # Adoption execution results
 
-The reviewed A0–A6 program executed, and its final verification passed **115 tests**,
+The reviewed A0–A6 program executed, and its latest verification passed **125 tests**,
 reused all seven phases on identical replay, and found all seven receipts current.
 This establishes the bounded engineering results below. It does **not** accept the
 prospectus service for legal release.
 
-The final record is [verification attempt-002](verification/attempt-002/manifest.json).
+The current record is [verification attempt-003](verification/attempt-003/manifest.json).
 It binds the actual commands, interpreter, CPU mode, code/data identities, test
 results and phase receipts. The checkout began at `5ad615d570fa98834e465edc305bf88d411f49cc`
 on `feature/prospectus-evidence-master`; the phase manifests bind the changed source
 bytes as well as that starting commit. The historical survey and P0–P8 attempts
 remain unchanged.
 
+The 8 October source-order continuation began at `bada667`. It corrects five
+source-inspected occurrence orders in the BASF constructor and narrows the
+Canadian-agent branch match to its full placeholder. The earlier 115-test result
+remains in attempt-002. [The source-order result](../prospectus-basf-source-order/RESULT.md)
+records the source images, exact preservation check and failed/repaired tests.
+
 ## What ran and what it establishes
 
 | Phase and latest attempt | Primary result | Decision and principal uncertainty | Next justified action / limit |
 |---|---|---|---|
-| A0, attempt-006 | Nine documents, 326 selected file pages, 3,047 retained units; original hashes and historical receipts verified | Development slice frozen; 289 printed labels unresolved | Review file-to-printed numbering and evidence groups before label-dependent scoring; no heldout claim |
-| A1, attempt-004 | No unaccounted BASF body intervals; common Actual/Actual definition retained | Accounting passes with 1,018 unresolved intervals and 83 brackets | Complete source-backed construction, margins, references and numbering; accounting is not legal completeness |
-| A2, attempt-004 | Declared finite/Z3 corpus, large cases, source constraints and conservative reference checks pass | Optional solver usable under supplied Boolean meanings | Admit German expressions and exact governing dependencies; neither arbitrary formula completeness nor faithful legal translation established |
-| A3, attempt-004 | Docling leaves 14/53 designated lines without complete exact maps; UIMA XMI groups and semantic relations round-trip | **Docling rejected**, existing extractor retained; Cassis bridge passes | No layout expansion. INCEpTION server/project configuration and independent-reader workflow remain untested |
-| A4, attempt-004 | Nine exact fractions and six adjusted dates agree with QuantLib 1.38 | Conditional fixed-coupon mechanism passes declared examples | Admit actual instrument conventions, entitlement and events; no full settlement, FX, tax or actual transfer claim |
-| A5, attempt-004 | Mutation/recovery checks and six installed-package semantic probes pass | Observed inputs and broad hashes retained | Native import/subprocess reads remain unenforced; no hermetic execution claim |
-| A6, attempt-004 | 59 retained legal-source records reconciled; release assessment blocks acceptance | Independent labels, admissible actual-event premises and accepted scope absent | Obtain real records and review; names in JSON cannot establish reader authenticity |
+| A0, attempt-007 | Nine documents, 326 selected file pages, 3,047 retained units; original hashes and historical receipts verified | Development slice frozen; 289 printed labels unresolved | Review file-to-printed numbering and evidence groups before label-dependent scoring; no heldout claim |
+| A1, attempt-005 | No unaccounted BASF body intervals; common Actual/Actual definition retained | Accounting passes with 1,008 unresolved intervals and 83 brackets | Complete source-backed construction, margins, references and numbering; accounting is not legal completeness |
+| A2, attempt-005 | Declared finite/Z3 corpus, large cases, source constraints and conservative reference checks pass | Optional solver usable under supplied Boolean meanings | Admit German expressions and exact governing dependencies; neither arbitrary formula completeness nor faithful legal translation established |
+| A3, attempt-005 | Docling leaves 14/53 designated lines without complete exact maps; UIMA XMI groups and semantic relations round-trip | **Docling rejected**, existing extractor retained; Cassis bridge passes | No layout expansion. Subsequent server evidence and remaining authoring limits are recorded below |
+| A4, attempt-005 | Nine exact fractions and six adjusted dates agree with QuantLib 1.38 | Conditional fixed-coupon mechanism passes declared examples | Admit actual instrument conventions, entitlement and events; no full settlement, FX, tax or actual transfer claim |
+| A5, attempt-005 | Mutation/recovery checks and six installed-package semantic probes pass | Observed inputs and broad hashes retained | Native import/subprocess reads remain unenforced; no hermetic execution claim |
+| A6, attempt-005 | 59 retained legal-source records reconciled; release assessment blocks acceptance | Independent labels, admissible actual-event premises and accepted scope absent | Obtain real records and review; names in JSON cannot establish reader authenticity |
+| INCEpTION continuation, run-020 | Two packets, two persisted browser label edits, twelve exact exports, two empty curation exports and four cross-account denials | Bounded server exchange passes; offline verification confirms retained evidence | New annotation authoring and separately authenticated human readings remain open; this continuation does not change the historical A3 receipt |
 
 The source-accounting result preserves the BASF supplement's conflicting 195–209
 and 209–290 ranges. It does not choose a correction. AST v2 is validated at runtime;
@@ -49,8 +56,23 @@ remain vetoed.
 
 Cassis 0.10.1 performed a real XMI serialization/reload preserving two evidence
 groups and one semantic relation, including linked discontinuous pieces. The
-matched INCEpTION 38.0 code and guide inform the exchange. An actual INCEpTION
-server, its project settings, and a human editing/reimport workflow did not run.
+matched INCEpTION 38.0 code and guide inform the exchange. The original A3
+attempt-004 preceded the actual server trial; the current A3 still tests the
+Cassis bridge, while run-020 supplies the separate server evidence.
+
+The subsequent [INCEpTION continuation](../prospectus-inception/RESULT.md) ran the
+official 38.0 server with an isolated Java 17 runtime. In `run-020`, browser edits
+to one label in each packet survived reload and all twelve original/subsequent
+exports matched their expected packets. The two synthetic reader records remained
+unchanged. Actual project exports showed no recommenders, and opening integrated
+curation with automatic merge disabled produced two empty evidence exports.
+Separate guest sessions loaded their own annotations and received four explicit
+denials for peer/administrator annotations. The offline verifier passed on the
+retained responses. These tests establish the stated exchange behavior; guest
+display names establish no human identity. New annotation authoring still needs
+validation before real first readings can use that interface. The BASF packet
+contains four joined development lines with provisional labels, not complete
+contract terms. The legal release decision remains unchanged.
 
 The financial comparison supplies every reference period and calendar explicitly.
 The long-first fixture was corrected from `105/182` to `211/364` because
@@ -61,8 +83,8 @@ These development conventions are not admissions of BASF's complete terms.
 
 ## Verification, repairs and inference
 
-Final verification took 100.33 seconds for execution, 9.09 for regression, 37.34
-for identical replay and 5.46 for status. Whole-sidecar byte hashing stayed inside
+Current verification took 108.93 seconds for execution, 9.28 for regression, 35.43
+for identical replay and 5.29 for status. Whole-sidecar byte hashing stayed inside
 the 1800-second phase limit. These times describe this machine/run only.
 The sidecar/model installation occupies 1,977,946,881 bytes, below the 3 GB bound.
 GPU devices were intentionally hidden with `CUDA_VISIBLE_DEVICES=-1`; no paid

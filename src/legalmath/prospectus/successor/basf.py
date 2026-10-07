@@ -1,6 +1,7 @@
 """Pinned German Option I construction proposal with complete line accounting."""
 import re
 from .contracts import digest
+from .basf_order import reviewed_order
 
 KEY = "basf-base-september-2022-exchange"
 SHA = "aac3da33755fae327f7542a9be08008d53d1dbcdfa3b01596e48d97debe1cfef"
@@ -30,7 +31,7 @@ def construct(graph, admission):
             "reason": "Pinned page geometry; independent reading-order review pending"})
         if role == "BODY_CANDIDATE":
             lines.append(u)
-    lines.sort(key=lambda u: (u["page"], round(u["bbox"][1], 1), u["bbox"][0]))
+    lines, reading_order = reviewed_order(lines)
     raw, source_map = "", []
     for line in lines:
         start = len(raw)
@@ -87,7 +88,7 @@ def construct(graph, admission):
         ("transaction_call_reference", r"^\[Falls die Emittentin das Wahlrecht hat, die Schuldverschreibungen vorzeitig nach Veröffentlichung", "transaction_call"),
         ("rmb_call", r"^\[\[\(7\)\] Vorzeitige Rückzahlung", "rmb_call"),
         ("transaction_call", r"^\[\[\(9\)\] Vorzeitige Rückzahlung", "transaction_call"),
-        ("canadian_agent", r"^\[Fiscal Agent und", "cds"),
+        ("canadian_agent", r"^\[Fiscal Agent und Zahlstelle: \[Name und bezeichnete Geschäftsstelle des/der Kanadischen", "cds"),
         ("representative_terms", r"^\[Gemeinsamer Vertreter ist", "representative_terms"),
         ("english_controls", r"^\[Diese Anleihebedingungen sind in englischer Sprache", "english_controls"),
         ("annual_short", r"^\[die Anzahl von Tagen.*?geteilt durch die Anzahl der Tage", "annual_short"),
@@ -232,6 +233,8 @@ def construct(graph, admission):
         "source_defects": [{"start":a,"end":b,"kind":"missing bracket in unselected long-coupon alternative",
                             "source_page":112,"decision":"excluded by final terms long_stub=false"} for a,b in malformed],
         "raw_body": raw, "source_map": source_map, "unit_accounting": accounting,
+        "reading_order": {"version": "basf-reviewed-order.v1", "decisions": reading_order,
+                          "other_rows": "Legacy geometry order; full source review pending"},
         "candidate_text": candidate, "character_map":character_map, "operations": output_map, "rules": applied,
         "remaining_brackets": remaining, "unbalanced_offsets": unbalanced,
         "conditional_branches": admission["conditional_branches"],

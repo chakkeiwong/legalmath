@@ -1,5 +1,22 @@
 # Rendered document review — 7 October 2026
 
+The latest BASF source-order correction is reviewed in
+[the 8 October source-order inspection](../../prospectus-basf-source-order/DOCUMENT-REVIEW.md),
+with final physical pages 95–98 and PDF SHA256
+`ae6c5aeffc1ade7e0aad3af3a668c751953062c9c15f8f6ddf12eb9af837ff32`.
+The earlier reviews below retain their original hashes and evidence.
+
+The review below records the original adoption build. The subsequent INCEpTION
+update was inspected on 8 October 2026 on physical pages 95–97 (printed pages
+60–62), with monograph SHA256
+`0116944d69a63b8f4d3f0c13f4eec077f02ae6dbac5efe9250689d0a7f18a249`.
+That checkpoint's review and retained images are in
+[`../../prospectus-inception/DOCUMENT-REVIEW.md`](../../prospectus-inception/DOCUMENT-REVIEW.md).
+They explain the actual server trial and its authoring/identity limits. No
+clipping or malformed equation was observed. Human acceptance remains pending.
+The original images and `rendered-pages.json` below remain unchanged as the
+earlier baseline.
+
 Implementer visual review covers final monograph physical pages 95–97 (printed
 pages 60–62), retained as `monograph-95.png` through `monograph-97.png`. The reviewed
 PDF has SHA256
