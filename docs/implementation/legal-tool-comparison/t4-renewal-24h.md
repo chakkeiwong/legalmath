@@ -1,0 +1,7 @@
+# T4 time renewal and final execution audit, 7 October 2026
+
+The user explicitly instructed: "you have 24 more hours.  continue" after the request to renew solely for T4 reporting and verification. Record 24 hours from 7 October 2026 18:46:47 Hong Kong time, ending 8 October 2026 18:46:47. Preserve the expired valid four-hour grant and the earlier invalid grant separately. The original plan hash, start timestamp, provider spending, acquisition spending and repair accounting stay intact.
+
+Skeptical audit: the previous runner accepted only four-hour extensions, so it must recognize the specifically authorized 24-hour reporting grant. Require its explicit scope and instruction; reject arbitrary durations or scope expansion. This is authorization bookkeeping, not another tool repair. No provider retry, download, model change or successor phase is proposed. T0-T3 receipts verify and the nine prior focused checks pass. Test the new duration and invalid-scope rejection, then execute T4 once and verify the result. An expired window, changed receipt or changed budget remains a veto.
+
+The substantive criterion is unchanged: component controls qualify their stated capability only. The two provider failures supplied no legal answers, and all 46 obligations and 32 unformalized readings remain unresolved. The result must preserve that incomplete evidence and the tool-specific limits. PASS for this scoped continuation.
