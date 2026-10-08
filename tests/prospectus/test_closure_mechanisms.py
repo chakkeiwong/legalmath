@@ -14,14 +14,14 @@ def bbva():
     return dict(currency="EUR", issuer_determined_cet1_ratio="0.05", capital_reduction=True,
                 condition_7_7_redemption_override=False, valid_timely_opt_out=True, listed=True,
                 adjusted_floor_price="4", nominal_share_value="0.49", five_eligible_closing_prices=["5.005"]*5,
-                holdings=[dict(registration_name="A", liquidation_preference="10"),
-                          dict(registration_name="A", liquidation_preference="10")])
+                holdings=[dict(legal_holder_id="holder-a", registration_name="A", liquidation_preference="10"),
+                          dict(legal_holder_id="holder-a", registration_name="A", liquidation_preference="10")])
 
 def seb():
     return dict(currency="USD", bank_cet1_ratio="0.1", group_cet1_ratio="0.05", usd_per_sek="0.1",
                 adjusted_floor_usd="2", quota_value_sek="10.45", listed=True,
-                reviewed_current_market_price_sek="30", holdings=[dict(registration_name="A", principal="5"),
-                                                                 dict(registration_name="A", principal="5")])
+                reviewed_current_market_price_sek="30", holdings=[dict(legal_holder_id="holder-a", registration_name="A", principal="5"),
+                                                                 dict(legal_holder_id="holder-a", registration_name="A", principal="5")])
 
 @pytest.mark.parametrize("ratio,expected", [("0.051249","25"),("0.05125","0"),("0.051251","0")])
 def test_deutsche_strict_threshold_ineffective_pool_member_and_notice(ratio, expected):
@@ -87,7 +87,7 @@ def test_calendar_requires_holidays_and_full_coverage():
     with pytest.raises(ValueError,match="Boolean"): m.business_after("2026-01-01",2,days)
 
 def test_registration_groups_not_implicitly_combined_and_wrong_edition_rejected(tmp_path):
-    r=m.whole_shares([dict(registration_name="A",principal="5"),dict(registration_name="B",principal="5")],"3","principal")
+    r=m.whole_shares([dict(legal_holder_id="holder-a",registration_name="A",principal="5"),dict(legal_holder_id="holder-b",registration_name="B",principal="5")],"3","principal")
     assert [h["shares"] for h in r]==[1,1]
     issue={"id":"deutsche-at1-2025","documents":[{"id":"deutsche-at1-2025"}]}
     with pytest.raises(ValueError,match="edition"): m.investigate(issue,{"deutsche-at1-2025":{"sha256":"wrong"}},tmp_path,{})
