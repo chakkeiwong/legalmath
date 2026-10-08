@@ -107,7 +107,10 @@ def execution_complete(result, *, expected_pairs=None):
 def investigate(packet, claims, candidates, questions, provider, out, *, required_pairs=None,
                 batch_size=12, maximum_rounds=3, maximum_actions=200, deadline_seconds=3600,
                 settings=None, pair_order='claim-first', schedule='batch-first', reference_protocol='literal',input_profile='literal',
-                optional_tools=None, stop_on_rejection=False):
+                optional_tools=None, stop_on_rejection=False, response_profile='literal'):
+    from . import candidate_responses, scoped_response_aliases
+    candidate_responses.validate_configuration(response_profile,
+        reference_protocol=reference_protocol, input_profile=input_profile)
     live = getattr(provider, 'live', True) is not False
     grant_binding = None
     if live:
@@ -154,6 +157,11 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
     if pair_order!='claim-first':binding['pair_order']=pair_order
     if schedule!='batch-first':binding['schedule']='round-first.v1'
     if input_profile!='literal':binding['input_profile']=input_profile
+    if response_profile!='literal':
+        binding['response_profile']=response_profile
+        for module in (candidate_responses, scoped_response_aliases):
+            path=Path(module.__file__)
+            binding['implementation'][path.name]=raw_digest(path.read_bytes())
     if optional_tools is not None:binding['optional_tools']=optional_tools.identity
     if stop_on_rejection:binding['stop_on_rejection']=True
     if reference_protocol!='literal':
@@ -230,7 +238,8 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
                         ids = {p[1] for p in batch}
                         answer = executable_references_v2.complete(provider, wire, inputs['schema'], settings,
                             work/'source-references', readings={k:v for k,v in candidates.items() if k in ids},
-                            questions={k:v for k,v in questions.items() if k in ids},input_profile=input_profile)
+                            questions={k:v for k,v in questions.items() if k in ids},input_profile=input_profile,
+                            response_profile=response_profile)
                     elif reference_protocol in (source_references.PROTOCOL, executable_references.PROTOCOL):
                         transport = executable_references if reference_protocol == executable_references.PROTOCOL else source_references
                         answer = transport.complete(provider, wire, inputs['schema'], settings,

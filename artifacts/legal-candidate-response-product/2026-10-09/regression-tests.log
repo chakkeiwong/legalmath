@@ -1,0 +1,109 @@
+........................................................................ [ 20%]
+........................................................................ [ 40%]
+........................................................................ [ 61%]
+................................................F....................... [ 81%]
+.................................................................        [100%]
+=================================== FAILURES ===================================
+___________ test_incomplete_investigation_is_retained_as_incomplete ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-1052/test_incomplete_investigation_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78b004968f10>
+
+    def test_incomplete_investigation_is_retained_as_incomplete(tmp_path, monkeypatch):
+        root = Path(__file__).resolve().parents[2]
+        with TemporaryDirectory(prefix='incomplete-observation-', dir=root/'artifacts') as directory:
+            runner = CompleteInvestigation(root, directory, FunctionProvider(complete_responder),
+                root/'.localresources/java-toolchain/jdk-17.0.20.1+1', AT, settings=settings(),
+                maximum_scoped_actions=1, scoped_rounds=1, machine_qualification=True, catala=TOOLCHAIN)
+>           dossier = runner.run([source()], 'Selected gift control')
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_investigation_observations.py:182: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <legalmath.interpretation.assurance.complete_investigation.CompleteInvestigation object at 0x78b004968210>
+roots = [{'data': b'A distributor should not offer gifts other than a discount of fees or charges.', 'media_type': 'text/plain', 'url': 'https://www.sfc.hk/test/assurance'}]
+selected_slice = 'Selected gift control'
+
+    def run(self,roots,selected_slice,*,retained=(),authority_registry=None,questions=None,qualification_cases=None,semantic_inputs=None):
+        from ..semantics.integration import investigation_context
+        prepared_semantic_context=investigation_context(self.semantic_options,None,semantic_inputs)
+        self.directory.mkdir(parents=True,exist_ok=True)
+        source_ids=[{'url':s['url'],'media_type':s['media_type'],'sha256':raw_digest(s['data'])} for s in [*roots,*retained]]
+        binding={'sources':source_ids,'question':selected_slice,'at':self.at,
+                 'settings':self.settings.model_dump(),'implementation':implementation_identity(),
+                 'scoped_actions':self.maximum_scoped_actions,'scoped_rounds':self.scoped_rounds,
+                 'scoped_batch_size':self.scoped_batch_size,'questions':questions,
+                 'authority_catalog':authority_registry.hash if authority_registry else None}
+        if self.scoped_pair_order!='claim-first':binding['scoped_pair_order']=self.scoped_pair_order
+        if self.scoped_schedule!='batch-first':binding['scoped_schedule']=self.scoped_schedule
+        if self.input_profile!='literal':binding['input_profile']=self.input_profile
+        if self.response_profile!='literal':binding['response_profile']=self.response_profile
+        if self.reference_protocol!='literal':binding['source_reference_protocol']=self.reference_protocol
+        if self.core_reference_protocol != self.reference_protocol:
+            binding['reference_routing']={'core':self.core_reference_protocol,'scoped':self.reference_protocol}
+        if self.machine_qualification:
+            binding['machine_qualification']={'cases':qualification_cases,'profile':'legalmath.investigation-qualification.v1'}
+        elif qualification_cases is not None:raise LegalMathError('E_SCHEMA')
+        if self.continuation_id is not None:binding['reviewed_continuation']=self.continuation_id
+        if self.semantic_options is not None:binding['semantic_options']=self.semantic_options
+        if semantic_inputs is not None:binding['semantic_inputs']=prepared_semantic_context['standards']
+        from .investigation_observations import method as investigation_method
+        binding['investigation_method'] = investigation_method(self)
+        if self.optional_tool_backend is not None:
+            binding['optional_tools']=self.optional_tool_backend.identity()
+        if self.challenge_options is not None:
+            binding['challenge_panel']=binding['investigation_method']['challenge_panel']
+        revision=digest(binding);directory=self.directory/'revisions'/revision
+        directory.mkdir(parents=True,exist_ok=True)
+        accepted=directory/'dossier.json'
+        if accepted.exists():
+            previous=loads(accepted.read_bytes())
+            verify(self.root,previous)
+            if previous['execution_complete']:
+                # Accepted receipts are immutable. Rebuilding cached reports can
+                # otherwise change their diagnostic `reused` flags and hashes.
+                return previous
+        history_path=self.directory/'revisions.json'
+        history=loads(history_path.read_bytes()) if history_path.exists() else []
+        if not any(r['revision']==revision for r in history):
+            history.append({'revision':revision,'binding':binding,'predecessor':history[-1]['revision'] if history else None,
+                'reason':'SOURCE_OR_METHOD_REVISION' if history else 'INITIAL_INVESTIGATION',
+                'prior_executables_apply_to_old_revision_only':True})
+            save(history_path,history)
+        save(self.directory/'current-state.json',{'revision':revision,'status':'INVESTIGATING',
+             'prior_revisions_valid_for_old_sources_only':True,'release_eligible':False})
+        journal=EvidenceJournal(directory/'actions',binding,maximum_actions=32,maximum_per_issue=3,deadline_seconds=86400)
+        from .optional_tools import ToolSession
+        tools=ToolSession(self.optional_tool_backend,directory/'optional-tools') if self.optional_tool_backend is not None else None
+        core=IntegratedInvestigation(directory/'core',self.provider,self.jdk,self.at,settings=self.settings,
+                                     maximum_actions=100,deadline_seconds=86400,reference_protocol=self.core_reference_protocol,
+                                     input_profile=self.input_profile,optional_tools=tools)
+        interpreted=core.run(roots,selected_slice,retained=retained,authority_registry=authority_registry)
+        location=Path(interpreted['interpretation']['directory'])
+        if not (location/'candidates.json').exists():
+            raise LegalMathError('E_REFERENCE',details={'stage':'SOURCE_INVENTORY',
+                'reason':'Generation was not reached; inspect the retained inventory and validation failures.',
+                'interpretation_directory':str(location),'report':interpreted['interpretation']['report']})
+        packet=loads((location/'packet.json').read_bytes())
+        candidates=loads((location/'candidates.json').read_bytes())
+        claims=loads((location/'claims.json').read_bytes())
+        if not candidates:
+            failure={'stage':'GENERATION','reason':'No retained candidate; question assignment and scoped review cannot run.',
+                     'interpretation_directory':str(location),'candidate_count':0,'new_downstream_calls':0}
+            save(directory/'prerequisite-failure.json',failure)
+            save(self.directory/'current-state.json',{'revision':revision,'status':'PREREQUISITE_FAILED',
+                 'failure':failure,'release_eligible':False})
+            raise LegalMathError('E_REFERENCE',details=failure)
+        admission=scoped_investigation.capacity(len(claims)*len(candidates),self.scoped_batch_size,self.maximum_scoped_actions)
+        save(directory/'scoped-capacity.json',admission)
+        if not admission['admitted']:
+            save(self.directory/'current-state.json',{'revision':revision,'status':'CAPACITY_BLOCKED',
+                 'capacity':admission,'release_eligible':False})
+>           raise LegalMathError('E_RESOURCE_LIMIT',details={'stage':'SCOPED_ADMISSION',**admission})
+E           legalmath.errors.LegalMathError: Input exceeds the declared resource budget.
+
+src/legalmath/interpretation/assurance/complete_investigation.py:185: LegalMathError
+=========================== short test summary info ============================
+FAILED tests/assurance/test_investigation_observations.py::test_incomplete_investigation_is_retained_as_incomplete
+1 failed, 352 passed in 121.71s (0:02:01)

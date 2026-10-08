@@ -59,7 +59,7 @@ class CompleteInvestigation:
                  scoped_pair_order='claim-first',continuation_id=None,
                  scoped_schedule='batch-first',reference_protocol='literal',machine_qualification=False,
                  input_profile='literal',challenge_options=None,challenge_providers=None,semantic_options=None,
-                 optional_tool_backend=None):
+                 optional_tool_backend=None,response_profile='literal'):
         self.root=Path(root).resolve();self.directory=Path(directory).resolve()
         if not self.directory.is_relative_to(self.root):raise LegalMathError('E_REFERENCE')
         self.provider=provider;self.jdk=Path(jdk);self.at=at;self.catala=catala
@@ -77,6 +77,9 @@ class CompleteInvestigation:
         if input_profile not in ('literal','readable-tables.v1') or (input_profile!='literal' and reference_protocol=='literal'):
             raise LegalMathError('E_SCHEMA')
         self.input_profile=input_profile
+        from .candidate_responses import validate_configuration
+        validate_configuration(response_profile,reference_protocol=reference_protocol,input_profile=input_profile)
+        self.response_profile=response_profile
         from ..semantics.integration import configuration
         configuration(semantic_options)
         self.semantic_options=loads(canonical(semantic_options))
@@ -117,6 +120,7 @@ class CompleteInvestigation:
         if self.scoped_pair_order!='claim-first':binding['scoped_pair_order']=self.scoped_pair_order
         if self.scoped_schedule!='batch-first':binding['scoped_schedule']=self.scoped_schedule
         if self.input_profile!='literal':binding['input_profile']=self.input_profile
+        if self.response_profile!='literal':binding['response_profile']=self.response_profile
         if self.reference_protocol!='literal':binding['source_reference_protocol']=self.reference_protocol
         if self.core_reference_protocol != self.reference_protocol:
             binding['reference_routing']={'core':self.core_reference_protocol,'scoped':self.reference_protocol}
@@ -214,6 +218,7 @@ class CompleteInvestigation:
             batch_size=self.scoped_batch_size,deadline_seconds=86400,
             pair_order=self.scoped_pair_order,
             schedule=self.scoped_schedule,reference_protocol=self.reference_protocol,input_profile=self.input_profile,optional_tools=tools,
+            response_profile=self.response_profile,
             settings=Settings(timeout_seconds=300,max_input_bytes=200000,max_output_bytes=200000))
         semantic_stage=None
         if self.semantic_options is not None:

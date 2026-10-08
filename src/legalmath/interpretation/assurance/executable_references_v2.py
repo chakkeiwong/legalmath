@@ -157,7 +157,9 @@ def resolve(value, request, schema, references, *, readings, questions):
     return result
 
 
-def complete(provider, request, schema, settings, directory, *, readings, questions, input_profile='literal'):
+def complete(provider, request, schema, settings, directory, *, readings, questions, input_profile='literal', response_profile='literal'):
+    from .candidate_responses import validate_configuration
+    validate_configuration(response_profile, reference_protocol=PROTOCOL, input_profile=input_profile)
     out = Path(directory); out.mkdir(parents=True, exist_ok=True)
     # Freeze the caller-held context across dispatch; a provider cannot change
     # which original objects validate its eventual response.
@@ -167,7 +169,8 @@ def complete(provider, request, schema, settings, directory, *, readings, questi
     save(out/'executable-original-context.json', {'readings': originals, 'questions': assigned})
     save(out/'executable-references.json', references)
     try:
-        answer = source_references.complete(provider, wire, wire_schema, settings, out, input_profile=input_profile)
+        answer = source_references.complete(provider, wire, wire_schema, settings, out,
+            input_profile=input_profile, response_profile=response_profile)
         value = resolve(answer.value, request, schema, references, readings=originals, questions=assigned)
     except LegalMathError as exc:
         save(out/'executable-validation.json', {'status': 'REJECTED', 'error': exc.code, 'details': exc.details,

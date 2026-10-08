@@ -69,6 +69,7 @@ def method(runner):
             'executable': file_identity(provider.executable) if getattr(provider, 'executable', None) else None},
         'settings': runner.settings.model_dump(),
         'transports': {'core': runner.core_reference_protocol, 'scoped': runner.reference_protocol,
+                       'scoped_response': getattr(runner,'response_profile','literal'),
                        'readable_input': runner.input_profile if getattr(runner,'input_profile','literal')!='literal' else
                                          'NOT_ENABLED_IN_COMPLETE_INVESTIGATION'},
         'challenge_panel':panel,
@@ -152,7 +153,8 @@ def check_stages(root, dossier, bound, runner):
             binding['scoped_batch_size'] != scoped['batch_size'] or
             binding.get('scoped_pair_order', 'claim-first') != scoped['pair_order'] or
             binding.get('scoped_schedule', 'batch-first') != scoped['schedule'] or
-            binding.get('source_reference_protocol', 'literal') != bound['transports']['scoped']):
+            binding.get('source_reference_protocol', 'literal') != bound['transports']['scoped'] or
+            binding.get('response_profile', 'literal') != bound['transports'].get('scoped_response','literal')):
         raise LegalMathError('E_STALE_REVIEW')
     # Absolute producer directories are allowed only inside this evidence root.
     location = Path(dossier['core']['interpretation']['directory']).resolve()
@@ -222,6 +224,7 @@ def check_stages(root, dossier, bound, runner):
     if (canonical(actual_scoped['route']) != canonical(bound['provider']['route'] or runner.provider.provider_id) or
             canonical(actual_scoped['settings']) != canonical(bound['scoped_provider_settings']) or
             actual_scoped.get('source_reference_protocol', 'literal') != bound['transports']['scoped'] or
+            actual_scoped.get('response_profile', 'literal') != bound['transports'].get('scoped_response','literal') or
             set(map(tuple, actual_scoped['pairs'])) != expected_pairs):
         raise LegalMathError('E_STALE_REVIEW', details='Actual scoped stage does not match the frozen method')
     assignments = {q['candidate_id']: q for q in dossier['questions']['assignments']}

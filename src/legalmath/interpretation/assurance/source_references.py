@@ -149,9 +149,22 @@ def resolve_response(value, schema, wire_schema, references, packet, request_has
     return result
 
 
-def complete(provider, request, schema, settings, directory, *, input_profile='literal'):
+def complete(provider, request, schema, settings, directory, *, input_profile='literal', response_profile='literal'):
+    from . import candidate_responses
+    candidate_responses.validate_configuration(response_profile,
+        reference_protocol=request.get('executable_reference_protocol'), input_profile=input_profile)
     out = Path(directory); out.mkdir(parents=True, exist_ok=True)
     wire, wire_schema, references = prepare(request, schema)
+    output_schema = wire_schema
+    response_provenance = {}
+    if response_profile != 'literal':
+        response_original = deepcopy(wire)
+        wire, output_schema, response_binding = candidate_responses.prepare(response_original, wire_schema)
+        save(out/'candidate-original-request.json', response_original)
+        save(out/'candidate-original-schema.json', wire_schema)
+        save(out/'candidate-response-binding.json', response_binding)
+        response_provenance = {'candidate_response_profile': response_profile,
+            'candidate_response_binding_hash': digest(response_binding)}
     encoding_provenance = {}
     if input_profile != 'literal':
         from . import readable_tables, readable_challenges
@@ -173,23 +186,29 @@ def complete(provider, request, schema, settings, directory, *, input_profile='l
             'max_input_bytes': settings.max_input_bytes, 'semantic_support': 'NOT_ESTABLISHED'})
     save(out/'original-request.json', request); save(out/'original-schema.json', schema)
     save(out/'references.json', references); save(out/'wire-request.json', wire)
-    save(out/'wire-schema.json', wire_schema)
+    save(out/'wire-schema.json', output_schema)
     if len(canonical(wire)) > settings.max_input_bytes:
         raise LegalMathError('E_RESOURCE_LIMIT', details='Source-reference request exceeds bounded input bytes')
-    answer = provider.complete(wire, wire_schema, settings)
+    answer = provider.complete(wire, output_schema, settings)
     save(out/'raw-response.json', {'value': answer.value, 'provenance': answer.provenance})
     try:
         if len(canonical(answer.value)) > settings.max_output_bytes:
             raise LegalMathError('E_RESOURCE_LIMIT', details='Source-reference response exceeds bounded output bytes')
-        value = resolve_response(answer.value, schema, wire_schema, references,
+        expanded = answer.value
+        if response_profile != 'literal':
+            expanded = candidate_responses.resolve(answer.value, response_original, wire_schema, response_binding)
+            if len(canonical(expanded)) > settings.max_output_bytes:
+                raise LegalMathError('E_RESOURCE_LIMIT', details='Expanded candidate response exceeds bounded output bytes')
+            save(out/'candidate-expanded-response.json', expanded)
+        value = resolve_response(expanded, schema, wire_schema, references,
                                  request['source_packet'], references['request_hash'])
         save(out/'resolved-response.json', value)
         save(out/'validation.json', {'status': 'REFERENCE_INTEGRITY_CHECKED',
             'semantic_support': 'NOT_ESTABLISHED', 'references_hash': digest(references),
-            'raw_hash': digest(answer.value), 'resolved_hash': digest(value)})
+            'raw_hash': digest(answer.value), 'resolved_hash': digest(value), **response_provenance})
     except LegalMathError as exc:
         save(out/'validation.json', {'status': 'REJECTED', 'error': exc.code, 'details': exc.details})
         raise
-    return Completion(value, {**answer.provenance, **encoding_provenance, 'source_reference_protocol': PROTOCOL,
+    return Completion(value, {**answer.provenance, **encoding_provenance, **response_provenance, 'source_reference_protocol': PROTOCOL,
         'source_reference_table_hash': digest(references), 'source_reference_raw_hash': digest(answer.value),
         'source_reference_request_hash': references['request_hash'], 'semantic_support': 'NOT_ESTABLISHED'})

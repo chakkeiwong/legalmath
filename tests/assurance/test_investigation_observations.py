@@ -175,12 +175,18 @@ def test_missing_candidate_qualification_cannot_be_dropped(execution):
 
 def test_incomplete_investigation_is_retained_as_incomplete(tmp_path, monkeypatch):
     root = Path(__file__).resolve().parents[2]
+    def incomplete_responder(request):
+        if (request['task'] == 'SCOPED_SOURCE_FIDELITY' and
+                request['investigation']['perspective'] == 'qualification-first'):
+            return {'checks': [], 'additional_concerns': []}
+        return complete_responder(request)
     with TemporaryDirectory(prefix='incomplete-observation-', dir=root/'artifacts') as directory:
-        runner = CompleteInvestigation(root, directory, FunctionProvider(complete_responder),
+        runner = CompleteInvestigation(root, directory, FunctionProvider(incomplete_responder),
             root/'.localresources/java-toolchain/jdk-17.0.20.1+1', AT, settings=settings(),
-            maximum_scoped_actions=1, scoped_rounds=1, machine_qualification=True, catala=TOOLCHAIN)
+            maximum_scoped_actions=12, scoped_rounds=1, machine_qualification=True, catala=TOOLCHAIN)
         dossier = runner.run([source()], 'Selected gift control')
         assert not dossier['execution_complete'] and dossier['scoped']['pending_pairs']
+        assert dossier['scoped']['batches'][0]['attempts'][-1]['status'] == 'REJECTED_RESPONSE'
         ref = loads((Path(directory)/'current.json').read_bytes())
         selected = (root, runner, dossier, ref)
         window_dir, spec, _ = window(tmp_path, monkeypatch, selected)
