@@ -40,3 +40,21 @@ acceptance does not block engineering repair; corrupt evidence or unsupported
 source transformations do. Commit verified continuation results as a second
 checkpoint and synchronize again so the requested branches finish equal while
 preserving unrelated main edits.
+
+## Execution checkpoint
+
+Campaign commit `c077a22e5` was merged into main as `3ce50d4eb`; origin/main
+and origin/feature/prospectus-evidence-master both reached that exact hash.
+The two overlapping main edits were restored with both sides preserved and left
+unstaged. Hash comparison confirmed 50,217 non-overlapping dirty/untracked files
+unchanged; the original stash remains as a backup and must not be applied again.
+
+The refreshed source plan is
+`docs/plans/prospectus-basf-reference-repair-2026-10-08.md`. It passed skeptical
+review and executed five source-supported deletions, a full diagnostic inventory
+of the 522 margin/header occurrences, and bounded source searches for remaining
+reference/office/incorporation questions. Run-002 passes 40 focused checks;
+adoption verification attempt-007 passes 153 tests with installed equality,
+seven-phase replay and all phases current. The evidence separates repaired
+construction from missing legal/source premises. The second checkpoint and
+branch synchronization include that verified continuation.

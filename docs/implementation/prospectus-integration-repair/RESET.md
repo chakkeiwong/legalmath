@@ -1,5 +1,13 @@
 # Integration repair reset
 
+Latest completed continuation: [BASF table/reference review](../prospectus-basf-reference-repair/RESET.md).
+It adds five exact deletions to the 62 earlier decisions, preserving all prior
+operations and 1,578 source occurrences. Focused run-002 passes 40 checks; adoption
+verification attempt-007 passes 153 tests, installed equality and seven-phase
+replay. Current A0 is attempt-010, A1–A6 attempt-008; remaining counts are 15
+brackets and 537 intervals. Follow its refreshed next program. The integration
+and scope execution notes below retain their earlier dates and counts.
+
 Campaign completion checkpoint, 8 October 2026: the integration program and
 BASF scope continuation meet their bounded engineering criteria. See
 `FINAL-SUMMARY.md`; the legal deliverable remains incomplete. The user now
@@ -14,7 +22,7 @@ The user authorized reviewed integration repairs and attribution; this execution
 does not commit, merge or push. Preserve unrelated changes and every historical
 attempt. Do not run `scripts.verify_prospectus_repairs`.
 
-Current continuation: [BASF scope repair](../prospectus-basf-scope-repair/RESET.md)
+Previous continuation: [BASF scope repair](../prospectus-basf-scope-repair/RESET.md)
 has completed 62 source-reviewed operations and installed verification (148
 tests; A0 attempt-009, A1–A6 attempt-007). Its 19 brackets/545 intervals and
 specific next repairs are recorded there. The integration receipts below are

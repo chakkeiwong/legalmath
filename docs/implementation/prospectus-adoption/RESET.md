@@ -1,6 +1,17 @@
 # Adoption execution reset
 
-## Current state after BASF scope repair, 8 October 2026
+## Current state after BASF table/reference review, 8 October 2026
+
+[The continuation](../prospectus-basf-reference-repair/RESULT.md) adds five exact
+deletions to the 62 prior rules. Focused run-002 passes 40 checks; verification
+attempt-007 passes 153 tests with all seven phases current/reused on replay and
+installed constructor equality. A0 is attempt-010 and A1–A6 attempt-008. There
+are 15 brackets and 537 unresolved intervals; all 1,578 source occurrences and
+prior operations are preserved. Source review confirms the dealer-address role
+limit and the printed annual-range conflict. The active reset/next program is
+in `../prospectus-basf-reference-repair/`. Historical attempts remain unchanged.
+
+## Prior state after BASF scope repair, 8 October 2026
 
 [The scope repair](../prospectus-basf-scope-repair/RESULT.md) applies 62 exact
 source-reviewed operations and corrects the unlisted notice selection. Its final

@@ -179,10 +179,73 @@ def test_basf_missing_office_and_numbering_remain_visible(construction):
     text = " ".join(construction["candidate_text"].split())
     assert "Berechnungsstelle: [Name und bezeichnete Geschäftsstelle]" in text
     assert "[(iv)] eine Berechnungsstelle unterhalten" in text
-    assert "Gesamtnennbetrag [ ] [ ] [ ] [ ]" in text  # spare table rows are not guessed
+    assert "Gesamtnennbetrag [ ]" not in text  # only the completed call row survives
     assert construction["annual_range_discrepancy"]
     assert construction["status"] == "PARTIAL"
     assert construction["scope_review"]["independent_legal_review"] is False
+
+
+def test_basf_unselected_rate_table_caption_does_not_duplicate_definition(construction):
+    raw = " ".join(construction["raw_body"].split())
+    text = " ".join(construction["candidate_text"].split())
+    phrase = '(jeweils ein "Zinszahlungstag")'
+    assert raw.count(phrase) == 2 and text.count(phrase) == 1
+    assert 'am 8. März eines jeden Jahres zahlbar (jeweils ein "Zinszahlungstag").' in text
+    assert "Die erste Zinszahlung erfolgt am 8. März 2024" in text
+    edit = next(e for e in construction["operations"]
+                if e.get("scope_rule") == "different-rate-table-caption")
+    assert edit["source_units"] == [basf.KEY + ":p111:l54", basf.KEY + ":p111:l55"]
+    assert edit["new"] == "" and "different_rates" == edit["attachment"]["decision"]
+
+
+def test_basf_spare_rows_do_not_add_redemption_choices(construction):
+    edits = [e for e in construction["operations"] if e.get("scope_rule") in {"B24", "B25", "B26", "B27"}]
+    assert len(edits) == 4 and all(e["old"] == "[\n]" and e["new"] == "" for e in edits)
+    text = " ".join(construction["candidate_text"].split())
+    assert "8. Dezember 2031 – 7. März 2032 Gesamtnennbetrag" in text
+    assert "(iii) den Rückzahlungstag, der nicht weniger als 30 Tage" in text
+
+
+@pytest.mark.parametrize("change", ["missing", "retained"])
+def test_basf_caption_requires_actual_branch_exclusion(basf_graph, monkeypatch, change):
+    original = basf.reviewed_edits
+
+    def without_exclusion(graph, admission, raw, source_map, pairs, prior_edits):
+        edits = deepcopy(prior_edits)
+        if change == "missing":
+            edits = [e for e in edits if e["reason"] != "different_rates"]
+        else:
+            next(e for e in edits if e["reason"] == "different_rates")["new"] = "retained"
+        return original(graph, admission, raw, source_map, pairs, prior_edits=edits)
+
+    monkeypatch.setattr(basf, "reviewed_edits", without_exclusion)
+    root = Path(__file__).resolve().parents[2]
+    with pytest.raises(ValueError, match="attached text"):
+        basf.construct(basf_graph, read(root / jobs.BASF))
+
+
+def test_basf_caption_cannot_delete_the_identical_single_rate_phrase(basf_graph, construction, monkeypatch):
+    from legalmath.prospectus.successor import basf_scope
+    data = basf_scope.review_data()
+    rule = next(r for r in data["rules"] if r["id"] == "different-rate-table-caption")
+    raw = construction["raw_body"]
+    a = raw.index(rule["target"]["text"])
+    b = a + len(rule["target"]["text"])
+    assert a != rule["target"]["start"]
+    units = {u["id"]: u for u in basf_graph["units"]}
+    spans = []
+    for span in construction["source_map"]:
+        left, right = max(a, span["start"]), min(b, span["end"])
+        if left < right:
+            unit = units[span["unit"]]
+            spans.append({"unit": unit["id"], "document": unit["document"],
+                          "source_sha256": unit["source_sha256"], "start": left-span["start"],
+                          "end": right-span["start"], "quote": raw[left:right]})
+    rule["target"] = {"start": a, "end": b, "text": raw[a:b], "spans": spans}
+    monkeypatch.setattr(basf_scope, "review_data", lambda: data)
+    root = Path(__file__).resolve().parents[2]
+    with pytest.raises(ValueError, match="attached text"):
+        basf.construct(basf_graph, read(root / jobs.BASF))
 
 
 def test_basf_assembly_consumes_reviewed_exclusions(basf_graph, construction):

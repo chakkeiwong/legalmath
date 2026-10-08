@@ -5,7 +5,7 @@ from importlib.resources import files
 from .anchors import bind
 from .contracts import digest
 
-VERSION = "basf-reviewed-scope.v1"
+VERSION = "basf-reviewed-scope.v2"
 GUARD_FIELDS = ("id", "document", "source_sha256", "page", "raw", "bbox",
                 "text_sha256", "visible")
 
@@ -14,7 +14,7 @@ def review_data():
     return json.loads(files(__package__).joinpath("basf_scope_review.json").read_text(encoding="utf-8"))
 
 
-def reviewed_edits(graph, admission, raw, source_map, pairs):
+def reviewed_edits(graph, admission, raw, source_map, pairs, prior_edits=()):
     """Return edits and their evidence; this is not independent legal approval."""
     data = review_data()
     if (data["version"] != VERSION or data["instrument_id"] != admission["issue_id"]
@@ -46,14 +46,11 @@ def reviewed_edits(graph, admission, raw, source_map, pairs):
             raise ValueError("BASF scope evidence lacks a reviewed unit guard")
         return bind(graph, source)
 
-    for rule in data["rules"]:
-        target = rule["target"]
+    def checked_target(target, bracket=True):
         a, b = target["start"], target["end"]
-        if (rule["id"] in identities or (a, b) in targets
-                or (a, b) not in bracket_pairs or raw[a:b] != target["text"]):
-            raise ValueError("BASF scope target changed or duplicated")
-        identities.add(rule["id"])
-        targets.add((a, b))
+        if (not 0 <= a < b <= len(raw) or raw[a:b] != target["text"]
+                or (bracket and (a, b) not in bracket_pairs)):
+            raise ValueError("BASF scope target changed")
         # Reconstruct the exact intersections with the raw body. Newlines are
         # assembly separators; every source character must have its own anchor.
         expected_spans = []
@@ -68,11 +65,20 @@ def reviewed_edits(graph, admission, raw, source_map, pairs):
             raise ValueError("BASF target occurrence map changed")
         for source in target["spans"]:
             checked(source)
+        return a, b
+
+    for rule in data["rules"]:
+        operation = rule["operation"]
+        attached = operation == "exclude_attached"
+        a, b = checked_target(rule["target"], bracket=not attached)
+        if rule["id"] in identities or (a, b) in targets:
+            raise ValueError("BASF scope target duplicated")
+        identities.add(rule["id"])
+        targets.add((a, b))
         if not rule["premises"]:
             raise ValueError("BASF scope selection lacks final-term premises")
         for source in rule["premises"] + rule["governing"]:
             checked(source)
-        operation = rule["operation"]
         if operation == "select":
             replacements = [(a, a+1, ""), (b-1, b, "")]
         elif operation == "instruction":
@@ -81,6 +87,20 @@ def reviewed_edits(graph, admission, raw, source_map, pairs):
                 raise ValueError("BASF inline instruction boundary changed")
             replacements = [(a, opening+1, ""), (b-1, b, "")]
         elif operation == "exclude":
+            replacements = [(a, b, "")]
+        elif attached:
+            # A table's printed scope can extend past its last closing bracket.
+            # Require the reviewed attachment AND the actual branch exclusion;
+            # a repeated phrase alone is never a deletion instruction.
+            attachment = rule["attachment"]
+            left, right = checked_target(attachment["branch"])
+            decisions = [d for d in admission["decisions"] if d["id"] == attachment["decision"]]
+            excluded = [e for e in prior_edits if (e["start"], e["end"]) == (left, right)
+                        and e["old"] == raw[left:right] and e["new"] == ""]
+            if (len(decisions) != 1 or decisions[0]["selected"] is not False
+                    or len(excluded) != 1 or right > a or raw[right:a].strip()
+                    or any(c in raw[a:b] for c in "[]") or not rule["governing"]):
+                raise ValueError("BASF attached text lacks its excluded branch or scope")
             replacements = [(a, b, "")]
         elif operation == "substitute":
             checked(rule["value"])
@@ -95,7 +115,10 @@ def reviewed_edits(graph, admission, raw, source_map, pairs):
                 "reason": rule["reason"], "basis": basis, "review": rule["review"],
                 "scope_rule": rule["id"], "premises": rule["premises"],
                 "governing": rule["governing"]})
-        resolved.add((a, b))
+            if attached:
+                edits[-1]["attachment"] = rule["attachment"]
+        if not attached:
+            resolved.add((a, b))
         applied.append({"rule": "scope:" + rule["id"], "status": operation.upper(),
                         "start": a, "end": b})
     edits.sort(key=lambda e: e["start"])

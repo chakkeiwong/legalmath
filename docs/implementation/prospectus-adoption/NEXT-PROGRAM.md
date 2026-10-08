@@ -20,21 +20,23 @@ receipts retain their original results.
 The subsequent [BASF ordering repair](../prospectus-basf-source-order/RESULT.md)
 corrects three mixed-font prose rows and two address blocks against the original
 page images. All 1,578 body occurrences retain their exact text. The later
-[scope repair](../prospectus-basf-scope-repair/RESULT.md) executes 62 reviewed
-operations, including the notice-selection correction, and retains 19 brackets
-and 545 unresolved intervals. Adoption [verification attempt-006](verification/attempt-006/manifest.json)
-passes 148 tests, installed construction equality and seven-phase identical replay.
-The former 1,008/83 counts belong to A1 attempt-006. The next source work is the
-duplicate interest-date phrase, 14 numbering/reference occurrences, four empty
-call-table cells, the missing designated office, and 522 margin/header records.
-[The detailed next plan](../prospectus-basf-scope-repair/NEXT-PROGRAM.md) gives
+[scope repair](../prospectus-basf-scope-repair/RESULT.md) executed 62 reviewed
+operations, including the notice-selection correction. The subsequent
+[table/reference repair](../prospectus-basf-reference-repair/RESULT.md) adds five
+exact deletions and retains 15 brackets and 537 unresolved intervals. Adoption
+[verification attempt-007](verification/attempt-007/manifest.json) passes 153
+tests, installed construction equality and seven-phase identical replay.
+The next source work is the complete reference/scope review, 14 numbering/reference
+markers, the missing designated office, 522 margin/header occurrences and
+incorporated-document scope. The duplicate caption and four spare cells are fixed.
+[The detailed next plan](../prospectus-basf-reference-repair/NEXT-PROGRAM.md) gives
 the concrete source checks and transformation criteria.
 
 ## Ordered repairs and decisions
 
 | Order | Concrete work and output | Pass criterion | Trigger / command after changed input |
 |---|---|---|---|
-| 1. Source completeness | Review BASF continuous German terms, the remaining 545 intervals and 19 brackets, governing margins, numbering and incorporated agreements. Address the p111 duplicate interest phrase and designated-office field explicitly; preserve both incorporation ranges until justified. Resolve printed labels used in scoring. | Every in-scope interval has a reviewed disposition and every printed citation maps to an actual file page; no inferred punctuation or unchecked field transformation | Follow the source plan, change reviewed source/construction input, then `python3 -m scripts.prospectus_delivery --program adoption run` |
+| 1. Source completeness | Review BASF continuous German terms, the remaining 537 intervals and 15 brackets, governing margins, complete references and incorporated agreements. Obtain the designated-office source; preserve both incorporation ranges until justified. Resolve printed labels used in scoring. | Every in-scope interval has a reviewed disposition and every printed citation maps to an actual file page; no inferred punctuation or unchecked field transformation | Follow the source plan, change reviewed source/construction input, then `python3 -m scripts.prospectus_delivery --program adoption run` |
 | 2. Faithful interpretation | Bind each German definition, condition, exception, negation and priority to exact occurrences. Use positive and negative counterexamples and remote-reference mutations through the installed evaluator. | Supplied meanings and all governing references reviewed; missing dependencies yield unknown; supported positive/negative answers survive the counterexamples | Repair semantic inputs/code, then the same adoption run plus installed checks |
 | 3. Instrument coupon | Supply the actual contract calendar edition/coverage, reference schedule, due/payment dates, holder entitlement, rounding and event premises. Prepare `fixed-coupon.v1` JSON with evidence for every convention. | Source interpretations accepted, exact fractions/dates/transfers match independent derivation; scenario issue equals source and bundle; absent premises stay unsupported | Admit A4 `coupon.json`, then rerun A4 and descendants |
 | 4. Actual first readings | Use the checked draft schema and password-account workflow, starting from source identity/text without provisional answers. Verify real reader identities and deployment access; retain untouched first exports and transformation receipts. | Exact editions, offsets, quotes and group links; no peer access, recommendations or automatic merge; actual assignment/exposure records | Follow [the updated reader protocol](../prospectus-inception/READER-PROTOCOL.md); actual readings use `admit`, without expected answers. Creation/deletion/reselection/group/relation mechanics have already passed |

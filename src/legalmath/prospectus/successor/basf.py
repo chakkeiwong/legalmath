@@ -176,7 +176,7 @@ def construct(graph, admission):
                 "reason": "Final terms " + key, "basis": context[key]["source"],
                 "review": "IMPLEMENTER_PROPOSAL"})
     scope_edits, scope_pairs, scope_rules, scope_review = reviewed_edits(
-        graph, admission, raw, source_map, pairs)
+        graph, admission, raw, source_map, pairs, prior_edits=edits)
     edits.extend(scope_edits)
     resolved_pairs.update(scope_pairs)
     applied.extend(scope_rules)

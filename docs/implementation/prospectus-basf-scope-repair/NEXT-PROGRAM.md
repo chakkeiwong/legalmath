@@ -1,5 +1,10 @@
 # Next source-construction program
 
+Execution update: the [next continuation](../prospectus-basf-reference-repair/RESULT.md)
+repaired items1/3 and investigated items2/4/5/6 below. The current residual plan
+is [here](../prospectus-basf-reference-repair/NEXT-PROGRAM.md); the table below
+preserves the original ordered investigation, not the current remaining list.
+
 Comparator: scope run-003 and adoption A1 attempt-007. The raw source graph and
 original editions remain fixed. The immediate question is whether each remaining
 rendered phrase and reference has the intended selected-clause target. The next

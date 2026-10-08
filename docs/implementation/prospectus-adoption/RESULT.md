@@ -1,11 +1,11 @@
 # Adoption execution results
 
-The reviewed A0–A6 program executed, and its latest verification passed **148 tests**,
+The reviewed A0–A6 program executed, and its latest verification passed **153 tests**,
 reused all seven phases on identical replay, and found all seven receipts current.
 This establishes the bounded engineering results below. It does **not** accept the
 prospectus service for legal release.
 
-The current record is [verification attempt-006](verification/attempt-006/manifest.json).
+The current record is [verification attempt-007](verification/attempt-007/manifest.json).
 It binds the actual commands, interpreter, CPU mode, code/data identities, test
 results and phase receipts. The checkout began at `5ad615d570fa98834e465edc305bf88d411f49cc`
 on `feature/prospectus-evidence-master`; the phase manifests bind the changed source
@@ -16,12 +16,20 @@ The later integration repair began at `4dfd34071` and is summarized in
 [its result](../prospectus-integration-repair/RESULT.md). It repairs quotation
 projection and actual authoring while preserving the earlier failed trials.
 
-The subsequent [BASF scope repair](../prospectus-basf-scope-repair/RESULT.md)
+The earlier [BASF scope repair](../prospectus-basf-scope-repair/RESULT.md)
 applies 62 source-reviewed operations, including correction of the erroneously
 selected unlisted notice clause. It retains all 1,578 body occurrences and leaves
 19 brackets and 545 unresolved intervals. The installed constructor consumes the
 packaged review and exactly matches A1; the earlier integration run remains a
 historical result after these source changes.
+
+The later [table/reference continuation](../prospectus-basf-reference-repair/RESULT.md)
+adds five exact deletions, removing an unselected table's attached caption and
+four unused call cells. It preserves every prior operation and all source
+occurrences; 67 rules now leave 15 brackets and 537 unresolved intervals. Current
+A0 is attempt-010 and A1–A6 attempt-008. Its source review and refreshed next
+program record the numbering, margin, office and incorporation evidence still
+required. Neither its inventories nor the software tests establish legal release.
 
 The 8 October source-order continuation began at `bada667`. It corrects five
 source-inspected occurrence orders in the BASF constructor and narrows the

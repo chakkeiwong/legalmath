@@ -1,5 +1,10 @@
 # BASF scope repair reset
 
+This completed phase is now historical. Resume from the later
+[table/reference repair](../prospectus-basf-reference-repair/RESET.md): 67 rules,
+40 focused checks, 153 installed/regression tests, 15 brackets and 537 intervals.
+Do not rerun this phase's attempt-006 comparator against the new v2 scope data.
+
 Worktree: `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,
 baseline HEAD `4dfd340715059158d1b672aa120f37175ef75a93`. Preserve the existing
 uncommitted integration work and all historical receipts. Do not run

@@ -2,8 +2,11 @@
 
 Latest checkpoint, 8 October 2026: see the
 [integration and source-repair final summary](../prospectus-integration-repair/FINAL-SUMMARY.md).
-It records the completed bounded master program, 148-test installed verification,
-62 BASF source operations and outstanding legal acceptance. The following
+It records the completed bounded master program, 153-test installed verification,
+67 BASF source rules and outstanding legal acceptance. The latest source
+continuation retains 15 brackets and 537 unresolved intervals; its exact repairs
+and next program are in [the result](../prospectus-basf-reference-repair/RESULT.md).
+The following
 30 September result remains the historical original campaign summary.
 
 30 September 2026, Hong Kong. The authorised documentation, repository
