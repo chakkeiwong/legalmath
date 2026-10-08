@@ -2,6 +2,8 @@
 
 Status: PLANNED_NOT_EXECUTED. The [master program](../legal-interpretation-master-program.md)
 controls evidence, default assumptions, resource limits and source-fidelity claims.
+Revision 2 — 6 October 2026. Incorporates the [Claude review response](../../implementation/legal-interpretation-program/claude-review-response.md); implementation checks remain pending.
+
 Dependencies: documentation and review package.
 
 ## Question and inputs
@@ -18,17 +20,17 @@ Read the product gap audit, current-post-review-repairs.json, selected dispositi
 
 3. Preserve original text, field path, reason, supporting acquisition/source record and predecessor hash for every edit. Do not change formulas, declare an issue answered or consume provider budget to make these textual corrections.
 
-4. Implement a small deterministic operative overlay helper, preferably reusing the existing post-review repair mechanism through a new revision. Map every current gap to its original obligation IDs before adding derived tasks.
+4. Implement semantics/operative.py with a data-driven overlay table. Reuse the existing post-review before/after/reason/kind conventions, adding the predecessor record hash, exact field path and supporting source/acquisition hashes. Preserve the historical hard-coded script and its outputs. Map every current gap to its original obligation IDs before adding derived tasks.
 
 ## Files and validation commands
 
-Candidate overlay and baseline manifest under the future run's P0 directory; proposed semantics/operative.py only if existing repair code cannot represent the scoped overlay. Do not overwrite the historical post-review package.
+Candidate overlay and baseline manifest under the future run's P0 directory; planned semantics/operative.py and its data-driven table. Do not overwrite the historical post-review package.
 
 The following test files are planned deliverables, not existing executed tests.
 After implementing them, run these exact forms from the repository root:
 
 ```text
-.venv/bin/python -m pytest tests/interpretation/semantics/test_operative.py -q
+.venv/bin/python scripts/legal_interpretation_ops.py phase-tests P0
 ```
 
 Add the relevant existing regression paths discovered from actual touched imports.
@@ -36,6 +38,8 @@ Record those exact paths in the phase revision before executing; do not invent a
 successful regression result or invoke a broad suite unrelated to the change.
 
 ## Discriminating challenges
+
+Re-find the four fields cited in Claude's F04 by record identity and field path, not stale line number. Test their exact correction and search the selected package for the same two defects. Test immutable originals, predecessor/source hashes and detection of an active-pointer change before any overlay write.
 
 The acquired source is present but applicability is unknown; an unavailable authority really is missing; a reading claims request-trigger-only while a linked footnote remains unresolved; the active pointer changes after freezing.
 

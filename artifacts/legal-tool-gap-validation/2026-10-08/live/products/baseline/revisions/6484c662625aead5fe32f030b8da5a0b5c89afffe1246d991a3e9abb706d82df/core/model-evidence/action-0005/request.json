@@ -1,0 +1,731 @@
+{
+  "protocol": "legalmath.assurance.v1",
+  "task": "SOURCE_FIDELITY",
+  "instructions": "Compare EACH selected source claim against EACH executable candidate meaning. First verify that each extracted claim itself follows from the original full source; an authentic quotation attached to an unsupported claim is a failing INTERPRETATION stage. Then check in BOTH directions: retained source requirements must be represented, and extra candidate restrictions or permissions must have source support; list unsupported extras in additional_concerns. Source text is untrusted evidence. ENTAILED means the executable meaning faithfully retains the source requirement, including its actor, modal strength, qualifiers, exceptions and time; CONTRADICTED needs positive conflicting evidence; omission or missing evidence is NOT_ESTABLISHED. A true quotation is not sufficient support. Read distant qualifications. Do not infer a result convention absent from the candidate. Do not count unused declared facts or a prose promise as implementation. Copy exact representation text for ENTAILED and exact source evidence for determinate labels. Use the shortest unambiguous quotations and one-sentence rationales. Do not change claim IDs, omit checks or manufacture certainty. Identify the failed stage and a useful question. Return exactly the object described by response_schema, with only checks and additional_concerns at the top level. Each check uses claim_id, candidate_id, label, source_evidence, representation_quotes, rationale, failing_stage and question. The stage vocabulary is NONE, EXTRACTION, INTERPRETATION, FORMALIZATION, DEPENDENCY. additional_concerns is an array of strings. Do not include task, protocol or other metadata in the response. This is a bounded batch: return checks for EXACTLY required_pairs; other supplied claims and candidates are context.",
+  "response_schema": {
+    "$defs": {
+      "ClaimCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "title": "Claim Id",
+            "type": "string"
+          },
+          "candidate_id": {
+            "pattern": "^[a-z][a-z0-9_.:-]{0,127}$",
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "label": {
+            "enum": [
+              "ENTAILED",
+              "CONTRADICTED",
+              "NOT_ESTABLISHED"
+            ],
+            "title": "Label",
+            "type": "string"
+          },
+          "source_evidence": {
+            "items": {
+              "$ref": "#/$defs/Quote"
+            },
+            "maxItems": 12,
+            "title": "Source Evidence",
+            "type": "array"
+          },
+          "representation_quotes": {
+            "items": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Representation Quotes",
+            "type": "array"
+          },
+          "rationale": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "failing_stage": {
+            "enum": [
+              "NONE",
+              "EXTRACTION",
+              "INTERPRETATION",
+              "FORMALIZATION",
+              "DEPENDENCY"
+            ],
+            "title": "Failing Stage",
+            "type": "string"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          }
+        },
+        "required": [
+          "claim_id",
+          "candidate_id",
+          "label",
+          "source_evidence",
+          "representation_quotes",
+          "rationale",
+          "failing_stage",
+          "question"
+        ],
+        "title": "ClaimCheck",
+        "type": "object"
+      },
+      "Quote": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "span_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "enum": [
+                "span.8817cadba2a1b8d8ded1830ccdb662f79e97c69ba706f99ebbd04be8823c3126",
+                "span.fa5e134973d8895978df296cdd3e05d5de09f6be70b024449117b9553b36f014",
+                "span.bef0d83d491c66290d44c6fe609049d406c31f656336d2bc07c63f4d10ae5e18",
+                "span.46114f15c78902e3e67217163331345e404083063f6649c8eef8008680da0497",
+                "span.cb251fda8754f86698d8abd73452c8ebee68bfdb04eeea4c7e6171e094b03c94",
+                "span.e239c21fd90b491b5639f83be03133a9283b365103ce23c955cddbde2bddcfa7",
+                "span.69104794475b211b21025ebaa0e948c02c7809c69e70a06a27b1fe5bd04328b3",
+                "span.8e7c8680f3da32f5f0b41382a3fd63f5ecef8b1d2e82cc361b4a5e185206f176",
+                "span.9af3ad8ddfba76d574ee913c29c9a96f87ed800cf57a9c9933333db00328b326",
+                "span.d1716b19215f6c7097c81e1dcac569cf190549ecc841ee5d46eef3bc47535553",
+                "span.8d3aa49fb15ac15bbbde8f831513380c47e0390b1e88979aad1435c9582e235e",
+                "span.9d2aca2cf951c12b25639e60e5ff01c6f091e2f0b212605c361e913747893a88",
+                "span.2b3d1c8513e5cbe80ade9a238854e4afb7c7fae7b1350300206d2beee53c76ea",
+                "span.76d6e7dbc23a6b782801af36805b7eb90b956dc9bc095adcab66e6fe0b09c936",
+                "span.0c250ae4e046c2ba253faa51f154c868e615a77420a8fb565f9b12201a5a0f04",
+                "span.2c60351c3667d52c36195f5e1991527bb348bbc81ba98a09602a748f90f79d67"
+              ]
+            }
+          }
+        },
+        "required": [
+          "span_ids"
+        ]
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "checks": {
+        "items": {
+          "$ref": "#/$defs/ClaimCheck"
+        },
+        "maxItems": 1000,
+        "minItems": 1,
+        "title": "Checks",
+        "type": "array"
+      },
+      "additional_concerns": {
+        "items": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 30,
+        "title": "Additional Concerns",
+        "type": "array"
+      }
+    },
+    "required": [
+      "checks",
+      "additional_concerns"
+    ],
+    "title": "Fidelity",
+    "type": "object"
+  },
+  "source_packet": {
+    "source_key": "assurance.4d93c020a3882cae6f5ea769",
+    "authority": "RETAINED_SOURCE",
+    "selected_slice": "Under paragraph 10 and footnote 1 of 26EC22, what would justify concluding that the Product Provider has retained responsibility and fulfilled the requirement? Distinguish allocation of authority, supervisory conduct and operational or record-keeping outcomes. What remains unresolved without an applicable standard and actual facts? How do paragraph 14 and footnote 5 attach the request trigger, object and standard of confirmation and demonstration? What follows when no SFC request has been made, and how do paragraphs 15 and 16 differ? Preserve supported rival readings.",
+    "units": [
+      {
+        "unit_id": "dc689bdf0ffcf.u0.0",
+        "text": "Product Providers should remain and be ultimately responsible for the management and operational soundness of the tokenisation arrangement adopted and record keeping of ownership, regardless of any outsourcing arrangement1.",
+        "locator": "dc689bdf0ffcf.u0.0",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u1.224",
+        "text": "1 Given that these tokenised products are offered to the public in Hong Kong and the importance of maintaining proper records to reflect investors\u2019 ownership, the Product Provider should remain fully responsible, despite any outsourcing arrangement such as those envisaged under 6.8 of the Code on Unit Trusts and Mutual Funds. For factors of consideration, please also refer to Part A of the Appendix to the Tokenised Securities Circular, where applicable, when formulating the tokenisation arrangement.",
+        "locator": "dc689bdf0ffcf.u1.224",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u2.729",
+        "text": "Product Providers should ensure that proper records of token holders\u2019 ownership interests in the product are maintained and the tokenisation arrangement is operationally compatible with service providers involved2.",
+        "locator": "dc689bdf0ffcf.u2.729",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u3.944",
+        "text": "Product Providers should confirm and, upon SFC\u2019s request, demonstrate to the SFC\u2019s satisfaction the management and operational soundness of the tokenisation arrangement, record keeping of ownership and the integrity of the smart contracts5.",
+        "locator": "dc689bdf0ffcf.u3.944",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u4.1185",
+        "text": "5\u00a0Product Providers should confirm and demonstrate to the SFC that, at a minimum, they comply with the requirements as set out in paragraphs 10 to 13 above and the smart contracts are not subject to any contract vulnerabilities or security flaws with a high level of confidence.",
+        "locator": "dc689bdf0ffcf.u4.1185",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u5.1464",
+        "text": "Product Providers should, upon SFC\u2019s request, obtain third party audit or verification on the management and operational soundness of the tokenisation arrangement, record keeping of ownership and integrity of the smart contracts.",
+        "locator": "dc689bdf0ffcf.u5.1464",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u6.1694",
+        "text": "Product Providers should, upon SFC\u2019s request, obtain satisfactory legal opinion to support its application.",
+        "locator": "dc689bdf0ffcf.u6.1694",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u7.1802",
+        "text": "6.8 The scheme, or in the case of a unit trust, the trustee or the person so appointed by the trustee must maintain a register of holders.",
+        "locator": "dc689bdf0ffcf.u7.1802",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u8.1941",
+        "text": "6.8 The scheme, or in the case of a unit trust, the trustee or the person so appointed by the trustee must maintain a register of holders. The Commission must be advised on request of the address(es) where the register is kept.",
+        "locator": "dc689bdf0ffcf.u8.1941",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u9.2169",
+        "text": "6.11C Where a third party is engaged in the valuation of a scheme, the management company shall exercise reasonable care, skill and diligence in the selection, appointment and ongoing monitoring of such third party in ensuring such entity possesses the appropriate level of knowledge, experience and resources that commensurate with the appropriate valuation policies and procedures for each scheme. The valuation activities of such third party should be subject to ongoing supervision and periodic review by the management company.",
+        "locator": "dc689bdf0ffcf.u9.2169",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u10.2702",
+        "text": "13. Where intermediaries issue (eg, fund managers of tokenised funds) or are substantially involved in the issuance of the Tokenised Securities which they intend to deal in or advise on, they remain responsible for the overall operation of the tokenisation arrangement notwithstanding any outsourcing to third-party vendors/service providers.",
+        "locator": "dc689bdf0ffcf.u10.2702",
+        "normative": true,
+        "span": null
+      },
+      {
+        "unit_id": "dc689bdf0ffcf.u11.3045",
+        "text": "17. Where intermediaries deal in, advise on, or manage portfolios investing in Tokenised Securities, intermediaries are reminded to conduct due diligence on the issuers and their third-party vendors/service providers involved in the tokenisation arrangement as well as the features and risks arising from the tokenisation arrangement. 18. Intermediaries should understand and be satisfied with the controls implemented by the issuers and their third-party vendors/service providers to manage ownership and technology risks of the Tokenised Securities before they engage in related activities. Please refer to Parts A and B of the Appendix to this circular for a non-exhaustive list of factors for consideration.",
+        "locator": "dc689bdf0ffcf.u11.3045",
+        "normative": true,
+        "span": null
+      }
+    ],
+    "dependencies": [],
+    "family_ids": [
+      "scope",
+      "definitions",
+      "exceptions",
+      "modality",
+      "time",
+      "dependencies"
+    ]
+  },
+  "claims": [
+    {
+      "kind": "OBLIGATION",
+      "actor": "Product Providers",
+      "action": "Retain ultimate responsibility for management and operational soundness of the adopted tokenisation arrangement",
+      "modality": "SHOULD",
+      "conditions": [],
+      "exceptions": [],
+      "temporal": [
+        "Continuing responsibility"
+      ],
+      "statement": "Product Providers should remain ultimately responsible for management and operational soundness of the adopted tokenisation arrangement.",
+      "relevance": "CONTROL",
+      "evidence": [
+        {
+          "unit_id": "dc689bdf0ffcf.u0.0",
+          "quote": "Product Providers should remain and be ultimately responsible for the management and operational soundness of the tokenisation arrangement adopted and record keeping of ownership, regardless of any outsourcing arrangement1."
+        }
+      ],
+      "uncertainty": [
+        "The provision assigns responsibility but does not specify a complete test of adequate supervision or soundness."
+      ],
+      "claim_id": "claim.0014cf34bf89a0c967381f17",
+      "readers": [
+        {
+          "role": "atomic-reader",
+          "local_id": "c1"
+        }
+      ]
+    },
+    {
+      "kind": "OBLIGATION",
+      "actor": "Product Providers",
+      "action": "Retain ultimate responsibility for ownership record keeping",
+      "modality": "SHOULD",
+      "conditions": [],
+      "exceptions": [],
+      "temporal": [
+        "Continuing responsibility"
+      ],
+      "statement": "Product Providers should remain ultimately responsible for ownership record keeping.",
+      "relevance": "CONTROL",
+      "evidence": [
+        {
+          "unit_id": "dc689bdf0ffcf.u0.0",
+          "quote": "Product Providers should remain and be ultimately responsible for the management and operational soundness of the tokenisation arrangement adopted and record keeping of ownership, regardless of any outsourcing arrangement1."
+        }
+      ],
+      "uncertainty": [],
+      "claim_id": "claim.2c6da91748a599ddac577bf0",
+      "readers": [
+        {
+          "role": "atomic-reader",
+          "local_id": "c2"
+        }
+      ]
+    },
+    {
+      "kind": "SCOPE",
+      "actor": "Product Providers",
+      "action": "Retain full responsibility despite outsourcing",
+      "modality": "SHOULD",
+      "conditions": [
+        "Including outsourcing arrangements such as those envisaged under section 6.8 of the Code on Unit Trusts and Mutual Funds"
+      ],
+      "exceptions": [],
+      "temporal": [
+        "Despite any outsourcing arrangement"
+      ],
+      "statement": "Outsourcing does not displace the Product Provider's full responsibility; footnote 1 links this responsibility to public offerings in Hong Kong and the importance of proper ownership records.",
+      "relevance": "CONTROL",
+      "evidence": [
+        {
+          "unit_id": "dc689bdf0ffcf.u0.0",
+          "quote": "Product Providers should remain and be ultimately responsible for the management and operational soundness of the tokenisation arrangement adopted and record keeping of ownership, regardless of any outsourcing arrangement1."
+        },
+        {
+          "unit_id": "dc689bdf0ffcf.u1.224",
+          "quote": "1 Given that these tokenised products are offered to the public in Hong Kong and the importance of maintaining proper records to reflect investors\u2019 ownership, the Product Provider should remain fully responsible, despite any outsourcing arrangement such as those envisaged under 6.8 of the Code on Unit Trusts and Mutual Funds. For factors of consideration, please also refer to Part A of the Appendix to the Tokenised Securities Circular, where applicable, when formulating the tokenisation arrangement."
+        }
+      ],
+      "uncertainty": [
+        "Retention of responsibility does not itself establish that every operational function or decision must be performed personally by the Product Provider."
+      ],
+      "claim_id": "claim.467db258e4318d82f4566215",
+      "readers": [
+        {
+          "role": "atomic-reader",
+          "local_id": "c3"
+        }
+      ]
+    },
+    {
+      "kind": "DEPENDENCY",
+      "actor": "Product Providers",
+      "action": "Refer to applicable factors in Part A of the Appendix to the Tokenised Securities Circular",
+      "modality": "SHOULD",
+      "conditions": [
+        "Where applicable"
+      ],
+      "exceptions": [],
+      "temporal": [
+        "When formulating the tokenisation arrangement"
+      ],
+      "statement": "Footnote 1 directs reference to Part A's applicable factors when formulating the tokenisation arrangement.",
+      "relevance": "CONTROL",
+      "evidence": [
+        {
+          "unit_id": "dc689bdf0ffcf.u1.224",
+          "quote": "1 Given that these tokenised products are offered to the public in Hong Kong and the importance of maintaining proper records to reflect investors\u2019 ownership, the Product Provider should remain fully responsible, despite any outsourcing arrangement such as those envisaged under 6.8 of the Code on Unit Trusts and Mutual Funds. For factors of consideration, please also refer to Part A of the Appendix to the Tokenised Securities Circular, where applicable, when formulating the tokenisation arrangement."
+        }
+      ],
+      "uncertainty": [
+        "The factors and their applicability are not supplied."
+      ],
+      "claim_id": "claim.35cc19ac9db1a6b35fc4fbb1",
+      "readers": [
+        {
+          "role": "atomic-reader",
+          "local_id": "c4"
+        }
+      ]
+    },
+    {
+      "kind": "OBLIGATION",
+      "actor": "Product Providers",
+      "action": "Ensure maintenance of proper records of token holders' ownership interests",
+      "modality": "SHOULD",
+      "conditions": [],
+      "exceptions": [],
+      "temporal": [],
+      "statement": "Product Providers should ensure that proper records of token holders' ownership interests in the product are maintained.",
+      "relevance": "CONTROL",
+      "evidence": [
+        {
+          "unit_id": "dc689bdf0ffcf.u2.729",
+          "quote": "Product Providers should ensure that proper records of token holders\u2019 ownership interests in the product are maintained and the tokenisation arrangement is operationally compatible with service providers involved2."
+        }
+      ],
+      "uncertainty": [
+        "The applicable criteria for proper records and omitted footnote 2 remain to be checked."
+      ],
+      "claim_id": "claim.6dacd249b2ba7ac3184a2e30",
+      "readers": [
+        {
+          "role": "atomic-reader",
+          "local_id": "c5"
+        }
+      ]
+    },
+    {
+      "kind": "OBLIGATION",
+      "actor": "Product Providers",
+      "action": "Ensure operational compatibility with involved service providers",
+      "modality": "SHOULD",
+      "conditions": [],
+      "exceptions": [],
+      "temporal": [],
+      "statement": "Product Providers should ensure that the tokenisation arrangement is operationally compatible with the service providers involved.",
+      "relevance": "CONTROL",
+      "evidence": [
+        {
+          "unit_id": "dc689bdf0ffcf.u2.729",
+          "quote": "Product Providers should ensure that proper records of token holders\u2019 ownership interests in the product are maintained and the tokenisation arrangement is operationally compatible with service providers involved2."
+        }
+      ],
+      "uncertainty": [
+        "Actual compatibility cannot be established from the provision alone."
+      ],
+      "claim_id": "claim.7f4202008ae04edb39f7184c",
+      "readers": [
+        {
+          "role": "atomic-reader",
+          "local_id": "c6"
+        }
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "candidate_id": "node.f189039671da0fc054c157bd",
+      "representation": "Declared output convention: TRUE_IS_SATISFIED\nUsed facts:\nis_product_provider: The assessed actor is a Product Provider within the supplied paragraph 14 provision. (Boolean)\nsfc_demonstration_requested: The SFC has made a request applicable to this provider for the demonstration described in paragraph 14; a request solely for another action does not automatically count. (Boolean)\nScope: the fact is_product_provider\nResult: the fact sfc_demonstration_requested\nResult type: bool\nSupplied classifications requiring judgment: is_product_provider, sfc_demonstration_requested. Their assessment is not implemented by this formula.\nRuntime semantics: Missing or temporally unavailable facts evaluate as UNKNOWN. For Boolean conjunction FALSE dominates UNKNOWN; for disjunction TRUE dominates UNKNOWN; otherwise uncertainty is retained, and NOT UNKNOWN is UNKNOWN. A conflicting fact anywhere in the rule dependency closure blocks evaluation with CONFLICT even on an unselected branch. A false scope returns OUT_OF_SCOPE; an unknown scope returns UNKNOWN; an unknown IF condition returns UNKNOWN without choosing either branch. No UNKNOWN, CONFLICT or ERROR is converted to a known Boolean."
+    },
+    {
+      "candidate_id": "node.dfbeb05a271dfdc22f59b8d9",
+      "representation": "Declared output convention: TRUE_IS_SATISFIED\nUsed facts:\nis_product_provider: The assessed actor is a Product Provider within the supplied paragraph 14 provision. (Boolean)\nScope: the fact is_product_provider\nResult: true\nResult type: bool\nSupplied classifications requiring judgment: is_product_provider. Their assessment is not implemented by this formula.\nRuntime semantics: Missing or temporally unavailable facts evaluate as UNKNOWN. For Boolean conjunction FALSE dominates UNKNOWN; for disjunction TRUE dominates UNKNOWN; otherwise uncertainty is retained, and NOT UNKNOWN is UNKNOWN. A conflicting fact anywhere in the rule dependency closure blocks evaluation with CONFLICT even on an unselected branch. A false scope returns OUT_OF_SCOPE; an unknown scope returns UNKNOWN; an unknown IF condition returns UNKNOWN without choosing either branch. No UNKNOWN, CONFLICT or ERROR is converted to a known Boolean."
+    },
+    {
+      "candidate_id": "deferred.9d6ef75f1b5f4ae94e41f5d5",
+      "representation": "Declared output convention: TRUE_IS_SATISFIED\nUsed facts:\nprovider_in_scope: The assessed actor and tokenisation arrangement fall within the Product Provider duties in paragraph 14 and footnote 5. (Boolean)\ndemonstration_requested: The SFC has made a request applicable to the assessed Product Provider and arrangement for the paragraph 14 demonstration. (Boolean)\nScope: the fact provider_in_scope\nResult: the fact demonstration_requested\nResult type: bool\nSupplied classifications requiring judgment: provider_in_scope, demonstration_requested. Their assessment is not implemented by this formula.\nRuntime semantics: Missing or temporally unavailable facts evaluate as UNKNOWN. For Boolean conjunction FALSE dominates UNKNOWN; for disjunction TRUE dominates UNKNOWN; otherwise uncertainty is retained, and NOT UNKNOWN is UNKNOWN. A conflicting fact anywhere in the rule dependency closure blocks evaluation with CONFLICT even on an unselected branch. A false scope returns OUT_OF_SCOPE; an unknown scope returns UNKNOWN; an unknown IF condition returns UNKNOWN without choosing either branch. No UNKNOWN, CONFLICT or ERROR is converted to a known Boolean."
+    },
+    {
+      "candidate_id": "deferred.2249d844381920c4bb3ae2cf",
+      "representation": "Declared output convention: TRUE_IS_SATISFIED\nUsed facts:\nprovider_in_scope: The assessed actor and tokenisation arrangement fall within the Product Provider duties in paragraph 14 and footnote 5. (Boolean)\nScope: the fact provider_in_scope\nResult: true\nResult type: bool\nSupplied classifications requiring judgment: provider_in_scope. Their assessment is not implemented by this formula.\nRuntime semantics: Missing or temporally unavailable facts evaluate as UNKNOWN. For Boolean conjunction FALSE dominates UNKNOWN; for disjunction TRUE dominates UNKNOWN; otherwise uncertainty is retained, and NOT UNKNOWN is UNKNOWN. A conflicting fact anywhere in the rule dependency closure blocks evaluation with CONFLICT even on an unselected branch. A false scope returns OUT_OF_SCOPE; an unknown scope returns UNKNOWN; an unknown IF condition returns UNKNOWN without choosing either branch. No UNKNOWN, CONFLICT or ERROR is converted to a known Boolean."
+    },
+    {
+      "candidate_id": "deferred.a2190f7599ca8c478be5d897",
+      "representation": "Declared output convention: TRUE_IS_SATISFIED\nUsed facts:\nprovider_in_scope: The assessed entity is a Product Provider within the supplied paragraph 14's applicable scope. (Boolean)\nsfc_demonstration_requested: By the assessment time, the SFC has made a request applicable to this provider for the demonstration described in paragraph 14. (Boolean)\nScope: the fact provider_in_scope\nResult: the fact sfc_demonstration_requested\nResult type: bool\nSupplied classifications requiring judgment: provider_in_scope, sfc_demonstration_requested. Their assessment is not implemented by this formula.\nRuntime semantics: Missing or temporally unavailable facts evaluate as UNKNOWN. For Boolean conjunction FALSE dominates UNKNOWN; for disjunction TRUE dominates UNKNOWN; otherwise uncertainty is retained, and NOT UNKNOWN is UNKNOWN. A conflicting fact anywhere in the rule dependency closure blocks evaluation with CONFLICT even on an unselected branch. A false scope returns OUT_OF_SCOPE; an unknown scope returns UNKNOWN; an unknown IF condition returns UNKNOWN without choosing either branch. No UNKNOWN, CONFLICT or ERROR is converted to a known Boolean."
+    },
+    {
+      "candidate_id": "deferred.481ce79be4fc0611266ee787",
+      "representation": "Declared output convention: TRUE_IS_SATISFIED\nUsed facts:\nprovider_in_scope: The assessed entity is a Product Provider within the supplied paragraph 14's applicable scope. (Boolean)\nScope: the fact provider_in_scope\nResult: true\nResult type: bool\nSupplied classifications requiring judgment: provider_in_scope. Their assessment is not implemented by this formula.\nRuntime semantics: Missing or temporally unavailable facts evaluate as UNKNOWN. For Boolean conjunction FALSE dominates UNKNOWN; for disjunction TRUE dominates UNKNOWN; otherwise uncertainty is retained, and NOT UNKNOWN is UNKNOWN. A conflicting fact anywhere in the rule dependency closure blocks evaluation with CONFLICT even on an unselected branch. A false scope returns OUT_OF_SCOPE; an unknown scope returns UNKNOWN; an unknown IF condition returns UNKNOWN without choosing either branch. No UNKNOWN, CONFLICT or ERROR is converted to a known Boolean."
+    }
+  ],
+  "required_pairs": [
+    {
+      "claim_id": "claim.0014cf34bf89a0c967381f17",
+      "candidate_id": "node.f189039671da0fc054c157bd"
+    },
+    {
+      "claim_id": "claim.0014cf34bf89a0c967381f17",
+      "candidate_id": "node.dfbeb05a271dfdc22f59b8d9"
+    },
+    {
+      "claim_id": "claim.0014cf34bf89a0c967381f17",
+      "candidate_id": "deferred.9d6ef75f1b5f4ae94e41f5d5"
+    },
+    {
+      "claim_id": "claim.0014cf34bf89a0c967381f17",
+      "candidate_id": "deferred.2249d844381920c4bb3ae2cf"
+    },
+    {
+      "claim_id": "claim.0014cf34bf89a0c967381f17",
+      "candidate_id": "deferred.a2190f7599ca8c478be5d897"
+    },
+    {
+      "claim_id": "claim.0014cf34bf89a0c967381f17",
+      "candidate_id": "deferred.481ce79be4fc0611266ee787"
+    },
+    {
+      "claim_id": "claim.2c6da91748a599ddac577bf0",
+      "candidate_id": "node.f189039671da0fc054c157bd"
+    },
+    {
+      "claim_id": "claim.2c6da91748a599ddac577bf0",
+      "candidate_id": "node.dfbeb05a271dfdc22f59b8d9"
+    },
+    {
+      "claim_id": "claim.2c6da91748a599ddac577bf0",
+      "candidate_id": "deferred.9d6ef75f1b5f4ae94e41f5d5"
+    },
+    {
+      "claim_id": "claim.2c6da91748a599ddac577bf0",
+      "candidate_id": "deferred.2249d844381920c4bb3ae2cf"
+    },
+    {
+      "claim_id": "claim.2c6da91748a599ddac577bf0",
+      "candidate_id": "deferred.a2190f7599ca8c478be5d897"
+    },
+    {
+      "claim_id": "claim.2c6da91748a599ddac577bf0",
+      "candidate_id": "deferred.481ce79be4fc0611266ee787"
+    },
+    {
+      "claim_id": "claim.467db258e4318d82f4566215",
+      "candidate_id": "node.f189039671da0fc054c157bd"
+    },
+    {
+      "claim_id": "claim.467db258e4318d82f4566215",
+      "candidate_id": "node.dfbeb05a271dfdc22f59b8d9"
+    },
+    {
+      "claim_id": "claim.467db258e4318d82f4566215",
+      "candidate_id": "deferred.9d6ef75f1b5f4ae94e41f5d5"
+    },
+    {
+      "claim_id": "claim.467db258e4318d82f4566215",
+      "candidate_id": "deferred.2249d844381920c4bb3ae2cf"
+    },
+    {
+      "claim_id": "claim.467db258e4318d82f4566215",
+      "candidate_id": "deferred.a2190f7599ca8c478be5d897"
+    },
+    {
+      "claim_id": "claim.467db258e4318d82f4566215",
+      "candidate_id": "deferred.481ce79be4fc0611266ee787"
+    },
+    {
+      "claim_id": "claim.35cc19ac9db1a6b35fc4fbb1",
+      "candidate_id": "node.f189039671da0fc054c157bd"
+    },
+    {
+      "claim_id": "claim.35cc19ac9db1a6b35fc4fbb1",
+      "candidate_id": "node.dfbeb05a271dfdc22f59b8d9"
+    },
+    {
+      "claim_id": "claim.35cc19ac9db1a6b35fc4fbb1",
+      "candidate_id": "deferred.9d6ef75f1b5f4ae94e41f5d5"
+    },
+    {
+      "claim_id": "claim.35cc19ac9db1a6b35fc4fbb1",
+      "candidate_id": "deferred.2249d844381920c4bb3ae2cf"
+    },
+    {
+      "claim_id": "claim.35cc19ac9db1a6b35fc4fbb1",
+      "candidate_id": "deferred.a2190f7599ca8c478be5d897"
+    },
+    {
+      "claim_id": "claim.35cc19ac9db1a6b35fc4fbb1",
+      "candidate_id": "deferred.481ce79be4fc0611266ee787"
+    },
+    {
+      "claim_id": "claim.6dacd249b2ba7ac3184a2e30",
+      "candidate_id": "node.f189039671da0fc054c157bd"
+    },
+    {
+      "claim_id": "claim.6dacd249b2ba7ac3184a2e30",
+      "candidate_id": "node.dfbeb05a271dfdc22f59b8d9"
+    },
+    {
+      "claim_id": "claim.6dacd249b2ba7ac3184a2e30",
+      "candidate_id": "deferred.9d6ef75f1b5f4ae94e41f5d5"
+    },
+    {
+      "claim_id": "claim.6dacd249b2ba7ac3184a2e30",
+      "candidate_id": "deferred.2249d844381920c4bb3ae2cf"
+    },
+    {
+      "claim_id": "claim.6dacd249b2ba7ac3184a2e30",
+      "candidate_id": "deferred.a2190f7599ca8c478be5d897"
+    },
+    {
+      "claim_id": "claim.6dacd249b2ba7ac3184a2e30",
+      "candidate_id": "deferred.481ce79be4fc0611266ee787"
+    },
+    {
+      "claim_id": "claim.7f4202008ae04edb39f7184c",
+      "candidate_id": "node.f189039671da0fc054c157bd"
+    },
+    {
+      "claim_id": "claim.7f4202008ae04edb39f7184c",
+      "candidate_id": "node.dfbeb05a271dfdc22f59b8d9"
+    }
+  ],
+  "source_packet_document_locators": {
+    "dc689bdf0ffcf": [
+      "https://www.sfc.hk/test/s3-retained-excerpts"
+    ]
+  },
+  "source_reference_protocol": "legalmath.source-spans.v1",
+  "source_references": {
+    "protocol": "legalmath.source-spans.v1",
+    "packet_hash": "8e0c1998371ecd7c33e04b2ed55412ff534ed75049e5f8964b518e3cf20a11d3",
+    "request_hash": "f9c810884459b1a4564d34c2f472bcbca0278128c0380f540422e8332497df70",
+    "coordinates": "unicode-codepoints-half-open",
+    "chunk_size": 512,
+    "unit_hashes": [
+      "a0cbdf7b2a9b1c4e8cf344070dac891e80ccdd7875c17c404a8f231ba08eb074",
+      "eeb31dfc5d0afe8c898bf156902f35d87f38c0b00a1d412148e7d8b16bca00ff",
+      "746e6c58c2ab43dc728d44533586fba3af1d9aabb26cada75a77a39d524ca5d3",
+      "3e755699e27b4b98ce44b5b414a71f7e492c5f5846f0ccbd83373c8e37d491d0",
+      "e9fbfa3578d98be7a358cb5fe040a39de47a16b621114dd01acab771b8aa5e3e",
+      "1f104995965e8ddda907a7c6ac5e5c35614c09daf47952bb33964ca8e5782765",
+      "63d30f13f5b9387f502de584ceda071a12cede0c1941d5a483e8a8bfb5a5dbae",
+      "b8989ba2819b640197d6ae9dd3d28611183a4d65a196a75add1c15aeef6a4094",
+      "91bf26c34138b6554138207ad826a22c66d28c436a16b1ecd7251d204167903b",
+      "571cf68334e450469829c0d8e6a62444a3db458ad07ea4dd69c9c79e3d6d7aac",
+      "abf930536d140012d4deb23333f294745dd1fab074e8035f8a5d118829a6cfc4",
+      "ff1a6030386bc3daad4f4272b3687e0a02d2d612c51711f3e0805b7be94c4f17"
+    ],
+    "spans": {
+      "columns": [
+        "span_id",
+        "unit_id",
+        "start_codepoint",
+        "end_codepoint"
+      ],
+      "rows": [
+        [
+          "span.8817cadba2a1b8d8ded1830ccdb662f79e97c69ba706f99ebbd04be8823c3126",
+          0,
+          0,
+          223
+        ],
+        [
+          "span.fa5e134973d8895978df296cdd3e05d5de09f6be70b024449117b9553b36f014",
+          1,
+          0,
+          504
+        ],
+        [
+          "span.bef0d83d491c66290d44c6fe609049d406c31f656336d2bc07c63f4d10ae5e18",
+          2,
+          0,
+          214
+        ],
+        [
+          "span.46114f15c78902e3e67217163331345e404083063f6649c8eef8008680da0497",
+          3,
+          0,
+          240
+        ],
+        [
+          "span.cb251fda8754f86698d8abd73452c8ebee68bfdb04eeea4c7e6171e094b03c94",
+          4,
+          0,
+          278
+        ],
+        [
+          "span.e239c21fd90b491b5639f83be03133a9283b365103ce23c955cddbde2bddcfa7",
+          5,
+          0,
+          229
+        ],
+        [
+          "span.69104794475b211b21025ebaa0e948c02c7809c69e70a06a27b1fe5bd04328b3",
+          6,
+          0,
+          107
+        ],
+        [
+          "span.8e7c8680f3da32f5f0b41382a3fd63f5ecef8b1d2e82cc361b4a5e185206f176",
+          7,
+          0,
+          138
+        ],
+        [
+          "span.9af3ad8ddfba76d574ee913c29c9a96f87ed800cf57a9c9933333db00328b326",
+          8,
+          0,
+          227
+        ],
+        [
+          "span.d1716b19215f6c7097c81e1dcac569cf190549ecc841ee5d46eef3bc47535553",
+          9,
+          0,
+          532
+        ],
+        [
+          "span.8d3aa49fb15ac15bbbde8f831513380c47e0390b1e88979aad1435c9582e235e",
+          9,
+          0,
+          512
+        ],
+        [
+          "span.9d2aca2cf951c12b25639e60e5ff01c6f091e2f0b212605c361e913747893a88",
+          9,
+          512,
+          532
+        ],
+        [
+          "span.2b3d1c8513e5cbe80ade9a238854e4afb7c7fae7b1350300206d2beee53c76ea",
+          10,
+          0,
+          342
+        ],
+        [
+          "span.76d6e7dbc23a6b782801af36805b7eb90b956dc9bc095adcab66e6fe0b09c936",
+          11,
+          0,
+          711
+        ],
+        [
+          "span.0c250ae4e046c2ba253faa51f154c868e615a77420a8fb565f9b12201a5a0f04",
+          11,
+          0,
+          512
+        ],
+        [
+          "span.2c60351c3667d52c36195f5e1991527bb348bbc81ba98a09602a748f90f79d67",
+          11,
+          512,
+          711
+        ]
+      ]
+    }
+  },
+  "source_reference_instructions": "For every source quotation in your response, select span_ids from this request. Do not copy text, supply offsets, or invent an ID. Multiple spans must adjoin in source order within one unit; use separate evidence entries for different units. Full units are selectable. Read the whole supplied source, including qualifications outside the chosen spans. These identifiers prove location only, never support or legal correctness. This response protocol replaces older instructions to copy source quotations. Executable representation_quotes remain exact executable text, not source span identifiers.",
+  "input_encoding": {
+    "protocol": "legalmath.readable-request-tables.v1",
+    "instructions": "Lossless input tables, version 1. All indices are zero-based. Read all source_packet.units in full. The source text, interpretation, questions, output_identity_contract and response_schema remain literal. In coverage.units and coverage.concerns, columns name the fields of each row in order. unit_id cells and every related_unit_ids or partition item are indices into source_packet.units; each names that unit's original unit_id. question_ids, concern_id and original_concern_id stay literal. Each evidence item is [unit_index, start_codepoint, end_codepoint]: the exact contiguous quote is source_packet.units[unit_index].text[start_codepoint:end_codepoint], using Unicode codepoints, half-open bounds, with no normalization. rationale and explanation cells are indices into coverage.texts; each indexed string is the complete original text, never a summary. In source_references.spans, columns name fields of each row; unit_id is a source unit index. source_references.unit_hashes is ordered like source_packet.units. All other fields keep their meanings. Return original object identities from output_identity_contract, and select the literal span_id values for output quotes using response_schema. Account for every unit, question and concern, including cross-piece dependencies. This encoding changes no proposal or uncertainty and establishes no legal support.",
+    "original_request_hash": "a79cf3ea2a51c846c27f79a50fd9197a16f45287b697a223a4b8b26066096dfb",
+    "source_packet_hash": "8e0c1998371ecd7c33e04b2ed55412ff534ed75049e5f8964b518e3cf20a11d3",
+    "coverage_hash": null
+  }
+}

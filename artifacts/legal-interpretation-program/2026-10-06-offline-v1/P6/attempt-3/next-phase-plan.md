@@ -1,0 +1,3 @@
+# P7 refreshed from execution
+
+Actual CompleteInvestigation optional semantics route and all seven retained-source pilot nominations have executed Java, with independent values and v2 receipts. Legacy replay remains separate. The source-warrant reconstruction in the general legacy adapter is still unimplemented; results remain conditional. Validate precise finite invariants, fault detection and the existing Boolean Lean profile. Do not claim a new branch-accounting theorem or Java compiler proof. Required audit: p7-proof-targets.md. Tests: phase-tests P7 and final semantic/integration regressions.

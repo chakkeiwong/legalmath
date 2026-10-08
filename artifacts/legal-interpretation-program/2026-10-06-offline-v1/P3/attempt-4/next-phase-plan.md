@@ -1,0 +1,3 @@
+# P4 refreshed from execution
+
+P3 completed independent graph construction and bounded grounded/preferred evaluation. The actual eight-argument theory has a shared source premise, the declared B/C no-request trigger dispute and no imposed priorities and remains a conditional formal profile; its result is not a legal ranking. Preserve attack types and unresolved source premises. P4 must add source-bound precedent roles, authority/time/treatment premises, and distinguish missing Hong Kong authority from an empty search result. Any real-case walkthrough remains pending if no official judgment is available. Audit passed: valid empty grounded extensions and resource cutoffs are distinct; no subset enumeration above eight in the reference evaluator. Tests: phase-tests P4.

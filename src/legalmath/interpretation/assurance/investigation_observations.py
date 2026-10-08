@@ -16,7 +16,7 @@ from .integration_contract import read_evidence, evidence_file
 from .diversity import identity as journal_identity
 from ..search.models import Settings
 
-PROFILE = 'legalmath.whole-investigation-observation.v1'
+PROFILE = 'legalmath.whole-investigation-observation.v2'
 
 
 def file_identity(path):
@@ -48,7 +48,16 @@ def method(runner):
     tool_python = Path(__file__).parents[4]/'.localresources/assurance-tools/venv/bin/python'
     catala = None if runner.catala is None else {
         key: file_identity(runner.catala[key]) for key in ('compiler', 'lock')}
-    return {'profile': PROFILE, 'implementation': implementation_identity(),
+    from . import challenge_panel
+    panel = (challenge_panel.configuration(runner.challenge_providers,**{'input_profile':runner.input_profile,**runner.challenge_options})
+             if getattr(runner,'challenge_options',None) is not None else None)
+    from .evidence_identity import dependency_identity
+    dependencies=(dependency_identity(['pydantic','pydantic-core','jsonschema','httpx','pypdf','z3-solver'])
+                  if panel is not None else None)
+    from ..semantics.integration import configuration as semantic_configuration
+    return {'profile': PROFILE, 'semantics':semantic_configuration(getattr(runner,'semantic_options',None)),
+        'optional_tools': runner.optional_tool_backend.identity() if getattr(runner,'optional_tool_backend',None) is not None else None,
+        'implementation': implementation_identity(),
         'qualification_implementation': digest(qualification_method()),
         'source_processing': source_processing_identity(tool_python),
         'provider': {'id': provider.provider_id,
@@ -60,7 +69,10 @@ def method(runner):
             'executable': file_identity(provider.executable) if getattr(provider, 'executable', None) else None},
         'settings': runner.settings.model_dump(),
         'transports': {'core': runner.core_reference_protocol, 'scoped': runner.reference_protocol,
-                       'readable_input': 'NOT_ENABLED_IN_COMPLETE_INVESTIGATION'},
+                       'readable_input': runner.input_profile if getattr(runner,'input_profile','literal')!='literal' else
+                                         'NOT_ENABLED_IN_COMPLETE_INVESTIGATION'},
+        'challenge_panel':panel,
+        'installed_dependency_identity':dependencies,
         'scoped_provider_settings': Settings(timeout_seconds=300, max_input_bytes=200000, max_output_bytes=200000).model_dump(),
         'scoped': {'maximum_actions': runner.maximum_scoped_actions, 'rounds': runner.scoped_rounds,
                    'batch_size': runner.scoped_batch_size, 'pair_order': runner.scoped_pair_order,
@@ -121,9 +133,15 @@ def check_stages(root, dossier, bound, runner):
     from .complete_investigation import verify
     from .qualification_adapter import verify as verify_qualification
     verify(root, dossier)
+    if dossier.get('profile')=='complete-investigation-challenge-continuation.v1':
+        raise LegalMathError('E_STALE_REVIEW', details='Retained-stage continuation is not a fresh whole-method observation')
     binding = dossier['binding']
+    try:
+        current_method=method(runner)
+    except (LegalMathError,ValueError) as exc:
+        raise LegalMathError('E_STALE_REVIEW',details='Runner configuration is not the frozen method') from exc
     if (canonical(binding.get('investigation_method')) != canonical(bound) or
-            digest(method(runner)) != digest(bound) or
+            digest(current_method) != digest(bound) or
             binding['implementation'] != bound['implementation'] or
             canonical(binding['settings']) != canonical(bound['settings']) or
             not binding.get('machine_qualification')):
@@ -161,6 +179,10 @@ def check_stages(root, dossier, bound, runner):
     if canonical(source[-1]['spec']['inputs']['sources']) != canonical(expected_sources):
         raise LegalMathError('E_STALE_REVIEW')
     actual_interpretation = interpretations[-1]['spec']['inputs']
+    expected_input=bound['transports']['readable_input']
+    expected_input='literal' if expected_input=='NOT_ENABLED_IN_COMPLETE_INVESTIGATION' else expected_input
+    if actual_interpretation.get('input_profile','literal')!=expected_input:
+        raise LegalMathError('E_STALE_REVIEW',details='Actual input codec differs from the frozen method')
     if (canonical(actual_interpretation['settings']) != canonical(bound['settings']) or
             actual_interpretation['scope'] != binding['question'] or
             actual_interpretation['implementation'] != bound['implementation'] or
@@ -195,6 +217,8 @@ def check_stages(root, dossier, bound, runner):
     scoped_journal = original(scoped_path)
     if scoped_journal['sha256'] != journal_identity(scoped_journal['value']): raise LegalMathError('E_INTEGRITY')
     actual_scoped = scoped_journal['value']['binding']['inputs']
+    if actual_scoped.get('input_profile','literal')!=expected_input:
+        raise LegalMathError('E_STALE_REVIEW',details='Actual scoped input codec differs')
     if (canonical(actual_scoped['route']) != canonical(bound['provider']['route'] or runner.provider.provider_id) or
             canonical(actual_scoped['settings']) != canonical(bound['scoped_provider_settings']) or
             actual_scoped.get('source_reference_protocol', 'literal') != bound['transports']['scoped'] or
@@ -212,12 +236,62 @@ def check_stages(root, dossier, bound, runner):
             assignment_status=question['assignment_status'], compiler=runner.catala['compiler'] if runner.catala else None)
         if canonical(record['report']) != canonical(result): raise LegalMathError('E_INTEGRITY')
         rows.append({'candidate_id': cid, 'qualification_hash': digest(result), 'summary': result['summary']})
+    extra_stages={};panel_summary=None
+    semantic_summary=None
+    if bound.get('semantics') is not None:
+        from ..semantics import integration as semantic_integration
+        if 'semantic_stage' not in dossier or 'semantic_stage' not in dossier['component_refs']:
+            raise LegalMathError('E_REFERENCE',details='Semantic stage is enabled but missing')
+        path=(root/dossier['semantic_stage']['directory']).resolve()
+        if not path.is_relative_to(root):raise LegalMathError('E_REFERENCE')
+        for required in (path/'result.json',path/'inputs.json',path/'branches.json'):
+            original(required)
+        envelope=original(path.parent.parent/'journal.json')
+        if envelope['sha256']!=journal_identity(envelope['value']):raise LegalMathError('E_INTEGRITY')
+        matching=[a for a in envelope['value']['actions'] if a['status']=='EXECUTED' and a['spec']['stage']=='semantics']
+        semantic_context=semantic_integration.investigation_context(binding['semantic_options'],
+            criticism['proposal'],binding.get('semantic_inputs'))
+        expected_inputs={'packet':digest(packet),'candidates':digest(readings),
+            'questions':digest({cid:r['question'] for cid,r in assignments.items()}),'configuration':bound['semantics'],
+            'context':digest(semantic_context)}
+        if len(matching)!=1 or matching[0]['spec']['inputs']!=expected_inputs:raise LegalMathError('E_REFERENCE')
+        semantic_summary=semantic_integration.verify(path,packet,readings,
+            {cid:r['question'] for cid,r in assignments.items()},binding['semantic_options'],binding['at'],jdk=runner.jdk,
+            context=semantic_context)
+        if semantic_summary!=dossier['semantic_stage']['report']:raise LegalMathError('E_INTEGRITY')
+        for row in original(path/'branches.json'):
+            bid=digest(row['branch'])
+            for name in ('inputs.json','envelope.json','qualification.json'):
+                original(path/'branches'/bid/name)
+        row=matching[0]
+        if not row['started_ms']<=semantic_summary['started_ms']<=semantic_summary['finished_ms']<=row['finished_ms']:
+            raise LegalMathError('E_STALE_REVIEW',details='Semantic times differ from the actual journal stage')
+        if row['result_hash']!=journal_identity(dossier['semantic_stage']):
+            raise LegalMathError('E_INTEGRITY')
+        for relative,expected_hash in row['artifacts'].items():
+            full=path.parent.parent/relative
+            key=str(full.relative_to(root))
+            if key not in retained or retained[key]['sha256']!=expected_hash:
+                raise LegalMathError('E_REFERENCE')
+        extra_stages['semantics']=row['started_ms']
+    elif dossier.get('semantic_stage') is not None:raise LegalMathError('E_STALE_REVIEW')
+    if bound.get('challenge_panel') is not None:
+        if binding.get('challenge_panel')!=bound['challenge_panel']:raise LegalMathError('E_STALE_REVIEW')
+        from . import challenge_panel
+        path=(root/dossier['component_refs']['challenges']['path']).parent
+        panel_summary=challenge_panel.verify(path,packet,readings,
+            {cid:r['question'] for cid,r in assignments.items()},expected_configuration=bound['challenge_panel'])
+        envelope=original(path/'actions/journal.json')
+        if envelope['sha256']!=journal_identity(envelope['value']):raise LegalMathError('E_INTEGRITY')
+        extra_stages['challenges']=envelope['value']['started_ms']
     return {'profile': PROFILE, 'investigation_revision': dossier['revision'],
         'method_hash': digest(bound), 'source_hash': source_identity(binding['sources']),
         'source_bundle_hash': digest(binding['sources']),
         'question_hash': digest(binding['question']), 'packet_hash': digest(packet),
         'authority_resolution_hash': digest(authority), 'context_hash': digest(context),
         'criticism_hash': digest(criticism), 'candidate_count': len(readings), 'qualifications': rows,
+        'challenge_summary_hash':digest(panel_summary) if panel_summary is not None else None,
+        'semantic_summary_hash':digest(semantic_summary) if semantic_summary is not None else None,
         'execution_complete': dossier['execution_complete'],
         'pending_scoped_pairs': dossier['scoped']['pending_pairs'],
         'residual_questions': dossier['core']['residual_questions'],
@@ -228,7 +302,7 @@ def check_stages(root, dossier, bound, runner):
         'stage_started_ms': {
             'source_interpretation': journal['value']['started_ms'],
             'core_model': model_journal['value']['started_ms'],
-            'scoped': scoped_journal['value']['started_ms']}}
+            'scoped': scoped_journal['value']['started_ms'],**extra_stages}}
 
 
 def observe(directory, window_hash, task_id, dossier_ref, runner):

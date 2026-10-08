@@ -1,0 +1,90 @@
+......F........F........................................................ [ 44%]
+........................................................................ [ 89%]
+.................                                                        [100%]
+=================================== FAILURES ===================================
+_ test_full_product_and_verifier_reject_false_completion_of_unassessed_dimensions _
+
+    def test_full_product_and_verifier_reject_false_completion_of_unassessed_dimensions():
+        root=Path(__file__).resolve().parents[2]
+        def respond(r):
+            value=complete_responder(r)
+            return unassessed(value) if r['task']=='SCOPED_SOURCE_FIDELITY' else value
+        with tempfile.TemporaryDirectory(prefix='unassessed-product-',dir=root/'artifacts') as path:
+            runner=CompleteInvestigation(root,path,FunctionProvider(respond),JDK,AT,
+                settings=settings(),maximum_scoped_actions=4,scoped_rounds=1)
+>           result=runner.run([source()],'Selected gift control')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_integration_repair.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/interpretation/assurance/complete_investigation.py:160: in run
+    interpreted=core.run(roots,selected_slice,retained=retained,authority_registry=authority_registry)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/legalmath/interpretation/assurance/integrated.py:149: in run
+    checks, check_receipt = self.journal.execute('independent', {**inputs, 'candidates': identity(candidates)}, independent,
+src/legalmath/interpretation/assurance/workflow.py:122: in execute
+    result = callback(work)
+             ^^^^^^^^^^^^^^
+src/legalmath/interpretation/assurance/integrated.py:144: in independent
+    result = self._sidecar('formal-cases', {'cases': cases, 'jdk': str(self.jdk)}, work/'formal')
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <legalmath.interpretation.assurance.integrated.IntegratedInvestigation object at 0x74ca4051da10>
+kind = 'formal-cases'
+request = {'cases': [{'bundle': {'bundle_id': 'search.aa5aa470c7a074d20b73', 'facts': [{'description': 'A distributor offers a g...1832a6d2ef31.jar', ...}, ...], 'jdk': '/home/chakwong/python/legalmath/.localresources/java-toolchain/jdk-17.0.20.1+1'}
+work = PosixPath('/home/chakwong/python/legalmath/artifacts/unassessed-product-o13fgmr_/revisions/af909306e272c557e2a1668df42f292f8dced6c8099b0d5bc03b04248f7340cc/core/actions/action-0002/formal')
+
+    def _sidecar(self, kind, request, work):
+        request_path = work/'input.json'; output = work/'output.json'
+        save(request_path, request)
+        argv = [str(self.tool_python), '-m', 'legalmath.interpretation.assurance.sidecar',
+                kind, '--input', str(request_path), '--output', str(output)]
+        env = {**os.environ, 'CUDA_VISIBLE_DEVICES': '-1',
+               'PYTHONPATH': str(Path(__file__).parents[3])}
+        with (work/'execution.log').open('w') as log:
+            proc = subprocess.run(argv, stdout=log, stderr=subprocess.STDOUT, env=env, timeout=600)
+>       if proc.returncode: raise LegalMathError('E_DEPENDENCY', details='Sidecar failed; see '+str(work/'execution.log'))
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       legalmath.errors.LegalMathError: A required dependency is unresolved.
+
+src/legalmath/interpretation/assurance/integrated.py:79: LegalMathError
+________________ test_status_reads_while_execution_lock_is_held ________________
+
+    def test_status_reads_while_execution_lock_is_held():
+        import fcntl,subprocess
+        from scripts.legal_integration_repair import OUT,ROOT
+        with (OUT/'.lock').open('a') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            process=subprocess.run([str(ROOT/'.venv/bin/python'),'scripts/run_legal_integration_repair.py','status'],
+                                   cwd=ROOT,capture_output=True,text=True,timeout=10)
+        assert process.returncode==0,process.stderr
+>       assert 'budgets' in loads(process.stdout)
+                            ^^^^^^^^^^^^^^^^^^^^^
+
+tests/assurance/test_integration_repair.py:260: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/canonical.py:68: in loads
+    value = json.loads(data, object_pairs_hook=_pairs, parse_float=_invalid,
+../../miniconda3/envs/tfgpu/lib/python3.11/json/__init__.py:359: in loads
+    return cls(**kw).decode(s)
+           ^^^^^^^^^^^^^^^^^^^
+../../miniconda3/envs/tfgpu/lib/python3.11/json/decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../miniconda3/envs/tfgpu/lib/python3.11/json/decoder.py:353: in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_ = '1791442020.2879746'
+
+    def _invalid(_):
+>       raise BoundaryError("E_SCHEMA")
+E       legalmath.errors.BoundaryError: Input does not conform to the schema.
+
+src/legalmath/canonical.py:61: BoundaryError
+=========================== short test summary info ============================
+FAILED tests/assurance/test_integration_repair.py::test_full_product_and_verifier_reject_false_completion_of_unassessed_dimensions
+FAILED tests/assurance/test_integration_repair.py::test_status_reads_while_execution_lock_is_held
+2 failed, 159 passed in 89.83s (0:01:29)

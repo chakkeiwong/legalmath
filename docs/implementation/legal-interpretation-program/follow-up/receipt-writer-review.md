@@ -1,0 +1,5 @@
+# Revised receipt-writer audit
+
+Three final-validator setup failures are rejected and preserved under `artifacts/legal-interpretation-program/problem-led-follow-up/failed-validation/`: a relative path, a partial prior output rejected by exclusive creation, and a literal backslash-n that made generated JSON invalid. The previous result is not an accepted completion receipt. The substantive checks reached their assertions but did not justify reporting program completion while serialization failed.
+
+Revised audit: PASS for one bounded rerun. Normalize reference paths, serialize with `chr(10)`, parse the serialized value before writing, write/read a temporary file and atomically replace only the validator's three named outputs. Exclude `result.json` from its own output manifest. Read the final result and rehash every output before reporting PASS. The previously written bytes are retained as rejected evidence. This corrects record construction, not legal conclusions or product behavior. No broader test ladder, extra intervention or successor phase is authorized by this repair.

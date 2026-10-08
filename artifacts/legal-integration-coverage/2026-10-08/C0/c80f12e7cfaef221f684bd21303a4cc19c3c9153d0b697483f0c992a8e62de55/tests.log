@@ -1,0 +1,25 @@
+.............F.......................................................... [ 66%]
+.....................................                                    [100%]
+=================================== FAILURES ===================================
+_____ test_large_batch_cap_respects_requested_timeout_and_absolute_expiry ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7bb2f3b4f110>
+
+    def test_large_batch_cap_respects_requested_timeout_and_absolute_expiry(monkeypatch):
+        from types import SimpleNamespace
+        from legalmath.interpretation.search.models import Settings
+        provider = program.CoverageProvider.__new__(program.CoverageProvider)
+        provider.allowance = SimpleNamespace(purpose='combined', batch=0, verify=lambda: {'used': 1})
+        monkeypatch.setattr(program.CodexProvider, 'complete', lambda self, request, schema, settings: settings.timeout_seconds)
+        monkeypatch.setattr(program.time, 'time', lambda: program.DEADLINE - 1000)
+>       assert provider.complete({}, {}, Settings(timeout_seconds=500)) == 300
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E       timeout_seconds
+E         Input should be less than or equal to 300 [type=less_than_equal, input_value=500, input_type=int]
+E           For further information visit https://errors.pydantic.dev/2.12/v/less_than_equal
+
+tests/assurance/test_integration_coverage.py:189: ValidationError
+=========================== short test summary info ============================
+FAILED tests/assurance/test_integration_coverage.py::test_large_batch_cap_respects_requested_timeout_and_absolute_expiry
+1 failed, 108 passed in 27.04s

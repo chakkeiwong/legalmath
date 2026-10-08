@@ -281,6 +281,10 @@ def fidelity_request(packet, claims, candidates, required_pairs=None):
             'CONTRADICTED needs positive conflicting evidence; omission or missing evidence is NOT_ESTABLISHED. '
             'A true quotation is not sufficient support. Read distant qualifications. Do not infer a result '
             'convention absent from the candidate. Do not count unused declared facts or a prose promise as implementation. '
+            'declared_meaning is the candidate author\'s proposed intent, not executable evidence. '
+            'Use it to distinguish trigger, performance, prohibition and overall compliance. '
+            'A claim outside that declared question may be uncovered without being a false claim made by the author. '
+            'This broad matrix measures coverage; it does not approve the declared question or resolve relevance. '
             'Copy exact representation text for ENTAILED and exact source evidence for determinate labels. '
             'Use the shortest unambiguous quotations and one-sentence rationales. '
             'Do not change claim IDs, omit checks or manufacture certainty. Identify the failed stage and a useful question. '
@@ -290,7 +294,9 @@ def fidelity_request(packet, claims, candidates, required_pairs=None):
             'additional_concerns is an array of strings. Do not include task, protocol or other metadata in the response.',
             'response_schema': Fidelity.model_json_schema(),
             'source_packet': packet, 'claims': selected,
-            'candidates': [{'candidate_id': cid, 'representation': representation(r)} for cid, r in candidates.items()]}
+            'candidates': [{'candidate_id': cid, 'reading_hash': digest(r), 'representation': representation(r),
+                'declared_meaning': {k: r.get(k) for k in ('subject', 'statement', 'distinction', 'assumptions', 'questions')}}
+                for cid, r in candidates.items()]}
     if required_pairs is not None:
         request['required_pairs']=[{'claim_id':a,'candidate_id':b} for a,b in required_pairs]
         request['instructions']+=' This is a bounded batch: return checks for EXACTLY required_pairs; other supplied claims and candidates are context.'

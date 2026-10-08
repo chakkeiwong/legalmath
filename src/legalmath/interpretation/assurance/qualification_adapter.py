@@ -4,7 +4,7 @@ from pathlib import Path
 from ...canonical import digest, loads, raw_digest
 from ...errors import LegalMathError
 from ...qualification import assurance
-from ...translation.model import from_reading
+from ...translation.model import from_reading, RetainedHistoryReading
 from ..contracts import Packet, parse
 from ..search.models import Reading
 from .controls import check_controls
@@ -15,7 +15,7 @@ PROFILE = 'legalmath.investigation-qualification.v1'
 
 
 def identity(packet, reading, question, assignment_status):
-    parse(Packet, packet); parse(Reading, reading); check_quotes(reading['citations'], packet)
+    parse(Packet, packet); parse(RetainedHistoryReading, reading); check_quotes(reading['citations'], packet)
     check_controls([question], packet)
     if assignment_status not in ('PROPOSED', 'UNCERTAIN'): raise LegalMathError('E_SCHEMA')
     return {'profile': PROFILE, 'packet_hash': digest(packet), 'reading_hash': digest(reading),

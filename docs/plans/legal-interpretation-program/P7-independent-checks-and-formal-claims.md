@@ -2,6 +2,8 @@
 
 Status: PLANNED_NOT_EXECUTED. The [master program](../legal-interpretation-master-program.md)
 controls evidence, default assumptions, resource limits and source-fidelity claims.
+Revision 2 — 6 October 2026. Incorporates the [Claude review response](../../implementation/legal-interpretation-program/claude-review-response.md); implementation checks remain pending.
+
 Dependencies: P6.
 
 ## Question and inputs
@@ -14,11 +16,11 @@ P6 implementation and actual outputs; phase-specific counterexamples; existing i
 
 1. Write precise propositions for branch accounting, preservation of unresolved premises, dependency invalidation and the relation between the reference evaluator and supported lowering. For small finite declared domains, construct a materializing subset-enumeration oracle that differs from the production evaluator and compare the full branch outcomes, not just aggregate success flags. State which properties are proved versus exhaustively checked versus sampled.
 
-2. Implement small Lean statements where the actual theorem is useful; keep parser/serializer/runtime correspondence as separate obligations unless actually proved. Do not claim that a set-theoretic theorem verifies the Python parser.
+2. Inventory proof targets before implementation. The existing proof_certificate.py profile lean.boolean-lowering.v1 handles Boolean literals, facts, not, and, or and if, with TRUE/FALSE/UNKNOWN valuations and a separate conflict flag; it does not prove source English, history selection, date arithmetic or Java correctness. It currently names Lean 4.20.0 at an absolute toolchain path: verify that environment before any kernel run. Reuse that profile only within its exact domain. Branch accounting, unresolved-premise preservation and dependency invalidation require a separately versioned InterpretationSemantics.lean prelude/profile, registered verifier and runtime/serialization correspondence obligations. Review registration feasibility first; no existing receipt establishes those propositions. Retain at least one actual kernel receipt per claimed theorem class or mark that class NOT_PROVED and use explicitly scoped finite checks where justified. Never relabel a Boolean-lowering receipt as a general semantics proof.
 
 3. Generate exhaustive cases only within a declared finite domain. Derive expected results from an independently implemented specification. A literal duplicate of the production algorithm is not an independent checker.
 
-4. Inject targeted faults: omit a footnote, substitute actor identity, swap opinion role, invert a condition, erase a branch, change a source hash, coerce unknown to false, and carry a stale receipt after amendment. Require detection where the invariant actually covers the fault.
+4. Inject targeted faults: omit a footnote, substitute actor identity, swap opinion role, invert a condition, erase a branch, change a source hash, coerce unknown to false, and carry a stale receipt after amendment, swap branch qualifications with identical legacy readings, and omit a branch or semantics-stage receipt. Include the P3 empty-grounded fixture and P6 coexisting-reason cases in the independently specified finite domain. Require detection where the invariant actually covers the fault.
 
 5. Keep source-meaning hypotheses visible beside formal results. Do not manufacture legal oracle labels for faults that depend on disputed natural-language interpretation.
 
@@ -32,8 +34,7 @@ The following test files are planned deliverables, not existing executed tests.
 After implementing them, run these exact forms from the repository root:
 
 ```text
-.venv/bin/python -m pytest tests/interpretation/semantics/test_invariants.py -q
-.venv/bin/python -m pytest tests/interpretation/semantics/test_faults.py -q
+.venv/bin/python scripts/legal_interpretation_ops.py phase-tests P7
 ```
 
 Add the relevant existing regression paths discovered from actual touched imports.

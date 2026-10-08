@@ -1,7 +1,26 @@
 # Master program: source-grounded legal interpretation and precedent
 
-Revision 1 — 5 October 2026. Status: **reviewed implementation specification;
-product phases not executed**. Claude's independent review is pending.
+Revision 3 — 6 October 2026. **Current execution specification.** P0–P8 and
+S1–S3 have executed with qualifications. The reviewed S4 implementation adds
+checked conditional standards and bounded positive recursion through the actual
+investigation. Execution state and the next reviewed phase are selected by
+[program-current.json](../implementation/legal-interpretation-program/program-current.json).
+Phase completion records engineering work, not closure of the legal questions.
+
+Claude's revision-1 review and the revision-2 response remain historical.
+Revision 3 has a local skeptical audit; no new Claude review is claimed.
+All 46 original substantive obligations remain OPEN_QUALIFIED. Legal correctness,
+English fidelity and unrestricted future generalization remain NOT_ESTABLISHED.
+
+Run `python3 -m scripts.run_legal_interpretation_master status` to inspect the
+current program, `resume` to execute the implemented current phase, and `verify`
+to check its selected receipt. The fixed runner uses no model providers.
+
+Revision 2 and its validation files are preserved under
+`docs/implementation/legal-interpretation-program/revisions/revision-2/`;
+[the archive index](../implementation/legal-interpretation-program/revision-2-archive.json)
+binds all 19 files. Do not regenerate historical revision-2 receipts against this
+updated specification.
 
 Start with the [phase index](legal-interpretation-program/README.md), the
 [program review](../implementation/legal-interpretation-program/program-review.md)
@@ -43,10 +62,15 @@ The product gaps fall into seven connected questions:
 
 1. Does paragraph 10 concern retaining responsibility, exercising supervision,
    achieving adequate operations, or a combination? These propositions can have
-   different truth values.
+   different truth values. Footnote 1's “fully responsible”, UT Code 6.8 and
+   Tokenised Securities Circular Appendix Part A require explicit source and
+   applicability relations alongside paragraph 10's “ultimately responsible”.
 2. Which particular duty is conditional on a request in paragraph 14, and how
    does that interact with footnote 5? Confirmation, demonstration, verification
-   and legal opinion cannot share one inherited trigger.
+   and legal opinion cannot share one inherited trigger. Footnote 5 also names
+   compliance with paragraphs 10–13 and absence of smart-contract vulnerabilities,
+   with minimum-content and high-confidence language; preserve its object and
+   standard separately from paragraph 14's wording.
 3. Which actor, product, provider, component and time interval does a duty cover?
    Publication time, effective time, event time and knowledge time differ.
 4. What observed evidence warrants a factual classification? Supplying
@@ -75,7 +99,8 @@ which it follows, the supporting passages, contrary arguments, missing evidence,
 applicability limits and the exact formal checks performed. When the evidence
 cannot settle a premise, the result remains qualified. A system that always
 abstains is also inadequate: mechanically checkable consequences and supported
-branches must actually be computed and exposed.
+branches must actually be computed and exposed. This does not require a nonempty
+grounded extension or an invented preference.
 
 Success is a scoped implementation and a faithful account of what it establishes.
 Unrestricted English correctness, completeness of all possible readings, complete
@@ -124,7 +149,7 @@ separate. Citation linkage is independent of holding support and later treatment
 CLERC's nested MIT licence does not establish repository-wide or corpus rights.
 
 Candidate construction in P2 consumes the actual source packet, question and
-retained investigator proposals through a planned `clauses.propose(...)`
+retained investigator proposals through the implemented `clauses.propose(...)`
 interface. It nominates clause structures and competing condition attachments;
 it does not merely import manually settled legal answers. Each nomination keeps
 its source warrant and unrepresented concerns. The offline pilot uses retained
@@ -138,19 +163,23 @@ reference implementation; it does not invalidate the interpretation objective.
 
 ## 4. Architecture and exact boundaries
 
-All following paths under `src/legalmath/interpretation/semantics/` and
-`tests/interpretation/semantics/` are **planned new files**, not existing code.
+The P0–P8 modules below now exist under
+`src/legalmath/interpretation/semantics/` with corresponding tests.
+S1 adds lossless `reconciliation.py` and `sourced.py` and a version-2 context
+for actual investigation. S2 adds a conditional standards evaluator with distinct
+source assertions, interpretive premises and scoped factual evidence.
 The existing `assurance/semantics.py` remains a separate module.
 
-| Planned module | Responsibility | Existing integration point |
+| Module | Responsibility | Integration point |
 |---|---|---|
+| `operative.py` | Data-driven immutable field corrections with predecessor/source hashes. | Existing post-review change-record conventions; preserve the historical script and packages. |
 | `records.py` | Typed source editions, propositions, facts, readings and unresolved premises. | `interpretation/contracts.py`: Packet/Proposal validation; `search/models.py`: Reading. |
 | `clauses.py` | Actor/action/modality/condition/exception scopes and cross-reference relations. | `assurance/source_references.py`: verified Unicode spans. |
 | `arguments.py`, `pyarg_adapter.py` | Finite arguments, attacks, explicit preferences, extensions and resource-qualified results. | Existing proposed arguments; no implicit replacement of historical contracts. |
 | `precedent.py` | Opinion-aware case propositions, factors, analogy and distinctions. | Retained source packets and explicit authority premises. |
 | `evidence.py` | Observation-to-predicate derivations with identity and temporal scope. | Existing event/evidence records and declared formal facts. |
 | `lower.py`, `render.py` | Supported branch lowering and explanations derived from the same semantic records. | `translation/model.py`: from_reading; supported RuleIR/Catala profiles. |
-| `integration.py` | Optional complete-investigator route and scoped qualification. | `assurance/complete_investigation.py`, `qualification_adapter.run/verify`. |
+| `integration.py`, `qualification_v2.py` | Optional complete-investigator route, branch-bound qualification and stage receipts. | `assurance/complete_investigation.py`, v1 qualification compatibility, `investigation_observations.method/check_stages`. |
 
 Use one source of semantic identity, with a versioned adapter into existing
 contracts. Do not add ad hoc fields to strict old schemas or mutate old retained
@@ -159,7 +188,9 @@ translation boundary; the translation model must not import the investigator.
 
 Each proposition must retain its source hash and edition, locator, exact quote,
 speaker/opinion role, question identity, actor/activity scope, validity interval,
-reasoning warrant, dependencies and status. The span coordinate convention is
+reasoning warrant, dependencies and status. Align the new actor/action/modality/
+condition vocabulary through an explicit adapter to existing `assurance/semantics.py::AtomicClaim`; do not create incompatible
+meanings for the same enum labels. The span coordinate convention is
 the existing Unicode-codepoint half-open convention. For an unsupported source
 format, return an explicit unsupported locator; do not manufacture offsets.
 
@@ -179,9 +210,50 @@ assumptions needed to evaluate it. Shared premises and jointly applicable duties
 retain their dependencies; do not form an unconstrained Cartesian product of
 incompatible actor, temporal or priority assumptions. A conclusion uniform over
 the retained, successfully evaluated branches is labelled uniform over those branches only.
-An empty set, unsupported branch, unvisited frontier or timed-out evaluation
-prevents a completeness claim. Missing evidence still appears in every
-downstream report; a concise summary cannot drop it.
+An empty branch inventory, unsupported branch, unvisited frontier or timed-out
+evaluation prevents a completeness claim. This differs from a correctly computed
+empty grounded extension: no argument may be grounded-accepted in a finite
+mutual-attack theory. Report that result and still compute conditional branch
+consequences. Missing evidence remains visible in every downstream report.
+
+P2 must consider A (request-conditioned demonstration), B (a standing footnote
+demonstration duty), and C (footnote minimum content inheriting paragraph 14's
+trigger), with explicit source warrants and objections. These are proposals, not
+an exhaustive or legally established list. Compare trigger, object and standard
+separately. A/C agreement on the no-request trigger does not establish agreement
+on the demonstrated proposition or standard. A missing retained nomination is
+recorded as a sourced development proposal and unrepresented concern, never an
+answer key.
+
+P6 gives every branch a canonical identity covering source/question, clause
+interpretation, semantic profile and settings, assumptions, priorities and
+dependencies. Keep input/case/evidence and evaluator/runtime identities bound to
+its versioned qualification receipt as well. Two branches lowering to the same
+legacy Reading still require distinct branch-bound receipts. Use a separate
+v2 adapter/envelope; preserve v1 historical profiles and bytes, while recording
+any dependency change that prevents old verification. Store semantic branches
+separately from the legacy candidate inventory.
+
+Decision-set comparison is over the same declared query and facts. Retain
+per-extension outcomes, not just an aggregate. P6 defines a typed query value
+(true, false, unknown, conflict or out-of-scope), independent completion/lowering
+states, and a set of reasons such as unknown-fact, unknown-applicability,
+unknown-interpretation, conflicting-evidence, conflicting-extensions,
+unsupported-lowering and unfinished. Reasons can coexist. Different completed
+extensions giving incompatible query answers produce conflicting-extensions.
+For a duty-trigger query, settled-triggered/settled-not-triggered describes only
+a completed conditional computation. Uniformity requires a nonempty, fully
+accounted inventory and an explicit comparison projection; qualifiers and
+object/standard differences cannot vanish from the report.
+
+P6/P8 bind enabled/disabled semantics configuration, record version, evaluator
+identity, actual stage execution and branch qualification inventory into
+observation verification. The existing global implementation hash already binds
+package code; it does not demonstrate that the semantics stage ran. Check retained
+stage times and independently recompute the decision set. Any method change
+invalidates affected frozen observations. Recording a repair does not reopen the
+old window for confirmation; freeze a new method/window for genuinely later
+publications after development repairs.
 
 ## 5. Research intent and evidence contract
 
@@ -226,10 +298,33 @@ conditional branch; they cannot claim a precedent-supported answer. P8's future
 observation component stays pending until genuine post-freeze publications exist.
 Development and plan completion do not require fabricated observations.
 
-The [individual phase plans](legal-interpretation-program/README.md) give
-implementation actions, inputs, expected interfaces, test commands, acceptance,
-repair and continuation conditions. These are work instructions for an executor,
-not evidence that any phase has run.
+The [individual phase plans](legal-interpretation-program/README.md) retain
+the original implementation instructions. Their completed execution is bound by
+`artifacts/legal-interpretation-program/2026-10-06-offline-v1/completion-2.json`
+(SHA256 `00787202085da9ee4942a34bf87252a9be5192fe1333075b843edede74bb788d`).
+S1 is bound by `artifacts/legal-interpretation-program/successor-s1/attempt-2/result.json`
+(SHA256 `75b6cfd2f361b7e28ebdac0cd742876831a2b5d5314ba82dc5328432b8993cdd`).
+
+S1 passed 179 checks, preserved 35 readings and 70 role records, and bound
+1,400 source-related claims. Three historical formulas ran six Java cases;
+32 readings remained unformalized. Its actual CompleteInvestigation fixture
+carried two semantic branches through four Java cases with typed objections.
+These are development results; none establishes the source-to-rule interpretation.
+
+### Successor phases
+
+| Phase | Concrete work and required result | Current dependency |
+|---|---|---|
+| S1 | Individual reconciliation and source-bound argument structure; executed with qualifications. | P0–P8 completion-2 |
+| S2 | Individually account for all 46 obligations; inspect official provisions, investigate obtainable judgments, and execute conditional standards with explicit missing premises. | S1 attempt-2; [reviewed S2 plan](legal-interpretation-program/S2-authority-and-standards.md) |
+| S3 | Connect scoped observations and conditional standards through actual investigation; retain competing attachment readings and establish, or qualify, every sufficiency premise. | Verified S2 result; [reviewed S3 implementation plan](legal-interpretation-program/S3-scoped-evidence-and-investigation.md) |
+| S4 | Execute fixed-evidence positive Horn standards and bounded recursion; kernel-check each decoded Java result as the least derivable set. Preserve all 32 unformalized readings. | Verified S3; [reviewed S4 plan](legal-interpretation-program/S4-conditional-runtime-and-proofs.md) |
+| S5 | Review remaining source-to-rule/lowering prerequisites, then freeze a new whole method and source window; retain genuinely later official publications including unsupported and unfinished cases. | Verified S4; specific interpretation gaps and actual future source availability |
+
+The current pointer distinguishes completed work from the next phase. Later phases
+require refreshed audited plans; a title or successful unit test cannot select or
+complete them. Larger recursive theories, source-to-rule sufficiency and future
+observations are separate unresolved questions, not implied by S1's finite cases.
 
 ## 7. Assumption and default audit
 
@@ -248,7 +343,12 @@ not evidence that any phase has run.
 The 500-node prototype bound comes from `interpretation/contracts.py`, not
 `search/models.py`: the latter's current Settings allow only 16 argument nodes.
 Keep these as distinct profiles and do not pass new semantic limits into the
-legacy search schema. Any new configuration requires a versioned boundary.
+legacy search schema. A separate legacy bound also matters:
+`complete_investigation.py` permits replay only for 1–16 candidates and a usable
+criticism proposal, and execution completeness requires replay. Never write the
+up-to-64 semantic branches into `candidates.json`. Test more than 16 semantic
+branches with an otherwise replay-eligible legacy input; keep that input and its
+replay behavior unchanged. Any new configuration requires a versioned boundary.
 Exhaustive preferred-extension reference checks start with at most eight abstract
 arguments; the bound is a tractability convenience, not a legal or coverage claim.
 
@@ -301,10 +401,13 @@ latest successful log.
 
 ## 9. Resources, exact commands and approvals
 
-The documentation task uses zero model/provider calls. P0–P3's core development
-and synthetic checks require no live model or GPU. P4 first uses retained official
-sources; missing judgments are acquired through a named, bounded official source
-request. No crawling budget or new model allowance is granted by this plan.
+This revision uses zero new model/provider calls. S2's reviewed acquisition
+scope permits at most 24 public HTTP attempts, 12 MB per response, 30 seconds per
+request and three redirects. Every attempted URL, query and failure is retained.
+Official sources and an explicitly documented court-linked mirror are identified
+separately; retrieval establishes neither authority nor source-to-rule sufficiency.
+No dependency installation, GPU work, private data acquisition or model grant is
+part of the fixed master runner.
 
 Historic 100-call/50-repair/48-hour limits belong to their recorded campaign.
 Check the actual allowance and expiry before any future live action; do not copy
@@ -315,18 +418,49 @@ still supplies no quality evidence.
 
 Run commands from `/home/chakwong/python/legalmath`. Command policy:
 
-- `.venv/bin/python -m pytest <existing-test-path>`: phase regression only after
-  the named test file exists. The phase files list **future** paths explicitly.
-- `latexmk -xelatex -interaction=nonstopmode -halt-on-error -cd docs/monograph/monograph.tex`:
-  canonical document build, with the linked companion built as required.
+- Use the installed fixed prefix `.venv/bin/python scripts/legal_interpretation_ops.py`
+  with `login: false`. Its `phase-tests P0` through `phase-tests P8` actions
+  launch the declared tests only after their files exist. Individual pytest
+  commands retained in phase plans describe the underlying checks.
+- Use its `regression contracts`, `regression sources`, `regression integration`
+  or `regression translation` actions for relevant existing checks; use
+  `build-docs` for the canonical document build. Follow the
+  [installed execution guide](../implementation/legal-interpretation-program/execution/README.md).
+- Use `python3 -m scripts.run_legal_interpretation_master status|resume|verify`
+  (one literal action per invocation) for current execution.
+  `scripts.check_legal_interpretation_revision` is a historical revision-2
+  generator: do not rerun it against the refreshed live files.
 - `.venv/bin/python scripts/assurance_evidence_master.py ops-run` is an existing
   provider-campaign command and **is not this program's execution entry point**.
   Do not run it to execute these phases.
 
-The program is an implementation specification with a machine-readable phase
-manifest. It does not claim a new autonomous runner exists. Build and test the
-product route in P6 using the existing complete investigator; add a narrow offline
-CLI only if an actual integration need remains, and document it before use.
+The master runner verifies historical identities and dispatches the reviewed
+S3 or S4 handler from its frozen predecessor. It preserves immutable attempts,
+independently checks actual investigation and runtime receipts, then refreshes
+the next phase before advancing the pointer. S2's 603 files were preserved before
+S3; S3's 606 files were preserved before S4. Later checks verify historical bytes
+without relabelling their execution as current-method evidence.
+
+The v4 S4 fixture uses the same exact retained SFC excerpts and deterministic
+offline provider as S3. Its additional standards runtime is separate from legacy
+Boolean trigger formulas. Fixed four-state evidence admits only positive-only
+support; positive derived heads use inductive Horn derivability. For each actual
+Java-decoded numeric theory, pinned Lean checks the returned set's soundness and
+closure using the generic leastness theorem. Standard Lean propext/Quot.sound
+axioms are explicit; arbitrary axioms and sorryAx are rejected. Source lowering,
+codecs, compilers and English interpretation are not universally proved.
+The bounds are 64 heads/rules, 1024 fixed facts and 32 antecedents of each kind.
+
+No live provider or arbitrary shell text is accepted. After S4 completion,
+resume verifies its receipt and reports the refreshed S5 prerequisites. S5 has
+no fixed handler until its specific source/observation plan is reviewed and
+implemented. Existing sources and prior windows remain development/history;
+genuinely later publications cannot be fabricated. See the S4 plan and audit for
+the proof scope, retained unsupported readings and causal repair bounds.
+
+The legacy phase manifest and operations wrapper retain revision-2 planning
+labels for historical compatibility. Current phase status comes from the new
+master pointer and runner, not those old labels.
 
 Use direct argument vectors and repository-relative paths. Do not wrap commands
 in shell substitutions or broad `bash -c` approvals. A repository allowlist
@@ -342,9 +476,9 @@ not a reason to change the product.
 |---|---|---|
 | Stale source-unavailable and categorical request language | P0 candidate overlay; P6 consistent rendering | Acquisition is distinct from applicability; immutable originals retained. |
 | Responsibility/supervision/adequacy | P1–P3, P5 | Branch-specific meanings and missing warrants remain visible. |
-| Paragraph 14 / footnote 5 and exception attachment | P2–P3, P6 | No invented priority; each duty retains its own trigger. |
+| Paragraph 14 / footnote 5 and exception attachment | P2–P3, P6 | Each duty retains its trigger, object and standard; A/B/C are warranted proposals, with query-specific agreement only. |
 | Actors, activities, dates and provider changes | P1, P2, P5–P7 | Scope and incomplete intervals prevent unsupported conclusions. |
-| Evidence-to-classification bridge | P1, P4–P7 | A quote, event or record identifier alone cannot establish a legal classification. |
+| Evidence-to-classification bridge | P1, P4–P7 | The pilot derives narrow observations. Responsibility, adequacy and proper records remain qualified evaluative claims or explicit supplied judgments; this is qualification, not substantive closure of the bridge. |
 | Ownership/finality/incidents/remediation | P4–P5; expand in P8 | Token possession and an incident outcome do not independently settle legal title or breach. |
 | SHOULD and legal consequences | P2, P3, P5–P6 | Duty modality and sanctions/liability use separate source-backed rules. |
 | Unformalized readings, unseen English and amendments | P6–P8 | Unsupported branches counted; prospective evidence separate from development. |
@@ -357,10 +491,23 @@ Release eligibility remains false under this program.
 
 ## 11. Review and handoff
 
-The [program review](../implementation/legal-interpretation-program/program-review.md)
-records concrete flaws found and revisions made. The
-[handoff memo](../implementation/legal-interpretation-program/claude-handoff.md)
-asks Claude to inspect the whole program, source claims, existing interfaces and
-phase contracts, returning severity-ranked findings and precise repairs. Its
-manifest binds the reviewed files. A later edit requires refreshing that binding
-before the review is represented as applying to the current program.
+The [original program review](../implementation/legal-interpretation-program/program-review.md)
+and [Claude review](../implementation/legal-interpretation-program/claude-review.md)
+remain historical records for revision 1. The
+[response](../implementation/legal-interpretation-program/claude-review-response.md)
+maps F01–F12 to the amended plans, required implementation checks and outstanding
+manuscript errata. The P0–P8 and S1 receipts preserve their execution results.
+Their immutable outputs remain historical when later product code changes;
+historical integrity is distinct from current-method reproducibility.
+The [revision-3 audit](../implementation/legal-interpretation-program/revision-3-audit.md)
+records the current plan audit and remaining limitations.
+
+The original handoff hashes are preserved. Superseded bound files are archived
+under `revisions/revision-1/`, with their original paths and hashes in the
+[revision-2 manifest](../implementation/legal-interpretation-program/revision-2-manifest.json).
+Its separate identities bind this amendment. The old `verify-handoff` command
+will report the expected changed live paths; the revision checker verifies the
+original package through the archive and the new package separately. Do not
+silently rewrite old hashes. The monograph and original literature note retain
+their reviewed bytes; precise F01/F06/F12 editorial corrections are recorded in
+the response and remain pending manuscript work.

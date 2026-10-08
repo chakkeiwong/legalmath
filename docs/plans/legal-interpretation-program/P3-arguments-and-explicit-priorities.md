@@ -2,6 +2,8 @@
 
 Status: PLANNED_NOT_EXECUTED. The [master program](../legal-interpretation-master-program.md)
 controls evidence, default assumptions, resource limits and source-fidelity claims.
+Revision 2 — 6 October 2026. Incorporates the [Claude review response](../../implementation/legal-interpretation-program/claude-review-response.md); implementation checks remain pending.
+
 Dependencies: P2.
 
 ## Question and inputs
@@ -18,9 +20,9 @@ P2's source-linked readings and warrants; inspected ASPIC+ paper and correction;
 
 3. Independently check argument construction as well as extension selection. On tiny structured theories, derive argument trees, contrary relations and each attack type directly from the stated rules; compare the resulting graph with the adapter. Checking only extensions on an already supplied graph would miss a faulty source-to-argument conversion. Test a pinned optional PyArg adapter against both reference stages. Supply ordering explicitly; inspect last-link versus alternative ordering effects without presenting one as governing law. Preserve conflicting or absent legal priorities.
 
-4. Bound argument generation, recursion, time and nodes. Resource exhaustion yields incomplete evaluation with retained frontier; it cannot return a complete empty or unanimous extension.
+4. Bound argument generation, recursion, time and nodes. Resource exhaustion yields incomplete evaluation with retained frontier; it cannot be reported as a completed semantic result. A correctly computed empty grounded extension is valid and must have an explicit completed-evaluation record, distinct from an empty branch inventory or missing work.
 
-5. Record which conclusions are in all, some or none of the computed extensions, separately from factual support and legal validity. State the explored domain and any uncomputed alternatives.
+5. Record which conclusions are in all, some or none of the computed extensions, separately from factual support and legal validity. State the explored domain and any uncomputed alternatives. Require the exact two-node mutual-attack/no-preference fixture to return grounded ∅ and preferred {{A},{B}}, with both conclusions accepted only in some preferred extensions. Do not infer this graph or a wholly empty grounded extension for the real A/B/C inventory without justifying contrary relations and accounting for shared unattacked premises. Trigger agreement alone supplies no rebuttal relation. P6's conditional branch computations provide useful results even when no contested conclusion is grounded-accepted; never add an unsupported priority merely to avoid ∅.
 
 ## Files and validation commands
 
@@ -30,8 +32,7 @@ The following test files are planned deliverables, not existing executed tests.
 After implementing them, run these exact forms from the repository root:
 
 ```text
-.venv/bin/python -m pytest tests/interpretation/semantics/test_arguments.py -q
-.venv/bin/python -m pytest tests/interpretation/semantics/test_pyarg_adapter.py -q
+.venv/bin/python scripts/legal_interpretation_ops.py phase-tests P3
 ```
 
 Add the relevant existing regression paths discovered from actual touched imports.

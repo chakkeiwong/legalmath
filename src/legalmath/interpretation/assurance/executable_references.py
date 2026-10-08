@@ -57,7 +57,9 @@ def prepare(request, schema):
         'This instruction supersedes literal-copy instructions for executable quotes only. '
         'Read the entire representation. Scope and result IDs select exact expressions. '
         'For executable_available=false no executable quotation exists: PRESERVES, CONFLICTS and OMITS '
-        'are unavailable judgments. Retain UNASSESSED or a separately justified NOT_APPLICABLE. '
+        'are unavailable judgments. Report UNAVAILABLE with rationale and followup for reviewed absence; '
+        'BLOCKED with rationale and followup for assessed source/question obstacles; UNASSESSED for '
+        'unfinished review; or a separately justified NOT_APPLICABLE. '
         'Never change a source or question judgment merely to satisfy a schema. IDs prove location only.')
     wire['response_schema'] = wire_schema
     return wire, wire_schema, refs

@@ -1,0 +1,3 @@
+# P6 refreshed from execution
+
+P5 preserves narrow recorded facts, original incident/remediation history, actor/provider identity and knowledge cutoff. Responsibility, adequacy, title and liability remain unknown without sufficient rules. P6 must execute actual Java via separate branch qualification v2, preserving conflict/unknown/unsupported reasons and branch identities, while integrating an optional stage into CompleteInvestigation. Keep legacy candidates/replay unchanged and bind settings, source, queries and evidence in method/stage receipts. Audit passed: synthetic cases test formal mechanics, not legal classifications. Test phase-tests P6 and regression integration/translation; no new provider calls.

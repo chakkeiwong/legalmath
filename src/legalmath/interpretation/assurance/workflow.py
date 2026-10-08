@@ -182,6 +182,11 @@ Replayed output is evidence reuse, not another independent model judgment.
         # Timeout reductions are scheduling limits, not different meanings of a
         # cached answer. Output/input limits and provider route remain bound.
         inputs['settings'].pop('timeout_seconds', None)
+        retained = [r for r in self.journal.report()['actions'] if r['spec']['stage'] == 'model'
+                    and r['spec']['inputs'] == inputs]
+        if (not any(r['status'] == 'EXECUTED' for r in retained)
+                and any(r['status'] in ('RESERVED', 'INTERRUPTED') for r in retained)):
+            raise LegalMathError('E_JOB_STATE', details='Uncertain prior provider dispatch; explicit reviewed recovery required before redispatch')
         from .transport import transient_service_failure
         for attempt in range(2):
             try:

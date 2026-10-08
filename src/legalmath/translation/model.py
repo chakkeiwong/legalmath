@@ -21,7 +21,13 @@ ModelId = Annotated[str,Field(pattern=r'^[a-z][a-z0-9_.-]*$')]
 OutputId = Annotated[str,Field(pattern=r'^[a-z][a-zA-Z0-9_.-]{0,127}$')]
 
 
-class RetainedReading(Reading):
+class RetainedHistoryReading(Reading):
+    # Retention unions original questions with later review and repair history.
+    # Keep that complete history bounded without applying the generator's 20-item cap.
+    questions: list[Text] = Field(max_length=64)
+
+
+class RetainedReading(RetainedHistoryReading):
     formalization: dict
 
 

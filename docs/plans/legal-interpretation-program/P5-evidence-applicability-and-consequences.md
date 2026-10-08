@@ -2,6 +2,8 @@
 
 Status: PLANNED_NOT_EXECUTED. The [master program](../legal-interpretation-master-program.md)
 controls evidence, default assumptions, resource limits and source-fidelity claims.
+Revision 2 — 6 October 2026. Incorporates the [Claude review response](../../implementation/legal-interpretation-program/claude-review-response.md); implementation checks remain pending.
+
 Dependencies: P2, P3, P4.
 
 ## Question and inputs
@@ -30,8 +32,7 @@ The following test files are planned deliverables, not existing executed tests.
 After implementing them, run these exact forms from the repository root:
 
 ```text
-.venv/bin/python -m pytest tests/interpretation/semantics/test_evidence.py -q
-.venv/bin/python -m pytest tests/interpretation/semantics/test_applicability.py -q
+.venv/bin/python scripts/legal_interpretation_ops.py phase-tests P5
 ```
 
 Add the relevant existing regression paths discovered from actual touched imports.
@@ -44,7 +45,7 @@ Right event/wrong provider; event learned after cutoff; unknown effective date; 
 
 ## Acceptance and failure decisions
 
-Every settled formal predicate has a reproducible derivation under explicit assumptions, and every missing/conflicting input preserves its status through actual serialization. No broader legal classification or consequence is inferred from a narrow observation alone.
+Every settled formal predicate has a reproducible derivation under explicit assumptions, and every missing/conflicting input preserves its status through actual serialization. No broader legal classification or consequence is inferred from a narrow observation alone. The evidence-to-classification gap therefore remains qualified for responsibility, adequacy and proper records unless their own sufficient rules/evidence are established. A supplied evaluative judgment remains a declared input in every dependent branch and report; labelling it unresolved is not substantive closure. Add a check in test_evidence.py that records a supervision event without automatically asserting adequate supervision.
 
 A missing classifier warrant produces unresolved classification, not an invented threshold. A wrong identity/time join triggers code repair and invalidates dependent results. Missing private case facts do not stop interpreter development on declared inputs.
 

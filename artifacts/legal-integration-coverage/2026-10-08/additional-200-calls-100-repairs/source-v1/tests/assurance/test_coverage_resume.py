@@ -1,0 +1,157 @@
+"""Candidate ownership, retained roles, new authorization and bounded restart."""
+from copy import deepcopy
+import json
+
+import pytest
+
+from legalmath.errors import LegalMathError
+from legalmath.interpretation.assurance import fidelity_v2 as fidelity
+from legalmath.interpretation.assurance import executable_references_v2 as expressions
+from legalmath.interpretation.assurance import source_references as sources
+from scripts import legal_coverage_candidates as codec
+from scripts import legal_coverage_aliases as aliases
+from scripts import legal_coverage_resume as resume
+from .test_coverage_aliases import fixture
+
+
+@pytest.mark.parametrize('status', ['PRESERVES', 'UNAVAILABLE', 'BLOCKED'])
+def test_candidate_constraints_preserve_valid_proposals_and_original_validation(status):
+    wire, schema, original, inputs, context = fixture(status)
+    revised, output_schema, binding = codec.prepare(wire, schema)
+    encoded = aliases.encode_response(original, wire, schema)
+    decoded = codec.resolve(encoded, wire, schema, binding)
+    assert decoded == original
+    assert revised['source_packet'] == wire['source_packet']
+    assert revised['candidates'] == wire['candidates']
+    assert revised['pair_targets'][0]['question'] == wire['candidates'][0]['question']['question']
+    p, claims, candidates, questions = inputs
+    request, original_schema, executable_schema, erefs, srefs = context
+    sourced = sources.resolve_response(decoded, executable_schema, schema, srefs, p, srefs['request_hash'])
+    resolved = expressions.resolve(sourced, request, original_schema, erefs, readings=candidates, questions=questions)
+    assert fidelity.validate(resolved, p, claims, candidates, questions)
+
+
+def mixed_fixture():
+    _, _, _, inputs, _ = fixture('PRESERVES')
+    packet, claims, candidates, questions = inputs
+    other = deepcopy(candidates['candidate']); other['formalization'] = None
+    candidates['unformalized'] = other
+    questions['unformalized'] = deepcopy(questions['candidate'])
+    questions['unformalized']['control_id'] = 'unformalized-control'
+    request = fidelity.request(packet, claims, candidates, questions)
+    schema = fidelity.FidelityV2.model_json_schema()
+    ew, es, erefs = expressions.prepare(request, schema, readings=candidates, questions=questions)
+    wire, ws, srefs = sources.prepare(ew, es)
+    return wire, ws
+
+
+@pytest.mark.parametrize('fault', ['foreign_executable', 'unavailable_comparison', 'changed_question', 'changed_binding'])
+def test_mixed_candidate_faults_rejected_before_internal_correspondence_acceptance(fault):
+    wire, schema = mixed_fixture()
+    _, _, binding = codec.prepare(wire, schema)
+    _, _, original, _, _ = fixture('PRESERVES')
+    base = original['checks'][0]
+    claims = wire['claims']; candidates = wire['candidates']
+    source_span = wire['source_references']['spans'][0]['span_id']
+    executable_span = wire['executable_references']['spans'][0]['span_id']
+    checks = []
+    for candidate in candidates:
+        row = deepcopy(base)
+        row['candidate_id'] = candidate['candidate_id']
+        row['claim_id'] = claims[0]['claim_id']
+        row['question_relation']['question_hash'] = candidate['question_hash']
+        for k in ('source_support', 'question_relation'):
+            row[k]['evidence'] = [{'span_ids': [source_span]}]
+        row['executable_correspondence']['representation_quotes'] = [executable_span]
+        if candidate['candidate_id'] == 'unformalized':
+            row['executable_correspondence'].update(status='UNAVAILABLE', representation_quotes=[])
+            row['followup_questions'] = ['What formalization expresses the original meaning?']
+        checks.append(row)
+    value = aliases.encode_response({'checks': checks, 'additional_concerns': []}, wire, schema)
+    assert codec.resolve(value, wire, schema, binding)
+    target = next(r for r in value['checks'] if binding['base_alias_references']['pairs'][r['pair']][1] == 1)
+    if fault == 'foreign_executable': target['executable_correspondence']['representation_quotes'] = ['e0']
+    elif fault == 'unavailable_comparison': target['executable_correspondence']['status'] = 'OMITS'
+    elif fault == 'changed_question': wire['candidates'][1]['question_hash'] = '0' * 64
+    else: binding['base_alias_references']['pairs'][target['pair']][1] = 0
+    with pytest.raises(LegalMathError): codec.resolve(value, wire, schema, binding)
+
+
+@pytest.mark.parametrize('status', ['UNCERTAIN', 'UNASSESSED', 'NOT_APPLICABLE_TO_THIS_QUESTION'])
+def test_candidate_schema_retains_uncertainty_and_not_applicable(status):
+    wire, schema, original, _, _ = fixture()
+    row = original['checks'][0]
+    row['question_relation']['status'] = status
+    row['executable_correspondence']['status'] = 'NOT_APPLICABLE' if status.startswith('NOT_APPLICABLE') else 'UNASSESSED'
+    _, _, binding = codec.prepare(wire, schema)
+    value = aliases.encode_response(original, wire, schema)
+    assert codec.resolve(value, wire, schema, binding) == original
+
+
+def grant(tmp_path, monkeypatch):
+    monkeypatch.setattr(resume, 'ROOT', tmp_path)
+    monkeypatch.setattr(resume.time, 'time', lambda: resume.DEADLINE - 1000)
+    old = tmp_path / 'prior.json'
+    old.write_text(json.dumps({'maximum': 100, 'calls': [{'retained': i} for i in range(54)]}))
+    path = tmp_path / 'authorization.json'
+    path.write_text(json.dumps({'schema': 'legalmath.coverage-resumption-grant.v1',
+        'authorization': resume.AUTHORIZATION, 'maximum': 200, 'repair_maximum': 100,
+        'deadline_epoch': resume.DEADLINE, 'predecessor': [resume.ref(old)]}))
+    return path
+
+
+def test_additional_grant_caps_calls_without_resetting_nonexhausted_history(tmp_path, monkeypatch):
+    path = grant(tmp_path, monkeypatch)
+    previous = (tmp_path / 'prior.json').read_bytes()
+    allowance = resume.ResumeAllowance(17, 'qualification-first', 'repair', path)
+    for _ in range(200): allowance.reserve('a' * 64)
+    with pytest.raises(LegalMathError): allowance.reserve('b' * 64)
+    assert allowance.verify()['used'] == 200
+    assert (tmp_path / 'prior.json').read_bytes() == previous
+
+
+@pytest.mark.parametrize('fault', ['history', 'authorization', 'expiry', 'hash', 'role', 'batch'])
+def test_grant_rejects_changes_and_expiry_before_dispatch(tmp_path, monkeypatch, fault):
+    path = grant(tmp_path, monkeypatch)
+    allowance = resume.ResumeAllowance(17, 'qualification-first', grant_path=path)
+    if fault == 'history': (tmp_path / 'prior.json').write_text('{}')
+    elif fault == 'authorization': path.write_text('{}')
+    elif fault == 'expiry': monkeypatch.setattr(resume.time, 'time', lambda: resume.DEADLINE)
+    elif fault == 'role': allowance.role = 'peer-copy'
+    elif fault == 'batch': allowance.batch = 16
+    with pytest.raises(LegalMathError): allowance.reserve('bad' if fault == 'hash' else 'a' * 64)
+    assert not (tmp_path / 'allowance.json').exists()
+
+
+def test_only_valid_original_roles_are_retained(tmp_path, monkeypatch):
+    monkeypatch.setattr(resume, 'ROOT', tmp_path)
+    result = {'batches': [{'proposals': [{'retained': True}], 'attempts': [
+        {'role': 'source-first', 'status': 'VALIDATED_PROPOSAL'},
+        {'role': 'qualification-first', 'status': 'REJECTED_RESPONSE'}]}]}
+    path = tmp_path / 'result.json'; path.write_text(json.dumps(result))
+    selected = resume.selected_roles([{'receipt': {'historical': True}, 'value': {
+        'arm': 'combined', 'batch': 17, 'result': resume.ref(path)}}])
+    assert set(selected) == {(17, 'source-first')}
+    assert selected[(17, 'source-first')]['proposal'] == {'retained': True}
+
+
+def test_interrupted_role_cannot_redispatch(tmp_path, monkeypatch):
+    monkeypatch.setattr(resume, 'OUT', tmp_path)
+    monkeypatch.setattr(resume, 'check_review', lambda: {})
+    folder = resume.role_directory(17, 'qualification-first'); folder.mkdir(parents=True)
+    (folder / 'started.json').write_text('{}')
+    monkeypatch.setattr(resume, 'CandidateProvider', lambda *a, **k: pytest.fail('Unexpected dispatch'))
+    with pytest.raises(LegalMathError) as exc: resume.run_role(17, 'qualification-first', {}, [])
+    assert exc.value.code == 'E_JOB_STATE'
+
+
+@pytest.mark.parametrize('complete', [True, False])
+def test_completed_or_failed_restart_never_schedules_another_call(monkeypatch, complete):
+    monkeypatch.setattr(resume, 'check_review', lambda: {})
+    monkeypatch.setattr(resume, 'tested', lambda: {})
+    monkeypatch.setattr(resume, 'aggregate', lambda: {'execution_complete': complete, 'failed_roles': [] if complete else [1]})
+    monkeypatch.setattr(resume, 'verify', lambda: {'execution_complete': True})
+    monkeypatch.setattr(resume, 'refresh', lambda: {'failed_roles': [1]})
+    monkeypatch.setattr(resume, 'run_role', lambda *a: pytest.fail('Unexpected live role'))
+    result = resume.execute()
+    assert result.get('execution_complete') if complete else result['status'] == 'REPAIR_REVIEW_REQUIRED'

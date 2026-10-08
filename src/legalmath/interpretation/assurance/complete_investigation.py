@@ -57,10 +57,13 @@ class CompleteInvestigation:
     def __init__(self,root,directory,provider,jdk,at,*,settings=None,catala=None,
                  maximum_scoped_actions=48,scoped_rounds=2,scoped_batch_size=12,
                  scoped_pair_order='claim-first',continuation_id=None,
-                 scoped_schedule='batch-first',reference_protocol='literal',machine_qualification=False):
+                 scoped_schedule='batch-first',reference_protocol='literal',machine_qualification=False,
+                 input_profile='literal',challenge_options=None,challenge_providers=None,semantic_options=None,
+                 optional_tool_backend=None):
         self.root=Path(root).resolve();self.directory=Path(directory).resolve()
         if not self.directory.is_relative_to(self.root):raise LegalMathError('E_REFERENCE')
         self.provider=provider;self.jdk=Path(jdk);self.at=at;self.catala=catala
+        self.optional_tool_backend=optional_tool_backend
         self.settings=settings or AssuranceSettings(investigate_abstractions=True,total_model_calls=36,
             semantic_repair_rounds=1,max_derived_comparisons=1,max_documents=8,max_reference_depth=1,
             max_question_partitions=4,max_question_replays=64,
@@ -71,6 +74,21 @@ class CompleteInvestigation:
         self.scoped_batch_size=scoped_batch_size
         self.scoped_pair_order=scoped_pair_order
         self.scoped_schedule=scoped_schedule;self.reference_protocol=reference_protocol
+        if input_profile not in ('literal','readable-tables.v1') or (input_profile!='literal' and reference_protocol=='literal'):
+            raise LegalMathError('E_SCHEMA')
+        self.input_profile=input_profile
+        from ..semantics.integration import configuration
+        configuration(semantic_options)
+        self.semantic_options=loads(canonical(semantic_options))
+        self.challenge_options=challenge_options
+        if challenge_options is None and challenge_providers is not None:raise LegalMathError('E_SCHEMA')
+        if challenge_options is not None:
+            from . import challenge_panel
+            if not isinstance(challenge_options,dict) or not set(challenge_options)<={'batch_size','rounds','maximum_actions','input_profile'}:
+                raise LegalMathError('E_SCHEMA')
+            self.challenge_providers=challenge_providers or dict.fromkeys(challenge_panel.ROLES,provider)
+            challenge_panel.configuration(self.challenge_providers,**{'input_profile':input_profile,**challenge_options})
+        else:self.challenge_providers=None
         # Early stages propose source readings/questions and have no scoped
         # executable-correspondence output. Only that later stage uses executable
         # references; earlier quotation handling remains source-only.
@@ -82,7 +100,13 @@ class CompleteInvestigation:
             raise LegalMathError('E_SCHEMA')
         self.continuation_id=continuation_id
 
-    def run(self,roots,selected_slice,*,retained=(),authority_registry=None,questions=None,qualification_cases=None):
+    def continue_challenges(self, predecessor, *, pilot_guard=True, predecessor_snapshot=None):
+        from .challenge_continuation import run
+        return run(self, predecessor, pilot_guard=pilot_guard, predecessor_snapshot=predecessor_snapshot)
+
+    def run(self,roots,selected_slice,*,retained=(),authority_registry=None,questions=None,qualification_cases=None,semantic_inputs=None):
+        from ..semantics.integration import investigation_context
+        prepared_semantic_context=investigation_context(self.semantic_options,None,semantic_inputs)
         self.directory.mkdir(parents=True,exist_ok=True)
         source_ids=[{'url':s['url'],'media_type':s['media_type'],'sha256':raw_digest(s['data'])} for s in [*roots,*retained]]
         binding={'sources':source_ids,'question':selected_slice,'at':self.at,
@@ -92,6 +116,7 @@ class CompleteInvestigation:
                  'authority_catalog':authority_registry.hash if authority_registry else None}
         if self.scoped_pair_order!='claim-first':binding['scoped_pair_order']=self.scoped_pair_order
         if self.scoped_schedule!='batch-first':binding['scoped_schedule']=self.scoped_schedule
+        if self.input_profile!='literal':binding['input_profile']=self.input_profile
         if self.reference_protocol!='literal':binding['source_reference_protocol']=self.reference_protocol
         if self.core_reference_protocol != self.reference_protocol:
             binding['reference_routing']={'core':self.core_reference_protocol,'scoped':self.reference_protocol}
@@ -99,8 +124,14 @@ class CompleteInvestigation:
             binding['machine_qualification']={'cases':qualification_cases,'profile':'legalmath.investigation-qualification.v1'}
         elif qualification_cases is not None:raise LegalMathError('E_SCHEMA')
         if self.continuation_id is not None:binding['reviewed_continuation']=self.continuation_id
+        if self.semantic_options is not None:binding['semantic_options']=self.semantic_options
+        if semantic_inputs is not None:binding['semantic_inputs']=prepared_semantic_context['standards']
         from .investigation_observations import method as investigation_method
         binding['investigation_method'] = investigation_method(self)
+        if self.optional_tool_backend is not None:
+            binding['optional_tools']=self.optional_tool_backend.identity()
+        if self.challenge_options is not None:
+            binding['challenge_panel']=binding['investigation_method']['challenge_panel']
         revision=digest(binding);directory=self.directory/'revisions'/revision
         directory.mkdir(parents=True,exist_ok=True)
         accepted=directory/'dossier.json'
@@ -121,8 +152,11 @@ class CompleteInvestigation:
         save(self.directory/'current-state.json',{'revision':revision,'status':'INVESTIGATING',
              'prior_revisions_valid_for_old_sources_only':True,'release_eligible':False})
         journal=EvidenceJournal(directory/'actions',binding,maximum_actions=32,maximum_per_issue=3,deadline_seconds=86400)
+        from .optional_tools import ToolSession
+        tools=ToolSession(self.optional_tool_backend,directory/'optional-tools') if self.optional_tool_backend is not None else None
         core=IntegratedInvestigation(directory/'core',self.provider,self.jdk,self.at,settings=self.settings,
-                                     maximum_actions=100,deadline_seconds=86400,reference_protocol=self.core_reference_protocol)
+                                     maximum_actions=100,deadline_seconds=86400,reference_protocol=self.core_reference_protocol,
+                                     input_profile=self.input_profile,optional_tools=tools)
         interpreted=core.run(roots,selected_slice,retained=retained,authority_registry=authority_registry)
         location=Path(interpreted['interpretation']['directory'])
         if not (location/'candidates.json').exists():
@@ -132,11 +166,25 @@ class CompleteInvestigation:
         packet=loads((location/'packet.json').read_bytes())
         candidates=loads((location/'candidates.json').read_bytes())
         claims=loads((location/'claims.json').read_bytes())
+        if not candidates:
+            failure={'stage':'GENERATION','reason':'No retained candidate; question assignment and scoped review cannot run.',
+                     'interpretation_directory':str(location),'candidate_count':0,'new_downstream_calls':0}
+            save(directory/'prerequisite-failure.json',failure)
+            save(self.directory/'current-state.json',{'revision':revision,'status':'PREREQUISITE_FAILED',
+                 'failure':failure,'release_eligible':False})
+            raise LegalMathError('E_REFERENCE',details=failure)
+        admission=scoped_investigation.capacity(len(claims)*len(candidates),self.scoped_batch_size,self.maximum_scoped_actions)
+        save(directory/'scoped-capacity.json',admission)
+        if not admission['admitted']:
+            save(self.directory/'current-state.json',{'revision':revision,'status':'CAPACITY_BLOCKED',
+                 'capacity':admission,'release_eligible':False})
+            raise LegalMathError('E_RESOURCE_LIMIT',details={'stage':'SCOPED_ADMISSION',**admission})
         question_binding={'packet':digest(packet),'candidates':digest(candidates),'provided':questions}
         def assign(work,request):
             if questions is not None:return validate_questions(questions,packet,candidates)
             save(work/'request.json',request)
-            answer=CompactProvider(self.provider,work/'transport',reference_protocol=self.core_reference_protocol).complete(request,Questions.model_json_schema(),Settings(timeout_seconds=300,
+            answer=CompactProvider(self.provider,work/'transport',reference_protocol=self.core_reference_protocol,
+                input_profile=self.input_profile,optional_tools=tools).complete(request,Questions.model_json_schema(),Settings(timeout_seconds=300,
                 max_input_bytes=200000,max_output_bytes=200000))
             save(work/'raw.json',{'value':answer.value,'provenance':answer.provenance})
             try:return {'status':'VALIDATED','value':validate_questions(answer.value,packet,candidates)}
@@ -156,12 +204,29 @@ class CompleteInvestigation:
                 request={**question_request(packet,candidates),'repair':response}
             else:raise LegalMathError('E_REFERENCE',details='Exact question proposals remain invalid after three bounded attempts')
         mapping={r['candidate_id']:r['question'] for r in proposed['assignments']}
+        challenges=None
+        if self.challenge_options is not None:
+            from . import challenge_panel
+            challenges=challenge_panel.run(packet,candidates,mapping,self.challenge_providers,directory/'challenges',
+                issue_directory=self.directory/'challenge-issues',**{'input_profile':self.input_profile,**self.challenge_options})
         scoped=scoped_investigation.investigate(packet,claims,candidates,mapping,self.provider,directory/'scoped',
             maximum_actions=self.maximum_scoped_actions,maximum_rounds=self.scoped_rounds,
             batch_size=self.scoped_batch_size,deadline_seconds=86400,
             pair_order=self.scoped_pair_order,
-            schedule=self.scoped_schedule,reference_protocol=self.reference_protocol,
+            schedule=self.scoped_schedule,reference_protocol=self.reference_protocol,input_profile=self.input_profile,optional_tools=tools,
             settings=Settings(timeout_seconds=300,max_input_bytes=200000,max_output_bytes=200000))
+        semantic_stage=None
+        if self.semantic_options is not None:
+            from ..semantics import integration as semantic_integration
+            semantic_context=semantic_integration.investigation_context(self.semantic_options,
+                loads((location/'criticism.json').read_bytes())['proposal'],binding.get('semantic_inputs'))
+            def semantic_run(work):
+                report=semantic_integration.run(packet,candidates,mapping,self.semantic_options,work/'semantics',self.jdk,self.at,
+                    context=semantic_context)
+                return {'directory':str((work/'semantics').relative_to(self.root)),'report':report}
+            semantic_stage,semantic_receipt=journal.execute('semantics',
+                {'packet':digest(packet),'candidates':digest(candidates),'questions':digest(mapping),
+                 'configuration':binding['investigation_method']['semantics'],'context':digest(semantic_context)},semantic_run)
         proof_rows=[]
         for cid,reading in candidates.items():
             def prove(work):
@@ -218,7 +283,10 @@ class CompleteInvestigation:
             'replay_limit':replay_limit,'candidates':evidence_file(location/'candidates.json',self.root),
             'packet':evidence_file(location/'packet.json',self.root),'claims':evidence_file(location/'claims.json',self.root),
             'status':'INVESTIGATION_EXECUTED_WITH_RETAINED_UNCERTAINTY',
-            'execution_complete':bool(interpreted['execution_complete'] and replay and scoped['stopped'] is None),
+            'execution_complete':bool(interpreted['execution_complete'] and replay and scoped_investigation.execution_complete(scoped,
+                                      expected_pairs=[(c['claim_id'],cid) for c in claims for cid in candidates]) and
+                                      (challenges is None or challenges['execution_complete']) and
+                                       (semantic_stage is None or semantic_stage['report']['execution_complete'])),
             'core_model_evidence_actions':core.cache.journal.report()['consumed_actions'],
             'live_provider':getattr(self.provider,'live',False),
             'legal_correctness_established':False,'release_eligible':False,
@@ -231,10 +299,22 @@ class CompleteInvestigation:
             'proofs':[evidence_file(journal.directory/f'action-{row["receipt"]["sequence"]:04}'/'result.json',self.root)
                       for row in proof_rows],
             'replay':evidence_file(journal.directory/f'action-{replay_receipt["sequence"]:04}'/'result.json',self.root) if replay else None}
+        if semantic_stage is not None:
+            result['semantic_stage']=semantic_stage
+            result['component_refs']['semantic_stage']=evidence_file(
+                journal.directory/f'action-{semantic_receipt["sequence"]:04}'/'result.json',self.root)
         if self.machine_qualification:
             result['qualifications']=qualification_rows
             result['component_refs']['qualifications']=[evidence_file(
                 journal.directory/f'action-{row["receipt"]["sequence"]:04}'/'result.json',self.root) for row in qualification_rows]
+        if challenges is not None:
+            result['challenges']=challenges
+            result['component_refs']['challenges']=evidence_file(directory/'challenges/result.json',self.root)
+        if tools is not None:
+            result['optional_tools']=tools.report()
+            save(directory/'optional-tools-report.json',result['optional_tools'])
+            result['component_refs']['optional_tools']=evidence_file(directory/'optional-tools-report.json',self.root)
+            result['execution_complete']=bool(result['execution_complete'] and result['optional_tools']['execution_complete'])
         result['evidence']=[evidence_file(p,self.root) for p in sorted(directory.rglob('*')) if p.is_file()
             and p.name not in ('dossier.json','.lock') and not p.name.endswith(('.lock','-wal','-shm'))]
         if canonical(investigation_method(self)) != canonical(binding['investigation_method']):
@@ -259,6 +339,9 @@ def current(root,directory,expected_revision):
 
 def verify(root,dossier):
     root=Path(root).resolve()
+    if dossier.get('profile')=='complete-investigation-challenge-continuation.v1':
+        from .challenge_continuation import verify as verify_continuation
+        return verify_continuation(root,dossier)
     if dossier.get('profile')!='complete-investigation.v1' or dossier['revision']!=digest(dossier['binding']):
         raise LegalMathError('E_INTEGRITY')
     for ref in dossier['evidence']:read_evidence(ref,root,json_value=False)
@@ -290,7 +373,50 @@ def verify(root,dossier):
     else:checked=None
     if dossier['legal_correctness_established'] is not False or dossier['release_eligible'] is not False:
         raise LegalMathError('E_AUTHORITY')
-    expected=bool(dossier['core']['execution_complete'] and dossier['replay'] and dossier['scoped']['stopped'] is None)
+    challenges=None
+    if dossier['binding'].get('challenge_panel') is not None:
+        from . import challenge_panel
+        if 'challenges' not in refs or 'challenges' not in dossier:raise LegalMathError('E_REFERENCE')
+        actual=read_evidence(refs['challenges'],root)
+        if actual!=dossier['challenges']:raise LegalMathError('E_INTEGRITY')
+        mapping={r['candidate_id']:r['question'] for r in dossier['questions']['assignments']}
+        challenges=challenge_panel.verify((root/refs['challenges']['path']).parent,
+            read_evidence(dossier['packet'],root),candidates,mapping,expected_configuration=dossier['binding']['challenge_panel'])
+    elif 'challenges' in dossier or 'challenges' in refs:raise LegalMathError('E_INTEGRITY')
+    semantic_stage=None
+    if dossier['binding'].get('semantic_options') is not None:
+        if 'semantic_stage' not in dossier or 'semantic_stage' not in refs:
+            raise LegalMathError('E_REFERENCE',details='Required semantic stage missing')
+        semantic_stage=dossier['semantic_stage']
+        if read_evidence(refs['semantic_stage'],root)!=semantic_stage:raise LegalMathError('E_INTEGRITY')
+        directory=(root/semantic_stage['directory']).resolve()
+        if not directory.is_relative_to(root):raise LegalMathError('E_REFERENCE')
+        from ..semantics import integration as semantic_integration
+        criticism_path=str((Path(dossier['candidates']['path']).parent/'criticism.json'))
+        criticism_ref=next((r for r in dossier['evidence'] if r['path']==criticism_path),None)
+        if criticism_ref is None:raise LegalMathError('E_REFERENCE',details='Source criticism missing')
+        semantic_context=semantic_integration.investigation_context(dossier['binding']['semantic_options'],
+            read_evidence(criticism_ref,root)['proposal'],dossier['binding'].get('semantic_inputs'))
+        semantic_checked=semantic_integration.verify(directory,read_evidence(dossier['packet'],root),candidates,
+            {q['candidate_id']:q['question'] for q in dossier['questions']['assignments']},
+            dossier['binding']['semantic_options'],dossier['binding']['at'],
+            target=dossier['binding']['investigation_method']['toolchains']['java'],context=semantic_context)
+        if semantic_checked!=semantic_stage['report']:raise LegalMathError('E_INTEGRITY')
+    elif 'semantic_stage' in dossier or 'semantic_stage' in refs or 'semantic_inputs' in dossier['binding']:raise LegalMathError('E_INTEGRITY')
+    optional=None
+    if dossier['binding'].get('optional_tools') is not None:
+        if 'optional_tools' not in dossier or 'optional_tools' not in refs:raise LegalMathError('E_REFERENCE')
+        optional=read_evidence(refs['optional_tools'],root)
+        from .optional_tools import report as tool_report
+        actual=tool_report((root/refs['optional_tools']['path']).parent/'optional-tools',
+                           expected_backend=dossier['binding']['optional_tools'])
+        if optional!=dossier['optional_tools'] or optional!=actual:raise LegalMathError('E_INTEGRITY')
+    elif 'optional_tools' in dossier or 'optional_tools' in refs:raise LegalMathError('E_INTEGRITY')
+    expected=bool(dossier['core']['execution_complete'] and dossier['replay'] and scoped_investigation.execution_complete(dossier['scoped'],
+                  expected_pairs=[(c['claim_id'],cid) for c in read_evidence(dossier['claims'],root) for cid in candidates]) and
+                  (challenges is None or challenges['execution_complete']) and
+                  (semantic_stage is None or semantic_stage['report']['execution_complete']) and
+                  (optional is None or optional['execution_complete']))
     if expected!=dossier['execution_complete']:raise LegalMathError('E_INTEGRITY')
     return {'status':'FILE_BOUND_INVESTIGATION_VERIFIED','replay':checked,
             'execution_complete':dossier['execution_complete'],'release_eligible':False,

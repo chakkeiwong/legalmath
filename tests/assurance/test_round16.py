@@ -420,7 +420,10 @@ def test_scoped_investigation_no_live_dispatch_and_persistent_action_budget(tmp_
     provider.live=False
     first = investigate_scoped(p,c,r,q,provider,tmp_path,maximum_actions=1)
     second = investigate_scoped(p,c,r,q,provider,tmp_path,maximum_actions=1)
-    assert len(provider.calls) == 1 and first['status'] == second['status'] == 'DISPATCH_BLOCKED'
+    assert not provider.calls and first['status'] == second['status'] == 'DISPATCH_BLOCKED'
+    assert first['stopped']['kind'] == second['stopped']['kind'] == 'INSUFFICIENT_FULL_COVERAGE_CAPACITY'
+    assert first['capacity']['minimum_actions'] == second['capacity']['minimum_actions'] == 2
+    assert first['journal_actions'] == second['journal_actions'] == 0
     assert first['pending_pairs'] == second['pending_pairs'] == [['gift','candidate']]
 
 

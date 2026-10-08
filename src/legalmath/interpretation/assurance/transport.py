@@ -18,18 +18,24 @@ def transient_service_failure(exc):
 
 
 class CompactProvider:
-    def __init__(self,provider,directory,*,reference_protocol='literal'):
+    def __init__(self,provider,directory,*,reference_protocol='literal',input_profile='literal',optional_tools=None):
         if reference_protocol not in ('literal',source_references.PROTOCOL):raise LegalMathError('E_SCHEMA')
+        if input_profile not in ('literal','readable-tables.v1'):raise LegalMathError('E_SCHEMA')
+        self.input_profile=input_profile
         self.reference_protocol=reference_protocol
         self.provider=provider;self.directory=Path(directory);self.directory.mkdir(parents=True,exist_ok=True)
         self.provider_id=provider.provider_id+'.compact.v2';self.live=provider.live
         self.routing={'provider':getattr(provider,'routing',provider.provider_id),'transport':'exact-source-text.compact.v2'}
         if reference_protocol!='literal':self.routing['source_reference_protocol']=reference_protocol
+        if input_profile!='literal':self.routing['input_profile']=input_profile
         self.allowance=getattr(provider,'allowance',None);self.blocked=None
+        self.optional_tools=optional_tools
 
     def complete(self,request,schema,settings):
         if self.blocked:
             raise LegalMathError('E_DEPENDENCY',details={'provider_circuit_open':self.blocked,'new_live_call':False})
+        if self.optional_tools is not None:
+            request=self.optional_tools.augment(request)
         out=self.directory/f'call-{len(list(self.directory.glob("call-*"))):03}'
         out.mkdir(exist_ok=False);wire=compact_request(request,profile='v2')
         save(out/'request.json',wire);save(out/'original-request.json',request);save(out/'schema.json',schema)
@@ -37,8 +43,8 @@ class CompactProvider:
                 'original_bytes':len(canonical(request)),'wire_bytes':len(canonical(wire)),'status':'DISPATCHED'}
         save(out/'status.json',record)
         try:
-            if self.reference_protocol!='literal' and 'Quote' in schema.get('$defs',{}):
-                answer=source_references.complete(self.provider,wire,schema,settings,out/'source-references')
+            if (self.reference_protocol!='literal' and 'Quote' in schema.get('$defs',{})) or self.input_profile!='literal':
+                answer=source_references.complete(self.provider,wire,schema,settings,out/'source-references',input_profile=self.input_profile)
             else:answer=self.provider.complete(wire,schema,settings)
             provenance={**answer.provenance,'original_request_hash':digest(request),
                 'wire_request_hash':digest(wire),'compact_request':wire,

@@ -2,6 +2,8 @@
 
 Status: PLANNED_NOT_EXECUTED. The [master program](../legal-interpretation-master-program.md)
 controls evidence, default assumptions, resource limits and source-fidelity claims.
+Revision 2 — 6 October 2026. Incorporates the [Claude review response](../../implementation/legal-interpretation-program/claude-review-response.md); implementation checks remain pending.
+
 Dependencies: P0.
 
 ## Question and inputs
@@ -12,7 +14,7 @@ P0's frozen baseline and gap map; existing Packet/Proposal/Reading contracts, so
 
 ## Implementation
 
-1. Define versioned immutable records in semantics/records.py for source editions, scoped propositions, clause relations, readings, evidence support, assumptions and unresolved dependencies. Use strict validation and canonical identity rather than free-form JSON dictionaries.
+1. Define versioned immutable records in semantics/records.py for source editions, scoped propositions, clause relations, readings, evidence support, assumptions and unresolved dependencies. Use strict validation and canonical identity rather than free-form JSON dictionaries. Align actor, action, modality, conditions, exceptions, temporal and evidence vocabulary with existing assurance/semantics.py::AtomicClaim through a versioned adapter; preserve its MUST/MUST_NOT/SHOULD/SHOULD_NOT/MAY/DESCRIPTIVE/UNCERTAIN distinctions. Keep the new semantics package distinct from that existing module.
 
 2. Bind each quotation to the existing request-bound Unicode span contract. Retain role and speaker separately: allegation, party submission, finding, reasoning, majority, concurrence, dissent or unknown. Do not infer a role merely from document membership.
 
@@ -20,7 +22,7 @@ P0's frozen baseline and gap map; existing Packet/Proposal/Reading contracts, so
 
 4. Represent partial intervals and the distinction among publication, effective, event and knowledge dates. Unknown bounds remain unknown; no fallback year or silently completed date.
 
-5. Write lossless adapters for legacy Packet/Reading records. Unavailable new fields become unresolved, never backfilled as established. Validate namespace/import direction before integrating with translation.
+5. Write lossless adapters for legacy Packet/Reading records. Unavailable new fields become unresolved, never backfilled as established. Validate namespace/import direction before integrating with translation. Specify the canonical branch record needed by P6: source/question, clause interpretation, semantics/settings, assumptions, priority premises and dependencies. Keep query values, sets of unresolved reasons, completion and target-lowering states distinct; a branch is not identified solely by its legacy Reading.
 
 ## Files and validation commands
 
@@ -30,8 +32,7 @@ The following test files are planned deliverables, not existing executed tests.
 After implementing them, run these exact forms from the repository root:
 
 ```text
-.venv/bin/python -m pytest tests/interpretation/semantics/test_records.py -q
-.venv/bin/python -m pytest tests/interpretation/semantics/test_legacy_adapter.py -q
+.venv/bin/python scripts/legal_interpretation_ops.py phase-tests P1
 ```
 
 Add the relevant existing regression paths discovered from actual touched imports.
@@ -40,7 +41,7 @@ successful regression result or invoke a broad suite unrelated to the change.
 
 ## Discriminating challenges
 
-A verified quote supports a disputed proposition; dissent is mistaken for majority; absent data is cast to false; two records conflict; a partial date crosses an applicability boundary; a old record lacks actor identity.
+A verified quote supports a disputed proposition; dissent is mistaken for majority; absent data is cast to false; two records conflict; a partial date crosses an applicability boundary; an old record lacks actor identity; a legacy modality changes meaning during migration; two branches with the same Reading differ in a priority premise.
 
 ## Acceptance and failure decisions
 

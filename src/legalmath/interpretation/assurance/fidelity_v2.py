@@ -32,7 +32,7 @@ class QuestionRelation(Strict):
 
 
 class Correspondence(Strict):
-    status: Literal['PRESERVES', 'CONFLICTS', 'OMITS', 'NOT_APPLICABLE', 'UNASSESSED']
+    status: Literal['PRESERVES', 'CONFLICTS', 'OMITS', 'NOT_APPLICABLE', 'UNAVAILABLE', 'BLOCKED', 'UNASSESSED']
     representation_quotes: list[Text] = Field(max_length=12)
     rationale: Text
 
@@ -96,11 +96,21 @@ def request(packet, claims, candidates, questions, required_pairs=None):
         'NOT_APPLICABLE correspondence, never delete the pair. An unsupported extraction is not '
         'automatically a code defect. An available dependency is not necessarily correctly interpreted. '
         'PRESERVES needs a supported source claim, relevant question and exact executable quotation. '
+        'UNAVAILABLE records a reviewed absence of executable meaning, with no executable quotes. '
+        'BLOCKED records that source support is CONTRADICTED or NOT_ESTABLISHED, or question relevance '
+        'is UNCERTAIN, preventing a supported executable comparison. Both require a substantive rationale '
+        'and a followup question, remain unresolved, and establish no correspondence. UNASSESSED means '
+        'the dimension has not been assessed; do not use it merely because a reviewed limitation exists. '
         'Inspect unsupported extra restrictions and permissions in additional_concerns. None of these '
         'labels proves correctness or authorizes pruning. Preserve unresolved alternatives. Do not '
         'force uncertainty into a failing stage. Copy exact source and representation quotations. '
         'List missing authority even if not already declared in the packet. Use concise rationales.',
         'source_packet': deepcopy(packet), 'claims': deepcopy(claims),
+        'question_scope_contract': {
+            'assessment_target':'For each required pair, use the corresponding candidates[].question and question_hash.',
+            'parent_investigation':'source_packet.selected_slice gives broader context. It is not the question being assessed for every candidate.',
+            'tool_context':'Retrieval queries and tool findings are navigation and diagnostic evidence; they do not replace the typed question.',
+            'consistency':'Explain relevance to the typed question itself. A duty can remain in the full matrix without being part of a trigger calculation.'},
         'authority_field_contract': {
             'meaning':'This field concerns ADDITIONAL EXTERNAL DEPENDENCIES, not the source passage already quoted in source_support.',
             'bound_dependency_ids':[d['dependency_id'] for d in packet['dependencies'] if d['source_hash']],
@@ -151,6 +161,17 @@ def validate(value, packet, claims, candidates, questions, required_pairs=None):
                 'executable_correspondence':executable['status'],
                 'repair':'NOT_APPLICABLE correspondence must occur if and only if the question relation is NOT_APPLICABLE_TO_THIS_QUESTION. Reassess both judgments; do not change labels merely to pass validation.'})
         text = representation(candidates[row['candidate_id']])
+        unavailable = text.startswith('UNAVAILABLE_EXECUTABLE_MEANING:')
+        if executable['status'] in ('UNAVAILABLE', 'BLOCKED'):
+            if executable['representation_quotes'] or not row['followup_questions']:
+                raise LegalMathError('E_SCHEMA', details={'claim_id': row['claim_id'],
+                    'candidate_id': row['candidate_id'], 'field': 'executable_correspondence',
+                    'repair': 'Reviewed limitations need no executable quotations and at least one substantive followup.'})
+            if executable['status'] == 'UNAVAILABLE' and not unavailable:
+                raise LegalMathError('E_REFERENCE', details='UNAVAILABLE requires an actually unavailable executable representation')
+            if executable['status'] == 'BLOCKED' and not (
+                    source['status'] in ('CONTRADICTED', 'NOT_ESTABLISHED') or relation['status'] == 'UNCERTAIN'):
+                raise LegalMathError('E_SCHEMA', details='BLOCKED requires an assessed source-support or question-relevance obstacle')
         if any(q not in text for q in executable['representation_quotes']):
             raise LegalMathError('E_REFERENCE',details={'claim_id':row['claim_id'],'candidate_id':row['candidate_id'],
                 'field':'executable_correspondence.representation_quotes',
@@ -160,11 +181,11 @@ def validate(value, packet, claims, candidates, questions, required_pairs=None):
                 raise LegalMathError('E_SCHEMA', details={'claim_id':row['claim_id'], 'candidate_id':row['candidate_id'],
                     'field':'executable_correspondence.status', 'source_support':source['status'],
                     'question_relation':relation['status'], 'executable_correspondence':executable['status'],
-                    'repair':'PRESERVES, CONFLICTS and OMITS require independently justified SUPPORTED and RELEVANT proposals; otherwise retain UNASSESSED correspondence.'})
-            if text.startswith('UNAVAILABLE_EXECUTABLE_MEANING:'):
+                    'repair':'PRESERVES, CONFLICTS and OMITS require independently justified SUPPORTED and RELEVANT proposals. Report BLOCKED with followup for assessed obstacles, or UNASSESSED for unfinished review.'})
+            if unavailable:
                 raise LegalMathError('E_REFERENCE',details={'claim_id':row['claim_id'],'candidate_id':row['candidate_id'],
                     'field':'executable_correspondence.status',
-                    'repair':'No executable representation exists for this candidate. Its proposed source reading is not an executable program; retain unassessed executable correspondence.'})
+                    'repair':'No executable representation exists for this candidate. Report UNAVAILABLE with rationale and followup after reviewing this limitation; leave unfinished review UNASSESSED.'})
         if executable['status'] in ('PRESERVES', 'CONFLICTS') and not executable['representation_quotes']:
             raise LegalMathError('E_REFERENCE',details={'claim_id':row['claim_id'],'candidate_id':row['candidate_id'],
                 'field':'executable_correspondence.representation_quotes',
@@ -229,7 +250,7 @@ def reconcile(proposals, *, attempt, maximum_attempts=3):
                       if len({digest({'status': r[k]['status'],
                                       'dependencies': sorted(r[k].get('dependency_ids', []))}) for r in rows}) > 1]
         unresolved = any(r[k]['status'] in ('UNASSESSED', 'UNCERTAIN', 'NOT_ESTABLISHED', 'MISSING',
-                                           'CONTRADICTED', 'CONFLICTS', 'OMITS')
+                                           'CONTRADICTED', 'CONFLICTS', 'OMITS', 'UNAVAILABLE', 'BLOCKED')
                          for r in rows for k in ('source_support', 'question_relation', 'executable_correspondence', 'authority')) or any(r['followup_questions'] for r in rows)
         if dimensions or unresolved:
             disputes.append({'claim_id': pair[0], 'candidate_id': pair[1],

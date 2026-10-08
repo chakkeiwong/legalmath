@@ -1,0 +1,30 @@
+# Package A: questions and dependencies reconstructed
+
+The product has two different tasks: deciding what duty applies under a proposed reading, and deciding whether the assessed provider has fulfilled that duty. S4 executes the first. Three older formulas can evaluate the second only after their scope and evaluative judgments have been supplied. Neither route establishes the legal meaning of those judgments.
+
+The complete records are in `artifacts/legal-interpretation-program/problem-led-follow-up/`: `premise-register.json`, `obligation-traces.json` and `question-output-table.json`. `normalize_inventory.py` records an explicit annotation for every original request and a separate review note for every reading. It does not classify requests by keywords. Original text, hashes, source assertions, role responses, proposed rules, actual conditional outputs and reading distinctions are retained. Repeated topic labels index related questions; they do not merge readings, decide equivalence or create legal answers.
+
+All 46 obligations, 224 premise requests (222 distinct verbatim strings), 35 readings and 70 role references are accounted for. The requests were decomposed into 407 question parts; 38 requests combine factual and other dependencies. The 21 `alternative.*` readings retain their own identities without invented direct links to the original obligations. Their additional dependency links are explicitly planning proposals. All 46 substantive obligations remain open. No execution defect was established by counting them.
+
+| Original target | Proposed formal step | Supplied dependency | Actual S4 response | First unresolved step |
+|---|---|---|---|---|
+| Does this provider retain responsibility? | Single retention judgment or conjunction of three subject-specific retention judgments | Scope, period and a legally justified meaning of effective retention, followed by facts | `p10-responsibility` asks whether the proposed duty applies; baseline interpretation support is conflicting, so it is `NOT_DERIVED` | Source-to-retention standard; changing duty applicability does not answer retention |
+| Does the provider discharge substantive responsibility? | Existing outcome conjunction, or unformalized conduct/discharge proposal | Whether conduct, outcomes or both are required; relevant thresholds; full-period evidence | Conditional duty computation explicitly excludes satisfaction and breach | Source-to-discharge rule, then classification of actual evidence |
+| Must the provider demonstrate something to the SFC? | A/B/C have distinct request, content and standard premises | Attachment interpretation and the particular request | Baseline A/C do not derive from a negative request; B derives under its standing-duty assumption | Authoritative attachment and standard, not an execution inability |
+| Are records proper for the rights they purport to represent? | Separate paragraph 11 duty; no sufficient title/propriety test | Governing law, terms, actual rights, settlement and reconciliation evidence | A records duty can derive; proper records are not inferred | Title/record relationship and applicable propriety standard |
+
+The per-reading JSON table preserves each original statement, its subsidiary questions and distinctions, all legacy fact definitions, and the precise actual S4 rule response. That response is a related subquestion, not a claimed fulfillment answer. The structured conditional question synthesized by the S1 adapter is also distinct from the retained reading statement; it cannot be used to redefine the older target retrospectively.
+
+Several inherited demands need narrowing. The requests at obligation/premise positions 7/3, 25/1, 44/4 and 46/1 ask for necessary and sufficient criteria. The retained sources do not establish an exhaustive Boolean test. A particular supported sufficient relation could still be useful; an unresolved judgment should remain visible when that is all the evidence supports. Fifteen request parts concern liability or remedies. Those are retained but deferred from this selected responsibility question. A missing statutory liability rule does not prevent a conditional comparison of paragraph 10 readings.
+
+The broad authority-chain and complete-inventory requests are now tied to identified provisions, actors, components and dates. Private evidence has an input specification: provider/product/capacity; assessment interval and knowledge cutoff; governance rights and actual exercise; incident/recovery chronology; ownership relationships and records; actual conditions; and the separate SFC requests. These are variables in software development. They are not demands that the user supply an unidentified client's files before the program can finish.
+
+The discriminating questions for B are:
+
+1. With effective retained powers and adequately assessed supervision, does an established records failure defeat paragraph 10 itself? Compare allocation, conduct and outcome proposals without deciding which governs.
+2. With only nominal acceptance and no exercised supervision, which missing judgment prevents calling retention effective? A sound operational snapshot does not answer that question.
+3. Without an assessment interval, can a continuous-duty result be supported? Neither the circular's revision date nor a dated event supplies the missing interval.
+4. With no paragraph 14 request, how do A/B/C differ? With a request, how do their objects and standards still differ? Can a paragraph 15 or 16 request substitute? It should not.
+5. What precisely connects a recorded owner, accepted terms and a legal right? Does Gatecoin supply the paragraph 10 discharge criterion, or only a narrower source argument about those dependencies?
+
+A→B refresh: retain the three planned dossiers. Remove automatic recursion, broader argument enumeration and a prospective observation window from this program's work. No dependency in the inspected requests yet demonstrates that those would answer the original question. Investigate source arguments and conditional differences before selecting any code change.

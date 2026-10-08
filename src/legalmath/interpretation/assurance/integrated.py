@@ -49,10 +49,13 @@ def diagnostic_numbers(value):
 
 class IntegratedInvestigation:
     def __init__(self, directory, provider, jdk, at, *, settings=None, tool_python=None,
-                 maximum_actions=100, deadline_seconds=7200, reference_protocol='literal'):
+                 maximum_actions=100, deadline_seconds=7200, reference_protocol='literal',input_profile='literal',
+                 optional_tools=None):
         self.directory = Path(directory); self.directory.mkdir(parents=True, exist_ok=True)
         self.provider, self.jdk, self.at = provider, Path(jdk), at
         self.reference_protocol=reference_protocol
+        self.input_profile=input_profile
+        self.optional_tools=optional_tools
         self.settings = settings or AssuranceSettings(investigate_abstractions=True, total_model_calls=30,
             max_derived_comparisons=0, semantic_repair_rounds=1,
             search=Settings(max_model_calls=6, max_rounds=2, scheduler='bfs', reconstruction_required=False,
@@ -87,6 +90,8 @@ class IntegratedInvestigation:
                   'implementation': implementation_identity(), 'settings': self.settings.model_dump(),
                   'authority_registry': authority_registry.hash if authority_registry else None}
         if self.reference_protocol!='literal':inputs['source_reference_protocol']=self.reference_protocol
+        if self.input_profile!='literal':inputs['input_profile']=self.input_profile
+        if self.optional_tools is not None:inputs['optional_tools']=self.optional_tools.identity
         def inspect_sources(work):
             rows = []
             for i, document in enumerate([*roots, *retained]):
@@ -105,8 +110,9 @@ class IntegratedInvestigation:
         source, source_receipt = self.journal.execute('source', source_inputs, inspect_sources,
             issue='source.'+identity(source_inputs))
         def interpret(work):
-            provider = CompactProvider(self.cache, work/'transport',reference_protocol=self.reference_protocol)
-            engine = Assurance(work/'interpretation', provider, self.jdk, self.at, self.settings)
+            provider = CompactProvider(self.cache, work/'transport',reference_protocol=self.reference_protocol,
+                                       input_profile=self.input_profile,optional_tools=self.optional_tools)
+            engine = Assurance(work/'interpretation', provider, self.jdk, self.at, self.settings,optional_tools=self.optional_tools)
             result = engine.drive(roots, selected_slice, retained=retained, authority_registry=authority_registry)
             if result.get('status') == 'FAILED_INTEGRITY':
                 raise LegalMathError('E_INTEGRITY', details={'interpretation_report': str(work/'interpretation/report.json'),

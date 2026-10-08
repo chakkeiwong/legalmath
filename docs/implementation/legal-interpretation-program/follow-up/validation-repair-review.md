@@ -1,0 +1,3 @@
+# Final validator repair 2
+
+The validator reached all substantive identity, premise, reading, diagnostic, source-span and official-anchor checks, then failed when `Path(__file__)` was relative and was passed to `relative_to(ROOT)`. The failure is preserved in `validation-setup-failure.json`. The minimal repair resolves paths inside `ref`; no data, source, method or product code changed. A second run found only a partial-artifact idempotency issue, now repaired by replacing the validator's own deterministic generated files. Skeptical audit: PASS. Rerun the same validator and require a complete PASS before the bounded result is accepted.

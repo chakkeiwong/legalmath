@@ -95,7 +95,8 @@ class SourceCheckedSearch(Search):
 
 
 class Assurance:
-    def __init__(self, directory, provider, jdk, at, settings=None):
+    def __init__(self, directory, provider, jdk, at, settings=None, *, optional_tools=None):
+        self.optional_tools = optional_tools
         self.directory = Path(directory); self.directory.mkdir(parents=True, exist_ok=True)
         self.settings = settings or AssuranceSettings()
         self.provider = JournalProvider(provider, self.directory / 'calls', maximum=self.settings.total_model_calls,
@@ -293,6 +294,9 @@ class Assurance:
         save(directory / 'retained-before-dispatch.json', result)
         for start in range(0,len(pairs),self.settings.max_fidelity_pairs_per_call):
             batch=pairs[start:start+self.settings.max_fidelity_pairs_per_call]
+            if self.optional_tools is not None:
+                ids = {cid for _, cid in batch}
+                self.optional_tools.candidates(packet, {cid: r for cid, r in pending.items() if cid in ids})
             part=self.invoke(fidelity_request(packet,claims,pending,batch),Fidelity,
                              lambda v:validate_fidelity(v,packet,claims,pending,batch))
             if part is None:
@@ -558,6 +562,8 @@ class Assurance:
                 deferred_findings.append({'kind':'UNSUPPORTED_FORMALIZATION','stage':'FORMALIZATION',
                                           'candidate_id':cid,'details':exc.code+': '+str(exc.details)})
         original_candidates = deepcopy(candidates)
+        if self.optional_tools is not None and candidates:
+            self.optional_tools.candidates(packet, candidates)
         findings = [*fixed_findings,*deferred_findings]
         if search_report['status'] == 'FAILED_INTEGRITY': findings.append({'kind': 'SEARCH_FAILURE', 'stage': 'JAVA'})
         findings += [{'kind':'SEARCH_ACTION_FAILED','stage':'INTERPRETATION',
@@ -668,6 +674,8 @@ class Assurance:
                             all(c['label']=='ENTAILED' for c in fidelity['checks'] if c['candidate_id']==cid)]
                 if children: superseded[repair['parent']] = children
         active = {cid:r for cid,r in candidates.items() if cid not in superseded}
+        if self.optional_tools is not None and candidates:
+            self.optional_tools.candidates(packet, candidates)
         semantic = [f for f in semantic if f.get('candidate_id') not in superseded]
         def valid_criticism(v):
             value=parse(Criticism,v);evaluate_criticism(value,packet,active);return value
@@ -682,6 +690,8 @@ class Assurance:
                 findings.append({'kind':'INVALID_ARGUMENT_EVIDENCE','stage':'INTERPRETATION','details':exc.code})
         else: findings.append({'kind':'STRUCTURED_CRITICISM_UNAVAILABLE','stage':'INTERPRETATION'})
         save(self.directory/'criticism.json', {'proposal':criticism,'evaluation':argument_result})
+        if self.optional_tools is not None and criticism is not None and argument_result is not None:
+            self.optional_tools.criticism(packet, active, criticism)
         # Run actual case constructors only on retained sourced cases, never invent a court record.
         moves = []
         if criticism:

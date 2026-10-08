@@ -1,0 +1,3 @@
+# P5 refreshed from execution
+
+P4 has no suitable official judgment identified in the retained pilot packet; broader acquisition has not been performed. The real precedent demonstration remains pending; this is a named authority gap, not a claim that no contrary case exists. Preserve the proposed passage roles and conditional factor move. P5 may proceed on retained regulatory text and explicitly declared synthetic evidence, deriving only appointment, supervision-event, discrepancy and unresolved ownership predicates. Do not infer responsibility, adequacy, title, liability or legal force. Audit passed: source roles, jurisdiction, hierarchy, date and later treatment remain independent fields. Tests: phase-tests P5.

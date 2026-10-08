@@ -41,9 +41,73 @@ def fully_assessed_pairs(batches):
     return complete
 
 
+def assessment_coverage(batches):
+    """Count reviewed limitations separately from actual executable comparisons.
+
+    A pair needs both latest validated perspectives. Unavailable/blocked counts
+    record either perspective and may overlap; they never imply legal closure.
+    """
+    expected = {tuple(p) for b in batches for p in b['required_pairs']}
+    assessed = fully_assessed_pairs(batches)
+    groups = {k: set() for k in ('executable_compared', 'unavailable', 'blocked', 'not_applicable',
+                                 'mixed_correspondence', 'missing_perspective')}
+    for batch in batches:
+        latest = {}; proposals = iter(batch['proposals'])
+        for attempt in batch['attempts']:
+            if attempt['status'] == 'VALIDATED_PROPOSAL':
+                latest[attempt['role']] = {(r['claim_id'], r['candidate_id']): r
+                                          for r in next(proposals)['checks']}
+        for pair in map(tuple, batch['required_pairs']):
+            rows = [latest.get(role, {}).get(pair) for role in PERSPECTIVES]
+            if not all(rows):
+                groups['missing_perspective'].add(pair)
+            statuses = [r['executable_correspondence']['status'] for r in rows if r]
+            for name, status in (('unavailable', 'UNAVAILABLE'), ('blocked', 'BLOCKED')):
+                if status in statuses: groups[name].add(pair)
+            if pair not in assessed: continue
+            if all(s in ('PRESERVES', 'CONFLICTS', 'OMITS') for s in statuses):
+                groups['executable_compared'].add(pair)
+            if all(s == 'NOT_APPLICABLE' for s in statuses): groups['not_applicable'].add(pair)
+            if len(set(statuses)) > 1: groups['mixed_correspondence'].add(pair)
+    return {'required_pairs': len(expected), 'assessed_pairs': len(assessed),
+            'unassessed_pairs': len(expected - assessed),
+            **{k + '_pairs': len(v) for k, v in groups.items()},
+            'limit': 'Latest validated perspectives; unavailable and blocked may overlap. Assessment is not executable agreement or legal closure.'}
+
+
+def capacity(pair_count, batch_size, maximum_actions):
+    """Minimum for both perspectives, before retries or substantive followups."""
+    if (type(pair_count) is not int or pair_count < 1 or type(batch_size) is not int
+            or not 1 <= batch_size <= 64 or type(maximum_actions) is not int or maximum_actions < 1):
+        raise LegalMathError('E_RESOURCE_LIMIT')
+    batches = (pair_count + batch_size - 1) // batch_size
+    minimum = len(PERSPECTIVES) * batches
+    return {'required_pairs': pair_count, 'batch_size': batch_size, 'batches': batches,
+            'minimum_actions': minimum, 'maximum_actions': maximum_actions,
+            'admitted': maximum_actions >= minimum,
+            'limit': 'Lower bound for one valid assessment per perspective; repairs can require more.'}
+
+
+def execution_complete(result, *, expected_pairs=None):
+    """Recompute coverage from proposals, never from a no-error summary alone."""
+    expected = set(map(tuple, result['required_pairs']))
+    if expected_pairs is not None and expected != set(map(tuple, expected_pairs)):
+        return False
+    rows = result['batches']
+    actual = [tuple(p) for row in rows for p in row['required_pairs']]
+    assessed = fully_assessed_pairs(rows)
+    if 'assessment_coverage' in result and result['assessment_coverage'] != assessment_coverage(rows):
+        return False
+    return bool(expected and len(expected) == len(result['required_pairs'])
+                and len(actual) == len(set(actual)) and set(actual) == expected
+                and not result['stopped'] and not result['pending_pairs']
+                and not result['pairs_with_unassessed_dimensions'] and assessed == expected)
+
+
 def investigate(packet, claims, candidates, questions, provider, out, *, required_pairs=None,
                 batch_size=12, maximum_rounds=3, maximum_actions=200, deadline_seconds=3600,
-                settings=None, pair_order='claim-first', schedule='batch-first', reference_protocol='literal'):
+                settings=None, pair_order='claim-first', schedule='batch-first', reference_protocol='literal',input_profile='literal',
+                optional_tools=None, stop_on_rejection=False):
     live = getattr(provider, 'live', True) is not False
     grant_binding = None
     if live:
@@ -51,12 +115,14 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
             raise LegalMathError('E_AUTHORITY', details='Live scoped investigation requires a recorded additional grant')
         grant_binding = provider.allowance.verify()
         grant_binding.pop('used')  # Consumption changes; authorization identity must not.
-    if (type(batch_size) is not int or not 1 <= batch_size <= 64 or
+    if (type(stop_on_rejection) is not bool or type(batch_size) is not int or not 1 <= batch_size <= 64 or
             type(maximum_rounds) is not int or not 1 <= maximum_rounds <= 6):
         raise LegalMathError('E_RESOURCE_LIMIT')
     if schedule not in ('batch-first', 'round-first') or reference_protocol not in (
             'literal', source_references.PROTOCOL, executable_references.PROTOCOL, executable_references_v2.PROTOCOL):
         raise LegalMathError('E_SCHEMA')
+    if input_profile not in ('literal','readable-tables.v1') or (input_profile!='literal' and reference_protocol=='literal'):
+        raise LegalMathError('E_SCHEMA',details='Readable scoped input requires a source-reference protocol')
     settings = settings or Settings(timeout_seconds=300, max_input_bytes=200000, max_output_bytes=200000)
     pairs = sorted([list(p) for p in required_pairs] if required_pairs is not None else
                    [[c['claim_id'], r] for c in claims for r in candidates])
@@ -76,6 +142,8 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
             {k:v for k,v in candidates.items() if k in candidate_ids},
             {k:v for k,v in questions.items() if k in candidate_ids},batch))
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
+    admission = capacity(len(pairs), batch_size, maximum_actions)
+    save(out/'capacity.json', admission)
     binding = {'protocol': fidelity_v2.PROTOCOL, 'requests': [digest(r) for r in requests],
         'reconciliation_policy':'explicit-followups.v1','request_transport':'exact-source-text.compact.v2',
         'route': deepcopy(getattr(provider, 'routing', provider.provider_id)),
@@ -85,6 +153,9 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
                            (Path(__file__), Path(fidelity_v2.__file__),Path(decomposition.__file__))}}
     if pair_order!='claim-first':binding['pair_order']=pair_order
     if schedule!='batch-first':binding['schedule']='round-first.v1'
+    if input_profile!='literal':binding['input_profile']=input_profile
+    if optional_tools is not None:binding['optional_tools']=optional_tools.identity
+    if stop_on_rejection:binding['stop_on_rejection']=True
     if reference_protocol!='literal':
         binding['source_reference_protocol']=reference_protocol
         binding['implementation']['source_references.py']=raw_digest(Path(source_references.__file__).read_bytes())
@@ -99,10 +170,16 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
     journal = EvidenceJournal(out/'model', binding, maximum_actions=maximum_actions,
                               maximum_per_issue=6, deadline_seconds=deadline_seconds)
     report = journal.report()
+    accounting_path=out/'call-accounting-start.json'
+    if live and not accounting_path.exists():
+        save(accounting_path,{'prior_reservations':len(loads(provider.allowance.path.read_bytes())['calls'])
+             if provider.allowance.path.exists() else 0})
     blocked = next((a for a in report['actions'] if a['status'] in ('FAILED', 'INTERRUPTED', 'RESERVED')), None)
     # An exception or process interruption cannot become a transport retry on resume.
     stopped = {'kind': 'PRIOR_DISPATCH_FAILURE', 'sequence': blocked['sequence'],
                'status': blocked['status']} if blocked else None
+    if not admission['admitted'] and not blocked:
+        stopped = {'kind': 'INSUFFICIENT_FULL_COVERAGE_CAPACITY', **admission}
     results = [{'required_pairs': [list(p) for p in batch], 'attempts': [],
                 'proposals': [], 'diagnostics': [], 'reconciliation': None} for batch in batches]
     if blocked:
@@ -140,8 +217,12 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
                       'settings': settings.model_dump()}
             def dispatch(work):
                 save(work/'request.json', request)
-                wire = compact_request(request, profile='v2'); save(work/'wire-request.json', wire)
-                if len(canonical(wire)) > settings.max_input_bytes:
+                if optional_tools is not None:
+                    ids = {p[1] for p in batch}
+                    optional_tools.candidates(packet, {k: v for k, v in candidates.items() if k in ids})
+                augmented=optional_tools.augment(request) if optional_tools is not None else request
+                wire = compact_request(augmented, profile='v2'); save(work/'wire-request.json', wire)
+                if input_profile=='literal' and len(canonical(wire)) > settings.max_input_bytes:
                     raise LegalMathError('E_RESOURCE_LIMIT', details='Request exceeds bounded input size')
                 answer = None
                 try:
@@ -149,11 +230,11 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
                         ids = {p[1] for p in batch}
                         answer = executable_references_v2.complete(provider, wire, inputs['schema'], settings,
                             work/'source-references', readings={k:v for k,v in candidates.items() if k in ids},
-                            questions={k:v for k,v in questions.items() if k in ids})
+                            questions={k:v for k,v in questions.items() if k in ids},input_profile=input_profile)
                     elif reference_protocol in (source_references.PROTOCOL, executable_references.PROTOCOL):
                         transport = executable_references if reference_protocol == executable_references.PROTOCOL else source_references
                         answer = transport.complete(provider, wire, inputs['schema'], settings,
-                                                            work/'source-references')
+                                                            work/'source-references',input_profile=input_profile)
                     else:
                         answer = provider.complete(wire, inputs['schema'], settings)
                     save(work/'raw-response.json', {'value': answer.value, 'provenance': answer.provenance})
@@ -187,7 +268,12 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
                 break
             row['attempts'].append({'round': round_no, 'role': role, 'receipt': receipt, 'status': value['status']})
             if value['status'] == 'VALIDATED_PROPOSAL': row['proposals'].append(value['value'])
-            else: row['diagnostics'].append(value['diagnostic'])
+            else:
+                row['diagnostics'].append(value['diagnostic'])
+                if stop_on_rejection:
+                    stopped = {'kind': 'RESPONSE_REJECTED', 'batch': index, 'perspective': role,
+                               'diagnostic': value['diagnostic']}
+                    break
         if row['proposals']:
             row['reconciliation'] = fidelity_v2.reconcile(row['proposals'], attempt=round_no, maximum_attempts=maximum_rounds)
         save(out/'next-action.json', {'schedule': schedule, 'batch': index, 'completed_round': round_no,
@@ -204,30 +290,55 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
         run_round(index, round_no)
         row = results[index]
         if (row['reconciliation'] and row['reconciliation']['status'] == 'PROPOSED_JUDGMENTS_AGREE'
-                and not missing_perspectives(row['attempts'])):
+                and not missing_perspectives(row['attempts'])
+                and fully_assessed_pairs([row]) == set(map(tuple, row['required_pairs']))):
             finished.add(index)
     for row in results:
         row['missing_perspectives'] = missing_perspectives(row['attempts'])
     addressed={tuple(p) for b in results if not b['missing_perspectives'] for p in b['required_pairs']}
     assessed=fully_assessed_pairs(results)
     expected=set(map(tuple,pairs))
-    issued_hashes=set()
+    issued_hashes=set();response_slots={}
     for action in journal.report()['actions']:
-        ref_wire=journal.directory/f"action-{action['sequence']:04}"/'source-references/wire-request.json'
-        wire=loads(ref_wire.read_bytes()) if ref_wire.exists() else compact_request(action['spec']['inputs']['request'],profile='v2')
+        work=journal.directory/f"action-{action['sequence']:04}"
+        ref_wire=work/'source-references/wire-request.json'
+        saved_wire=ref_wire if ref_wire.exists() else work/'wire-request.json'
+        wire=loads(saved_wire.read_bytes()) if saved_wire.exists() else compact_request(action['spec']['inputs']['request'],profile='v2')
         issued_hashes.add(digest(wire))
-    live_calls=sum(c['request_hash'] in issued_hashes for c in loads(provider.allowance.path.read_bytes())['calls']) if live and provider.allowance.path.exists() else 0
+        # A provider may add tool context before reserving the final request.
+        # Its retained provenance records that actual hash; the pre-provider
+        # request alone cannot establish zero reservations.
+        for raw in (work/'raw-response.json',work/'source-references/raw-response.json'):
+            if raw.exists():
+                provenance=loads(raw.read_bytes()).get('provenance',{})
+                if isinstance(provenance.get('request_hash'),str):
+                    issued_hashes.add(provenance['request_hash'])
+                    if type(provenance.get('allowance_slot')) is int:
+                        response_slots[provenance['allowance_slot']]=provenance['request_hash']
+    live_calls=0;new_live_calls=0
+    if live and provider.allowance.path.exists():
+        calls=loads(provider.allowance.path.read_bytes())['calls']
+        start=loads(accounting_path.read_bytes())['prior_reservations']
+        if type(start) is not int or not 0<=start<=len(calls):raise LegalMathError('E_INTEGRITY')
+        for slot,request_hash in response_slots.items():
+            if not 1<=slot<=len(calls) or calls[slot-1]['request_hash']!=request_hash:
+                raise LegalMathError('E_INTEGRITY',details='Response reservation does not match the shared ledger')
+        new_slots={i+1 for i,c in enumerate(calls) if i>=start and c['request_hash'] in issued_hashes}
+        live_calls=len(set(response_slots)|new_slots);new_live_calls=len(new_slots)
     result={'schedule':schedule,'source_reference_protocol':reference_protocol,'continuation_policy':'explicit-followups.v1','status':'DISPATCH_BLOCKED' if stopped else 'UNCERTAINTY_REPORTED'
             if any(b['missing_perspectives'] or not b['reconciliation'] or
                    b['reconciliation']['status']!='PROPOSED_JUDGMENTS_AGREE' for b in results)
             else 'PROPOSED_JUDGMENTS_AGREE', 'batches':results,'stopped':stopped,
+        'capacity': admission,
         'required_pairs':[list(p) for p in pairs], 'pairs_with_two_validated_proposals':len(addressed),
         'pairs_with_four_dimensions_assessed':len(assessed),
+        'assessment_coverage':assessment_coverage(results),
         'pairs_with_unassessed_dimensions':[list(p) for p in sorted(set(map(tuple,pairs))-assessed)],
         'pending_pairs':[list(p) for p in sorted(expected-addressed)],
         'journal_actions':journal.report()['consumed_actions'], 'pruned_pairs':[],
         'live_calls':live_calls,
-        'live_call_accounting':'Issued shared-ledger reservations whose request hash belongs to this investigation',
+        'new_live_calls':new_live_calls,
+        'live_call_accounting':'Retained response allowance slots plus matching final-wire reservations since the original stage start; historical equal request hashes alone are not additional calls',
         'legal_accuracy_established':False,'release_eligible':False}
     save(out/'result.json',result)
     save(out/'next-action.json',{'status':result['status'],'pending_pairs':result['pending_pairs'],

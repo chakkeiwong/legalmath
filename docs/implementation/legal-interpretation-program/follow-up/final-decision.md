@@ -1,0 +1,48 @@
+# Bounded follow-up completed: retain conditional capability; reject an unnecessary guard
+
+The follow-up program executed packages A–D and reached its finite decision. It found no reproduced duty-to-fulfillment substitution in the inspected S4 route. The proposed additional question/output guard is rejected as unnecessary for that route. No production source, test, driver or runtime default was changed.
+
+This is a narrower finding than saying the legal interpretation problem is solved. S4 already preserves duty questions, unproved interpretation premises, distinct request identities, event/sufficiency boundaries and qualified formula results. It still does not establish which paragraph 10 fulfillment standard governs or whether actual conduct and outcomes meet it.
+
+## What was executed
+
+Package A inspected the 46 original obligations, all 35 readings and all 224 premise requests individually. The complete register preserves 70 role references and the 21 alternatives without direct original-obligation links. It decomposes the requests into 407 question parts, including 38 mixed legal/factual requests. These are reviewed planning decompositions, not 407 independent legal issues. All original wording, identities and qualifications remain preserved.
+
+Package B completed the [paragraph 10 dossier](paragraph-10-dossier.md), [paragraph 14/footnote 5 dossier](paragraph-14-dossier.md), and [Gatecoin dossier](gatecoin-dossier.md). Both retained Gatecoin decisions were reread in full, including operative conclusions and schedule/annexure. Selected propositions were checked against retained official court extractions. The dossiers state supporting and contrary arguments, distinguishable scenarios, necessary inputs and a conclusion.
+
+Package C independently checked 1,179 S4 file references and reran the existing Java/Lean and whole-stage verification: PASS, 21.14 seconds. The original 296-test receipt remains historical evidence; those 296 tests were not rerun in this follow-up. The new focused diagnostic passed 30 scoped variants and 11 actual legacy-formula reference evaluations, 2.39 seconds of computation. Its first attempt contained a setup error: it expected late or partial-period evidence to be admitted when a sufficiency premise was supplied. The original failed diagnostic and its corrected assumption are preserved. S4 correctly excluded that evidence; this was a harness correction, not a product repair. The final receipt validator also required path, restart and newline-serialization corrections; rejected outputs and the revised writer audit are preserved under `failed-validation/`. Completion requires a fresh successful validation and readable, hash-checked receipts.
+
+The new variants use the unchanged S4 components. They are not 41 new full product runs, legal answer labels or prospective observations. They test interpretation states, assessment periods, separate requests, evidence admission, sufficiency assumptions, distinct consequence text and qualified formula outcomes. The existing independent S4 verification separately covers the actual whole-stage route.
+
+## What changed in answering the original question
+
+We can now state exactly where the original fulfillment question diverges from the runtime's duty question, and give conditional answers that separate retained authority, exercised conduct and achieved outcomes. For example, with effective retention and adequately assessed conduct supplied as premises, an established records failure can leave allocation/conduct proposals true while making the outcome proposal false. Choosing the governing proposal and assessing those premises remain separate unresolved steps.
+
+For paragraph 14, a missing request produces different conditional duty results under B than under A/C. Even when A/C share a trigger result, their objects and standards remain different. Confirmation, demonstration, audit/verification and legal opinion require separate evidence.
+
+Gatecoin supplies a concrete reason to investigate operative terms, acceptance, actors and rights before inferring ownership from a ledger label. It supplies no general paragraph 10 discharge test. Its 2025 scenario-seven wording remains qualified rather than converted into a single automated classifier.
+
+The improvement is a precise problem specification and reproducible causal diagnosis. It is not a newly established legal answer or an increase in the number of formalized readings. All 46 substantive obligations remain OPEN_QUALIFIED; 32 of the 35 readings remain unformalized. No claim of general English fidelity, full legal correctness or release readiness follows.
+
+## Final decision
+
+| Decision | Primary criterion | Veto status | Main uncertainty | Next justified action | What is not concluded |
+|---|---|---|---|---|---|
+| Accept bounded conditional capability | Existing outputs preserve supplied premises, question/consequence identity, alternatives and evidence states in the focused cases; independent S4 replay passes | No observed duty-to-fulfillment substitution, lost request identity or automatic event-to-adequacy inference | Coverage is restricted to these sources, fixtures and inspected routes | Use the dossiers and input specifications for qualified development | English fidelity or actual compliance |
+| Reject additional question/output guard for this route | Cheapest disconfirming diagnostic succeeds: the claimed loss is absent | No repair trigger reproduced | Another UI/API route could still misuse a result; not investigated here | Reopen only with a concrete failing route/input/output | No such bug can exist anywhere |
+| Defer unconditional paragraph 10 fulfillment | No justified source-to-standard or observation-to-judgment relation establishes it | Legal interpretation, applicable standard and facts veto promotion | Whether retention, conduct, outcomes or a combination governs; incident/time effects | Investigate a precisely identified source/standard question, or retain the conditional rivals | More recursion or another wrapper will settle meaning |
+| Defer target-specific case transfer and actual assessment | Terms, title/finality rules, scheme conditions and actual facts are absent | Missing target applicability and evidence | Current treatment, actor relationships and assessment period | Supply named legal/factual inputs only when a concrete target is selected | Gatecoin is a universal tokenisation compliance rule |
+
+## Remaining product gaps and what would close them
+
+1. **Source-to-fulfillment interpretation.** A source argument or independently checked relation must justify the selected meaning of paragraph 10 and the paragraph 14/footnote 5 attachment. The current quotations, proposals and runtime proofs do not do so. Further source work must ask a particular legal question; a broad case search is not itself a closure method.
+2. **Normative classification.** Effective retention, adequate supervision, competent staff, material failure, proper records and recovery need stated standards and evidence. The dossiers expand them into observable inputs while retaining the evaluative step. A new Boolean with the same opaque meaning does not close this gap.
+3. **Target applicability and facts.** Identify provider/product/capacity, assessment interval and knowledge cutoff, conditions/relaxations, actual delegation, governance/conduct, incident chronology, requests and ownership relationships. These are variables for development; no unidentified client's documents are needed to finish this program.
+4. **Case-to-target warrant.** Inspect governing law, operative terms, asset/right identity and later treatment for the specific transfer sought. Neither crypto-as-property nor a trust finding about one relationship determines a different party's SFC obligation.
+5. **Coverage beyond the diagnosed examples.** The remaining unformalized readings and unsupported constructs need individual causal questions. No evidence here shows that negative recursion, a bigger argument engine or additional enumeration is necessary to resolve this selected problem. New-source observation belongs to a separate program after the method and question stabilize.
+
+C→D refresh: the guard candidate is rejected, so no code implementation or affected production regression suite is required. D accepts the existing conditional capability and defers the named stronger claims. There is no scheduled S5 implementation, automatic S6, provider call, retrieval window or further repair loop. A future program requires a new causal question and explicit scope/budget decision.
+
+Red-team review: the strongest alternative explanation is that authored rules and examples share an interpretation error. Every computation could still pass in that situation. A concrete source-based counterexample or a product route that presents a duty as fulfillment would overturn the relevant conclusion and justify a targeted repair. The weakest evidence is the legal standard and target facts, not conditional execution. This result rejects one unnecessary engineering candidate; it does not reject research into interpretation.
+
+Reproducibility: the exact plan, contract, sources, original and corrected diagnostic, manifests, normalized records, results and integrity validation are under `artifacts/legal-interpretation-program/problem-led-follow-up/`. The governing [version-1 program](../../../plans/legal-interpretation-problem-led-follow-up.md) is retained at its execution hash. This document is its final decision, not a successor plan. CPU only; zero new provider calls, network requests, installations, GPU actions, commits or pushes.

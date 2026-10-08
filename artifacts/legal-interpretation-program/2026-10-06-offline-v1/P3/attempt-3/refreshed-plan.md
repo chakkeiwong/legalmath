@@ -1,0 +1,3 @@
+# P3 refreshed from execution
+
+Seven source-bound nominations preserve all 70 retained role records. A/B/C differ by trigger, object and standard; no contrary relation follows from a label. Build a declared finite theory with shared source premises and a specific B/C trigger dispute. Independently check argument trees and attacks, then grounded/preferred selection; do not infer wholly empty real semantics from the mutual-attack fixture. PyArg archive/API completeness must be checked. Reject unknown priority/cyclic settings; resource cutoff retains frontier. Audit passed: conditional formal behavior only, no legal answer keys. Tests: phase-tests P3.

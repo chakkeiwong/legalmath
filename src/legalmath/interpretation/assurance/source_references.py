@@ -154,16 +154,18 @@ def complete(provider, request, schema, settings, directory, *, input_profile='l
     wire, wire_schema, references = prepare(request, schema)
     encoding_provenance = {}
     if input_profile != 'literal':
-        from . import readable_tables
-        if input_profile != readable_tables.PROFILE:
+        from . import readable_tables, readable_challenges
+        codecs = {c.PROFILE: c for c in (readable_tables, readable_challenges)}
+        if input_profile not in codecs:
             raise LegalMathError('E_UNSUPPORTED_PROFILE', details='Unknown request encoding')
+        codec = codecs[input_profile]
         original_wire = wire
         save(out/'expanded-wire-request.json', original_wire)
-        wire = readable_tables.encode(original_wire)
-        restored = readable_tables.decode(wire, expected_request_hash=digest(original_wire))
+        wire = codec.encode(original_wire)
+        restored = codec.decode(wire, expected_request_hash=digest(original_wire))
         if canonical(restored) != canonical(original_wire):
             raise LegalMathError('E_INTEGRITY', details='Request encoding changed source or evidence')
-        encoding_provenance = {'input_encoding_protocol': readable_tables.PROTOCOL,
+        encoding_provenance = {'input_encoding_protocol': codec.PROTOCOL,
             'expanded_request_hash': digest(original_wire), 'encoded_request_hash': digest(wire)}
         save(out/'encoding-validation.json', {**encoding_provenance,
             'status': 'EXACT_REQUEST_ROUND_TRIP_CHECKED',

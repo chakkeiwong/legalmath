@@ -1,0 +1,3 @@
+# P8 refreshed from execution
+
+Retain actual Boolean kernel/Java enumeration receipts and finite checks under their exact domain. New semantics theorem classes remain NOT_PROVED. Reconcile all 46 original obligations and 35 retained readings, preserving unsupported work and the rejected P3 attempt. Exercise actual freeze/observe with enabled semantics, missing/swapped receipts, timing, disabled old configuration and repair invalidation. Audit volatile package JSON without excluding identity coverage. Freeze only a development boundary; genuinely later official publications are pending. Tests: phase-tests P8.

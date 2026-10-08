@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://legalmath.invalid/interpretation/v1/issue",
+  "title": "Proposed interpretation.v1 issue",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "interpretation.v1"
+    },
+    "issue_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+    },
+    "root_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+    },
+    "parent_issue_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+    },
+    "source_unit_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "candidate_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "kind": {
+      "enum": [
+        "SOURCE_COVERAGE",
+        "DEPENDENCY",
+        "SCOPE",
+        "DEFINITION",
+        "EXCEPTION",
+        "MODALITY",
+        "TIME",
+        "FACT_MAPPING",
+        "FORMAL_MISMATCH",
+        "JAVA_MISMATCH",
+        "MEMBER_FAILURE",
+        "SEARCH_INCOMPLETE",
+        "INTEGRITY"
+      ]
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "observed_difference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "materiality": {
+      "enum": [
+        "MATERIAL",
+        "UNKNOWN",
+        "IMMATERIAL_REVIEWED"
+      ]
+    },
+    "processing_state": {
+      "enum": [
+        "OPEN",
+        "INVESTIGATING",
+        "AWAITING_EVIDENCE",
+        "HUMAN_REQUIRED",
+        "TERMINAL"
+      ]
+    },
+    "resolution_state": {
+      "enum": [
+        "UNRESOLVED",
+        "RESOLVED_EVIDENCE",
+        "RESOLVED_ADJUDICATION",
+        "RESOLVED_EQUIVALENCE"
+      ]
+    },
+    "terminal_reason": {
+      "anyOf": [
+        {
+          "enum": [
+            "RESOLVED",
+            "BUDGET_EXHAUSTED",
+            "ROUND_LIMIT",
+            "DEADLINE_REACHED",
+            "NO_PROGRESS",
+            "DEPENDENCY_UNAVAILABLE",
+            "CANCELLED",
+            "INTEGRITY_FAILURE"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "resolution_evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "attempted_action_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "evidence_needed": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "affected_decisions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 20000
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "schema_version",
+    "issue_id",
+    "root_id",
+    "parent_issue_id",
+    "run_id",
+    "source_unit_ids",
+    "candidate_ids",
+    "kind",
+    "question",
+    "observed_difference",
+    "materiality",
+    "processing_state",
+    "resolution_state",
+    "terminal_reason",
+    "resolution_evidence_refs",
+    "attempted_action_ids",
+    "evidence_needed",
+    "affected_decisions",
+    "revision"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "resolution_state": {
+            "not": {
+              "const": "UNRESOLVED"
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "resolution_evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "processing_state": {
+            "const": "TERMINAL"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "terminal_reason": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}
