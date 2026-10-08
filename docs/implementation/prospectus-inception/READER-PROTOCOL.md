@@ -1,8 +1,12 @@
 # Preparing actual independent readings
 
-The isolated trial demonstrates exchange of supplied annotations and browser
-label edits. It contains development examples and synthetic accounts. None of
-its records are independent first readings or accepted legal conclusions.
+The imported-packet trial demonstrates exchange and browser label edits. The
+later [integration trial](../prospectus-integration-repair/authoring-011/result.json)
+also demonstrates creation, deletion, boundary replacement, discontinuous groups
+and semantic relations from initially empty evidence, using ordinary password
+accounts with guest entry disabled. Both use development examples and synthetic
+accounts. None of their records are independent first readings or accepted legal
+conclusions.
 
 Before assigning work, freeze the named instruments, dated questions, source
 editions, complete terms and incorporated documents. Resolve or expressly bound
@@ -25,16 +29,45 @@ and integrated curation's automatic merge disabled. Before real use, repeat the
 access checks with the actual account authentication method and confirm there
 are no suggestions or access to another reader's work.
 
-The demonstrated browser operation changes an existing label. New spans,
-boundary changes, new discontinuous groups and relation creation require an
-additional authoring workflow check: every piece must carry its source offsets,
-quotation, edition, group size and structural links. Hidden or visible feature
-controls are not a provenance security boundary. Export validation rejects
-inconsistent source evidence; it cannot authenticate a person or establish that
-an omitted whole annotation was deliberately deleted. Retain raw exports and
-send any changes to the coordinator for explicit review. Do not silently fill
-missing features from an earlier packet. Existing local review forms remain
-the usable fallback for new first readings until that workflow is checked.
+Use the separate draft schema in `annotation_authoring.layers()`: immutable
+`LegalSource`, `DraftEvidence` with `groupId`/`label`, and `DraftRelation` with
+`relationId`/`kind`. The older imported-evidence schema remains available for its
+strict exchange workflow. Mixing imported and draft evidence is rejected.
+
+The coordinator prepares a JSON envelope containing `text` and `source` with
+`document`, `source_sha256` (the original document bytes) and `text_sha256` (the
+exact UTF-8 text). Keep the original document and extraction provenance with
+that envelope; do not substitute a hash of invented text for an original source.
+From this worktree, the installed Cassis worker produces identity-only XMI and
+the type system, and later admits a raw reader export without any expected labels:
+
+```text
+/tmp/prospectus-adoption-tools/bin/python -m scripts.prospectus_integration_codec empty /tmp/reading-source.json /tmp/reading-empty.xmi /tmp/reading-types.xml
+/tmp/prospectus-adoption-tools/bin/python -m scripts.prospectus_integration_codec admit /tmp/reading-source.json /tmp/reader-export.xmi /tmp/reader-admitted.json
+```
+
+Configure the draft layers in the coordinator's project and import the empty
+source into each separate reader record. Select text and enter its group ID and
+label. For discontinuous evidence, give all pieces the same group ID and label,
+then draw `same_evidence_group` links from the earliest piece to every later
+piece. Semantic relations connect the earliest pieces of the respective groups;
+every relation needs a unique ID. Boundary replacement was tested by deletion
+and reselection; direct handle resizing has not been tested. The decoder derives
+quotations and offsets from actual selected text and verifies source identity,
+links and group consistency. Readers do not type provenance fields.
+
+After feature editing, allow the editor's queued saves to complete and reload
+before export. The browser driver checks the actual Wicket channel queue;
+network inactivity alone previously raced a second change handler. The trial's
+`decode` codec action additionally compares against predefined experiment
+answers; actual first readings use `admit`, which has no such answers.
+
+Hidden or visible feature controls are not a provenance security boundary.
+Export validation rejects inconsistent source evidence; it cannot authenticate
+a person or establish why an annotation is absent. Preserve raw exports before
+transformation, retain the transformation receipt, and explicitly review changes.
+Do not reconstruct missing evidence from an earlier packet. Local review forms
+remain a fallback where the tested interface does not fit a reader's needs.
 
 Freeze each reader's first export before either can inspect the other's work.
 Retain its bytes, source hashes, assignment, submission time and authenticated

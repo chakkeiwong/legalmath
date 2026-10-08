@@ -29,7 +29,7 @@ def run_sidecar(root, folder, context, kind, data, timeout=180):
 
 def layout_trial(root, folder, state, context):
     from .annotation_bridge import export, reimport
-    from .layout_adapter import map_layout
+    from .layout_adapter import map_layout, project_layout, evaluate_relationships
     setup = context.read_json(REL + "/tool-setup/attempt-001/result.json")
     context.read_bytes(REL + "/tool-setup/attempt-001/pip-report.json")
     context.read_bytes(REL + "/tool-setup/attempt-001/inception-38-pom.xml")
@@ -70,24 +70,36 @@ def layout_trial(root, folder, state, context):
                      or any(ch.isdigit() for ch in u["raw"]))]
     write(folder / "critical-spans-before-prediction.json", critical)
     trial = run_sidecar(root, folder, context, "layout", {"pages": pages}, timeout=240)
-    mapped, primary = [], "NOT_EVALUATED_RUNTIME_FAILURE"
+    mapped, strict, primary = [], [], "NOT_EVALUATED_RUNTIME_FAILURE"
     if trial["execution"] == "EXECUTED":
         for row in trial["pages"]:
             raw = [u for u in units if u["document"] == row["document"] and u["page"] == row["page"]]
-            mapping = map_layout(raw, read(folder / "layout" / row["output"]), source_sha256=row["sha256"])
+            document = read(folder / "layout" / row["output"])
+            strict.append(map_layout(raw, document, source_sha256=row["sha256"]))
+            mapping = project_layout(raw, document, source_sha256=row["sha256"])
             mapped.append({"document": row["document"], "page": row["page"], **mapping})
         write(folder / "layout-source-maps.json", mapped)
+        write(folder / "layout-strict-baseline.json", strict)
         recovered = {(c["unit"], c["source_offset"]) for m in mapped for r in m["mappings"] for c in r["characters"]}
         missing = [{"unit": u["id"], "quote": u["raw"]} for u in critical
                    if any((u["id"], i) not in recovered for i,ch in enumerate(u["raw"]) if not ch.isspace())]
         primary = "REJECTED_CRITICAL_SPAN_LOSS" if missing else "SPANS_PRESERVED; GOVERNING_ATTACHMENT_UNRESOLVED"
+        review = context.read_json("docs/implementation/prospectus-integration-repair/margin-review.json")
+        context.read_bytes(review["image"], expected=review["image_sha256"])
+        mappings = [item for page in mapped for item in page["mappings"]]
+        # The layout worker supplies no scope edges. Measure that empty proposal
+        # against the reviewed occurrence-bound target; never credit review to it.
+        relationships = evaluate_relationships(units, mappings, [], [review["edge"]])
+        write(folder / "governing-relationship-results.json", relationships)
         write(folder / "critical-span-results.json", {"designated": len(critical), "missing": missing,
               "baseline": "All designated raw words retained, semantic margin attachment unresolved",
-              "baseline_failure_resolved": False, "governing_margin_attachment": "No source-backed relation inferred by model"})
+              "exact_mapping_repaired": not missing, "baseline_failure_resolved": not missing and relationships["status"] == "PASS",
+              "governing_margin_attachment": relationships,
+              "default_promotion": False, "projection": "Raw characters preserved; normalized candidate text kept separately"})
     return {"engineering": "OPTIONAL_LAYOUT_TRIAL_EXECUTED; BASELINE_RETAINED", "primary": primary,
             "layout": trial, "annotation": annotation, "model_revision": model_receipt.get("revision"),
-            "remaining": ["Repair exact mapping/attachment before expanding layout cohort",
-                          "Run INCEpTION 38 import/export with actual project settings and independent readers",
+            "remaining": ["Review governing attachments before expanding layout cohort; optional raw projection is development evidence",
+                          "Obtain authenticated independent first readings using the separately tested authoring workflow",
                           "Adjudicate multilingual evidence; optional adapters do not supply legal labels"]}
 
 

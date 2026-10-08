@@ -1,5 +1,43 @@
 # Adoption execution reset
 
+## Current state after BASF scope repair, 8 October 2026
+
+[The scope repair](../prospectus-basf-scope-repair/RESULT.md) applies 62 exact
+source-reviewed operations and corrects the unlisted notice selection. Its final
+focused run passes 35 tests; adoption verification attempt-006 passes 148 tests,
+all seven phases current and reused on identical replay. Current A0 is attempt-009;
+A1–A6 are attempt-007. Installed BASF construction equals A1 exactly. Remaining:
+19 brackets, 545 intervals, a duplicate interest-date phrase requiring scope
+review, incorporated documents and independent acceptance. Follow
+[the next source program](../prospectus-basf-scope-repair/NEXT-PROGRAM.md).
+
+The prior integration trial is historical after these code/resource changes.
+Its authoring exports remain valid historical evidence; unchanged live authoring
+was not repeated. Use the adoption verifier for changed source behavior.
+
+## Prior state after integration repair, 8 October 2026
+
+The [integration repair](../prospectus-integration-repair/RESULT.md) completed
+at baseline HEAD `4dfd34071`; all six phases passed and were current, and identical
+replay reuses all six. Adoption verification attempt-005 passes 125 tests and
+seven-phase replay with A0 attempt-008 and A1–A6 attempt-006. A3 now consumes
+source projection: 53/53 designated lines map exactly, compared with 14 incomplete
+lines in the old strict baseline. Six hyphen deletions are separately accounted
+for. Reviewed governing input passes; automatic legal scope remains unimplemented.
+
+Draft authoring-011 passes eight exact exports and four access denials with
+password accounts and guests disabled. Span creation/deletion/reselection,
+discontinuity and semantic relations are tested. Real independent people and
+legal acceptance remain pending. ACTUS/CDM remain runtime-untested; their exact
+prerequisites and documented binding limits are in the integration result.
+
+Use `python3 -m scripts.verify_prospectus_adoption`, never the historical repair
+verifier. The following entries are preserved historical notes; references to
+unimplemented projection or untested authoring describe their earlier dates.
+Current substantive work is in `NEXT-PROGRAM.md` and the integration reset memo.
+
+## Historical execution notes
+
 Branch: `feature/prospectus-evidence-master`. Starting commit: `5ad615d`.
 Plan: `docs/plans/prospectus-adoption-execution-2026-10-07.md`.
 The survey and historical repair receipts are preserved unchanged.
@@ -119,3 +157,18 @@ critical lines, and legal acceptance remains blocked. Historical receipts and th
 INCEpTION run-020 are unchanged; generated state and next-phase records now refer
 to the newly tested constructor. The existing 250 snapshot reconstruction records
 still cover all snapshots, with no stale retained reconstruction source.
+
+8 October tool-decision attribution audit: see `TOOL-DECISION-AUDIT.md` and
+`tool-decision-audit.json`. A read-only comparison of retained A3 attempt-005
+outputs identifies six hyphen deletions across all five failed text items.
+The local mapper rejects whole items; thirteen of fourteen flagged quotations
+remain present after whitespace removal. Inspected Docling 2.60.1 assembly code
+performs generic line-final dehyphenation, and exported `orig` does not restore
+these characters. The trial's governing-attachment and baseline-repair fields
+are fixed reports of missing evidence, not measured package capability results.
+Keep rejection scoped to this configuration/integration. Preserving raw text
+with explicit normalization maps and independently evaluated margin relationships
+is a concrete repair candidate; it has not been executed. ACTUS/CDM remain
+deferred for requirement/feasibility reasons, not failed runtime trials.
+No model run, code change, threshold change or historical evidence rewrite was
+performed. The result and remaining-work note now link this narrower diagnosis.

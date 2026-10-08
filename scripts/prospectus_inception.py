@@ -25,7 +25,8 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+if str(ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(ROOT / "src"))
 LOCAL = ROOT / ".localresources/prospectus-inception"
 OUT = ROOT / "docs/implementation/prospectus-inception"
 PLAN = "docs/plans/prospectus-inception-integration-2026-10-07.md"
@@ -203,7 +204,7 @@ class Client:
 
 
 @contextmanager
-def server(folder):
+def server(folder, *, guests=True):
     receipt = json.loads((OUT / "toolchain.json").read_text())
     if file_sha(LOCAL / JAR_NAME) != JAR_SHA or file_sha(JAVA) != receipt["java"]["sha256"]:
         raise ValueError("Runtime bytes changed")
@@ -222,7 +223,7 @@ def server(folder):
                 "security.default-admin-username": "trial-admin", "security.default-admin-remote-access": "true",
                 "security.default-admin-password": "{bcrypt}" + encoded,
                 "telemetry.enabled": "false", "matomo.enabled": "false",
-                "sharing.invites.enabled": "true", "sharing.invites.guests-enabled": "true",
+                "sharing.invites.enabled": "true" if guests else "false", "sharing.invites.guests-enabled": "true" if guests else "false",
                 "logging.level.root": "INFO", "debug": "false"}
     settings_path = runtime / "settings.properties"
     settings_path.write_text("\n".join(k+"="+v for k,v in settings.items()) + "\n")

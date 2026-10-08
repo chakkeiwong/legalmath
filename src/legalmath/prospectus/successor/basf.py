@@ -2,6 +2,7 @@
 import re
 from .contracts import digest
 from .basf_order import reviewed_order
+from .basf_scope import reviewed_edits
 
 KEY = "basf-base-september-2022-exchange"
 SHA = "aac3da33755fae327f7542a9be08008d53d1dbcdfa3b01596e48d97debe1cfef"
@@ -137,7 +138,6 @@ def construct(graph, admission):
         ("euro_benchmark", r"^\[Euro-Referenz-Anleihe", False),
         ("representative_vote", r"^\[Die Gläubiger können durch Mehrheitsbeschluß", False),
         ("notice_web", r"^\[\(1\) Bekanntmachung", False),
-        ("notice_clearing", r"^\[\(1\) Mitteilungen an das Clearing System", False),
         ("german_controls", r"^\[Diese Anleihebedingungen sind in deutscher Sprache abgefasst. Eine Übersetzung", False),
         ("new_global", r"^\[Falls die Globalurkunde eine NGN ist", True),
         ("temporary_global", r"^\[Falls die vorläufige Globalurkunde eine NGN ist", True),
@@ -175,6 +175,11 @@ def construct(graph, admission):
             edits.append({"start": m.start(), "end": m.end(), "old": old, "new": new,
                 "reason": "Final terms " + key, "basis": context[key]["source"],
                 "review": "IMPLEMENTER_PROPOSAL"})
+    scope_edits, scope_pairs, scope_rules, scope_review = reviewed_edits(
+        graph, admission, raw, source_map, pairs)
+    edits.extend(scope_edits)
+    resolved_pairs.update(scope_pairs)
+    applied.extend(scope_rules)
     edits.sort(key=lambda e:e["start"])
     cursor, parts, output_map, character_map = 0, [], [], []
     output_offset = 0
@@ -235,6 +240,7 @@ def construct(graph, admission):
         "raw_body": raw, "source_map": source_map, "unit_accounting": accounting,
         "reading_order": {"version": "basf-reviewed-order.v1", "decisions": reading_order,
                           "other_rows": "Legacy geometry order; full source review pending"},
+        "scope_review": scope_review,
         "candidate_text": candidate, "character_map":character_map, "operations": output_map, "rules": applied,
         "remaining_brackets": remaining, "unbalanced_offsets": unbalanced,
         "conditional_branches": admission["conditional_branches"],

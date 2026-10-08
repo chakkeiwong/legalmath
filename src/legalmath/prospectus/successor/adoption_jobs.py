@@ -237,8 +237,37 @@ def a5(root, folder, state, *, context):
     from .acceptance import installed_semantic_checks
     installed = installed_semantic_checks(root, folder, install,
         {**os.environ, "PYTHONPATH": str(install), "CUDA_VISIBLE_DEVICES": "-1"}, root/".venv/bin/python")
+    # Exercise the packaged BASF review resource through the actual constructor
+    # outside the checkout, not just a byte-presence check during installation.
+    expected_construction = context.read_json(str(parent(root, state, "A1").relative_to(root)))
+    context.read_json(BASE + "/source-graph.json")
+    context.read_json(jobs.BASF)
+    probe = """import json, os, sys
+from pathlib import Path
+os.chdir(sys.argv[3])
+from legalmath.prospectus.successor import basf
+from legalmath.prospectus.successor.contracts import digest, read
+assert Path(basf.__file__).resolve().is_relative_to(Path(sys.argv[3]).resolve())
+result = basf.construct(read(sys.argv[1]), read(sys.argv[2]))
+print(json.dumps({'construction_sha256': digest(result),
+    'scope_review_sha256': result['scope_review']['review_sha256'],
+    'module_path': basf.__file__, 'full_contract': result['full_german_contract_constructed']}))
+"""
+    probe_command = [str(root/".venv/bin/python"), "-c", probe,
+                     str(root/BASE/"source-graph.json"), str(root/jobs.BASF), str(install)]
+    run = context.tool(probe_command, timeout=180,
+        env={**os.environ, "PYTHONPATH": str(install), "CUDA_VISIBLE_DEVICES": "-1"})
+    (folder/"installed-basf.log").write_bytes(run.stdout+run.stderr)
+    if run.returncode:
+        raise ValueError("Installed BASF constructor failed; see installed-basf.log")
+    import json
+    scope_check = json.loads(run.stdout)
+    if scope_check["construction_sha256"] != digest(expected_construction) or scope_check["full_contract"]:
+        raise ValueError("Installed BASF construction differs from A1")
+    write(folder/"installed-basf.json", {**scope_check, "command": probe_command, "outcome": "PASS"})
     write(folder/"installed-package.json", {"command": command, "directory": str(install), "files": files,
-          "checks": installed["checks"], "native_reads": "Unenforced; broad package and source hashes retained"})
+          "checks": installed["checks"], "basf_scope": scope_check,
+          "native_reads": "Unenforced; broad package and source hashes retained"})
     write(folder / "product.json", {"version": "adoption-dependencies.v1", "broad_bindings_retained": True,
         "native_process_confinement": False, "observed_reads": [s["directory"] + "/read-context.json" for s in state.values()],
         "test_scope": "Capability snapshots, mutations and controller recovery; see tests.xml"})

@@ -1,5 +1,16 @@
 # Prospectus master reset memo
 
+8 October 2026 checkpoint: the subsequent integration-repair master and BASF
+scope continuation are complete within their declared engineering scope. The
+current [final summary](../prospectus-integration-repair/FINAL-SUMMARY.md) records
+the repaired integrations, 62 BASF operations, 148-test installed verification,
+remaining source work and independent-acceptance limits. Active branch:
+`feature/prospectus-evidence-master`, worktree `.worktrees/bond-gap-closure`.
+The user authorizes repository synchronization and continued source repair under
+[the reviewed plan](../../plans/prospectus-sync-and-continuation-2026-10-08.md).
+The entries below are historical; the Catala worktree is not this campaign's
+active branch. Main's unrelated assurance changes must remain uncommitted.
+
 Integration note: a separate assurance-gap-closure campaign began changing this
 shared main checkout during final staging. Its unfinished files are preserved
 and excluded. Only the Catala worktree can be certified clean; main branch refs

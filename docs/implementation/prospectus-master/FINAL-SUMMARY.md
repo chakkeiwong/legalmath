@@ -1,5 +1,11 @@
 # Prospectus master program: final bounded result
 
+Latest checkpoint, 8 October 2026: see the
+[integration and source-repair final summary](../prospectus-integration-repair/FINAL-SUMMARY.md).
+It records the completed bounded master program, 148-test installed verification,
+62 BASF source operations and outstanding legal acceptance. The following
+30 September result remains the historical original campaign summary.
+
 30 September 2026, Hong Kong. The authorised documentation, repository
 checkpoint, reader repairs, regression, native execution and reporting phases
 are complete. The repair commit `dffd5805` is pushed to origin/main and synchronized
