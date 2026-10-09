@@ -104,7 +104,8 @@ def calculate(s, graph):
                 "accrual_start", "accrual_end", "due_date", "payment_date", "day_count", "references",
                 "frequency", "eom", "stub", "adjustment", "calendar", "rounding", "holdings", "events",
                 "event_scope", "evidence"}
-    fields(s, required, required)
+    extra={'calculation_amount','fixed_coupon_amount'}
+    fields(s, required | extra, required)
     if s["profile"] != "fixed-coupon.v1" or s["premise_kind"] != "HYPOTHETICAL":
         raise ValueError("Only explicitly hypothetical fixed-coupon premises supported")
     if not isinstance(s["currency"], str) or len(s["currency"]) != 3 or not s["currency"].isupper():
@@ -112,7 +113,7 @@ def calculate(s, graph):
     if s["stub"] not in {"REGULAR", "SHORT_FIRST", "LONG_FIRST", "SHORT_FINAL", "LONG_FINAL"}:
         raise ValueError("Explicit stub classification required")
     # Each value is a source-backed interpretation, not a fact inferred by the kernel.
-    evidence_fields = required - {"profile", "issue_id", "source_sha256", "premise_kind", "evidence"}
+    evidence_fields = (required | (set(s) & extra)) - {"profile", "issue_id", "source_sha256", "premise_kind", "evidence"}
     fields(s["evidence"], evidence_fields, evidence_fields)
     for key, row in s["evidence"].items():
         fields(row, {"source", "reason"}, {"source", "reason"})
@@ -136,8 +137,22 @@ def calculate(s, graph):
     if payment_date != s["payment_date"]:
         raise ValueError("Payment date contradicts calendar/convention")
     fields(s["rounding"], {"quantum", "rule", "aggregation"}, {"quantum", "rule", "aggregation"})
-    if s["rounding"]["aggregation"] != "PER_LEGAL_HOLDER":
-        raise ValueError("Explicit per-holder aggregation required")
+    aggregation=s['rounding']['aggregation']
+    if aggregation not in {'PER_LEGAL_HOLDER','PER_CALCULATION_AMOUNT'}:
+        raise ValueError("Explicit supported aggregation required")
+    if aggregation=='PER_CALCULATION_AMOUNT':
+        if 'calculation_amount' not in s or exact(s['calculation_amount']) <= 0:
+            raise ValueError('Positive calculation amount required')
+    elif set(s) & extra:
+        raise ValueError('Calculation-amount terms require that explicit aggregation')
+    per_amount = None
+    if aggregation == 'PER_CALCULATION_AMOUNT':
+        per_amount = rounded(exact(s['calculation_amount'])*rate*fraction,
+                             s['rounding']['quantum'], s['rounding']['rule'])
+        if 'fixed_coupon_amount' in s:
+            if s['stub'] != 'REGULAR' or exact(s['fixed_coupon_amount']) != per_amount:
+                raise ValueError('Published fixed coupon disagrees with admitted rate/reference fraction')
+            per_amount = exact(s['fixed_coupon_amount'])
     if not isinstance(s["holdings"], list) or not s["holdings"]:
         raise ValueError("Entitled legal holdings required")
     holders, accounts = {}, set()
@@ -149,6 +164,8 @@ def calculate(s, graph):
         principal = exact(row["principal"])
         if principal < 0:
             raise ValueError("Negative principal")
+        if aggregation=='PER_CALCULATION_AMOUNT' and (principal/exact(s['calculation_amount'])).denominator!=1:
+            raise ValueError('Holdings require integral admitted calculation amounts')
         if row["entitled"]:
             holders[row["legal_holder_id"]] = holders.get(row["legal_holder_id"], Fraction()) + principal
     kinds = {"accrual_start", "accrual_end", "notice", "observation", "determination", "record", "ex_coupon", "payment"}
@@ -156,7 +173,7 @@ def calculate(s, graph):
     for value in s["event_scope"].values():
         if value not in {"REQUIRED", "NOT_APPLICABLE"}:
             raise ValueError("Every event kind needs an explicit scope disposition")
-    if any(s["event_scope"][k] != "REQUIRED" for k in ("accrual_start", "accrual_end", "determination", "record", "payment")):
+    if any(s["event_scope"][k] != "REQUIRED" for k in ("accrual_start", "accrual_end", "determination", "payment")):
         raise ValueError("Core coupon events required")
     events, ids, instants = [], set(), set()
     for row in s["events"]:
@@ -176,10 +193,15 @@ def calculate(s, graph):
         event = events[positions[kind]]
         if event[0].date().isoformat() != expected:
             raise ValueError("Event date differs from supplied calculation date")
-    if not positions["accrual_start"] < positions["accrual_end"] <= positions["determination"] < positions["payment"] or positions["record"] >= positions["payment"]:
+    if not positions["accrual_start"] < positions["accrual_end"] <= positions["determination"] < positions["payment"] or ('record' in positions and positions["record"] >= positions["payment"]):
         raise ValueError("Coupon event order contradicts accrual/determination/entitlement")
+    def payment(principal):
+        if aggregation=='PER_LEGAL_HOLDER':
+            return rounded(principal*rate*fraction,s['rounding']['quantum'],s['rounding']['rule'])
+        amount=exact(s['calculation_amount'])
+        return principal/amount*per_amount
     transfers = [{"legal_holder_id": holder, "currency": s["currency"], "unrounded": str(principal*rate*fraction),
-                  "amount": str(rounded(principal*rate*fraction, s["rounding"]["quantum"], s["rounding"]["rule"])),
+                  "amount": str(payment(principal)),
                   "payment_event": events[positions["payment"]][2]["id"]} for holder, principal in sorted(holders.items())]
     return {"day_fraction": str(fraction), "payment_date": payment_date, "transfers": transfers,
             "events": [e[2] for e in events], "scope": "FIXED_COUPON_ONLY", "actual_event": "NOT_ESTABLISHED",

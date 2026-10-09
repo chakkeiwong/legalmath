@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import os
 
-VERSION = "prospectus-successor.v2"
+VERSION = "prospectus-successor.v3"
 QUESTIONS = {
     "Q1": "Contractual principal loss; statutory disclosure reported separately",
     "Q2": "Compulsory common conversion, possible common and common-only alternatives",
@@ -100,8 +100,10 @@ def validate_request(request):
     from .anchors import fields
     fields(request, {"version", "bundle", "assembly", "construction", "clauses", "scope",
                      "reference_dispositions", "law_bases", "law_relation", "facts",
-                     "financial_scenario", "bank", "observations", "predicate_engine", "predicate_constraints"}, {"version", "bundle"})
-    if request.get("version") != VERSION:
+                     "financial_scenario", "bank", "observations", "predicate_engine", "predicate_constraints",
+                     "layout_admission", "reviewed_dispositions", "annotation_admission",
+                     "term_interpretations", "contract_calculation", "priority_admission", "correction_admission", "reference_admission"}, {"version", "bundle"})
+    if request.get("version") not in {VERSION, "prospectus-successor.v2"}:
         raise ValueError("Unsupported request version")
     bundle = request["bundle"]
     if not bundle.get("instrument_id") or bundle.get("purpose") not in PURPOSES:

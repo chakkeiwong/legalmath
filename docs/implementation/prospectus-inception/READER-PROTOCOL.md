@@ -43,7 +43,8 @@ the type system, and later admits a raw reader export without any expected label
 
 ```text
 /tmp/prospectus-adoption-tools/bin/python -m scripts.prospectus_integration_codec empty /tmp/reading-source.json /tmp/reading-empty.xmi /tmp/reading-types.xml
-/tmp/prospectus-adoption-tools/bin/python -m scripts.prospectus_integration_codec admit /tmp/reading-source.json /tmp/reader-export.xmi /tmp/reader-admitted.json
+/tmp/prospectus-adoption-tools/bin/python -m scripts.prospectus_integration_codec admit /tmp/reading-source.json /tmp/reader-export.xmi /tmp/reader-admitted.json --types /tmp/reading-types.xml
+/tmp/prospectus-adoption-tools/bin/python -m scripts.prospectus_integration_codec admit /tmp/reading-source.json /tmp/reader-export.zip /tmp/reader-admitted.json
 ```
 
 Configure the draft layers in the coordinator's project and import the empty
@@ -76,16 +77,35 @@ exact quotations, source scope, legal interpretation and unsupported premises.
 Agreement alone is insufficient; include supported positive and negative cases
 and record all failures and exclusions in the frozen denominator.
 
-Use the existing A6 review admission only when those genuine records exist:
+The current closure workflow uses `review_records.py` to validate administrator-
+signed assignments, normalized exports, first readings, adjudication and family
+exposure. The signing key must be supplied by the actual trusted administrator;
+the development key used in tests cannot authenticate a real reviewer. Bind the
+normalized export to exact raw text maps; corrected spans use the admitted
+correction map and cannot borrow a source quotation for inserted or uncertain
+text. `prediction_execution.py` executes the frozen requests and the scorer
+recomputes them before accepted scoring. Caller-typed predictions or integrity-
+only receipts cannot satisfy release.
+
+For a cross-document condition or exception, preserve separate source exports
+and add a reviewed `reviewed-annotation-meaning.v2` relation binding both packet
+hashes and group endpoints. This is an application-level reviewed link, not a
+claim that a single CAS natively spans documents. Live reader use of this new
+link workflow still needs validation. A standalone-XMI export requires its
+matching type system; ZIP must include it. The codec exercise tests both forms.
+
+Use the isolated closure namespace for current engineering checks:
 
 ```text
-python3 -m scripts.prospectus_delivery --program adoption repair --record /tmp/reviewed-record.json
-python3 -m scripts.prospectus_delivery --program adoption run
-python3 -m scripts.verify_prospectus_adoption
+python3 -m scripts.prospectus_delivery --program closure status
+python3 -m scripts.prospectus_delivery --program closure refresh
 ```
 
-The admission requires obligation, phase, filename, prior hash, content and
-reason as documented in `../prospectus-adoption/NEXT-PROGRAM.md`. It records an
-input for assessment; it does not turn a declaration into evidence of legal
-acceptance. Actual-event questions additionally require the dated legal,
-regulator, issuer and client facts appropriate to the question.
+Do not rerun historical adoption or repair programs to manufacture current
+evidence. The executable review interfaces and mutation examples are in
+`tests/prospectus_successor/test_closure_reviews.py`; a production administrator
+export/identity integration and actual assignments remain pending. Reading
+records alone do not establish legal acceptance. Actual-event questions also
+require the dated legal, regulator, issuer and client facts appropriate to the
+question. Compass Group PLC's EMTN family is development-exposed by the current
+financial exercise and must be excluded from an unseen evaluation cohort.

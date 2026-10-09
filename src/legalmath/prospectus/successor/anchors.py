@@ -11,7 +11,10 @@ def bind(graph, source):
            {"unit", "document", "source_sha256", "start", "end", "quote"})
     if graph is None:
         raise ValueError("Verified source graph required")
-    unit = next((u for u in graph["units"] if u["id"] == source["unit"]), None)
+    matches = [u for u in graph["units"] if u["id"] == source["unit"]]
+    if len(matches) > 1:
+        raise ValueError("Duplicate source occurrence identity")
+    unit = matches[0] if matches else None
     if unit is None or not unit.get("visible", False):
         raise ValueError("Source occurrence unavailable")
     if source["document"] != unit["document"] or source["source_sha256"] != unit["source_sha256"]:

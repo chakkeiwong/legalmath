@@ -204,6 +204,10 @@ def main():
         print(json.dumps(result, ensure_ascii=False, indent=2))
     except Exception as exc:
         from .errors import LegalMathError
+        from .prospectus.successor.extraction import ExtractionUnavailable
+        if isinstance(exc, ExtractionUnavailable):
+            print(json.dumps({"error": "EXTRACTION_UNAVAILABLE", "message": str(exc)}))
+            raise SystemExit(1) from exc
         if not isinstance(exc, LegalMathError): raise
         print(json.dumps(exc.envelope()))
         raise SystemExit(1) from exc

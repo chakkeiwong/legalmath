@@ -1,14 +1,14 @@
 """Execute declared source-bound legal rules on valid and knowledge timelines."""
 from .contracts import QueryResult, timestamp
 from .anchors import bind, fields, in_period
-from .predicates import names, decide
+from .predicates import names, dispatch
 
 BASIS_FIELDS = {"id", "authority", "jurisdiction", "edition", "source", "valid_from",
                 "valid_until", "known_from", "known_until", "premises", "instrument_id"}
 FACT_FIELDS = {"name", "basis_id", "instrument_id", "jurisdiction", "value", "source",
                "valid_from", "valid_until", "known_from", "known_until", "observed_at"}
 
-def assess(bundle, bases, facts, graph=None, relation=None):
+def assess(bundle, bases, facts, graph=None, relation=None, *, predicate_engine="finite"):
     if not isinstance(bases, list) or not isinstance(facts, list):
         raise ValueError("Legal bases and facts must be lists")
     for basis in bases:
@@ -60,11 +60,12 @@ def assess(bundle, bases, facts, graph=None, relation=None):
             answer = {"status": "UNKNOWN", "missing": ["Authority outside recorded valid/knowledge interval"],
                       "witnesses": {}}
         else:
-            answer = decide(expr, observations)
+            answer = dispatch(expr, observations, engine=predicate_engine)
         missing = answer["missing"]
         rows.append({"basis": basis["id"], "status": answer["status"], "missing": missing,
                      "expression": expr, "premises": observations, "witnesses": answer.get("witnesses", {}),
                      "authority_source": authority_anchor, "fact_sources": evidence, "excluded_facts": excluded,
+                     "reasoning": answer,
                      "actual_exercise": "NOT_ESTABLISHED", "open_end_proves_currentness": False})
     statuses = [r["status"] for r in rows]
     if len(rows) == 1:
@@ -74,5 +75,6 @@ def assess(bundle, bases, facts, graph=None, relation=None):
     else:
         observations = {f"b{i}": {"YES": True, "NO": False, "UNKNOWN": None, "CONFLICT": "conflict"}[s]
                         for i, s in enumerate(statuses)}
-        status = decide({"any" if relation == "ANY_SUFFICIENT" else "all": list(observations)}, observations)["status"]
+        status = dispatch({"any" if relation == "ANY_SUFFICIENT" else "all": list(observations)}, observations,
+                          engine=predicate_engine)["status"]
     return QueryResult("Q4", status, rows, unresolved=sorted(set(x for r in rows for x in r["missing"]))).json()

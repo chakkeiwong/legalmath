@@ -125,6 +125,7 @@ def tree_bindings(name):
 
 
 def current(root, manifest):
+    """Check recorded inputs only; use reusable for complete reuse eligibility."""
     try:
         for row in manifest["records"]:
             if row["kind"] in {"file", "external-file"}:
@@ -150,3 +151,12 @@ def current(root, manifest):
         return True
     except (KeyError, TypeError, ValueError, OSError):
         return False
+
+
+def reusable(root, manifest):
+    """Unobserved native reads cannot support currentness certification."""
+    if not isinstance(manifest, dict) or not isinstance(manifest.get('records'), list):
+        return False
+    if any(row.get('kind') == 'invocation' for row in manifest['records']):
+        return False
+    return current(root, manifest)
