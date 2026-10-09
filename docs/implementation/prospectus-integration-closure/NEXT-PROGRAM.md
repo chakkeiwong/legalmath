@@ -1,4 +1,25 @@
-# Remaining work after the 10 October agent-change continuation
+# Remaining work after the 10 October capacity continuation
+
+The §6(3) capacity package is implemented. Consumer
+`basf-agent-capacity/attempt-001`, 39 focused tests, the 366-test aggregate and
+installed `attempt-010` pass. Nine supplied meanings and five references are
+preserved; omitting only capacity restores unknown meaning on exactly 285
+nonspace characters. Prior meanings and outside unknown coverage stay equal.
+Statutory duties, actual agency breach and notice validity remain unevaluated.
+The protected construction, B54, fifteen markers and 537 intervals are unchanged.
+
+The next reviewed source package is the complete temporary-global exchange
+paragraph and its imported United States definition:
+`docs/plans/prospectus-basf-global-exchange-2026-10-10.md`. It distinguishes
+contractual certificates, geography and actual U.S. tax eligibility, and must
+preserve all nine readings. Check current refreshed receipts before starting.
+The earlier agent/notice/scalar checkpoints below are historical context.
+
+Capacity refresh is complete: R0/011, R1–R2/009, R3–R7/007 and R8/008 are
+current, valid engineering PASS receipts. R4 passed 153 checks in 902.550
+seconds within its reviewed 1,200-second bound. The refresh has no stale
+implemented command to dispatch; eight capability groups remain unfinished.
+Do not rerun these checks merely because the program remains partial.
 
 Current substantive checkpoint: `basf-agent-notices/attempt-003` preserves
 four agent readings alongside the four prior notice readings. The new §6(2)

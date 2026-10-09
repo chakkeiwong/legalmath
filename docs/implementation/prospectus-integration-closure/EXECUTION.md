@@ -41,6 +41,92 @@ sequence with no bound source/helper/test changes during the refresh.
 The next substantive plan is §6(3) agent capacity, preserving all eight current
 readings and the distinction between contractual exclusions and statutory law.
 
+## §6(3) capacity continuation, 10 October 2026
+
+The prior commit was `74631d62f`. The reviewed capacity plan was admitted after
+checking current R0–R8 receipts and inspecting original page 124 and final-term
+page 7. The exact packet binds p124:l72–75, including the final
+`Auftrags- oder Treuhandverhältnis ... begründet.` sentence. It preserves the
+calculation-agent wording, unresolved B54 office, all eight prior readings and
+five references. The new development meaning excludes a contractual holder
+mandate/trust relationship while leaving statutory duties and actual agency
+validity `NOT_EVALUATED`; holder notice duties remain operative.
+
+Authoring passed. The focused command was
+`CUDA_VISIBLE_DEVICES=-1 PYTHONPATH=src:. timeout 600 .venv/bin/python -m pytest -q tests/prospectus_successor/test_closure_basf_agent_capacity.py --junitxml=docs/implementation/prospectus-integration-closure/checks/basf-capacity-001.xml`;
+**39 passed in 226.24 seconds**. The consumer command
+`CUDA_VISIBLE_DEVICES=-1 timeout 600 .venv/bin/python -m scripts.prospectus_closure_basf_agent_capacity`
+passed at `basf-agent-capacity/attempt-001`, retaining exact omission and
+method records. Installed command
+`CUDA_VISIBLE_DEVICES=-1 timeout 1500 .venv/bin/python -m scripts.prospectus_closure_install application --basf-capacity`
+passed at `installed/attempt-010` through fresh, relocated and offline-restored
+stages.
+
+The focused result is a promotion screen for the reviewed development packet,
+not legal acceptance. It passed exact source, actor, beneficiary, immunity,
+placeholder, truncation and prior-meaning adverse controls. No package or legal
+completeness conclusion follows. The aggregate command was run with the
+reviewed 1,400-second bound and passed 366 tests in 945.14 seconds; its JUnit
+receipt is `checks/successor-009.xml`. The R4 phase bound is separately amended
+to 1,200 seconds for its focused subset. No old 900-second bound is reused.
+
+Capacity consumer 001 retained 9,957,412 payload bytes in 209.736 seconds.
+Its omission restores unknown meaning on exactly 285 nonspace characters,
+with prior meanings and outside unknown coverage equal. Installed attempt 010
+retained 135,715,038 bytes in 281.095 seconds, preserving complete question
+identities and all nine BASF meanings across all three stages. Both evidence
+limits passed with a one-MiB metadata reserve. The companion test manifests
+are explicitly reconstructed after execution from actual commands, JUnit and
+retained method hashes; they are not pre-run seals.
+
+The attribution validator initially rejected the outdated controller hash and
+an unfinished duplicate aggregate hash entry. Inspection and corrected
+bindings repaired those maintenance errors before R8. G13's stale four-reference
+summary was corrected to the five verified links, and G17/current summaries
+now point to installed attempt 010. No historical attempt was rewritten.
+
+The exact refresh commands were `.venv/bin/python -m
+scripts.prospectus_delivery --program closure phase --phase Rn` for R0 through
+R8 in dependency order, followed by `.venv/bin/python -m
+scripts.prospectus_delivery --program closure refresh`.
+
+| Phase | Capacity checkpoint attempt | Tests passed | Primary criterion |
+|---|---|---|---|
+| R0 | 011 | 8 | PASS |
+| R1 | 009 | 17 | PARTIAL |
+| R2 | 009 | 3 | PARTIAL |
+| R3 | 007 | 5 | PARTIAL |
+| R4 | 007 | 153 | PARTIAL |
+| R5 | 007 | 6 | PARTIAL |
+| R6 | 007 | 10 | PARTIAL |
+| R7 | 007 | 11 | PARTIAL |
+| R8 | 008 | 2 | PARTIAL |
+
+All are current, valid, completed engineering PASS receipts with zero failures,
+errors or skips. R4 took 902.550 seconds within 1,200. R8 attribution equals
+`final-attribution.json` as JSON. The refresh retains eight unfinished groups,
+`program_complete: false`, external acceptance NOT_ESTABLISHED and no stale
+implemented next command. The next source plan is
+`prospectus-basf-global-exchange-2026-10-10.md`, reviewed but not implemented.
+It follows the independently imported United States definition and complete
+temporary-global exchange/certification paragraph while preserving nine meanings.
+
+| Decision | Primary criterion | Veto diagnostics | Main uncertainty | Next justified action | Not concluded |
+|---|---|---|---|---|---|
+| Complete the bounded capacity package | Exact complete reading reaches P3 and all installed stages | 39 focused, 366 aggregate and phase controls pass; omitted meaning affects exactly 285 characters | Supplied interpretation has no independent adjudication | Continue the reviewed global-exchange source package | General legal correctness or statutory immunity |
+| Retain partial integration status | Current receipts preserve unresolved construction and scope | No corrupt auxiliary manifest or changed bound method at final refresh | Broad families, actual reader workflow, native confinement and deferred tools remain open | Execute NEXT-PROGRAM with its substantive criteria | Test totals constitute finished tool evaluation |
+
+The result did not invalidate the source, target, harness or package direction.
+The principal remaining alternative explanation is a source interpretation
+mistake that preservation checks cannot discover. Independent review or a
+governing-law counterexample would require a new interpretation. This package
+is engineering evidence, not a statutory-duty decision. No bound source,
+helper, test, packet or plan changed after the final phase receipts. The
+monograph was not rebuilt. The earlier baseline commit and this continuation
+are separate Git checkpoints; no merge or push is part of this increment.
+
+### Historical agent-change refresh, before capacity
+
 | Phase | Current attempt | Tests passed | Primary criterion |
 |---|---|---|---|
 | R0 | 010 | 8 | PASS |

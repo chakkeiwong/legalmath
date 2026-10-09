@@ -1,6 +1,7 @@
 # Next BASF package: agents' contractual capacity
 
-Status: reviewed next package, not executed.
+Status: admitted for implementation on 10 October 2026 after source and
+baseline review; execution evidence must be recorded separately.
 
 Question: can the service preserve the complete §6(3) paragraph at base page
 124 lines 72–75 alongside the selected agent identities and notice duties,
@@ -62,7 +63,80 @@ actual dispute between them.
 
 Before adding this package to aggregate validation, measure the focused suite
 and revise the aggregate budget or divide the suite into recorded scopes.
-The current aggregate already takes 831.51 of its 900 seconds. Reusing that
-budget blindly would create an avoidable timeout; inherited time limits are
-execution hypotheses, not guarantees. No long aggregate is authorized by this
-plan until its explicit bound and exact commands are recorded.
+The focused suite was measured on 10 October 2026: 39 tests passed in
+226.24 seconds. The predecessor aggregate took 831.51 seconds for 327 tests.
+The aggregate bound is therefore amended to 1,400 seconds, with the exact
+command `CUDA_VISIBLE_DEVICES=-1 timeout 1400 .venv/bin/python -m
+scripts.prospectus_delivery --program closure check --junitxml=docs/implementation/
+prospectus-integration-closure/checks/successor-009.xml`. Its result must record
+the actual wall time and test counts. Reusing the old 900-second bound would
+create an avoidable timeout; inherited time limits are execution hypotheses,
+not guarantees. The R4 phase subset receives a separate 1,200-second bound;
+the measured full aggregate is not silently reused as a phase timeout.
+
+## Admission and skeptical audit, 10 October 2026
+
+The predecessor is now committed as `74631d62f`. The worktree was clean after
+that commit. The actual preflight and status commands were
+`.venv/bin/python -m scripts.prospectus_delivery --program closure preflight`
+and `.venv/bin/python -m scripts.prospectus_delivery --program closure status`.
+All nine retained receipts were current, valid and engineering PASS; their
+primary and independent-acceptance limits remain unchanged. No historical
+master or legal-interpretation mission runner is part of this prospectus task.
+
+The original page-124 image and final-term page-7 image were inspected in this
+turn. Raw lines 72–75 include the complete concluding sentence, ending in
+`begründet.`. Bind the surviving construction pieces, not whole raw lines that
+still contain bracket syntax. The selected final terms name Deutsche Bank and
+NatWest separately and select German controlling text. They do not supply B54's
+designated calculation-agent office.
+
+Audit verdict: PASS for the bounded source package. The comparator is the
+unchanged eight-reading/five-reference request, not a simpler substitute.
+Acceptance requires an executed service and installed meaning, exact matched
+omission, and adverse controls. Counts and unknown-status preservation are
+explanatory rather than evidence of legal completeness. The reading is a
+reviewed development premise, not an independent annotation or adjudication.
+One source-specific admission will require the complete reviewed semantic
+record, including the contractual scope and unevaluated statutory duties;
+arbitrary contradictory English prose must not pass merely because its typed
+flags look correct. Earlier meanings and all five references must remain equal.
+Missing source bytes, baseline changes, corrupt results or missing mandatory
+diagnostics veto continuation. A reproduced local packet/consumer failure is a
+repair trigger and must retain its failed attempt.
+
+| Choice | Provenance and justification | Failure mode and early check | Status |
+|---|---|---|---|
+| Four complete source lines | Inspected p124:l72–75, original page image | Lost bracket-edited pieces or final sentence; compare exact raw/output spans before tests | Reviewed source boundary |
+| German meaning, `de/en` identity | Final terms p7 selects German controlling | Confusing language with extraction metadata; verify prior graph identity and image | Reviewed default |
+| One supplied capacity reading | Existing source-specific notice/agent admission | Overbroad semantic ontology or statutory immunity; exact reviewed meaning and actor/scope mutation controls | Bounded hypothesis |
+| Existing source/runtime profile | Current preflight and nine receipts | Changed binary or graph; source/image/hash validation | Protected comparator |
+| CPU-only, no downloads | Existing package evidence and this plan | GPU initialization or environment mismatch; set CPU variable before imports | Convenience choice, no speed claim |
+| 600-second focused/consumer bound | Prior 337-second focused and 221-second consumer | More work can time out; measure focused run and retain failures | Execution hypothesis |
+
+Implementation adds separate `basf_agent_capacity` admission, authoring packet,
+consumer and tests. Reuse the prior complete request and exact-piece helper.
+Extend offline installed verification with `application --basf-capacity`;
+this must also verify earlier notices and agents in all three stages.
+
+Exact initial commands from the worktree root:
+
+```text
+CUDA_VISIBLE_DEVICES=-1 .venv/bin/python -m scripts.author_basf_capacity_packet
+CUDA_VISIBLE_DEVICES=-1 PYTHONPATH=src:. timeout 600 .venv/bin/python -m pytest -q tests/prospectus_successor/test_closure_basf_agent_capacity.py --junitxml=docs/implementation/prospectus-integration-closure/checks/basf-capacity-001.xml
+CUDA_VISIBLE_DEVICES=-1 timeout 600 .venv/bin/python -m scripts.prospectus_closure_basf_agent_capacity
+python3 -m scripts.prospectus_closure_install application --basf-capacity
+```
+
+The installation uses only the existing offline hashed wheels and 200-MB
+evidence bound. The consumer retains a lossless gzip request and reviewed
+packet within 20 MB plus the existing one-MiB metadata reserve. Its manifest
+records exact methods, baseline commit, sources, CPU/environment, command,
+wall time, plan and result. The focused XML receives a companion run manifest.
+After measurement, record an explicit aggregate/R4 budget amendment before
+running those jobs. Final refresh is sequential, preserving DAG parent receipts.
+
+The staged baseline whitespace diagnostic reported immutable server logs,
+failed JUnit output, exact source fixtures and PDF xref records. Their bytes were
+preserved for receipt integrity. The separate staged check of authored source,
+tests, plans, manuscript chapters and current result/reset notes passed.

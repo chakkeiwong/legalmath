@@ -1,6 +1,52 @@
 # Integration closure restart
 
-## Current checkpoint — 10 October 2026
+## Capacity checkpoint — 10 October 2026
+
+The prior integration work was committed as `74631d62f` on
+`feature/prospectus-evidence-master` in `.worktrees/bond-gap-closure`.
+The worktree was clean immediately after that commit. The capacity continuation
+adds `basf_agent_capacity.py`, its separate packet/author/consumer/tests and
+`application --basf-capacity` for installed verification.
+
+Consumer `basf-agent-capacity/attempt-001` passes with the complete §6(3)
+paragraph and all eight prior notice/agent readings. Omitting capacity restores
+unknown meaning on 285 nonspace characters, preserving earlier meanings and
+outside unknown coverage. Six scalar mappings, five links, frozen construction,
+fifteen markers, 537 intervals and B54 authority remain unchanged. Statutory
+duties and actual agency breach are NOT_EVALUATED; the holder-notice requirements
+remain operative. No independent legal acceptance is established.
+
+Focused `checks/basf-capacity-001.xml`: 39 passed in 226.24 seconds. Consumer:
+209.736 seconds, 9,957,412 payload bytes. Aggregate `checks/successor-009.xml`:
+366 passed in 945.14 seconds, zero failures/errors/skips. Installed
+`attempt-010`: nine cases, all nine BASF readings and complete question
+identities equal across fresh/relocated/offline-restored stages; 281.095 seconds
+and 135,715,038 bytes within the 200-MB evidence limit. Companion manifests
+disclose their post-run reconstruction from actual commands and retained JUnit.
+
+The aggregate's reviewed bound is 1,400 seconds. After aggregate completion,
+R4's scheduling-only timeout was amended to 1,200 seconds. No substantive
+consumer, test or source packet changed. Retained method hashes preserve their
+actual checkpoints. Sequential refresh is complete: R0/011, R1–R2/009,
+R3–R7/007 and R8/008 are current, valid and engineering PASS. R4 passed 153
+controls in 902.550 seconds. R8's attribution equals the final attribution as
+JSON. R0's primary criterion is PASS; R1–R8 remain PARTIAL. External acceptance
+is NOT_ESTABLISHED, `next_command` is null and eight capability groups remain
+unfinished. No bound source, test, helper, packet or plan changed after these
+receipts. The result/reset notes were finalized afterward.
+
+The monograph remains at its earlier documented checkpoint; this continuation
+is recorded in the capacity result, execution note and companion manifests.
+No merge or push was performed. Preserve the historical evidence bytes.
+
+The reviewed next package is
+`docs/plans/prospectus-basf-global-exchange-2026-10-10.md`, not implemented:
+complete §1(3)(b) and its independently imported United States definition.
+Original p108/p124 images have been inspected. Preserve contractual
+certification, geography and tax-law applicability as distinct questions.
+Historical checkpoints below are superseded by this section.
+
+## Historical agent-change checkpoint — superseded by capacity
 
 Work remains in `.worktrees/bond-gap-closure` on
 `feature/prospectus-evidence-master`, baseline

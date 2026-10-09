@@ -1,5 +1,24 @@
 # Integration closure result, 9 October 2026
 
+The 10 October capacity continuation passes the complete §6(3) contractual
+reading through P3 and the installed CLI, preserving all eight earlier readings
+and five references. It passed 39 focused controls, consumer
+`basf-agent-capacity/attempt-001`, 366 aggregate tests and nine installed cases
+fresh, relocated and offline-restored in `installed/attempt-010`. The exact
+capacity omission restores unknown meaning on 285 nonspace characters with
+prior meanings and outside coverage unchanged. This source-specific development
+admission rejects blanket statutory immunity and retains the separate notice
+duties. See [the capacity result](basf-agent-capacity/RESULT.md) for the decision
+table, actual commands, limits and post-run review. Earlier checkpoints below
+remain historical. Independent legal acceptance is not established.
+
+The capacity phase refresh is complete: R0/011, R1–R2/009, R3–R7/007 and
+R8/008 are current, valid and engineering PASS. R4 passed 153 controls in
+902.550 seconds within its 1,200-second bound. R8 attribution equals the final
+JSON result. R1–R8 remain PARTIAL, external acceptance NOT_ESTABLISHED and
+`program_complete` false. The reviewed next source package covers temporary-
+global exchange, certification and the imported United States definition.
+
 The program repaired several real defects in our integration code and now
 executes the package outputs through the prospectus service. It has not closed
 the full prospectus problem or established independent legal acceptance.

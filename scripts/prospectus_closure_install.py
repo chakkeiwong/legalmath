@@ -64,7 +64,7 @@ def successful_attempt(directory, required):
     return folder
 
 
-def application(folder, run, *, basf_notices=False, basf_agents=False):
+def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capacity=False):
     wheelhouse = RESOURCES / 'wheels'
     locks = folder / 'dependencies.lock'
     locks.write_text(wheel_lock(wheelhouse))
@@ -93,6 +93,8 @@ def application(folder, run, *, basf_notices=False, basf_agents=False):
             shutil.copy2(ROOT/'scripts/prospectus_closure_basf_notices.py', base/'basf_notices_consumer.py')
         if basf_agents:
             shutil.copy2(ROOT/'scripts/prospectus_closure_basf_agent_notices.py', base/'basf_agents_consumer.py')
+        if basf_capacity:
+            shutil.copy2(ROOT/'scripts/prospectus_closure_basf_agent_capacity.py', base/'basf_capacity_consumer.py')
         run('create-runtime', [sys.executable, '-m', 'venv', str(base/'runtime')], base)
         runtime = str(base/'runtime/bin/python')
         install = [runtime, '-m', 'pip', 'install', '--no-index', '--find-links', str(wheelhouse), '--find-links', str(wheels),
@@ -114,7 +116,8 @@ def application(folder, run, *, basf_notices=False, basf_agents=False):
              'request_sha256':sha(compass_attempt/'request.json'), 'manifest_sha256':sha(compass_attempt/'manifest.json'),
              'files':{d['path']:sha(ROOT/d['path']) for d in compass['bundle']['documents']}})
         request_name = 'request.json.gz' if basf_notices else 'request.json'
-        basf_profile = 'basf-agent-notices' if basf_agents else ('basf-notices' if basf_notices else 'basf-consumer')
+        basf_profile = ('basf-agent-capacity' if basf_capacity else 'basf-agent-notices' if basf_agents
+                        else 'basf-notices' if basf_notices else 'basf-consumer')
         basf_attempt = successful_attempt(evidence/basf_profile,
                                           {request_name,'consumer.json','result.json'})
         request_path = basf_attempt/request_name
@@ -135,12 +138,22 @@ def application(folder, run, *, basf_notices=False, basf_agents=False):
             expected = json.loads((basf_attempt/'meaning-evidence.json').read_text())['packet_sha256']
             if hashlib.sha256(canonical).hexdigest() != expected:
                 raise ValueError('Notice review changed since successful consumer')
-            shutil.copy2(packet_path, case/('agent-review.json' if basf_agents else 'notice-review.json'))
+            shutil.copy2(packet_path, case/('capacity-review.json' if basf_capacity else
+                                          'agent-review.json' if basf_agents else 'notice-review.json'))
             if basf_agents:
                 notice_path = evidence/'basf-notices/review.json'
                 notice_packet = json.loads(notice_path.read_text())
                 notice_bytes = json.dumps(notice_packet['clauses'], sort_keys=True, ensure_ascii=False, allow_nan=False).encode()
-                if hashlib.sha256(notice_bytes).hexdigest() != packet['notice_clauses_sha256']:
+                agent_packet = packet
+                if basf_capacity:
+                    agent_path = evidence/'basf-agent-notices/review.json'
+                    agent_packet = json.loads(agent_path.read_text())
+                    prior_bytes = json.dumps(notice_packet['clauses'] + agent_packet['clauses'],
+                                             sort_keys=True, ensure_ascii=False, allow_nan=False).encode()
+                    if hashlib.sha256(prior_bytes).hexdigest() != packet['prior_clauses_sha256']:
+                        raise ValueError('Prior notice/agent meanings changed since capacity consumer')
+                    shutil.copy2(agent_path, case/'agent-review.json')
+                if hashlib.sha256(notice_bytes).hexdigest() != agent_packet['notice_clauses_sha256']:
                     raise ValueError('Prior notice review changed since agent consumer')
                 shutil.copy2(notice_path, case/'notice-review.json')
         inputs={basf['construction']['admission_path']}
@@ -181,7 +194,8 @@ def application(folder, run, *, basf_notices=False, basf_agents=False):
                 'lock_sha256': sha(complete_lock), 'question_payloads_equal': True,
                 'scope': 'Core service on nine development cases, including real BASF reviewed scalar occurrences/references and conditional Compass coupon; BASF CLI builds P1-P5 and preserves partial meaning. Optional package/OS restoration remains separate',
                 'basf_notice_meanings': 'Four complete qualified readings checked through P3 in all stages' if basf_notices else 'NOT_REQUESTED',
-                'basf_agent_meanings': 'Four qualified agent readings, B54 unresolved, checked in all stages' if basf_agents else 'NOT_REQUESTED'}
+                'basf_agent_meanings': 'Four qualified agent readings, B54 unresolved, checked in all stages' if basf_agents else 'NOT_REQUESTED',
+                'basf_capacity_meaning': 'Complete contractual capacity checked in all stages; statutory duties not evaluated' if basf_capacity else 'NOT_REQUESTED'}
 
 
 def optional(folder, run):
@@ -227,7 +241,10 @@ def main():
     parser.add_argument('action', choices=['application','optional'])
     parser.add_argument('--basf-notices', action='store_true', help='Use the completed BASF notice consumer in the application exercise')
     parser.add_argument('--basf-agents', action='store_true', help='Use the combined BASF agent and notice consumer')
+    parser.add_argument('--basf-capacity', action='store_true', help='Also preserve the complete BASF contractual-capacity reading')
     args = parser.parse_args()
+    if args.basf_capacity:
+        args.basf_agents = True
     if args.basf_agents:
         args.basf_notices = True
     if args.basf_notices and args.action != 'application':
@@ -240,9 +257,11 @@ def main():
     source_paths = [ROOT/'pyproject.toml', *sorted((ROOT/'src/legalmath').rglob('*.py')),
                     Path(__file__), ROOT/'scripts/prospectus_closure_installed_check.py', ROOT/'scripts/prospectus_closure_fixtures.py',
                     ROOT/'scripts/prospectus_closure_basf.py', ROOT/'scripts/prospectus_closure_basf_notices.py',
-                    ROOT/'scripts/prospectus_closure_basf_agent_notices.py']
+                    ROOT/'scripts/prospectus_closure_basf_agent_notices.py',
+                    ROOT/'scripts/prospectus_closure_basf_agent_capacity.py']
     initial_method = {str(p.relative_to(ROOT)):sha(p) for p in source_paths}
-    save(folder/'started.json', {'action':args.action, 'basf_notices':args.basf_notices, 'basf_agents':args.basf_agents, 'method':initial_method, 'timeout_seconds':1200,
+    save(folder/'started.json', {'action':args.action, 'basf_notices':args.basf_notices, 'basf_agents':args.basf_agents,
+         'basf_capacity':args.basf_capacity, 'method':initial_method, 'timeout_seconds':1200,
          'evidence_limit_bytes':200_000_000, 'metadata_reserve_bytes':1_048_576})
     env = {k:v for k,v in os.environ.items() if k not in {'PYTHONPATH', 'PYTHONHOME'}}
     env.update(CUDA_VISIBLE_DEVICES='-1', PYTHONNOUSERSITE='1', PIP_NO_INDEX='1', PIP_DISABLE_PIP_VERSION_CHECK='1')
@@ -258,7 +277,8 @@ def main():
         if time.monotonic() - started > 1200:
             raise TimeoutError('Restoration exceeded 20-minute budget')
     try:
-        result = application(folder, run, basf_notices=args.basf_notices, basf_agents=args.basf_agents) if args.action == 'application' else optional(folder, run)
+        result = application(folder, run, basf_notices=args.basf_notices, basf_agents=args.basf_agents,
+                             basf_capacity=args.basf_capacity) if args.action == 'application' else optional(folder, run)
         if initial_method != {str(p.relative_to(ROOT)):sha(p) for p in source_paths}:
             raise ValueError('Installation method changed during execution')
         result['evidence_payload_bytes'] = check_evidence_budget(folder)
@@ -266,8 +286,10 @@ def main():
         result['evidence_budget'] = 'PASS_WITH_ONE_MIB_METADATA_RESERVE'
     except Exception as exc:
         result = {'status':'FAIL', 'error':type(exc).__name__+': '+str(exc)}
-    result.update(action=args.action, basf_notices=args.basf_notices, basf_agents=args.basf_agents, commands=commands, wall_seconds=time.monotonic()-started,
-        plan=('docs/plans/prospectus-basf-agent-notices-2026-10-10.md' if args.basf_agents else
+    result.update(action=args.action, basf_notices=args.basf_notices, basf_agents=args.basf_agents,
+        basf_capacity=args.basf_capacity, commands=commands, wall_seconds=time.monotonic()-started,
+        plan=('docs/plans/prospectus-basf-agent-capacity-2026-10-10.md' if args.basf_capacity else
+              'docs/plans/prospectus-basf-agent-notices-2026-10-10.md' if args.basf_agents else
               'docs/plans/prospectus-basf-notices-2026-10-09.md' if args.basf_notices else 'docs/plans/prospectus-closure-runtime-2026-10-09.md'),
         git_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
         python=sys.version, cpu_gpu='CPU; CUDA_VISIBLE_DEVICES=-1', seeds='Deterministic',

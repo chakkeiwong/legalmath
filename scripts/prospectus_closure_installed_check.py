@@ -57,7 +57,13 @@ def main():
             raise RuntimeError('Installed CLI case failed: '+name)
         report = read(folder/'cli-report.json')
         if name=='basf':
-            if (folder/'agent-review.json').is_file():
+            if (folder/'capacity-review.json').is_file():
+                capacity_check = runpy.run_path(str(fixture_file.with_name('basf_capacity_consumer.py')))['check_report']
+                agent_check = runpy.run_path(str(fixture_file.with_name('basf_agents_consumer.py')))['check_report']
+                outcome = capacity_check(report, request, read(folder/'capacity-review.json'),
+                                         scalar_check=basf_check, notice_packet=read(folder/'notice-review.json'),
+                                         agent_packet=read(folder/'agent-review.json'), agent_check=agent_check)
+            elif (folder/'agent-review.json').is_file():
                 agent_check = runpy.run_path(str(fixture_file.with_name('basf_agents_consumer.py')))['check_report']
                 outcome = agent_check(report, request, read(folder/'agent-review.json'),
                                       scalar_check=basf_check, notice_packet=read(folder/'notice-review.json'))
@@ -81,6 +87,8 @@ def main():
                 questions[name]['notice_meanings'] = outcome['notices']
             if 'agents' in outcome:
                 questions[name]['agent_meanings'] = outcome['agents']
+            if 'capacity' in outcome:
+                questions[name]['capacity_meaning'] = outcome['capacity']
             continue
         p1 = service.source_product(request, folder)
         p2 = service.construction_product(p1, folder)
