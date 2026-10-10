@@ -1,3 +1,40 @@
+# Completed worker-recovery validation, 11 October 2026
+
+Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,
+committed comparator `dd6724963a2955536093fc1016031ea11803501a`. The OCR
+model-file source escape is reproduced and repaired by binding every model
+target. Five new path regressions cover safe and adverse cases. The current
+English two-page baseline passes, and actual recovery attempt 004 passes all
+eleven OCR/XMI states in 16.426 seconds. Every mutation invalidates its receipt
+before the recovery marker; separate clean results and complete restored
+reports agree. Earlier oracle/schema/marker flaws remain recorded in attempts
+001–003 and the reviewed plan.
+
+Native-boundary attempt 001 passes actual direct/child/symlink/changed-file
+tracing and mount-denial controls. The actual OCR worker is equal to the full
+baseline under strace and Bubblewrap. Production native reuse is still
+vetoed: broad runtime mounts and tracing do not establish complete immutable
+dependency closure. This is a local diagnostic, not a production wrapper or
+second-host portability result. Read `worker-recovery/RESULT.md`.
+
+The serial validation completed in 3,219.332 seconds. Exact partitioned
+coverage includes all 663 collected test identities: twenty focused checks,
+all phase checks and 155 otherwise uncovered tests pass. R4 took 3,144.351
+seconds. Nine manifests, all recovery receipts, the frozen method and R8/final
+attribution equality were verified after completion. Current valid engineering
+PASS receipts are R0/017, R1/015, R2/015, R3/013, R4/013, R5/013, R6/013,
+R7/013 and R8/014. `worker-recovery/validation-001/result.json` and
+`coverage.json` preserve the result. No validation remains active; do not rerun
+an unchanged passing method. R1–R8 remain PARTIAL and the program is incomplete.
+
+Commit this completed R6 package separately from the prepared real-scan work.
+The next source is the retained six-page BES final terms. Its frozen image
+oracle and actual OCR misses lead to an assisted source/correction consumer.
+A reproduced local correction-image admission defect has an isolated tested
+candidate; integration follows this committed checkpoint. Continue through
+passing checks. Keep independent legal acceptance, ACTUS/CDM prerequisites
+and second-host validation explicit. Main's separate legal mission is untouched.
+
 # Completed original coupon-anchor repair, 10 October 2026
 
 The status/negative-pledge package is committed as `e814e99ad6db96e9530bdb318a3c630d36c85fdb`; its final evidence

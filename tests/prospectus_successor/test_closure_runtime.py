@@ -88,3 +88,30 @@ def test_scan_missing_runtime_and_language_are_typed(tmp_path, monkeypatch):
     model.unlink()
     with pytest.raises(extraction.ExtractionUnavailable, match='language model missing'):
         extraction.scan(document, tmp_path)
+
+
+@pytest.mark.parametrize('model_kind', ['regular', 'changed', 'missing', 'inside-symlink', 'outside-symlink'])
+def test_scan_runtime_model_target_is_bound_before_worker_launch(tmp_path, monkeypatch, model_kind):
+    root = tmp_path / 'case'
+    root.mkdir()
+    document = request(root, [PREFIX])['bundle']['documents'][0]
+    models = root / 'models'
+    models.mkdir()
+    content = b'isolated admission control; not an OCR model'
+    model = models / 'eng.traineddata'
+    if model_kind == 'regular':
+        model.write_bytes(content)
+    elif model_kind == 'changed':
+        model.write_bytes(content + b'changed')
+    elif model_kind.endswith('symlink'):
+        target = (root if model_kind == 'inside-symlink' else tmp_path) / 'target.traineddata'
+        target.write_bytes(content)
+        model.symlink_to(target)
+    document['scan_profile'] = {'version': 'pymupdf-scan.v1', 'dpi': 300,
+        'language': 'eng', 'max_pages': 2, 'tessdata': 'models', 'models': {'eng': digest(content)}}
+    monkeypatch.setenv('LEGALMATH_OCR_PYTHON', str(root / 'missing-interpreter'))
+    expected = ('outside declared root' if model_kind == 'outside-symlink' else
+                'model missing or changed' if model_kind in {'missing', 'changed'} else
+                'Configure LEGALMATH_OCR_PYTHON')
+    with pytest.raises(extraction.ExtractionUnavailable, match=expected):
+        extraction.scan(document, root)

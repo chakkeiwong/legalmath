@@ -25,7 +25,10 @@ def scan(document, root):
         raise ValueError("Every requested OCR language requires a pinned model")
     tessdata = bound_path(root, profile["tessdata"])
     for language in models:
-        path = tessdata / (language + ".traineddata")
+        try:
+            path = bound_path(root, tessdata / (language + ".traineddata"))
+        except ValueError as exc:
+            raise ExtractionUnavailable("OCR language model outside declared root: " + language) from exc
         if not path.is_file() or digest(path.read_bytes()) != profile["models"][language]:
             raise ExtractionUnavailable("OCR language model missing or changed: " + language)
     interpreter = Path(os.environ.get("LEGALMATH_OCR_PYTHON", str(Path(root) / ".localresources/prospectus/ocr/bin/python")))

@@ -1,3 +1,27 @@
+# Worker recovery validated; next real-scan consumer, 11 October 2026
+
+The reviewed R6 sequence now has a passing actual eleven-state OCR/XMI
+recovery result with pre-marker invalidation and full clean-recomputation
+agreement. The model-path source escape is repaired and has five regressions.
+strace/Bubblewrap controls and the actual OCR worker pass locally; production
+native reuse remains vetoed because exhaustive immutable dependency binding
+has not been shown. The result note is `worker-recovery/RESULT.md`.
+
+`worker-recovery/validation-001/` is complete: all 663 unique collected tests
+are covered, the frozen method and nine manifests verify, and final attribution
+equals R8. Current valid engineering PASS receipts are R0/017, R1/015,
+R2/015, R3/013, R4/013, R5/013, R6/013, R7/013 and R8/014. No validation
+is active. R1–R8 remain PARTIAL and independent acceptance is NOT_ESTABLISHED.
+
+Commit the completed recovery package separately. Then integrate the reviewed
+correction-image guard and exercise the retained BES six-page source through
+the actual correction/annotation consumer. The frozen 23-target source oracle,
+eight supplied relationships and current-worker raw output are prepared.
+Preserve raw OCR failures and manual assistance separately; an engineering
+pass cannot establish eligibility, governing-law validity or legal acceptance.
+Refresh affected current-method checks after the source repair and continue
+through passing checkpoints without routine approval.
+
 # Completed coupon-anchor repair; next worker recovery, 10 October 2026
 
 The explicit source-bound 30 August anchor now survives both direct and

@@ -35,7 +35,7 @@ REMAINING = {
     'R3': ['Expand real table/column/multilingual layout cases; independently review OCR corrections and governing edges'],
     'R4': ['Extend the combined BASF scalar/notice/agent consumer to remaining source meanings and onward references; B54 office authority, independent adjudication and real browser cross-document review remain open'],
     'R5': ['Independently review real-instrument conventions and broader entitlement/stub schedules; conditional Compass first coupon does not close full settlement'],
-    'R6': ['Expand real model/extraction recovery sequences and test OS portability/native confinement; same-host core/layout/authoring restoration passed'],
+    'R6': ['Finite real OCR/XMI recovery and same-host tracing/mount-denial controls passed; complete native dependency binding, production confinement and second-host portability remain open'],
     'R7': ['Obtain actual qualified assignments, sealed first readings, adjudication and sign-offs on a frozen unexposed cohort'],
     'R8': ['Keep engineering and external acceptance separate; resolve remaining local code work and specified external inputs'],
 }
@@ -54,6 +54,8 @@ def auxiliary_evidence(root, phase):
         bases += [Path(root)/REL/name for name in ('basf-consumer', 'basf-notices', 'basf-agent-notices', 'basf-agent-capacity', 'basf-global-exchange', 'basf-global-records', 'basf-amount-holder', 'basf-status-pledge')]
     if phase == 'R6':
         bases += [Path(root)/REL/name for name in ('installed','layout-restoration','authoring-restoration')]
+        bases += [Path(root)/REL/'worker-recovery'/name for name in
+                  ('ocr-baseline', 'recovery-sequence', 'native-boundary')]
     for base in bases:
         attempts = sorted(base.glob('attempt-*'))
         # Installed application and separate optional-runtime evidence are distinct.
@@ -114,6 +116,9 @@ def bindings(root, phase):
                   root/'scripts/author_basf_status_pledge_packet.py']
     if phase == 'R5':
         paths += [root/'docs/plans/prospectus-coupon-anchor-repair-2026-10-10.md']
+    if phase == 'R6':
+        paths += [root/'docs/plans/prospectus-worker-recovery-2026-10-10.md']
+        paths += list((root/REL/'worker-recovery').glob('*.py'))
     if phase == 'R8':
         paths += [root/REL/'attribution-review.json', root/REL/'gap-status.json']
     paths += list((root / REL / "inputs" / phase).rglob("*"))
