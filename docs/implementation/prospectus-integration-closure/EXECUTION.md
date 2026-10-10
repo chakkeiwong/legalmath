@@ -1,3 +1,30 @@
+# Completed global-records checkpoint, 10 October 2026
+
+Branch `feature/prospectus-evidence-master`, worktree `.worktrees/bond-gap-closure`,
+baseline `19f22fd34619ced4f5fdeb8b60cf14113ed8dff0`. Six new form/ICSD readings join all eleven prior meanings.
+Focused 57 controls, consumer 001, installed attempt 012 and aggregate 467 tests
+pass. Five references, six scalar maps, construction, B54, fifteen markers and
+537 retained intervals are preserved. The incoming NGN reference and bilingual
+redemption-wording discrepancy remain unresolved. Q1/Q2 UNKNOWN, Q3 PARTIAL,
+ASSISTED; actual balances/events and independent acceptance are not established.
+
+Receipts R0/013, R1/011, R2/011, R3/009, R4/009, R5/009, R6/009, R7/009, R8/010 are current and valid engineering PASS; R4 took
+1736.737 seconds for 254 checks. R8 attribution equals final attribution.
+No validation remains active. Eight capability groups remain unfinished,
+R1–R8 stay PARTIAL and `program_complete` is false. Do not repeat passing
+checks without changed inputs or an unresolved diagnostic. Final evidence:
+`basf-global-records/execution-manifest.json`; detailed result:
+`basf-global-records/RESULT.md`.
+
+Next reviewed design, not implemented/admitted: `docs/plans/prospectus-basf-amount-holder-2026-10-10.md`. Recheck currentness
+and its original sources before starting. Use the prospectus closure dispatcher,
+CPU mode and retained offline inputs. Do not run legal mission control or
+historical masters. Admission attempt 001's unsupported `-k` command is retained;
+the positional-node repair passed. Checkpoint commit message: `Preserve BASF
+global-note form and ICSD records through installed consumers`. Git history
+supplies the resulting commit identity; merging and pushing are outside this
+increment. Earlier notes below describe historical checkpoints.
+
 # Closure execution review and record
 
 The latest global-exchange continuation is recorded at the end of this file.

@@ -1,4 +1,68 @@
-# Current restart: global-exchange continuation, 10 October 2026
+# Completed global-records checkpoint, 10 October 2026
+
+Branch `feature/prospectus-evidence-master`, worktree `.worktrees/bond-gap-closure`,
+baseline `19f22fd34619ced4f5fdeb8b60cf14113ed8dff0`. Six new form/ICSD readings join all eleven prior meanings.
+Focused 57 controls, consumer 001, installed attempt 012 and aggregate 467 tests
+pass. Five references, six scalar maps, construction, B54, fifteen markers and
+537 retained intervals are preserved. The incoming NGN reference and bilingual
+redemption-wording discrepancy remain unresolved. Q1/Q2 UNKNOWN, Q3 PARTIAL,
+ASSISTED; actual balances/events and independent acceptance are not established.
+
+Receipts R0/013, R1/011, R2/011, R3/009, R4/009, R5/009, R6/009, R7/009, R8/010 are current and valid engineering PASS; R4 took
+1736.737 seconds for 254 checks. R8 attribution equals final attribution.
+No validation remains active. Eight capability groups remain unfinished,
+R1–R8 stay PARTIAL and `program_complete` is false. Do not repeat passing
+checks without changed inputs or an unresolved diagnostic. Final evidence:
+`basf-global-records/execution-manifest.json`; detailed result:
+`basf-global-records/RESULT.md`.
+
+Next reviewed design, not implemented/admitted: `docs/plans/prospectus-basf-amount-holder-2026-10-10.md`. Recheck currentness
+and its original sources before starting. Use the prospectus closure dispatcher,
+CPU mode and retained offline inputs. Do not run legal mission control or
+historical masters. Admission attempt 001's unsupported `-k` command is retained;
+the positional-node repair passed. Checkpoint commit message: `Preserve BASF
+global-note form and ICSD records through installed consumers`. Git history
+supplies the resulting commit identity; merging and pushing are outside this
+increment. Earlier notes below describe historical checkpoints.
+
+# Current restart: global-note form/ICSD records, 10 October 2026
+
+Active work remains in `.worktrees/bond-gap-closure` on
+`feature/prospectus-evidence-master`, baseline `19f22fd34`. The admitted plan is
+`docs/plans/prospectus-basf-global-records-2026-10-10.md`. Six new supplied
+readings cover 48 selected units of §1(3)(a)/§1(4); all eleven predecessor
+readings, five references, six scalar maps and the frozen construction remain
+the comparator. Source review inspected images 108–110 and final terms 3/7.
+Preserve the German/English reduction-wording discrepancy as unresolved and
+the incoming §1(1) NGN reference as unresolved. Actual balances/events and
+independent legal acceptance are not established.
+
+Implementation, packet authoring, installed consumer extension and dedicated
+tests are written. Admission 002 passes 44 checks in 177.729 seconds and the
+real P3/adjustment omission smoke passes in 273.810 seconds. The full
+`checks/basf-records-001` passes 57 controls in 508.101 seconds. Consumer
+attempt 001 passes in 486.297 seconds; all six exact omissions pass.
+Installed application `attempt-012` passes all nine cases fresh, relocated
+and offline-restored in 308.319 seconds with identical full answer/meaning
+identities. Aggregate `checks/successor-011` passes 467 controls in 1,804.858
+seconds, with no failures/errors/skips and unchanged pre-run methods. Inspected
+gap/attribution findings are updated. Current step: sequential R0–R8 refresh;
+progress is retained in `basf-global-records/phase-progress.json`. No bound
+method/source/plan changes are allowed during refresh.
+Attempt 001 failed at dispatcher argument parsing (`-k` unsupported), before
+pytest; log/manifest retained. Attempt 002 uses the exact positional test node.
+Measured-bound review is recorded in the admitted plan: focused/consumer 1,200,
+aggregate 3,100, R4 2,900 seconds; evidence/installed bounds are unchanged.
+Next: finish sequential closure refresh and final documentation/commit.
+The next amount/form/holder/reference
+design is written at `docs/plans/prospectus-basf-amount-holder-2026-10-10.md`,
+pending this package's completion and fresh admission. Do not edit bound
+method/source/plan files during a test run.
+Do not run legal mission control or historical prospectus masters. Existing
+receipts become stale as this implementation changes; the earlier checkpoint
+below retains its historical evidence rather than certifying these new files.
+
+# Completed global-exchange checkpoint, 10 October 2026
 
 Branch: `feature/prospectus-evidence-master`, worktree
 `/home/chakwong/python/legalmath/.worktrees/bond-gap-closure`.

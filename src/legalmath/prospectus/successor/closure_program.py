@@ -22,7 +22,7 @@ JOBS = {
     "R1": ("tests/prospectus_successor/test_integration_closure.py", "not solver and not z3"),
     "R2": ("tests/prospectus_successor/test_integration_closure.py", "solver or z3"),
     "R3": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py", "layout or poppler or correction or corrected"),
-    "R4": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_references.py tests/prospectus_successor/test_closure_reference_replacement.py tests/prospectus_successor/test_closure_basf.py tests/prospectus_successor/test_closure_basf_notices.py tests/prospectus_successor/test_closure_basf_agent_notices.py tests/prospectus_successor/test_closure_basf_agent_capacity.py tests/prospectus_successor/test_closure_basf_global_exchange.py", "annotation or authored or disposition or priority or corrected or reference or cross_document or basf"),
+    "R4": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_references.py tests/prospectus_successor/test_closure_reference_replacement.py tests/prospectus_successor/test_closure_basf.py tests/prospectus_successor/test_closure_basf_notices.py tests/prospectus_successor/test_closure_basf_agent_notices.py tests/prospectus_successor/test_closure_basf_agent_capacity.py tests/prospectus_successor/test_closure_basf_global_exchange.py tests/prospectus_successor/test_closure_basf_global_records.py", "annotation or authored or disposition or priority or corrected or reference or cross_document or basf"),
     "R5": ("tests/prospectus_successor/test_closure_finance.py tests/prospectus_successor/test_closure_consumers.py", "finance or coupon or calculation or published or bearer or schedule or selected_full"),
     "R6": ("tests/prospectus_successor/test_closure_runtime.py tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_recovery.py", "runtime or current_consume or missing_poppler or real_executor"),
     "R7": ("tests/prospectus_successor/test_closure_reviews.py", None),
@@ -40,10 +40,10 @@ REMAINING = {
     'R8': ['Keep engineering and external acceptance separate; resolve remaining local code work and specified external inputs'],
 }
 PACKAGE_INPUTS = {'R3':['layout','scan','scan_de'], 'R4':['codec'], 'R5':['numeric','compass']}
-# Global-exchange continuation: prior R4 902.55s plus new focused 309.19s.
-# Reviewed scheduling headroom in the 2026-10-10 global-exchange plan;
-# separate from the 1,700-second aggregate bound.
-PHASE_TIMEOUTS = {'R4': 1600}
+# Global-records continuation: previous R4 1182.707s plus a conservative
+# 1200s allowance for six new omissions/admission controls, with 20% headroom.
+# Reviewed before execution in the 2026-10-10 global-records plan.
+PHASE_TIMEOUTS = {'R4': 2900}
 
 
 def auxiliary_evidence(root, phase):
@@ -51,7 +51,7 @@ def auxiliary_evidence(root, phase):
     rows = []
     bases = [Path(root)/REL/'packages'/name for name in PACKAGE_INPUTS.get(phase, [])]
     if phase == 'R4':
-        bases += [Path(root)/REL/name for name in ('basf-consumer', 'basf-notices', 'basf-agent-notices', 'basf-agent-capacity', 'basf-global-exchange')]
+        bases += [Path(root)/REL/name for name in ('basf-consumer', 'basf-notices', 'basf-agent-notices', 'basf-agent-capacity', 'basf-global-exchange', 'basf-global-records')]
     if phase == 'R6':
         bases += [Path(root)/REL/name for name in ('installed','layout-restoration','authoring-restoration')]
     for base in bases:
@@ -104,7 +104,9 @@ def bindings(root, phase):
                   root/'docs/plans/prospectus-basf-agent-capacity-2026-10-10.md', root/REL/'basf-agent-capacity/review.json',
                   root/'scripts/author_basf_capacity_packet.py',
                   root/'docs/plans/prospectus-basf-global-exchange-2026-10-10.md', root/REL/'basf-global-exchange/review.json',
-                  root/REL/'basf-global-exchange/SOURCE-REVIEW.md', root/'scripts/author_basf_global_exchange_packet.py']
+                  root/REL/'basf-global-exchange/SOURCE-REVIEW.md', root/'scripts/author_basf_global_exchange_packet.py',
+                  root/'docs/plans/prospectus-basf-global-records-2026-10-10.md', root/REL/'basf-global-records/review.json',
+                  root/REL/'basf-global-records/SOURCE-REVIEW.md', root/'scripts/author_basf_global_records_packet.py']
     if phase == 'R8':
         paths += [root/REL/'attribution-review.json', root/REL/'gap-status.json']
     paths += list((root / REL / "inputs" / phase).rglob("*"))

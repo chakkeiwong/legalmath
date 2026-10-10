@@ -57,7 +57,17 @@ def main():
             raise RuntimeError('Installed CLI case failed: '+name)
         report = read(folder/'cli-report.json')
         if name=='basf':
-            if (folder/'global-review.json').is_file():
+            if (folder/'records-review.json').is_file():
+                records_check = runpy.run_path(str(fixture_file.with_name('basf_records_consumer.py')))['check_report']
+                global_check = runpy.run_path(str(fixture_file.with_name('basf_global_consumer.py')))['check_report']
+                capacity_check = runpy.run_path(str(fixture_file.with_name('basf_capacity_consumer.py')))['check_report']
+                agent_check = runpy.run_path(str(fixture_file.with_name('basf_agents_consumer.py')))['check_report']
+                outcome = records_check(report, request, read(folder/'records-review.json'),
+                                        exchange_check=global_check, exchange_packet=read(folder/'global-review.json'),
+                                        capacity_check=capacity_check, capacity_packet=read(folder/'capacity-review.json'),
+                                        scalar_check=basf_check, notice_packet=read(folder/'notice-review.json'),
+                                        agent_packet=read(folder/'agent-review.json'), agent_check=agent_check)
+            elif (folder/'global-review.json').is_file():
                 global_check = runpy.run_path(str(fixture_file.with_name('basf_global_consumer.py')))['check_report']
                 capacity_check = runpy.run_path(str(fixture_file.with_name('basf_capacity_consumer.py')))['check_report']
                 agent_check = runpy.run_path(str(fixture_file.with_name('basf_agents_consumer.py')))['check_report']
@@ -99,6 +109,8 @@ def main():
                 questions[name]['capacity_meaning'] = outcome['capacity']
             if 'global_exchange' in outcome:
                 questions[name]['global_exchange_meanings'] = outcome['global_exchange']
+            if 'global_records' in outcome:
+                questions[name]['global_records_meanings'] = outcome['global_records']
             continue
         p1 = service.source_product(request, folder)
         p2 = service.construction_product(p1, folder)
