@@ -62,11 +62,18 @@ def main():
                 global_check = runpy.run_path(str(fixture_file.with_name('basf_global_consumer.py')))['check_report']
                 capacity_check = runpy.run_path(str(fixture_file.with_name('basf_capacity_consumer.py')))['check_report']
                 agent_check = runpy.run_path(str(fixture_file.with_name('basf_agents_consumer.py')))['check_report']
-                outcome = records_check(report, request, read(folder/'records-review.json'),
+                prior_checks = dict(
                                         exchange_check=global_check, exchange_packet=read(folder/'global-review.json'),
                                         capacity_check=capacity_check, capacity_packet=read(folder/'capacity-review.json'),
                                         scalar_check=basf_check, notice_packet=read(folder/'notice-review.json'),
                                         agent_packet=read(folder/'agent-review.json'), agent_check=agent_check)
+                if (folder/'amount-review.json').is_file():
+                    amount_check = runpy.run_path(str(fixture_file.with_name('basf_amount_consumer.py')))['check_report']
+                    outcome = amount_check(report, request, read(folder/'amount-review.json'),
+                                           records_check=records_check, records_packet=read(folder/'records-review.json'),
+                                           **prior_checks)
+                else:
+                    outcome = records_check(report, request, read(folder/'records-review.json'), **prior_checks)
             elif (folder/'global-review.json').is_file():
                 global_check = runpy.run_path(str(fixture_file.with_name('basf_global_consumer.py')))['check_report']
                 capacity_check = runpy.run_path(str(fixture_file.with_name('basf_capacity_consumer.py')))['check_report']
@@ -111,6 +118,8 @@ def main():
                 questions[name]['global_exchange_meanings'] = outcome['global_exchange']
             if 'global_records' in outcome:
                 questions[name]['global_records_meanings'] = outcome['global_records']
+            if 'amount_holder' in outcome:
+                questions[name]['amount_holder_meanings'] = outcome['amount_holder']
             continue
         p1 = service.source_product(request, folder)
         p2 = service.construction_product(p1, folder)

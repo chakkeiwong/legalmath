@@ -64,7 +64,7 @@ def successful_attempt(directory, required):
     return folder
 
 
-def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capacity=False, basf_global_exchange=False, basf_global_records=False):
+def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capacity=False, basf_global_exchange=False, basf_global_records=False, basf_amount_holder=False):
     wheelhouse = RESOURCES / 'wheels'
     locks = folder / 'dependencies.lock'
     locks.write_text(wheel_lock(wheelhouse))
@@ -99,6 +99,8 @@ def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capa
             shutil.copy2(ROOT/'scripts/prospectus_closure_basf_global_exchange.py', base/'basf_global_consumer.py')
         if basf_global_records:
             shutil.copy2(ROOT/'scripts/prospectus_closure_basf_global_records.py', base/'basf_records_consumer.py')
+        if basf_amount_holder:
+            shutil.copy2(ROOT/'scripts/prospectus_closure_basf_amount_holder.py', base/'basf_amount_consumer.py')
         run('create-runtime', [sys.executable, '-m', 'venv', str(base/'runtime')], base)
         runtime = str(base/'runtime/bin/python')
         install = [runtime, '-m', 'pip', 'install', '--no-index', '--find-links', str(wheelhouse), '--find-links', str(wheels),
@@ -120,7 +122,7 @@ def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capa
              'request_sha256':sha(compass_attempt/'request.json'), 'manifest_sha256':sha(compass_attempt/'manifest.json'),
              'files':{d['path']:sha(ROOT/d['path']) for d in compass['bundle']['documents']}})
         request_name = 'request.json.gz' if basf_notices else 'request.json'
-        basf_profile = ('basf-global-records' if basf_global_records else 'basf-global-exchange' if basf_global_exchange else 'basf-agent-capacity' if basf_capacity else 'basf-agent-notices' if basf_agents
+        basf_profile = ('basf-amount-holder' if basf_amount_holder else 'basf-global-records' if basf_global_records else 'basf-global-exchange' if basf_global_exchange else 'basf-agent-capacity' if basf_capacity else 'basf-agent-notices' if basf_agents
                         else 'basf-notices' if basf_notices else 'basf-consumer')
         basf_attempt = successful_attempt(evidence/basf_profile,
                                           {request_name,'consumer.json','result.json'})
@@ -142,8 +144,23 @@ def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capa
             expected = json.loads((basf_attempt/'meaning-evidence.json').read_text())['packet_sha256']
             if hashlib.sha256(canonical).hexdigest() != expected:
                 raise ValueError('Notice review changed since successful consumer')
-            shutil.copy2(packet_path, case/('records-review.json' if basf_global_records else 'global-review.json' if basf_global_exchange else 'capacity-review.json' if basf_capacity else
+            shutil.copy2(packet_path, case/('amount-review.json' if basf_amount_holder else 'records-review.json' if basf_global_records else 'global-review.json' if basf_global_exchange else 'capacity-review.json' if basf_capacity else
                                           'agent-review.json' if basf_agents else 'notice-review.json'))
+            if basf_amount_holder:
+                records_path = evidence/'basf-global-records/review.json'
+                records_packet = json.loads(records_path.read_text())
+                prior_clauses = [node for name in ('basf-notices', 'basf-agent-notices', 'basf-agent-capacity',
+                                                  'basf-global-exchange', 'basf-global-records')
+                                 for node in json.loads((evidence/name/'review.json').read_text())['clauses']]
+                prior_ids = {node['id'] for node in prior_clauses}
+                if [node for node in basf['clauses'] if node['id'] in prior_ids] != prior_clauses:
+                    raise ValueError('Amount installation request lost a prior supplied meaning')
+                prior_bytes = json.dumps(prior_clauses, sort_keys=True,
+                                         ensure_ascii=False, allow_nan=False).encode()
+                if hashlib.sha256(prior_bytes).hexdigest() != packet['prior_clauses_sha256']:
+                    raise ValueError('Prior seventeen meanings changed since amount consumer')
+                shutil.copy2(records_path, case/'records-review.json')
+                packet = records_packet
             if basf_agents:
                 notice_path = evidence/'basf-notices/review.json'
                 notice_packet = json.loads(notice_path.read_text())
@@ -220,7 +237,8 @@ def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capa
                 'basf_agent_meanings': 'Four qualified agent readings, B54 unresolved, checked in all stages' if basf_agents else 'NOT_REQUESTED',
                 'basf_capacity_meaning': 'Complete contractual capacity checked in all stages; statutory duties not evaluated' if basf_capacity else 'NOT_REQUESTED',
                 'basf_global_exchange_meanings': 'Complete exchange/certification and geography checked in all stages; actual tax eligibility not evaluated' if basf_global_exchange else 'NOT_REQUESTED',
-                'basf_global_records_meanings': 'Six complete form/ICSD readings checked in all stages; balances/events not evaluated and bilingual reduction wording unresolved' if basf_global_records else 'NOT_REQUESTED'}
+                'basf_global_records_meanings': 'Six complete form/ICSD readings checked in all stages; balances/events not evaluated and bilingual reduction wording unresolved' if basf_global_records else 'NOT_REQUESTED',
+                'basf_amount_holder_meanings': 'Three complete issue amount/bearer/holder readings and complete NGN reference checked in all stages; actual ownership/balance/standing not evaluated' if basf_amount_holder else 'NOT_REQUESTED'}
 
 
 def optional(folder, run):
@@ -269,7 +287,10 @@ def main():
     parser.add_argument('--basf-capacity', action='store_true', help='Also preserve the complete BASF contractual-capacity reading')
     parser.add_argument('--basf-global-exchange', action='store_true', help='Also preserve BASF exchange/certification and imported geography')
     parser.add_argument('--basf-global-records', action='store_true', help='Also preserve BASF global-note form and ICSD recordkeeping readings')
+    parser.add_argument('--basf-amount-holder', action='store_true', help='Also preserve BASF amount, bearer form, holder definition and complete NGN reference')
     args = parser.parse_args()
+    if args.basf_amount_holder:
+        args.basf_global_records = True
     if args.basf_global_records:
         args.basf_global_exchange = True
     if args.basf_global_exchange:
@@ -290,10 +311,11 @@ def main():
                     ROOT/'scripts/prospectus_closure_basf.py', ROOT/'scripts/prospectus_closure_basf_notices.py',
                     ROOT/'scripts/prospectus_closure_basf_agent_notices.py',
                     ROOT/'scripts/prospectus_closure_basf_agent_capacity.py',
-                    ROOT/'scripts/prospectus_closure_basf_global_exchange.py', ROOT/'scripts/prospectus_closure_basf_global_records.py']
+                    ROOT/'scripts/prospectus_closure_basf_global_exchange.py', ROOT/'scripts/prospectus_closure_basf_global_records.py',
+                    ROOT/'scripts/prospectus_closure_basf_amount_holder.py']
     initial_method = {str(p.relative_to(ROOT)):sha(p) for p in source_paths}
     save(folder/'started.json', {'action':args.action, 'basf_notices':args.basf_notices, 'basf_agents':args.basf_agents,
-         'basf_capacity':args.basf_capacity, 'basf_global_exchange':args.basf_global_exchange, 'basf_global_records':args.basf_global_records, 'method':initial_method, 'timeout_seconds':1200,
+         'basf_capacity':args.basf_capacity, 'basf_global_exchange':args.basf_global_exchange, 'basf_global_records':args.basf_global_records, 'basf_amount_holder':args.basf_amount_holder, 'method':initial_method, 'timeout_seconds':1200,
          'evidence_limit_bytes':200_000_000, 'metadata_reserve_bytes':1_048_576})
     env = {k:v for k,v in os.environ.items() if k not in {'PYTHONPATH', 'PYTHONHOME'}}
     env.update(CUDA_VISIBLE_DEVICES='-1', PYTHONNOUSERSITE='1', PIP_NO_INDEX='1', PIP_DISABLE_PIP_VERSION_CHECK='1')
@@ -310,7 +332,7 @@ def main():
             raise TimeoutError('Restoration exceeded 20-minute budget')
     try:
         result = application(folder, run, basf_notices=args.basf_notices, basf_agents=args.basf_agents,
-                             basf_capacity=args.basf_capacity, basf_global_exchange=args.basf_global_exchange, basf_global_records=args.basf_global_records) if args.action == 'application' else optional(folder, run)
+                             basf_capacity=args.basf_capacity, basf_global_exchange=args.basf_global_exchange, basf_global_records=args.basf_global_records, basf_amount_holder=args.basf_amount_holder) if args.action == 'application' else optional(folder, run)
         if initial_method != {str(p.relative_to(ROOT)):sha(p) for p in source_paths}:
             raise ValueError('Installation method changed during execution')
         result['evidence_payload_bytes'] = check_evidence_budget(folder)
@@ -319,8 +341,9 @@ def main():
     except Exception as exc:
         result = {'status':'FAIL', 'error':type(exc).__name__+': '+str(exc)}
     result.update(action=args.action, basf_notices=args.basf_notices, basf_agents=args.basf_agents,
-        basf_capacity=args.basf_capacity, basf_global_exchange=args.basf_global_exchange, basf_global_records=args.basf_global_records, commands=commands, wall_seconds=time.monotonic()-started,
-        plan=('docs/plans/prospectus-basf-global-records-2026-10-10.md' if args.basf_global_records else
+        basf_capacity=args.basf_capacity, basf_global_exchange=args.basf_global_exchange, basf_global_records=args.basf_global_records, basf_amount_holder=args.basf_amount_holder, commands=commands, wall_seconds=time.monotonic()-started,
+        plan=('docs/plans/prospectus-basf-amount-holder-execution-2026-10-10.md' if args.basf_amount_holder else
+              'docs/plans/prospectus-basf-global-records-2026-10-10.md' if args.basf_global_records else
               'docs/plans/prospectus-basf-global-exchange-2026-10-10.md' if args.basf_global_exchange else
               'docs/plans/prospectus-basf-agent-capacity-2026-10-10.md' if args.basf_capacity else
               'docs/plans/prospectus-basf-agent-notices-2026-10-10.md' if args.basf_agents else

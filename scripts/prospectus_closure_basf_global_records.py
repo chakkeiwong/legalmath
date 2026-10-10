@@ -28,7 +28,7 @@ def prepared_request(root, graph=None, packet=None):
     return basf_global_records.prepare(graph, construction, assembly, request, packet)
 
 
-def check_report(report, request, packet, *, exchange_packet=None, exchange_check=None, **prior_checks):
+def check_report(report, request, packet, *, exchange_packet=None, exchange_check=None, ngn_reference=None, **prior_checks):
     if exchange_check is None:
         from scripts.prospectus_closure_basf_global_exchange import check_report as exchange_check
     from legalmath.prospectus.successor import basf_global_records
@@ -36,7 +36,7 @@ def check_report(report, request, packet, *, exchange_packet=None, exchange_chec
     if exchange_packet is None:
         exchange_packet = read(ROOT / 'docs/implementation/prospectus-integration-closure/basf-global-exchange/review.json')
     outcome = exchange_check(report, request, exchange_packet, **prior_checks)
-    return {**outcome, 'global_records': basf_global_records.check_meanings(report, request, packet)}
+    return {**outcome, 'global_records': basf_global_records.check_meanings(report, request, packet, ngn_reference=ngn_reference)}
 
 
 def main():

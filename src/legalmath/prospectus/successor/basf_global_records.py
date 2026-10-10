@@ -162,7 +162,7 @@ def prepare(graph, construction, assembly, request, packet):
     return result
 
 
-def check_meanings(report, request, packet):
+def check_meanings(report, request, packet, *, ngn_reference=None):
     actual = [node for node in report['clause_graph']['nodes'] if node['id'] in PARAGRAPHS]
     requested = [node for node in request['clauses'] if node['id'] in PARAGRAPHS]
     if (actual != packet['clauses'] or requested != packet['clauses'] or
@@ -173,8 +173,12 @@ def check_meanings(report, request, packet):
             digest(request['reference_admission']['references']) != packet['prior_references_sha256']):
         raise ValueError('Prior BASF readings or references changed downstream')
     incoming = [row for row in report['dependencies'] if row['id'].startswith(INCOMING_REFERENCE + '@')]
-    if not incoming or any(row['status'] != 'UNRESOLVED' for row in incoming):
-        raise ValueError('Unreviewed incoming NGN reference must remain unresolved')
+    if ngn_reference is None:
+        if not incoming or any(row['status'] != 'UNRESOLVED' for row in incoming):
+            raise ValueError('Unreviewed incoming NGN reference must remain unresolved')
+    else:
+        from .basf_amount_holder import check_ngn_reference
+        check_ngn_reference(report, ngn_reference, request['reference_admission']['review'])
     if report.get('independent_legal_acceptance') is not False:
         raise ValueError('Records development review cannot establish independent acceptance')
     return {'paragraphs': list(PARAGRAPHS), 'meanings_sha256': digest(actual),
@@ -182,7 +186,8 @@ def check_meanings(report, request, packet):
             'prior_meanings_sha256': packet['prior_clauses_sha256'],
             'actual_balances_events_and_compliance': 'NOT_EVALUATED',
             'redemption_reduction_wording': 'UNRESOLVED_BILINGUAL_DISCREPANCY',
-            'incoming_ngn_reference': 'UNRESOLVED', 'independent_holder_write_down': False}
+            'incoming_ngn_reference': 'UNRESOLVED' if ngn_reference is None else 'RESOLVED_UNDER_SUPPLIED_REVIEW',
+            'independent_holder_write_down': False}
 
 
 def omitted_clauses(assembly, request, identity):

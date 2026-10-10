@@ -1,3 +1,33 @@
+# Completed amount/holder validation, 10 October 2026
+
+Branch `feature/prospectus-evidence-master`, worktree `.worktrees/bond-gap-closure`,
+baseline `f47e62b9125a57157fd2c071ffa073cafbe14d11`. Twenty supplied BASF meanings and six references now
+survive the real service and all installed stages. Focused 60, consumer 001,
+installed 013 and aggregate 527 pass. The NGN incoming reference is resolved
+under supplied review; historical requests keep the unresolved default.
+All six scalar maps, construction, fifteen markers, 537 intervals and B54 remain.
+Q1/Q2 UNKNOWN, Q3 PARTIAL, ASSISTED; actual balance/ownership and independent
+acceptance are not established. Bilingual redemption wording remains open.
+
+Receipts R0/014, R1/012, R2/012, R3/010, R4/010, R5/010, R6/010, R7/010, R8/011 are current and valid engineering PASS. R4 passed
+314 checks in 2486.211 seconds. R8 equals final attribution. No validation
+remains active at this checkpoint. R1–R8 stay PARTIAL, with eight unfinished
+groups and `program_complete: false`. Do not repeat passing checks without
+changed inputs or an unresolved diagnostic. Full evidence is indexed in
+`basf-amount-holder/execution-manifest.json`; see its `RESULT.md`.
+
+Next source package: `docs/plans/prospectus-basf-status-pledge-2026-10-10.md`. Original 110–111 and final 2/7 have been inspected;
+its definition-dependency and excluded-guarantor checks were strengthened.
+An English comparison citation from the earlier records package used Option II;
+the retained correction confirms identical reduction words in the proper Option I.
+The next consumer must bind that corrected source and the selected option.
+A separate R5 diagnostic reproduced the original-month-day anchor inconsistency;
+G15 records the concrete repair following the status/pledge source package.
+Commit the completed comparator, record final admission, and continue execution
+without stopping for routine approval. Use the closure dispatcher, CPU mode
+and retained offline inputs. Do not run legal mission control or historical
+masters. Earlier sections below preserve historical checkpoints.
+
 # Completed global-records checkpoint, 10 October 2026
 
 Branch `feature/prospectus-evidence-master`, worktree `.worktrees/bond-gap-closure`,
