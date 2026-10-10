@@ -1,4 +1,25 @@
-# Integration closure result, 9 October 2026
+# Global-exchange continuation: engineering validation complete
+
+The real consumer and isolated installed CLI now retain complete temporary-global
+exchange/certification conditions and their imported United States definition,
+alongside all nine previous BASF readings. All 44 focused controls pass;
+consumer attempt 001 and installed attempt 011 pass. The 410-test aggregate
+passes. R0/012, R1–R2/010, R3–R7/008 and R8/009 are current, valid and
+completed engineering PASS receipts. R4 passed 197 controls in 1,182.707 seconds
+within its reviewed 1,600-second bound. R8 attribution equals the reviewed
+final attribution. See `basf-global-exchange/RESULT.md` for exact source
+scope, omission effects, timings and the retained test expectation failure.
+Actual tax eligibility, certificate validity and delivery are NOT_EVALUATED.
+Engineering preservation does not establish independent legal acceptance.
+R1–R8 remain PARTIAL, eight capability groups remain unfinished,
+`program_complete` is false and `next_command` is null because the implemented
+checks are current. The next reviewed design covers global-note form and ICSD
+records; it requires its own source admission. The final execution index is
+`basf-global-exchange/execution-manifest.json`. This continuation retains failed
+attempts and does not merge or push the branch.
+The previous completion records below describe their recorded checkpoints.
+
+# Historical integration closure checkpoints, 9–10 October 2026
 
 The 10 October capacity continuation passes the complete §6(3) contractual
 reading through P3 and the installed CLI, preserving all eight earlier readings
@@ -156,8 +177,8 @@ current result, execution and scalar-result notes; it did not rebuild that PDF.
 
 Execution manifests retain baseline commit, method identities, actual commands,
 environments, CPU mode, source/model hashes, wall time and output paths. The
-working tree is still on `feature/prospectus-evidence-master`; this execution
-has not committed, merged or pushed the changes. The closure controller's final
+working tree was on `feature/prospectus-evidence-master`; that historical execution
+had not yet committed, merged or pushed the changes. The closure controller's then-final
 receipts report current implemented checks separately from incomplete
 capabilities. The final refresh validates R0/008, R1-R2/006, R3-R7/004 and
 R8/005 as current, valid, completed engineering PASS receipts. R0's primary

@@ -1,5 +1,9 @@
 # Closure execution review and record
 
+The latest global-exchange continuation is recorded at the end of this file.
+Earlier dated sections retain their historical commands, results and next-step
+decisions; they are not instructions to rerun those completed checkpoints.
+
 ## BASF agent-change continuation, 10 October 2026
 
 The original-page and code trace corrected three flaws before successful
@@ -709,3 +713,70 @@ interpretation rather than counting these checks as legal acceptance. No
 source, helper, test or bound plan changed after the new phase receipts. Result
 and restart notes are updated; the earlier LaTeX checkpoint remains historical.
 No commit, merge or push was performed in this increment.
+
+
+## Global-exchange continuation, 10 October 2026
+
+Baseline `45e3614d1`; closure preflight/status and predecessor manifests passed.
+Original base pages 108/124 and final-term pages 3/7 were inspected. The plan
+was corrected before implementation to distinguish semantic omission (unknown
+meaning) from governing-source loss (invalid admission). Complete exchange and
+geography readings preserve all nine earlier meanings and the five references.
+
+Pre-run test manifests are retained by `basf-global-exchange/run-check.py`.
+Focused attempt 001 passed 43 controls and failed one expected-error assertion:
+the service rejected earlier at clause admission. The reviewed test-only repair
+checks both rejection paths. Attempt 002 passed 44 controls in 337.50 seconds.
+The actual command uses the closure `check` dispatcher on the dedicated test
+file under a 600-second subprocess bound; exact argv and methods are retained.
+
+`CUDA_VISIBLE_DEVICES=-1 timeout 600 .venv/bin/python -m scripts.prospectus_closure_basf_global_exchange`
+passed at consumer attempt 001 in 297.463 seconds, with 10,073,648 payload bytes.
+Each meaning has an exact matched omission: 1,115 exchange/certification and 279
+geography nonspace characters, with prior/other meanings and outside unknown
+coverage equal. Construction, scalar maps, references and unresolved authority
+remain fixed.
+
+`CUDA_VISIBLE_DEVICES=-1 .venv/bin/python -m scripts.prospectus_closure_install application --basf-global-exchange`
+passed at installed attempt 011 in 327.336 seconds. All nine CLI cases pass
+fresh, relocated and offline-restored; all eleven BASF meanings and complete
+question identities agree. Payload 135,862,446 bytes passes the 200-MB limit.
+
+Measured costs justified predeclared aggregate/R4 bounds of 1,700/1,600 seconds.
+Aggregate successor-010 passed as recorded below. Attribution was updated only for the
+inspected changed controller and new result evidence; historical evidence stays
+unchanged. Remaining broad capability and independent acceptance are explicit.
+
+Aggregate successor-010 passed 410 tests in 1,303.62 seconds (1,303.948
+seconds in the enclosing runner), with zero failures/errors/skips and unchanged
+pre-run method hashes. The resumed finalization audit is retained in
+`basf-global-exchange/FINALIZATION-REVIEW.md`. R4/008 completed within its
+pre-reviewed 1,600-second limit. R5–R8 then executed sequentially using
+`.venv/bin/python -m scripts.prospectus_delivery --program closure phase --phase Rn`.
+The same interpreter ran the final `refresh` and `status` commands.
+
+| Phase | Global-exchange attempt | Checks passed | Wall seconds | Primary criterion |
+|---|---|---|---|---|
+| R0 | 012 | 8 | 0.413 | PASS |
+| R1 | 010 | 17 | 0.371 | PARTIAL |
+| R2 | 010 | 3 | 0.336 | PARTIAL |
+| R3 | 008 | 5 | 0.370 | PARTIAL |
+| R4 | 008 | 197 | 1,182.707 | PARTIAL |
+| R5 | 008 | 6 | 0.289 | PARTIAL |
+| R6 | 008 | 10 | 6.320 | PARTIAL |
+| R7 | 008 | 11 | 0.300 | PARTIAL |
+| R8 | 009 | 2 | 0.241 | PARTIAL |
+
+All nine receipts are current, valid, completed and engineering PASS, with zero
+failures/errors/skips. R8 attribution equals the reviewed final attribution.
+R1–R8 remain PARTIAL, eight capability groups remain unfinished and external
+acceptance is NOT_ESTABLISHED. The controller retains `program_complete: false`
+and `next_command: null`. These counts do not replace legal closing criteria.
+
+The final execution index is `basf-global-exchange/execution-manifest.json`;
+it retains successful method/source/result identities, the assertion failure,
+actual commands, CPU/runtime, limits, wall times and the six consumer/73
+installed manifest-file checks. The next reviewed design is global-note form
+and ICSD records, not yet admitted or implemented. The result/reset notes and
+next program are finalized for the authorized continuation commit. The earlier
+LaTeX checkpoint remains unchanged; no merge or push is part of this increment.

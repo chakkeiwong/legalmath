@@ -1,7 +1,6 @@
 # Next BASF package: temporary-global exchange and imported geography
 
-Status: source boundary reviewed, implementation not started. Execute after
-the capacity package's refreshed phase receipts are current and valid.
+Status: admitted for bounded implementation after source and predecessor review.
 
 Question: can the selected service preserve the complete temporary-global
 exchange and certification conditions in §1(3)(b), together with the United
@@ -31,7 +30,7 @@ the complete branch selection and exact surviving output before authoring.
 | Diagnostic role | Required evidence |
 |---|---|
 | Primary pass | Complete qualified exchange/certification/delivery meanings and the imported definition reach P3 and the isolated installed CLI alongside all nine earlier readings |
-| Matched effect | Remove only each new paragraph meaning or governing target; only its exact supported meaning becomes unresolved and prior meanings remain equal |
+| Matched effect | Remove each new supplied paragraph meaning separately; exactly its characters return to unknown while prior and other new meanings stay equal. Removing a required governing target instead rejects admission under the existing service contract. |
 | Promotion veto | Lost exception, reversed 40-day comparison, omitted per-payment certification, absent delivery geography, merged person/geography definitions, inferred tax clearance, included New York/CDS branch or changed prior reading |
 | Continuation veto | Missing original source/image, changed unreviewed baseline/runtime, corrupt evidence, missing diagnostic or exceeded reviewed resource bound |
 | Repair trigger | Reproduced packet, source-map, composition or consumer defect; retain failure and make one discriminating repair before retrying |
@@ -71,3 +70,63 @@ is preserving a supplied legal mistake perfectly. Independent source review
 and actual law analysis remain separate acceptance requirements. A failed
 source mapping triggers repair of our implementation; a conditional or unknown
 legal result does not reject the package or this research direction.
+
+Pre-execution admission, 10 October: PASS after one correction to the omission
+criterion above. A missing operative reference target is an invalid admission,
+not a valid partially resolved interpretation; the existing service rejects it.
+Test that rejection separately from matched semantic omissions. Preflight and
+status verified R0/011, R1–R2/009, R3–R7/007 and R8/008 as current, valid PASS.
+The capacity consumer's six manifest files and installed attempt 010's 72 files
+replay against their hashes. Baseline commit is 45e3614d1. No package, PDF or
+runtime change is admitted. The prior aggregate XML hash is checked before use.
+
+Original images re-inspected: base pages 108/124 and final terms pages 3/7.
+Final terms select temporary-global exchange (TEFRA D), Euro, NGN, Clearstream
+Luxembourg/Euroclear and German controlling text; CDS and permanent-only form
+are unchecked. Retain exact anchors for those choices and the §1(3)(a) context
+(page 108 lines 49–58) without claiming that context has received a new complete
+semantic review. Two new supplied meanings cover §1(3)(b), lines 59–81, and the
+definition from character 8 of page 124 line 68 through line 71. Disposition of
+the whole line 68 must retain its preceding `wurden.` and the earlier meaning.
+The clause span itself starts with `Für die Zwecke`; it never overlaps §6(3).
+
+The smallest focused command is `timeout 600 .venv/bin/python -m
+scripts.prospectus_delivery --program closure check
+tests/prospectus_successor/test_closure_basf_global_exchange.py
+--junitxml=docs/implementation/prospectus-integration-closure/checks/basf-global-001.xml`.
+Then run `timeout 600 .venv/bin/python -m
+scripts.prospectus_closure_basf_global_exchange` and `.venv/bin/python -m
+scripts.prospectus_closure_install application --basf-global-exchange` (existing
+1,200-second installed bound, 200 MB evidence). All use CPU mode with
+CUDA_VISIBLE_DEVICES=-1. Record command, pre-run method hashes and result for
+each. Review aggregate and R4 budgets after the focused measurement, before
+dispatch. R0–R8 remain sequential because their receipts depend on one another.
+
+Audit risks: exact preservation can preserve an implementer mistranslation;
+constant-based mutation controls establish only admission of the supplied
+reading. No test total, source-map count or reduced unknown count is legal
+promotion. No certificate, owner status, actual exchange request or delivery
+event is supplied; the issue date in the bundle does not establish these facts.
+An admissible conditional source reading is the target, not U.S. tax clearance.
+Existing CPU/runtime and finite case selection are reviewed engineering
+baselines, with independent adjudication and broader family coverage pending.
+
+Focused attempt 001: 43 controls passed; the governing-target control failed
+only because it expected the reference error, while the new geography clause
+caused the earlier operative-source check to reject first. This is a test
+expectation defect, not unsupported-source acceptance. Retain the XML/log and
+pre-run manifest. The bounded repair now checks that first rejection exactly,
+then omits only the unsupported geography meaning to reach and verify the
+reference rejection separately. Prior meanings stay equal in that control.
+No service or source interpretation is changed by the repair.
+
+Budget review after measurement: focused attempt 001 took 309.193 seconds.
+The previous aggregate took 945.14 seconds and R4 took 902.55 seconds. The new
+suite adds two semantic omissions, source mutations and the repaired reference
+check; allow 1,700 seconds for the aggregate and 1,600 for R4, approximately
+one third above the sums. This is scheduling headroom, not evidence of speed or
+legal promotion. Focused/consumer limits stay 600 seconds. These limits are
+recorded before the repaired suite, aggregate and refreshed phases. Test runs
+use retained `basf-global-exchange/run-check.py`, which enforces the bound and
+records identities before starting; it invokes the planned closure check argv
+directly through subprocess rather than the equivalent shell timeout wrapper.

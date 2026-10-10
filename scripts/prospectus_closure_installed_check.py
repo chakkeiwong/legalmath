@@ -57,7 +57,15 @@ def main():
             raise RuntimeError('Installed CLI case failed: '+name)
         report = read(folder/'cli-report.json')
         if name=='basf':
-            if (folder/'capacity-review.json').is_file():
+            if (folder/'global-review.json').is_file():
+                global_check = runpy.run_path(str(fixture_file.with_name('basf_global_consumer.py')))['check_report']
+                capacity_check = runpy.run_path(str(fixture_file.with_name('basf_capacity_consumer.py')))['check_report']
+                agent_check = runpy.run_path(str(fixture_file.with_name('basf_agents_consumer.py')))['check_report']
+                outcome = global_check(report, request, read(folder/'global-review.json'),
+                                       capacity_check=capacity_check, capacity_packet=read(folder/'capacity-review.json'),
+                                       scalar_check=basf_check, notice_packet=read(folder/'notice-review.json'),
+                                       agent_packet=read(folder/'agent-review.json'), agent_check=agent_check)
+            elif (folder/'capacity-review.json').is_file():
                 capacity_check = runpy.run_path(str(fixture_file.with_name('basf_capacity_consumer.py')))['check_report']
                 agent_check = runpy.run_path(str(fixture_file.with_name('basf_agents_consumer.py')))['check_report']
                 outcome = capacity_check(report, request, read(folder/'capacity-review.json'),
@@ -89,6 +97,8 @@ def main():
                 questions[name]['agent_meanings'] = outcome['agents']
             if 'capacity' in outcome:
                 questions[name]['capacity_meaning'] = outcome['capacity']
+            if 'global_exchange' in outcome:
+                questions[name]['global_exchange_meanings'] = outcome['global_exchange']
             continue
         p1 = service.source_product(request, folder)
         p2 = service.construction_product(p1, folder)

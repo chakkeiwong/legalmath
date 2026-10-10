@@ -1,6 +1,50 @@
-# Integration closure restart
+# Current restart: global-exchange continuation, 10 October 2026
 
-## Capacity checkpoint — 10 October 2026
+Branch: `feature/prospectus-evidence-master`, worktree
+`/home/chakwong/python/legalmath/.worktrees/bond-gap-closure`.
+Baseline commit: `45e3614d1`. The source packet and dedicated admission/consumer
+are implemented. Focused `basf-global-002.xml` passes 44 controls; consumer
+`basf-global-exchange/attempt-001` and installed `attempt-011` pass. Two new
+readings join all nine earlier readings. Omission effects are 1,115 and 279
+nonspace characters with the other meanings unchanged. Five references, six
+scalar mappings, frozen construction, B54, fifteen markers and 537 intervals
+are preserved. Q1/Q2 UNKNOWN, Q3 PARTIAL, ASSISTED; no legal acceptance.
+
+**Validation complete:** aggregate `checks/successor-010.xml` passed 410 tests in 1,303.62
+seconds with zero failures/errors/skips; its pre-run method hashes stayed equal.
+R0/012, R1–R2/010, R3–R7/008 and R8/009 are current, valid and completed
+engineering PASS receipts. R4 passed 197 controls in 1,182.707 seconds within
+its 1,600-second bound. R8 attribution equals the reviewed final attribution.
+No validation command remains active. Result, restart, next-program and final
+execution-index records are finalized. R1–R8 remain PARTIAL; eight capability
+groups remain unfinished, independent acceptance is NOT_ESTABLISHED and
+`program_complete` is false. `next_command` is null because implemented checks
+are current. Inspect status before admitting the next substantive package;
+do not rerun these checks merely because the program is partial.
+
+The first focused attempt is retained: P3 correctly rejected an unsupported
+geography source before the reference check, so a too-specific expected-error
+assertion failed. Both paths pass after the documented test-only repair. It is
+our test expectation defect, not package or substantive-law rejection.
+
+Use the prospectus closure dispatcher only, CPU mode
+`CUDA_VISIBLE_DEVICES=-1`, existing offline wheels and existing source files.
+Do not run the separate legal mission controller or historical prospectus
+masters. Completed executable plan:
+`docs/plans/prospectus-basf-global-exchange-2026-10-10.md`.
+Next reviewed design (not admitted):
+`docs/plans/prospectus-basf-global-records-2026-10-10.md`.
+It covers §1(3)(a) global-note form and §1(4) selected ICSD records/partial
+exchange. Review page 110 and exact surviving construction before admission.
+Final evidence index: `basf-global-exchange/execution-manifest.json`.
+Commit message for this checkpoint: `Preserve BASF temporary-global exchange
+and imported geography through installed consumers`. Git history supplies the
+resulting commit identity; no merge or push is part of this continuation.
+The older checkpoint notes below remain historical evidence.
+
+# Historical integration closure restart checkpoints
+
+## Historical capacity checkpoint — 10 October 2026
 
 The prior integration work was committed as `74631d62f` on
 `feature/prospectus-evidence-master` in `.worktrees/bond-gap-closure`.

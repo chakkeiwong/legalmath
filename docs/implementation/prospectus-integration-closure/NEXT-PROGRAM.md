@@ -1,4 +1,24 @@
-# Remaining work after the 10 October capacity continuation
+# Next work after the global-exchange continuation
+
+The global-exchange continuation is complete under its bounded engineering
+plan. Its 44 focused controls, 410-test aggregate, consumer 001 and installed
+attempt 011 pass; eleven supplied meanings and five references are preserved.
+R0/012, R1–R2/010, R3–R7/008 and R8/009 are current, valid and completed
+engineering PASS receipts. R4 passed 197 controls in 1,182.707 seconds.
+No validation remains active. R1–R8 stay PARTIAL, eight capability groups remain
+unfinished and independent legal acceptance is NOT_ESTABLISHED. Do not repeat
+the passing checks without changed inputs or an unresolved diagnostic.
+
+The next substantive design is
+`docs/plans/prospectus-basf-global-records-2026-10-10.md`: §1(3)(a)'s global-note
+form and §1(4)'s selected ICSD custody, records and partial-exchange duties.
+Original pages 108/109 and final terms page 3 were inspected for that design;
+review page 110 and exact surviving construction before admission. Preserve
+all eleven meanings, B54 and the original unresolved obligations. No actual
+account balance, payment, cancellation or tax eligibility may be inferred.
+The broader residual program and historical checkpoints follow.
+
+# Historical checkpoints — superseded by the global-exchange continuation
 
 The §6(3) capacity package is implemented. Consumer
 `basf-agent-capacity/attempt-001`, 39 focused tests, the 366-test aggregate and
@@ -21,7 +41,7 @@ seconds within its reviewed 1,200-second bound. The refresh has no stale
 implemented command to dispatch; eight capability groups remain unfinished.
 Do not rerun these checks merely because the program remains partial.
 
-Current substantive checkpoint: `basf-agent-notices/attempt-003` preserves
+The historical agent-change checkpoint `basf-agent-notices/attempt-003` preserves
 four agent readings alongside the four prior notice readings. The new §6(2)
 link gives five total references. Thirty-three focused tests pass. The exact
 new omission effect is 961 nonspace characters, with prior notice meaning and
@@ -107,9 +127,9 @@ design before any comparative claim.
 The existing executable repair entry point is:
 
 ```text
-python3 -m scripts.prospectus_delivery --program closure preflight
-python3 -m scripts.prospectus_delivery --program closure status
-python3 -m scripts.prospectus_delivery --program closure refresh
+.venv/bin/python -m scripts.prospectus_delivery --program closure preflight
+.venv/bin/python -m scripts.prospectus_delivery --program closure status
+.venv/bin/python -m scripts.prospectus_delivery --program closure refresh
 ```
 
 Implement/admit the named repair, then dispatch only stale affected phases with
@@ -122,10 +142,10 @@ does not manufacture missing meanings or run historical master programs.
 Restoration commands are executable and write new immutable attempts:
 
 ```text
-python3 -m scripts.prospectus_closure_install application
-python3 -m scripts.prospectus_closure_install optional
-python3 -m scripts.prospectus_closure_layout_restore
-python3 -m scripts.prospectus_closure_authoring_restore
+.venv/bin/python -m scripts.prospectus_closure_install application
+.venv/bin/python -m scripts.prospectus_closure_install optional
+.venv/bin/python -m scripts.prospectus_closure_layout_restore
+.venv/bin/python -m scripts.prospectus_closure_authoring_restore
 ```
 
 The last command starts only isolated loopback services, then stops them. It
