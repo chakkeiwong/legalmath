@@ -3,11 +3,11 @@ from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 from datetime import date
 import re
-from calendar import monthrange
 from .anchors import fields, bind
 from .contracts import digest
 from .occurrences import uses
 from .admissions import review
+from .coupon_dates import anchored_date, lattice_index
 
 REQUIRED = {"currency", "annual_rate", "day_count", "frequency", "eom", "adjustment", "rounding"}
 EXTENDED = {'issue_principal','calculation_amount','fixed_coupon_amount','accrual_start','accrual_end',
@@ -17,10 +17,13 @@ EXTENDED = {'issue_principal','calculation_amount','fixed_coupon_amount','accrua
 def admit(graph, assembly, packet):
     fields(packet, {"version", "assembly_sha256", "review", "terms"},
            {"version", "assembly_sha256", "review", "terms"})
-    if packet["version"] not in {"selected-coupon-terms.v1","selected-coupon-terms.v2"} or packet["assembly_sha256"] != digest(assembly):
+    versions = {'selected-coupon-terms.v1':REQUIRED,
+                'selected-coupon-terms.v2':REQUIRED | EXTENDED,
+                'selected-coupon-terms.v3':REQUIRED | EXTENDED | {'coupon_anchor'}}
+    if packet["version"] not in versions or packet["assembly_sha256"] != digest(assembly):
         raise ValueError("Contract term assembly changed")
     review(packet["review"])
-    if set(packet["terms"]) != REQUIRED | (EXTENDED if packet['version'].endswith('v2') else set()):
+    if set(packet["terms"]) != versions[packet['version']]:
         raise ValueError("Complete named coupon term set required")
     terms = {}
     for name, row in packet["terms"].items():
@@ -68,7 +71,7 @@ def admit(graph, assembly, packet):
             elif rule == 'english-date':
                 months='January February March April May June July August September October November December'.split()
                 tokens=text.split()
-                if name not in {'accrual_start','accrual_end','due_date','maturity_date'} or len(tokens)!=3 or tokens[1] not in months or date(int(tokens[2]),months.index(tokens[1])+1,int(tokens[0])).isoformat()!=row['value']:
+                if name not in {'accrual_start','accrual_end','due_date','maturity_date','coupon_anchor'} or len(tokens)!=3 or tokens[1] not in months or date(int(tokens[2]),months.index(tokens[1])+1,int(tokens[0])).isoformat()!=row['value']:
                     raise ValueError('Date differs from selected quotation')
             elif rule == 'annual':
                 if name != 'frequency' or type(row['value']) is not int or row['value']!=1 or text!='in each year':
@@ -87,8 +90,11 @@ def admit(graph, assembly, packet):
             raise ValueError('Amount terms require deterministic amount translation')
         if name in {'accrual_start', 'accrual_end', 'due_date', 'maturity_date'} and rule not in {'english-date', 'first-annual-date'}:
             raise ValueError('Date terms require deterministic date translation')
+        if name == 'coupon_anchor' and rule != 'english-date':
+            raise ValueError('Coupon anchor requires deterministic English date translation')
         terms[name] = {**row, "selected_use": matches[0]}
-    return {"version": "admitted-coupon-terms.v1", "assembly_sha256": digest(assembly),
+    return {"version": ('admitted-coupon-terms.v2' if packet['version']=='selected-coupon-terms.v3' else 'admitted-coupon-terms.v1'),
+            "assembly_sha256": digest(assembly),
             "graph_sha256": digest(graph), "terms": terms, "review": packet["review"],
             "qualification": "CONDITIONAL_ON_SUPPLIED_CONVENTION_INTERPRETATIONS"}
 
@@ -100,6 +106,9 @@ def scenario(admitted, calculation, graph, assembly):
             admitted["assembly_sha256"] != digest(assembly) or admitted["graph_sha256"] != digest(graph)):
         raise ValueError("Selected contract terms or calculation binding changed")
     value = deepcopy(calculation["premises"])
+    profiles = {'admitted-coupon-terms.v1':'fixed-coupon.v1', 'admitted-coupon-terms.v2':'fixed-coupon.v2'}
+    if admitted.get('version') not in profiles or value.get('profile') != profiles[admitted['version']]:
+        raise ValueError('Selected term version requires its matching calculation profile')
     if set(admitted['terms']) & set(value):
         raise ValueError("Calculation premises cannot replace selected contract terms")
     if value.get("premise_kind") != "HYPOTHETICAL":
@@ -118,7 +127,8 @@ def scenario(admitted, calculation, graph, assembly):
         if principal <= 0 or sum(Fraction(h['principal']) for h in value['holdings']) > principal:
             raise ValueError('Holdings exceed admitted issue principal')
         schedule=regular_schedule(value['accrual_start'],value['accrual_end'],
-            admitted['terms']['maturity_date']['value'],value['frequency'],value['eom'],value['stub'])
+            admitted['terms']['maturity_date']['value'],value['frequency'],value['eom'],value['stub'],
+            coupon_anchor=value.get('coupon_anchor'))
         if value['due_date'] != value['accrual_end']:
             raise ValueError('Declared regular coupon date differs from admitted period')
     return {"calculation": output, "selected_terms_sha256": digest(admitted),
@@ -127,15 +137,14 @@ def scenario(admitted, calculation, graph, assembly):
             "full_settlement_supported": False}
 
 
-def regular_schedule(start, first, maturity, frequency, eom, stub):
+def regular_schedule(start, first, maturity, frequency, eom, stub, coupon_anchor=None):
     if stub != 'REGULAR' or type(frequency) is not int or frequency not in {1,2,3,4,6,12} or type(eom) is not bool:
         raise ValueError('Regular schedule requires explicit frequency/EOM and no stub')
     initial, finish = date.fromisoformat(start),date.fromisoformat(maturity)
+    anchor = initial.isoformat() if coupon_anchor is None else coupon_anchor
+    initial_index = 0 if coupon_anchor is None else lattice_index(start, anchor, frequency, eom)
     def advance(n):
-        index=initial.year*12+initial.month-1+n*(12//frequency)
-        year,month=divmod(index,12);month+=1
-        day=monthrange(year,month)[1] if eom and initial.day==monthrange(initial.year,initial.month)[1] else min(initial.day,monthrange(year,month)[1])
-        return date(year,month,day)
+        return anchored_date(anchor, (initial_index+n)*(12//frequency), eom)
     if advance(1).isoformat()!=first:
         raise ValueError('First coupon requires an undeclared stub or date convention')
     dates=[]

@@ -24,7 +24,11 @@ def main():
     basf_check = runpy.run_path(str(fixture_file.with_name('basf_consumer.py')))['check_report']
     existing = '--existing' in sys.argv
     questions = {}
-    for name in ('repayment', 'exception', 'coupon', 'full_coupon', 'cross_document', 'ast_reference', 'large_z3', 'compass', 'basf'):
+    anchor_controls = {}
+    names = ('repayment', 'exception', 'coupon', 'full_coupon', 'cross_document', 'ast_reference', 'large_z3', 'compass', 'basf')
+    if '--coupon-anchor' in sys.argv:
+        names += ('anchored_direct','anchored_selected')
+    for name in names:
         folder = case_root/name
         if not existing:
             folder.mkdir(parents=True,exist_ok=name in {'compass','basf'})
@@ -39,7 +43,8 @@ def main():
                 request = read(folder/'request.json')
             else:
                 builder = {'full_coupon':'full_term_fixture','cross_document':'cross_document_fixture',
-                           'ast_reference':'ast_reference_fixture','large_z3':'large_z3_fixture'}[name]
+                           'ast_reference':'ast_reference_fixture','large_z3':'large_z3_fixture',
+                           'anchored_direct':'anchored_direct_fixture','anchored_selected':'anchored_selected_fixture'}[name]
                 request = fixtures[builder](folder)
                 if name == 'cross_document':
                     request['observations'] = {'exempt':True}
@@ -154,6 +159,48 @@ def main():
             value = report['questions']['Q5']['value']
             if value['regular_due_dates'] != ['2025-01-01','2026-01-01'] or value['calculation']['transfers'][0]['amount'] != '501/50':
                 raise ValueError('Installed calculation-amount coupon/schedule differs')
+        if name in {'anchored_direct','anchored_selected'}:
+            selected = name == 'anchored_selected'
+            answer = report['questions']['Q5']
+            value = answer['value']
+            calculation = value['calculation'] if selected else value
+            if (answer['status'] != 'CONDITIONAL' or calculation['profile'] != 'fixed-coupon.v2' or
+                    calculation['coupon_anchor'] != '2023-08-30' or calculation['day_fraction'] != '1/2' or
+                    calculation['payment_date'] != '2024-08-30' or
+                    [p['amount'] for p in calculation['transfers']] != ['5','5/2'] or
+                    calculation['source_evidence']['coupon_anchor']['source']['quote'] != '30 August 2023' or
+                    calculation['actual_event'] != 'NOT_ESTABLISHED' or calculation['full_settlement_supported']):
+                raise ValueError('Installed anchored coupon differs from independent expected dates, fractions or source')
+            if selected and (value['regular_due_dates'] != ['2024-08-30','2025-02-28','2025-08-30'] or
+                    value['contract_terms']['version'] != 'admitted-coupon-terms.v2' or
+                    value['contract_terms']['terms']['coupon_anchor']['value'] != '2023-08-30'):
+                raise ValueError('Installed selected coupon lost its original anchor or schedule')
+            controls = {}
+            for mutation in ('missing','changed','source') + (('override',) if selected else ()):
+                changed = deepcopy(request)
+                if selected:
+                    terms = changed['term_interpretations']['terms']
+                    if mutation == 'missing': terms.pop('coupon_anchor')
+                    elif mutation == 'changed': terms['coupon_anchor']['value'] = '2023-08-29'
+                    elif mutation == 'source': terms['coupon_anchor']['source']['quote'] = '29 August 2023'
+                    else: changed['contract_calculation']['premises']['coupon_anchor'] = '2023-08-30'
+                else:
+                    scenario = changed['financial_scenario']
+                    if mutation == 'missing': scenario.pop('coupon_anchor')
+                    elif mutation == 'changed': scenario['coupon_anchor'] = '2023-08-29'
+                    else: scenario['evidence']['coupon_anchor']['source']['quote'] = '29 August 2023'
+                try:
+                    rejected = service.assess(changed,folder)['questions']['Q5']
+                except ValueError as exc:
+                    if not selected:
+                        raise
+                    controls[mutation] = {'status':'REJECTED','reason':str(exc)}
+                else:
+                    if selected or rejected['status'] != 'UNSUPPORTED':
+                        raise ValueError('Installed service accepted an unbound coupon anchor: '+mutation)
+                    controls[mutation] = rejected
+            write(folder/'anchor-controls.json',controls)
+            anchor_controls[name] = controls
         if name == 'ast_reference' and (not report['dependencies'] or any(d['status']!='RESOLVED' for d in report['dependencies'])):
             raise ValueError('Installed AST reference mapping failed')
         if name == 'large_z3' and (report['questions']['Q4']['status'] != 'YES' or
@@ -178,7 +225,7 @@ def main():
         finally:
             source.write_bytes(original)
         questions[name] = report['questions']
-    write(result_path, {'questions':questions, 'module_path':legalmath.__file__, 'prefix':sys.prefix,
+    write(result_path, {'questions':questions, 'anchor_controls':anchor_controls, 'module_path':legalmath.__file__, 'prefix':sys.prefix,
         'sys_path':sys.path, 'real_instrument':'Compass conditional first coupon and BASF reviewed scalar occurrences/references; full contracts partial', 'independent_review':False})
 
 

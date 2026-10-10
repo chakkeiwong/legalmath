@@ -1,3 +1,13 @@
+# Completed original coupon-anchor execution, 10 October 2026
+
+Baseline commit `e814e99ad6db96e9530bdb318a3c630d36c85fdb` was admitted
+against the protected candidate. `coupon-anchor/validation-001/` retains the
+actual commands, method hashes, CPU environment, bounds, 658-node coverage and
+R0–R8 phase results. Focused 64, real consumer, installed attempt 015 and
+partitioned remaining 155 passed; R4 took 2,902.244 seconds for 386 checks.
+The result and its limits are in `coupon-anchor/RESULT.md`. The next reviewed
+execution is the worker-recovery plan after this checkpoint is committed.
+
 # Completed status/negative-pledge validation, 10 October 2026
 
 Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,

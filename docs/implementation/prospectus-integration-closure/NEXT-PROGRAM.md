@@ -1,3 +1,22 @@
+# Completed coupon-anchor repair; next worker recovery, 10 October 2026
+
+The explicit source-bound 30 August anchor now survives both direct and
+selected coupon routes through the real consumer and installed CLI. The
+30 August/29 February/30 August lattice and ICMA validator agree at exact
+fractions `1/2` and `1`; historical v1 behavior is preserved. Focused 64,
+consumer 001, installed 015 with 11 matching cases, and exact partitioned
+coverage of 658 unique tests pass. Current receipts are R0/016, R1/014,
+R2/014, R3/012, R4/012, R5/012, R6/012, R7/012, R8/013. The result and
+limits are in `coupon-anchor/RESULT.md`; this is engineering validation of
+synthetic conditional inputs, not real entitlement or legal acceptance.
+
+Next admit `docs/plans/prospectus-worker-recovery-2026-10-10.md` against the
+committed coupon comparator. First test the suspected OCR-model symlink escape
+without launching OCR, then execute bounded extraction/annotation recovery and
+native-read controls. Do not rerun passing coupon or BASF checks without a
+changed input or diagnosed failure. A second host and qualified legal readers
+remain external dependencies; local R6 work can continue now.
+
 # Completed status/negative-pledge validation, 10 October 2026
 
 Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,

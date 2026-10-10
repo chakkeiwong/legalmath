@@ -139,6 +139,69 @@ def full_term_fixture(tmp_path):
     return req
 
 
+def anchored_coupon_fixture(tmp_path, *, selected):
+    """Explicit synthetic 30-August anchor; February is a temporary clamp."""
+    from legalmath.prospectus.successor import contract_terms
+    premise_dir = tmp_path/'premises'
+    premise_dir.mkdir()
+    _, scenario = coupon_scenario(premise_dir)
+    scenario.update(profile='fixed-coupon.v2',coupon_anchor='2023-08-30',
+        accrual_start='2024-02-29',accrual_end='2024-08-30',due_date='2024-08-30',
+        payment_date='2024-08-30',frequency=2,adjustment='UNADJUSTED',
+        references=[{'start':'2024-02-29','end':'2024-08-30'}],
+        calculation_amount='100.1',fixed_coupon_amount='2.50')
+    scenario['calendar'].update(valid_from='2023-01-01',valid_until='2026-01-01',holidays=[])
+    scenario['rounding']['aggregation']='PER_CALCULATION_AMOUNT'
+    scenario['event_scope']['record']='NOT_APPLICABLE'
+    scenario['events']=[
+        {'id':'start','kind':'accrual_start','at':'2024-02-29T00:00:00Z','order':0},
+        {'id':'end','kind':'accrual_end','at':'2024-08-30T00:00:00Z','order':0},
+        {'id':'det','kind':'determination','at':'2024-08-30T00:00:00Z','order':1},
+        {'id':'pay','kind':'payment','at':'2024-08-30T00:00:00Z','order':2}]
+    values={k:scenario[k] for k in contract_terms.REQUIRED | contract_terms.EXTENDED | {'coupon_anchor'} if k in scenario}
+    values.update(issue_principal='1000',maturity_date='2025-08-30')
+    quotes={'annual_rate':'5%','currency':'EUR','frequency':'2',
+        'issue_principal':'EUR 1,000','calculation_amount':'EUR 100.1','fixed_coupon_amount':'EUR 2.50',
+        'coupon_anchor':'30 August 2023','accrual_start':'29 February 2024',
+        'accrual_end':'30 August 2024','due_date':'30 August 2024','maturity_date':'30 August 2025'}
+    names=sorted(values)
+    req=request(tmp_path,[quotes.get(k,str(values[k])) for k in names]+['Explicit hypothetical calendar, holdings and event premises.'])
+    graph=source_graph.build(req['bundle'],tmp_path)
+    assembly=contract_assembly.assemble(graph,req['assembly'])
+    rules={'annual_rate':'percent','currency':'literal','frequency':'integer',
+        'issue_principal':'amount','calculation_amount':'amount','fixed_coupon_amount':'amount',
+        'coupon_anchor':'english-date','accrual_start':'english-date','accrual_end':'english-date',
+        'due_date':'english-date','maturity_date':'english-date'}
+    terms={k:{'value':values[k],'source':occurrences.anchor(u),'use':u['id'],
+        'rule':rules.get(k,'reviewed-convention'),'reason':'Explicit synthetic convention; not real instrument facts'}
+        for k,u in zip(names,graph['units'])}
+    scenario['source_sha256']=graph['documents'][0]['sha256']
+    scenario['evidence']={k:{'source':occurrences.anchor(graph['units'][-1]),
+        'reason':'Hypothetical synthetic premise; not actual events or entitlement'}
+        for k in set(scenario)-{'profile','issue_id','source_sha256','premise_kind','evidence'}}
+    scenario['evidence']['coupon_anchor']={'source':terms['coupon_anchor']['source'],
+        'reason':'Exact quoted original anchor date for the hypothetical date lattice'}
+    if selected:
+        packet={'version':'selected-coupon-terms.v3','assembly_sha256':digest(assembly),'review':REVIEW,'terms':terms}
+        for key in names:
+            scenario.pop(key,None)
+            scenario['evidence'].pop(key,None)
+        req['term_interpretations']=packet
+        req['contract_calculation']={'version':'selected-coupon-calculation.v1',
+            'terms_sha256':digest(contract_terms.admit(graph,assembly,packet)),'premises':scenario}
+    else:
+        req['financial_scenario']=scenario
+    return req
+
+
+def anchored_direct_fixture(tmp_path):
+    return anchored_coupon_fixture(tmp_path,selected=False)
+
+
+def anchored_selected_fixture(tmp_path):
+    return anchored_coupon_fixture(tmp_path,selected=True)
+
+
 def cross_document_fixture(tmp_path):
     req = request(tmp_path, [PREFIX + LOSS])
     path = tmp_path/'exception.txt'

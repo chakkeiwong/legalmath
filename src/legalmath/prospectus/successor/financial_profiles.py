@@ -112,7 +112,7 @@ def assess(bundle, scenario, graph=None):
         return QueryResult("Q5", "UNSUPPORTED", unresolved=["No complete named financial scenario supplied"],
                            value={"inventory": INVENTORY}).json()
     issue = bundle["instrument_id"]
-    if isinstance(scenario, dict) and scenario.get("profile") == "fixed-coupon.v1":
+    if isinstance(scenario, dict) and scenario.get("profile") in {'fixed-coupon.v1','fixed-coupon.v2'}:
         from .fixed_coupon import calculate
         try:
             if scenario.get("issue_id") != issue:

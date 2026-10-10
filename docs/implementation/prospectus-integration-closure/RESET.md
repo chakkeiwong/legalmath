@@ -1,3 +1,30 @@
+# Completed original coupon-anchor repair, 10 October 2026
+
+The status/negative-pledge package is committed as `e814e99ad6db96e9530bdb318a3c630d36c85fdb`; its final evidence
+index and all current engineering phase receipts were verified at admission.
+The reviewed coupon candidate was integrated under
+`docs/plans/prospectus-coupon-anchor-repair-2026-10-10.md`.
+See `coupon-anchor/execution-admission.json` for exact baseline and file hashes.
+Its preliminary isolated diagnostic passed 59 checks. Actual worktree focused
+validation passed 64, the real consumer passed and installed attempt 015 passed
+11 fresh, relocated and restored cases with equal full question identities.
+Exact partitioned regression covers all 658 frozen node identities with no
+missing or unexpected cases; the remaining group passed 155. R4 passed 386
+in 2,902.244 seconds. R0/016, R1/014, R2/014, R3/012, R4/012, R5/012,
+R6/012, R7/012 and R8/013 are current engineering PASS receipts. Read
+`coupon-anchor/RESULT.md` and `coupon-anchor/validation-001/` for the actual
+result, commands, hashes and scope. No coupon validation remains active.
+
+The new profile requires a source-bound original anchor and preserves its day
+through February. Both service routes and selected-term version pairing are
+included. Full selected contracts remain regular-only; direct stub arithmetic
+is hypothetical. No real entitlement or independent legal acceptance follows.
+R1–R8 remain substantively PARTIAL and `program_complete` is false. The next
+reviewed local work is `docs/plans/prospectus-worker-recovery-2026-10-10.md`:
+admit against the committed coupon comparator, reproduce the model-path
+boundary in an isolated fixture, then test full worker recovery and native
+reads. Continue through passing checks without routine approval.
+
 # Completed status/negative-pledge validation, 10 October 2026
 
 Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,

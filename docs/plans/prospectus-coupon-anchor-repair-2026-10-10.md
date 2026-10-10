@@ -1,4 +1,4 @@
-# Coupon anchor preservation: reviewed design pending execution admission
+# Coupon anchor preservation: admitted execution
 
 This follows the admitted status/negative-pledge package. It does not modify
 the active amount/holder method or authorize concurrent changes to it. Final
@@ -274,3 +274,28 @@ and plans before these runs; update only unbound actual-result records between
 phases. A tested phase is not repeated merely because another capability is
 partial. Skeptical scheduling audit: PASS for exact coverage plus current
 phase evidence, with process-grouping limitations explicitly retained.
+
+## Final execution admission
+
+The completed status/pledge comparator is committed as `e814e99ad6db96e9530bdb318a3c630d36c85fdb`. Its nine
+phase receipts are current, valid engineering PASS; consumer and installed
+manifests were freshly verified without rerunning their passing checks.
+The protected coupon candidate and its exact source snapshot match the
+admitted worktree. Integration copied precisely the nine reviewed files.
+`coupon-anchor/execution-admission.json` retains the predecessor receipts,
+candidate identities, actual baseline and scope.
+
+The isolated 59-control diagnostic is preliminary, historical evidence under
+its recorded plan. The later regression-scheduling revision changes execution
+grouping, not its tested implementation. Now verify the actual worktree with
+the new coupon file and the existing finance controls under 120 seconds,
+then run the installed application with `--basf-status-pledge --coupon-anchor`
+under the existing 1,200-second/200-MB limit. Complete the partitioned
+regression and serial phase refresh described above. Retain every actual
+result and stop only for the declared validity or resource vetoes.
+
+Skeptical admission audit: PASS. Original-anchor evidence, both service routes,
+profile pairing, actual date/classification boundaries, independent fractions,
+legacy restrictions and conditional entitlement are checked in the candidate.
+Worktree and installed execution remain required. Neither independent legal
+acceptance nor real-instrument convention support is inferred.

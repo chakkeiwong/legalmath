@@ -64,7 +64,7 @@ def successful_attempt(directory, required):
     return folder
 
 
-def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capacity=False, basf_global_exchange=False, basf_global_records=False, basf_amount_holder=False, basf_status_pledge=False):
+def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capacity=False, basf_global_exchange=False, basf_global_records=False, basf_amount_holder=False, basf_status_pledge=False, coupon_anchor=False):
     wheelhouse = RESOURCES / 'wheels'
     locks = folder / 'dependencies.lock'
     locks.write_text(wheel_lock(wheelhouse))
@@ -229,15 +229,16 @@ def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capa
         save(folder/'basf-inputs.json', {'request':str(request_path.relative_to(ROOT)),
              'request_sha256':sha(request_path), 'manifest_sha256':sha(basf_attempt/'manifest.json'),
              'files':{p:sha(ROOT/p) for p in sorted(inputs)}})
-        run('fresh-installed-assess', [runtime, '-I', str(check), str(fixture), str(base/'cases'), str(base/'results.json')], base)
+        check_flags = ['--coupon-anchor'] if coupon_anchor else []
+        run('fresh-installed-assess', [runtime, '-I', str(check), str(fixture), str(base/'cases'), str(base/'results.json'), *check_flags], base)
         result = json.loads((base/'results.json').read_text())
         shutil.copytree(base/'cases', folder/'cases')
         save(folder/'installed-results.json', result)
         moved = base/'relocated'
         shutil.move(str(base/'cases'), moved)
-        run('relocated-assess', [runtime, '-I', str(check), str(fixture), str(moved), str(base/'relocated-results.json'), '--existing'], base)
+        run('relocated-assess', [runtime, '-I', str(check), str(fixture), str(moved), str(base/'relocated-results.json'), '--existing', *check_flags], base)
         relocated = json.loads((base/'relocated-results.json').read_text())
-        if result['questions'] != relocated['questions']:
+        if result['questions'] != relocated['questions'] or result['anchor_controls'] != relocated['anchor_controls']:
             raise ValueError('Relocation changed the installed answers')
         save(folder/'relocated-results.json', relocated)
         # Delete only this action's newly created temporary venv. The wheelhouse
@@ -247,14 +248,15 @@ def application(folder, run, *, basf_notices=False, basf_agents=False, basf_capa
             raise ValueError('Restoration fixture did not remove its runtime')
         run('restore-missing-runtime', [sys.executable, '-m', 'venv', str(base/'runtime')], base)
         run('restore-locked-dependencies', install, base)
-        run('restored-assess', [runtime, '-I', str(check), str(fixture), str(moved), str(base/'restored-results.json'), '--existing'], base)
+        run('restored-assess', [runtime, '-I', str(check), str(fixture), str(moved), str(base/'restored-results.json'), '--existing', *check_flags], base)
         restored = json.loads((base/'restored-results.json').read_text())
-        if result['questions'] != restored['questions']:
+        if result['questions'] != restored['questions'] or result['anchor_controls'] != restored['anchor_controls']:
             raise ValueError('Restoration changed installed answers')
         save(folder/'restored-results.json', restored)
         return {'status': 'PASS', 'fresh_assess': True, 'relocation': True, 'missing_runtime_restored': True,
                 'lock_sha256': sha(complete_lock), 'question_payloads_equal': True,
-                'scope': 'Core service on nine development cases, including real BASF reviewed scalar occurrences/references and conditional Compass coupon; BASF CLI builds P1-P5 and preserves partial meaning. Optional package/OS restoration remains separate',
+                'scope': f'Core service on {len(result["questions"])} development cases, including real BASF reviewed scalar occurrences/references and conditional Compass coupon; BASF CLI builds P1-P5 and preserves partial meaning. Optional package/OS restoration remains separate',
+                'coupon_anchor': 'Direct and selected original-anchor fractions, schedules, sources and negative controls checked in all stages; synthetic premises and conditional entitlement' if coupon_anchor else 'NOT_REQUESTED',
                 'basf_notice_meanings': 'Four complete qualified readings checked through P3 in all stages' if basf_notices else 'NOT_REQUESTED',
                 'basf_agent_meanings': 'Four qualified agent readings, B54 unresolved, checked in all stages' if basf_agents else 'NOT_REQUESTED',
                 'basf_capacity_meaning': 'Complete contractual capacity checked in all stages; statutory duties not evaluated' if basf_capacity else 'NOT_REQUESTED',
@@ -312,6 +314,7 @@ def main():
     parser.add_argument('--basf-global-records', action='store_true', help='Also preserve BASF global-note form and ICSD recordkeeping readings')
     parser.add_argument('--basf-amount-holder', action='store_true', help='Also preserve BASF amount, bearer form, holder definition and complete NGN reference')
     parser.add_argument('--basf-status-pledge', action='store_true', help='Also preserve complete BASF status, issuer covenant, debt definition and corrected Option I comparison')
+    parser.add_argument('--coupon-anchor', action='store_true', help='Exercise direct and selected synthetic original-anchor coupon calculations')
     args = parser.parse_args()
     if args.basf_status_pledge:
         args.basf_amount_holder = True
@@ -327,6 +330,8 @@ def main():
         args.basf_notices = True
     if args.basf_notices and args.action != 'application':
         parser.error('--basf-notices requires application')
+    if args.coupon_anchor and args.action != 'application':
+        parser.error('--coupon-anchor requires application')
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     base = ROOT/'docs/implementation/prospectus-integration-closure/installed'
     folder = base / f'attempt-{len(list(base.glob("attempt-*")))+1:03d}'
@@ -341,7 +346,7 @@ def main():
                     ROOT/'scripts/prospectus_closure_basf_amount_holder.py', ROOT/'scripts/prospectus_closure_basf_status_pledge.py']
     initial_method = {str(p.relative_to(ROOT)):sha(p) for p in source_paths}
     save(folder/'started.json', {'action':args.action, 'basf_notices':args.basf_notices, 'basf_agents':args.basf_agents,
-         'basf_capacity':args.basf_capacity, 'basf_global_exchange':args.basf_global_exchange, 'basf_global_records':args.basf_global_records, 'basf_amount_holder':args.basf_amount_holder, 'basf_status_pledge':args.basf_status_pledge, 'method':initial_method, 'timeout_seconds':1200,
+         'basf_capacity':args.basf_capacity, 'basf_global_exchange':args.basf_global_exchange, 'basf_global_records':args.basf_global_records, 'basf_amount_holder':args.basf_amount_holder, 'basf_status_pledge':args.basf_status_pledge, 'coupon_anchor':args.coupon_anchor, 'method':initial_method, 'timeout_seconds':1200,
          'evidence_limit_bytes':200_000_000, 'metadata_reserve_bytes':1_048_576})
     env = {k:v for k,v in os.environ.items() if k not in {'PYTHONPATH', 'PYTHONHOME'}}
     env.update(CUDA_VISIBLE_DEVICES='-1', PYTHONNOUSERSITE='1', PIP_NO_INDEX='1', PIP_DISABLE_PIP_VERSION_CHECK='1')
@@ -358,7 +363,7 @@ def main():
             raise TimeoutError('Restoration exceeded 20-minute budget')
     try:
         result = application(folder, run, basf_notices=args.basf_notices, basf_agents=args.basf_agents,
-                             basf_capacity=args.basf_capacity, basf_global_exchange=args.basf_global_exchange, basf_global_records=args.basf_global_records, basf_amount_holder=args.basf_amount_holder, basf_status_pledge=args.basf_status_pledge) if args.action == 'application' else optional(folder, run)
+                             basf_capacity=args.basf_capacity, basf_global_exchange=args.basf_global_exchange, basf_global_records=args.basf_global_records, basf_amount_holder=args.basf_amount_holder, basf_status_pledge=args.basf_status_pledge, coupon_anchor=args.coupon_anchor) if args.action == 'application' else optional(folder, run)
         if initial_method != {str(p.relative_to(ROOT)):sha(p) for p in source_paths}:
             raise ValueError('Installation method changed during execution')
         result['evidence_payload_bytes'] = check_evidence_budget(folder)
@@ -367,8 +372,9 @@ def main():
     except Exception as exc:
         result = {'status':'FAIL', 'error':type(exc).__name__+': '+str(exc)}
     result.update(action=args.action, basf_notices=args.basf_notices, basf_agents=args.basf_agents,
-        basf_capacity=args.basf_capacity, basf_global_exchange=args.basf_global_exchange, basf_global_records=args.basf_global_records, basf_amount_holder=args.basf_amount_holder, basf_status_pledge=args.basf_status_pledge, commands=commands, wall_seconds=time.monotonic()-started,
-        plan=('docs/plans/prospectus-basf-status-pledge-execution-2026-10-10.md' if args.basf_status_pledge else
+        basf_capacity=args.basf_capacity, basf_global_exchange=args.basf_global_exchange, basf_global_records=args.basf_global_records, basf_amount_holder=args.basf_amount_holder, basf_status_pledge=args.basf_status_pledge, coupon_anchor=args.coupon_anchor, commands=commands, wall_seconds=time.monotonic()-started,
+        plan=('docs/plans/prospectus-coupon-anchor-repair-2026-10-10.md' if args.coupon_anchor else
+              'docs/plans/prospectus-basf-status-pledge-execution-2026-10-10.md' if args.basf_status_pledge else
               'docs/plans/prospectus-basf-amount-holder-execution-2026-10-10.md' if args.basf_amount_holder else
               'docs/plans/prospectus-basf-global-records-2026-10-10.md' if args.basf_global_records else
               'docs/plans/prospectus-basf-global-exchange-2026-10-10.md' if args.basf_global_exchange else

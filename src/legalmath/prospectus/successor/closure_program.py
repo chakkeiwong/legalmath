@@ -23,7 +23,7 @@ JOBS = {
     "R2": ("tests/prospectus_successor/test_integration_closure.py", "solver or z3"),
     "R3": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py", "layout or poppler or correction or corrected"),
     "R4": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_references.py tests/prospectus_successor/test_closure_reference_replacement.py tests/prospectus_successor/test_closure_basf.py tests/prospectus_successor/test_closure_basf_notices.py tests/prospectus_successor/test_closure_basf_agent_notices.py tests/prospectus_successor/test_closure_basf_agent_capacity.py tests/prospectus_successor/test_closure_basf_global_exchange.py tests/prospectus_successor/test_closure_basf_global_records.py tests/prospectus_successor/test_closure_basf_amount_holder.py tests/prospectus_successor/test_closure_basf_status_pledge.py", "annotation or authored or disposition or priority or corrected or reference or cross_document or basf"),
-    "R5": ("tests/prospectus_successor/test_closure_finance.py tests/prospectus_successor/test_closure_consumers.py", "finance or coupon or calculation or published or bearer or schedule or selected_full"),
+    "R5": ("tests/prospectus_successor/test_closure_finance.py tests/prospectus_successor/test_closure_coupon_anchor.py tests/prospectus_successor/test_closure_consumers.py", "finance or coupon or calculation or published or bearer or schedule or selected_full"),
     "R6": ("tests/prospectus_successor/test_closure_runtime.py tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_recovery.py", "runtime or current_consume or missing_poppler or real_executor"),
     "R7": ("tests/prospectus_successor/test_closure_reviews.py", None),
     "R8": ("tests/prospectus_successor/test_closure_attribution.py", None),
@@ -112,6 +112,8 @@ def bindings(root, phase):
                   root/'docs/plans/prospectus-basf-status-pledge-execution-2026-10-10.md', root/REL/'basf-status-pledge/review.json',
                   root/REL/'basf-status-pledge/SOURCE-REVIEW.md', root/REL/'basf-status-pledge/OPTION-COMPARISON-CORRECTION.md',
                   root/'scripts/author_basf_status_pledge_packet.py']
+    if phase == 'R5':
+        paths += [root/'docs/plans/prospectus-coupon-anchor-repair-2026-10-10.md']
     if phase == 'R8':
         paths += [root/REL/'attribution-review.json', root/REL/'gap-status.json']
     paths += list((root / REL / "inputs" / phase).rglob("*"))

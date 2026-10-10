@@ -24,6 +24,14 @@ R4→R5→R6→R7. R8 consumes the retained R1–R7 results. Independent source
 review and bounded diagnostics can proceed while a long validation runs.
 Heavy validations remain serial and their bound methods stay unchanged.
 
+The coupon-anchor repair has passed 64 focused controls, the real consumer,
+installed attempt 015 in all three stages and exact partitioned coverage of
+658 frozen test identities. R0/016 through R8/013 are current engineering
+PASS. It repairs the local original-anchor schedule/ICMA mismatch only for
+an explicit source-bound v2 profile; actual source conventions and entitlement
+remain unreviewed. The next local task is the reviewed R6 worker-recovery plan.
+The following paragraphs preserve earlier dated checkpoints.
+
 The amount/holder package has passed its 60 focused controls, real consumer,
 installed fresh/relocated/restored exercise and 527-test aggregate. Sequential
 refresh completed R0/014, R1–R2/012, R3–R7/010 and R8/011. Its final execution

@@ -1,3 +1,15 @@
+# Completed original coupon-anchor repair, 10 October 2026
+
+The explicit anchored ACT/ACT ICMA path now uses one source-bound original day
+for the regular schedule and reference periods. It computes `1/2` on the
+formerly rejected second regular period and `1` across two periods; historical
+v1 behavior remains unchanged. Both service routes, actual consumer and 11
+fresh/relocated/restored installed cases pass. Exact partitioned coverage
+contains all 658 frozen tests, and R0–R8 are current engineering PASS. This
+does not establish an actual instrument's convention, holder entitlement,
+payment or independent legal acceptance. See `coupon-anchor/RESULT.md` for
+the evidence and next worker-recovery task.
+
 # Completed status/negative-pledge validation, 10 October 2026
 
 Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,
