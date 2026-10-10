@@ -1,3 +1,31 @@
+# Completed status/negative-pledge validation, 10 October 2026
+
+Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,
+baseline `0705bb22af56c2eaafd4f82d3bfeeee6886d65de`. Three complete German status/pledge/definition readings
+join twenty earlier supplied meanings. Six raw references and six scalar maps
+remain equal. The typed definition edge and its actual missing-target effect
+pass, and installed output carries the corrected English Option I citation.
+The bilingual interpretation discrepancy remains open.
+
+Admission 47, smoke 2, remaining controls 23, consumer 001, installed 014 and
+aggregate 599 pass. All nine installed cases agree fresh, relocated and restored.
+Receipts R0/015, R1/013, R2/013, R3/011, R4/011, R5/011, R6/011, R7/011, R8/012 are current engineering PASS; R4 took
+2942.347 seconds for 386 checks. The final execution index verifies
+consumer/installed manifests, method currentness and actual phase results.
+No validation remains active at this checkpoint. The evidence index is
+`basf-status-pledge/execution-manifest.json`; see its result note for scope.
+
+Q1/Q2 remain UNKNOWN, Q3 PARTIAL, ASSISTED. Fifteen markers, 537 construction
+intervals, B54 and incorporation alternatives remain. R1–R8 stay PARTIAL and
+independent acceptance is NOT_ESTABLISHED. No actual covenant compliance,
+statutory priority, recovery or broad legal completion follows from preservation.
+
+Next executable design: `docs/plans/prospectus-coupon-anchor-repair-2026-10-10.md`. Commit the completed comparator, verify its
+identities and admit the original-anchor repair, then continue. Do not repeat
+passing checks merely because the full program is partial. No routine
+checkpoint requires approval. Keep work in this prospectus worktree; main's
+separate legal-interpretation work remains untouched.
+
 # Completed amount/holder validation, 10 October 2026
 
 Branch `feature/prospectus-evidence-master`, worktree `.worktrees/bond-gap-closure`,

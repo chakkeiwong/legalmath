@@ -28,11 +28,16 @@ The amount/holder package has passed its 60 focused controls, real consumer,
 installed fresh/relocated/restored exercise and 527-test aggregate. Sequential
 refresh completed R0/014, R1–R2/012, R3–R7/010 and R8/011. Its final execution
 index verifies both consumer/installed manifests and every phase result.
-The next status/negative-pledge candidate is preserved in its `candidate/`
-directory with source review and installation wiring; it has not yet been
-integrated or executed. Finalization and commit are followed directly by its
-admission and validation, without a routine approval request. The subsequent
+The status/negative-pledge candidate has since been integrated. Its 47 admission,
+two smoke and 23 remaining controls pass, followed by the real consumer.
+The continuation automatically executes installed validation, aggregate,
+attribution and phase refresh on passing evidence. Read its
+`basf-status-pledge/validation-progress.json` and final execution index when
+present for the actual state; do not duplicate an active command. The subsequent
 R5 design is `docs/plans/prospectus-coupon-anchor-repair-2026-10-10.md`.
+Its isolated candidate and preliminary 59-control diagnostic are preserved
+under `coupon-anchor/`; they are not integrated or installed evidence. Final
+admission follows the completed, committed pledge comparator.
 Check the live dispatcher for the actual current receipts; this note is a
 dated program description, not a cached completion verdict.
 

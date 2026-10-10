@@ -22,7 +22,7 @@ JOBS = {
     "R1": ("tests/prospectus_successor/test_integration_closure.py", "not solver and not z3"),
     "R2": ("tests/prospectus_successor/test_integration_closure.py", "solver or z3"),
     "R3": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py", "layout or poppler or correction or corrected"),
-    "R4": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_references.py tests/prospectus_successor/test_closure_reference_replacement.py tests/prospectus_successor/test_closure_basf.py tests/prospectus_successor/test_closure_basf_notices.py tests/prospectus_successor/test_closure_basf_agent_notices.py tests/prospectus_successor/test_closure_basf_agent_capacity.py tests/prospectus_successor/test_closure_basf_global_exchange.py tests/prospectus_successor/test_closure_basf_global_records.py tests/prospectus_successor/test_closure_basf_amount_holder.py", "annotation or authored or disposition or priority or corrected or reference or cross_document or basf"),
+    "R4": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_references.py tests/prospectus_successor/test_closure_reference_replacement.py tests/prospectus_successor/test_closure_basf.py tests/prospectus_successor/test_closure_basf_notices.py tests/prospectus_successor/test_closure_basf_agent_notices.py tests/prospectus_successor/test_closure_basf_agent_capacity.py tests/prospectus_successor/test_closure_basf_global_exchange.py tests/prospectus_successor/test_closure_basf_global_records.py tests/prospectus_successor/test_closure_basf_amount_holder.py tests/prospectus_successor/test_closure_basf_status_pledge.py", "annotation or authored or disposition or priority or corrected or reference or cross_document or basf"),
     "R5": ("tests/prospectus_successor/test_closure_finance.py tests/prospectus_successor/test_closure_consumers.py", "finance or coupon or calculation or published or bearer or schedule or selected_full"),
     "R6": ("tests/prospectus_successor/test_closure_runtime.py tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_recovery.py", "runtime or current_consume or missing_poppler or real_executor"),
     "R7": ("tests/prospectus_successor/test_closure_reviews.py", None),
@@ -40,9 +40,10 @@ REMAINING = {
     'R8': ['Keep engineering and external acceptance separate; resolve remaining local code work and specified external inputs'],
 }
 PACKAGE_INPUTS = {'R3':['layout','scan','scan_de'], 'R4':['codec'], 'R5':['numeric','compass']}
-# Amount/holder continuation: previous R4 1736.737s plus complete new
-# source/meaning controls and scheduling headroom. Reviewed before execution.
-PHASE_TIMEOUTS = {'R4': 3300}
+# Status/pledge continuation: previous R4 2486.211s plus new admission
+# (241.444s), P3 smoke (358.350s), remaining controls and scheduling headroom.
+# The execution plan reviews this finite bound before the longer run.
+PHASE_TIMEOUTS = {'R4': 4500}
 
 
 def auxiliary_evidence(root, phase):
@@ -50,7 +51,7 @@ def auxiliary_evidence(root, phase):
     rows = []
     bases = [Path(root)/REL/'packages'/name for name in PACKAGE_INPUTS.get(phase, [])]
     if phase == 'R4':
-        bases += [Path(root)/REL/name for name in ('basf-consumer', 'basf-notices', 'basf-agent-notices', 'basf-agent-capacity', 'basf-global-exchange', 'basf-global-records', 'basf-amount-holder')]
+        bases += [Path(root)/REL/name for name in ('basf-consumer', 'basf-notices', 'basf-agent-notices', 'basf-agent-capacity', 'basf-global-exchange', 'basf-global-records', 'basf-amount-holder', 'basf-status-pledge')]
     if phase == 'R6':
         bases += [Path(root)/REL/name for name in ('installed','layout-restoration','authoring-restoration')]
     for base in bases:
@@ -107,7 +108,10 @@ def bindings(root, phase):
                   root/'docs/plans/prospectus-basf-global-records-2026-10-10.md', root/REL/'basf-global-records/review.json',
                   root/REL/'basf-global-records/SOURCE-REVIEW.md', root/'scripts/author_basf_global_records_packet.py',
                   root/'docs/plans/prospectus-basf-amount-holder-execution-2026-10-10.md', root/REL/'basf-amount-holder/review.json',
-                  root/REL/'basf-amount-holder/SOURCE-REVIEW.md', root/'scripts/author_basf_amount_holder_packet.py']
+                  root/REL/'basf-amount-holder/SOURCE-REVIEW.md', root/'scripts/author_basf_amount_holder_packet.py',
+                  root/'docs/plans/prospectus-basf-status-pledge-execution-2026-10-10.md', root/REL/'basf-status-pledge/review.json',
+                  root/REL/'basf-status-pledge/SOURCE-REVIEW.md', root/REL/'basf-status-pledge/OPTION-COMPARISON-CORRECTION.md',
+                  root/'scripts/author_basf_status_pledge_packet.py']
     if phase == 'R8':
         paths += [root/REL/'attribution-review.json', root/REL/'gap-status.json']
     paths += list((root / REL / "inputs" / phase).rglob("*"))

@@ -69,9 +69,15 @@ def main():
                                         agent_packet=read(folder/'agent-review.json'), agent_check=agent_check)
                 if (folder/'amount-review.json').is_file():
                     amount_check = runpy.run_path(str(fixture_file.with_name('basf_amount_consumer.py')))['check_report']
-                    outcome = amount_check(report, request, read(folder/'amount-review.json'),
-                                           records_check=records_check, records_packet=read(folder/'records-review.json'),
-                                           **prior_checks)
+                    amount_args = dict(records_check=records_check,
+                                       records_packet=read(folder/'records-review.json'), **prior_checks)
+                    if (folder/'pledge-review.json').is_file():
+                        pledge_check = runpy.run_path(str(fixture_file.with_name('basf_pledge_consumer.py')))['check_report']
+                        outcome = pledge_check(report, request, read(folder/'pledge-review.json'),
+                                               amount_check=amount_check, amount_packet=read(folder/'amount-review.json'),
+                                               **amount_args)
+                    else:
+                        outcome = amount_check(report, request, read(folder/'amount-review.json'), **amount_args)
                 else:
                     outcome = records_check(report, request, read(folder/'records-review.json'), **prior_checks)
             elif (folder/'global-review.json').is_file():
@@ -120,6 +126,8 @@ def main():
                 questions[name]['global_records_meanings'] = outcome['global_records']
             if 'amount_holder' in outcome:
                 questions[name]['amount_holder_meanings'] = outcome['amount_holder']
+            if 'status_pledge' in outcome:
+                questions[name]['status_pledge_meanings'] = outcome['status_pledge']
             continue
         p1 = service.source_product(request, folder)
         p2 = service.construction_product(p1, folder)

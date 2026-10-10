@@ -1,3 +1,84 @@
+# Completed status/negative-pledge validation, 10 October 2026
+
+Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,
+baseline `0705bb22af56c2eaafd4f82d3bfeeee6886d65de`. Three complete German status/pledge/definition readings
+join twenty earlier supplied meanings. Six raw references and six scalar maps
+remain equal. The typed definition edge and its actual missing-target effect
+pass, and installed output carries the corrected English Option I citation.
+The bilingual interpretation discrepancy remains open.
+
+Admission 47, smoke 2, remaining controls 23, consumer 001, installed 014 and
+aggregate 599 pass. All nine installed cases agree fresh, relocated and restored.
+Receipts R0/015, R1/013, R2/013, R3/011, R4/011, R5/011, R6/011, R7/011, R8/012 are current engineering PASS; R4 took
+2942.347 seconds for 386 checks. The final execution index verifies
+consumer/installed manifests, method currentness and actual phase results.
+No validation remains active at this checkpoint. The evidence index is
+`basf-status-pledge/execution-manifest.json`; see its result note for scope.
+
+Q1/Q2 remain UNKNOWN, Q3 PARTIAL, ASSISTED. Fifteen markers, 537 construction
+intervals, B54 and incorporation alternatives remain. R1–R8 stay PARTIAL and
+independent acceptance is NOT_ESTABLISHED. No actual covenant compliance,
+statutory priority, recovery or broad legal completion follows from preservation.
+
+Next executable design: `docs/plans/prospectus-coupon-anchor-repair-2026-10-10.md`. Commit the completed comparator, verify its
+identities and admit the original-anchor repair, then continue. Do not repeat
+passing checks merely because the full program is partial. No routine
+checkpoint requires approval. Keep work in this prospectus worktree; main's
+separate legal-interpretation work remains untouched.
+
+# Active status/negative-pledge continuation, 10 October 2026
+
+The amount/holder package is committed as `0705bb22a`. Its completed R0–R8
+receipts and consumer/installed manifests passed final verification. The new
+status/negative-pledge candidate has now been admitted and integrated under
+`docs/plans/prospectus-basf-status-pledge-execution-2026-10-10.md`.
+The temporary candidate was first preserved, with hashes and its static review,
+in `basf-status-pledge/candidate/`; those historical bytes remain unchanged.
+
+The full source packet `basf-status-pledge/review.json` was authored successfully
+with `timeout 600 .venv/bin/python -m scripts.author_basf_status_pledge_packet`.
+Admission passed 47 controls in 241.444 seconds; smoke passed two real P3
+controls in 358.350 seconds. After the documented measured-bound review,
+the remaining 23 focused controls passed in 511.002 seconds. Consumer 001
+passed in 456.161 seconds with 10,220,774 payload bytes. Exact omissions
+restore 321/605/340 nonspace characters; the missing definition is exposed
+in Q1, Q2 and all three Q2 subquestions with prior meanings/dependencies equal.
+
+The serial continuation `/tmp/run_basf_pledge_tail.py` is active. It runs
+installed attempt 014, the 4,500-second aggregate, inspected attribution
+update, R0–R8 refresh and final evidence indexing, proceeding on PASS. Read
+`basf-status-pledge/validation-progress.json` and `phase-progress.json` (once
+created) before launching anything; do not duplicate an active command.
+The runner uses `/tmp/update_basf_pledge_ledger.py` and
+`/tmp/finalize_basf_pledge.py`. An error records REVIEW_REQUIRED and requires
+inspection; an unchanged failed method is not repeated. R4's reviewed bound
+is 4,500 seconds. Consumer and installed limits stay 1,200 seconds.
+Do not edit bound source/tests/packets/plans while a run is active.
+Do not rerun a passing checkpoint merely because the full program is partial.
+
+The three new supplied readings cover German status, the entire issuer
+negative pledge and its capital-market-debt definition. A typed definition
+edge and matched missing-definition question evidence are required. New
+evidence explicitly corrects the historical Option II English comparison to
+Option I. Excluded guarantor wording stays excluded. Twenty earlier meanings,
+six references, six scalar maps, fifteen markers, 537 intervals and B54 remain
+the comparator. Full validation is still in progress; independent legal
+acceptance is not established. Prior receipts are historical because the
+method changed; final currentness requires the new refresh.
+
+Continue through passing checkpoints without approval requests. The following
+reviewed R5 design is `docs/plans/prospectus-coupon-anchor-repair-2026-10-10.md`;
+it targets the reproduced 30-August/February anchor mismatch and needs separate
+integration admission. A guarded scheduling revision allowed drafting under
+`/tmp/prospectus-coupon-anchor-candidate` while the active worktree stayed fixed.
+Its isolated diagnostic passed 59 tests in 0.436 seconds, including independent
+dates/fractions, both service routes and source/version/override controls.
+Candidate, static review and immutable diagnostic are preserved under
+`coupon-anchor/`, with `archive-manifest.json`. They are not integrated.
+The proposed files must still match their `baseline.json` before integration;
+final admission awaits this package's completed, committed comparator.
+Main's legal-interpretation work remains untouched.
+
 # Completed amount/holder validation, 10 October 2026
 
 Branch `feature/prospectus-evidence-master`, worktree `.worktrees/bond-gap-closure`,
