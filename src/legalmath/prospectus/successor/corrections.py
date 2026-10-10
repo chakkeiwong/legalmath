@@ -18,7 +18,15 @@ def admit(graph, packet):
         ids.add(row['id'])
         bind(graph, row['source'])
         unit = raw_units[row['source']['unit']]
-        if 'ocr' in unit['method'] and (not unit.get('image_sha256') or row.get('image_sha256') != unit['image_sha256']):
+        # The actual producer uses 'retained-pymupdf-tesseract', without
+        # 'ocr' in its method name. Image provenance must survive that route
+        # and the retained text fallback, including missing-image failures.
+        requires_image = ('image_sha256' in unit or 'ocr' in unit['method'].lower() or
+                          unit['method'] in {'retained-pymupdf-tesseract', 'retained-original-text-or-blank'})
+        image = unit.get('image_sha256')
+        if requires_image and (not isinstance(image, str) or len(image) != 64 or
+                               any(c not in '0123456789abcdef' for c in image) or
+                               row.get('image_sha256') != image):
             raise ValueError('OCR correction requires the retained source-page image identity')
         raw = row['source']['quote']
         cursor, output, segments = 0, '', []

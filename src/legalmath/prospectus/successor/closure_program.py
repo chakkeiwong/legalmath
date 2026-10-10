@@ -21,7 +21,7 @@ JOBS = {
     "R0": ("tests/prospectus_successor/test_closure_program.py", None),
     "R1": ("tests/prospectus_successor/test_integration_closure.py", "not solver and not z3"),
     "R2": ("tests/prospectus_successor/test_integration_closure.py", "solver or z3"),
-    "R3": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py", "layout or poppler or correction or corrected"),
+    "R3": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_correction_images.py tests/prospectus_successor/test_closure_real_scan.py", "layout or poppler or correction or corrected"),
     "R4": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_references.py tests/prospectus_successor/test_closure_reference_replacement.py tests/prospectus_successor/test_closure_basf.py tests/prospectus_successor/test_closure_basf_notices.py tests/prospectus_successor/test_closure_basf_agent_notices.py tests/prospectus_successor/test_closure_basf_agent_capacity.py tests/prospectus_successor/test_closure_basf_global_exchange.py tests/prospectus_successor/test_closure_basf_global_records.py tests/prospectus_successor/test_closure_basf_amount_holder.py tests/prospectus_successor/test_closure_basf_status_pledge.py", "annotation or authored or disposition or priority or corrected or reference or cross_document or basf"),
     "R5": ("tests/prospectus_successor/test_closure_finance.py tests/prospectus_successor/test_closure_coupon_anchor.py tests/prospectus_successor/test_closure_consumers.py", "finance or coupon or calculation or published or bearer or schedule or selected_full"),
     "R6": ("tests/prospectus_successor/test_closure_runtime.py tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_recovery.py", "runtime or current_consume or missing_poppler or real_executor"),
@@ -32,7 +32,7 @@ REMAINING = {
     'R0': [],
     'R1': ['Broader real-document applicability/reference controls and source authentication remain conditional'],
     'R2': ['Finite controls and installed larger-domain cases do not establish unrestricted Boolean or legal completeness'],
-    'R3': ['Expand real table/column/multilingual layout cases; independently review OCR corrections and governing edges'],
+    'R3': ['BES supplied corrections and complete qualifications pass; automatic row/qualification discovery, broader scan families and independent source review remain open'],
     'R4': ['Extend the combined BASF scalar/notice/agent consumer to remaining source meanings and onward references; B54 office authority, independent adjudication and real browser cross-document review remain open'],
     'R5': ['Independently review real-instrument conventions and broader entitlement/stub schedules; conditional Compass first coupon does not close full settlement'],
     'R6': ['Finite real OCR/XMI recovery and same-host tracing/mount-denial controls passed; complete native dependency binding, production confinement and second-host portability remain open'],
@@ -50,6 +50,8 @@ def auxiliary_evidence(root, phase):
     """Validate preserved external exercise bytes; these are bounded diagnostics."""
     rows = []
     bases = [Path(root)/REL/'packages'/name for name in PACKAGE_INPUTS.get(phase, [])]
+    if phase == 'R3':
+        bases += [Path(root)/REL/'real-scan'/name for name in ('analysis', 'authoring', 'consumer')]
     if phase == 'R4':
         bases += [Path(root)/REL/name for name in ('basf-consumer', 'basf-notices', 'basf-agent-notices', 'basf-agent-capacity', 'basf-global-exchange', 'basf-global-records', 'basf-amount-holder', 'basf-status-pledge')]
     if phase == 'R6':
@@ -97,6 +99,11 @@ def bindings(root, phase):
     paths += list((root / "tests/prospectus_successor").glob("*.py"))
     paths += list((root / 'scripts').glob('prospectus_closure_*.py'))
     paths += [root/'scripts/prospectus_integration_codec.py']
+    if phase == 'R3':
+        paths += [root/'docs/plans/prospectus-real-scan-2026-10-11.md']
+        paths += list((root/REL/'real-scan').glob('*.py'))
+        paths += [root/REL/'real-scan'/name for name in
+                  ('oracle.json', 'source-review-freeze.json', 'baseline/attempt-001/manifest.json')]
     if phase == 'R4':
         paths += [root/'docs/plans/prospectus-basf-consumer-2026-10-09.md', root/REL/'basf-consumer/review.json',
                   root/'docs/plans/prospectus-basf-scalars-2026-10-09.md', root/REL/'basf-scalars/review.json',

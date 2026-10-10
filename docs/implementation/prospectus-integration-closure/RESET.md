@@ -1,3 +1,21 @@
+# Completed BES source-chain consumer, 11 October 2026
+
+The real-scan regression completed with exact partitioned coverage of 685
+unique tests, unchanged method and current passing R0–R8 receipts. The BES
+source-chain package then consumed the retained final terms, 2010 base
+prospectus and six supplements through the actual service in
+`bes-source-chain/consumer/attempt-007` (357.592 seconds). Eight source
+identities, 18,036 units, seven reviewed chain edges and 14 Q1/Q2 dependencies
+were preserved. Seven representative edge omissions and wrong-edition/date
+controls passed; raw final-terms evidence and question statuses were unchanged.
+
+The 11 applicable incorporated financial sources and three agency agreements
+remain explicitly unresolved. Q1/Q2 are UNKNOWN, Q3 PARTIAL, Q4 UNKNOWN, Q5
+UNSUPPORTED and Q6 UNKNOWN; independent legal acceptance, authenticity and
+actual collateral eligibility are not established. Read
+`bes-source-chain/RESULT.md`, `RESET.md` and `NEXT-PROGRAM.md` before selecting
+the next package. Do not rerun unchanged R0–R8 phases.
+
 # Completed worker-recovery validation, 11 October 2026
 
 Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,

@@ -1,3 +1,14 @@
+# Completed BES source-chain package; next onward-source phase, 11 October 2026
+
+The eight-document BES source-chain consumer passed after bounded local repairs.
+Read `bes-source-chain/RESULT.md` for the decision table and retained evidence.
+The next executable package is `bes-source-chain/NEXT-PROGRAM.md`: locate or
+disposition the 11 incorporated financial records and three agency agreements,
+then consume them with exact source/date/issuer bindings and omission controls.
+Keep legal acceptance, authenticity, Interbolsa applicability and collateral
+eligibility open. Do not repeat unchanged R0–R8 or the passing source-chain
+consumer.
+
 # Worker recovery validated; next real-scan consumer, 11 October 2026
 
 The reviewed R6 sequence now has a passing actual eleven-state OCR/XMI

@@ -1,0 +1,581 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="16" skipped="0" tests="20" time="0.300" timestamp="2026-10-11T02:25:21.986652+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[matching-words]" time="0.008" /><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[matching-text-fallback]" time="0.005" /><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[missing-words]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = False, case = 'missing'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[missing-text-fallback]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = True, case = 'missing'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[wrong-words]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = False, case = 'wrong'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[wrong-text-fallback]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = True, case = 'wrong'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[missing-source-words]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = False, case = 'missing-source'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[missing-source-text-fallback]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = True, case = 'missing-source'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[empty-source-words]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = False, case = 'empty-source'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[empty-source-text-fallback]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = True, case = 'empty-source'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[malformed-source-words]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = False, case = 'malformed-source'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[malformed-source-text-fallback]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = True, case = 'malformed-source'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[nonstring-source-words]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = False, case = 'nonstring-source'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[nonstring-source-text-fallback]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = True, case = 'nonstring-source'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[unfamiliar-image-method-words]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = False, case = 'unfamiliar-image-method'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_binds_actual_ocr_page_identity[unfamiliar-image-method-text-fallback]" time="0.004"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">fallback = True, case = 'unfamiliar-image-method'
+
+    @pytest.mark.parametrize('fallback', [False, True], ids=['words', 'text-fallback'])
+    @pytest.mark.parametrize('case', ['matching', 'missing', 'wrong', 'missing-source',
+                                     'empty-source', 'malformed-source', 'nonstring-source', 'unfamiliar-image-method'])
+    def test_correction_binds_actual_ocr_page_identity(fallback, case):
+        graph = actual_ocr_graph(fallback)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        original = deepcopy(unit)
+        expected_method = 'retained-original-text-or-blank' if fallback else 'retained-pymupdf-tesseract'
+        assert unit['method'] == expected_method
+        image = unit['image_sha256']
+        if case == 'missing':
+            image = 'OMITTED'
+        elif case == 'wrong':
+            image = '0' * 64
+        elif case == 'missing-source':
+            unit.pop('image_sha256')
+        elif case == 'empty-source':
+            unit['image_sha256'] = image = ''
+        elif case == 'malformed-source':
+            unit['image_sha256'] = image = 'z' * 64
+        elif case == 'nonstring-source':
+            unit['image_sha256'] = image = 123
+        elif case == 'unfamiliar-image-method':
+            unit['method'] = 'future-image-worker'
+            image = '0' * 64
+        supplied = packet(graph, unit, image)
+        if case == 'matching':
+            admitted = corrections.admit(graph, supplied)
+            assert admitted['entries'][0]['image_sha256'] == image
+            assert admitted['entries'][0]['text'] == original['raw']
+            assert admitted['entries'][0]['bbox'] is None
+            assert unit == original
+        else:
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:78: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_correction_plain_text_without_image_remains_supported" time="0.003" /><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_corrected_real_ocr_service_keeps_required_image_binding[matching]" time="0.073" /><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_corrected_real_ocr_service_keeps_required_image_binding[missing]" time="0.027"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-1204/test_corrected_real_ocr_servic1')
+image_case = 'missing'
+
+    @pytest.mark.parametrize('image_case', ['matching', 'missing', 'wrong'])
+    def test_corrected_real_ocr_service_keeps_required_image_binding(tmp_path, image_case):
+        data = json.loads((ROOT / RAW).read_text())
+        (tmp_path / 'source.pdf').write_bytes((ROOT / PDF).read_bytes())
+        (tmp_path / 'ocr.json').write_text(json.dumps(data))
+        req = {'version': 'prospectus-successor.v3', 'bundle': {
+            'instrument_id': 'actual-worker-correction-control', 'purpose': 'review',
+            'issue_date': '2026-01-01T00:00:00Z', 'effective_at': '2026-01-01T00:00:00Z',
+            'known_at': '2026-01-01T00:00:00Z', 'documents': [
+                {'id': 'scan', 'path': 'source.pdf', 'sha256': data['source_sha256'], 'language': 'en',
+                 'authority': 'Protected synthetic scan; no legal acceptance', 'page_count': 2,
+                 'document_date': '2026-01-01T00:00:00Z', 'known_from': '2026-01-01T00:00:00Z',
+                 'ocr': {'path': 'ocr.json', 'sha256': digest((tmp_path / 'ocr.json').read_bytes())}}]}}
+        graph = source_graph.build(req['bundle'], tmp_path)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        supplied = unit['image_sha256'] if image_case == 'matching' else 'OMITTED' if image_case == 'missing' else '0' * 64
+        req['correction_admission'] = packet(graph, unit, supplied)
+        if image_case != 'matching':
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:118: Failed</failure></testcase><testcase classname="tests.prospectus_successor.test_closure_correction_images" name="test_corrected_real_ocr_service_keeps_required_image_binding[wrong]" time="0.033"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-1204/test_corrected_real_ocr_servic2')
+image_case = 'wrong'
+
+    @pytest.mark.parametrize('image_case', ['matching', 'missing', 'wrong'])
+    def test_corrected_real_ocr_service_keeps_required_image_binding(tmp_path, image_case):
+        data = json.loads((ROOT / RAW).read_text())
+        (tmp_path / 'source.pdf').write_bytes((ROOT / PDF).read_bytes())
+        (tmp_path / 'ocr.json').write_text(json.dumps(data))
+        req = {'version': 'prospectus-successor.v3', 'bundle': {
+            'instrument_id': 'actual-worker-correction-control', 'purpose': 'review',
+            'issue_date': '2026-01-01T00:00:00Z', 'effective_at': '2026-01-01T00:00:00Z',
+            'known_at': '2026-01-01T00:00:00Z', 'documents': [
+                {'id': 'scan', 'path': 'source.pdf', 'sha256': data['source_sha256'], 'language': 'en',
+                 'authority': 'Protected synthetic scan; no legal acceptance', 'page_count': 2,
+                 'document_date': '2026-01-01T00:00:00Z', 'known_from': '2026-01-01T00:00:00Z',
+                 'ocr': {'path': 'ocr.json', 'sha256': digest((tmp_path / 'ocr.json').read_bytes())}}]}}
+        graph = source_graph.build(req['bundle'], tmp_path)
+        unit = next(u for u in graph['units'] if u['page'] == 1 and u['raw'])
+        supplied = unit['image_sha256'] if image_case == 'matching' else 'OMITTED' if image_case == 'missing' else '0' * 64
+        req['correction_admission'] = packet(graph, unit, supplied)
+        if image_case != 'matching':
+&gt;           with pytest.raises(ValueError, match='retained source-page image identity'):
+E           Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+tests/prospectus_successor/test_closure_correction_images.py:118: Failed</failure></testcase></testsuite></testsuites>
