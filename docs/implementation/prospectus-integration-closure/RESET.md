@@ -1,3 +1,34 @@
+# Post-merge handoff, 11 October 2026
+
+Documentation commit `e6b8be604` and merge commit `927ee73a1` completed the
+campaign handoff. Main incorporated the prospectus branch and both existing
+main commits. The sole conflict was `.gitignore`; both projects' additive
+rules were retained. Fetching origin found no newer remote main work. Main
+was pushed, the prospectus branch was fast-forwarded to main, and that branch
+was pushed as well. This follow-up records the resulting validation state.
+
+The merged code passed 69 focused controller, attribution and coupon-anchor
+checks in CPU mode. Main's additive legal-interpretation packaging change to
+`pyproject.toml` changes a bound method input. All nine historical phase
+receipts remain artifact-valid with their recorded PASS checks, but none is
+current for the merged method. The actual closure refresh now records this in
+`next-phase.json`; its next command is R0. No sealed receipt was rewritten and
+the long R0–R8 ladder was not rerun for the Git handoff. Before claiming
+merged-method phase validation, review and execute the newly required checks.
+The evidence is retained in `synchronization-2026-10-11/`.
+
+The prospectus worktree is the clean handoff target. Main's nineteen original
+modified tracked files and 54,661 original untracked files stayed outside
+the merge commit. Seven unrelated untracked mission files changed concurrently;
+they were neither written nor staged by this task. Their current content was
+preserved rather than restored to the initial fingerprint.
+
+The local campaign remains complete at its recorded pre-merge method. The
+whole prospectus program remains incomplete: R1–R8 are substantively PARTIAL,
+fourteen onward originals are unresolved and independent legal acceptance is
+not established. `MASTER-SUMMARY.md` and `NEXT-PROGRAM.md` separate this work
+from the merged-method revalidation. Earlier entries below are historical.
+
 # Campaign handoff for branch synchronization, 11 October 2026
 
 The completed local engineering campaign is ready for documentation commit and

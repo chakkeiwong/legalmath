@@ -10,6 +10,14 @@ R0's execution controls pass; R1–R8 have passing implemented checks and partia
 substantive capability. `next-phase.json` and `attribution-review.json` retain
 `program_complete: false`. No independent legal acceptance is established.
 
+After integration at `927ee73a1`, both local branches and their origin refs
+were synchronized. The merged code passed 69 focused compatibility checks.
+Main also contributed an additive `pyproject.toml` package-data change, which
+invalidates the old phase method fingerprints. The nine receipts remain
+artifact-valid historical results, not current merged-method validation. The
+actual refresh is retained in `next-phase.json`; R0 is the next controller
+command. `synchronization-2026-10-11/` records the handoff checks.
+
 ## Delivered work and retained evidence
 
 | Work package | What the retained execution establishes | Evidence relative to this directory |
@@ -23,13 +31,14 @@ substantive capability. `next-phase.json` and `attribution-review.json` retain
 | BES onward-source disposition | The revised search and applicability consumer preserve the comparator and add four separated applicability edges and eight Q1/Q2 dependencies | `bes-onward-sources/RESULT.md`, `bes-onward-sources/attempt-002/` |
 
 The latest complete real-scan regression covers 685 collected test identities
-exactly. Current recorded engineering receipts are R0/018, R1–R2/016,
+exactly. Pre-merge engineering receipts are R0/018, R1–R2/016,
 R3–R7/014 and R8/015. The later onward-source package passed 47 focused
 checks, compilation, diff hygiene and its actual service run in 175.380 seconds.
 These are engineering checks, not independent legal observations or accuracy
 estimates. Timings and counts do not rank packages or establish production
-readiness. The successful runs are retained; unchanged long runs need not be
-repeated for this documentation and Git handoff.
+readiness. The successful runs are retained. The Git handoff uses bounded
+compatibility checks; it does not claim that those checks replace revalidation
+of the changed merged-method fingerprint.
 
 ## Findings that remain open
 
@@ -118,3 +127,18 @@ Proceed with a non-autostashing merge in main's existing worktree, stage only
 any reviewed conflict resolution, then inspect the staged merge before commit.
 Stop for an unexpected overlap, corrupt evidence, unreviewed conflict or failed
 compatibility check; a partial legal verdict is not a Git handoff blocker.
+
+Execution followed that review: only `.gitignore` conflicted, both additive
+rule sets were retained, and no unrelated file entered the merge index. All
+nineteen original modified tracked files remained unchanged by this task; all
+54,661 original untracked files remained untracked. Seven of those files
+changed concurrently outside the merge scope. They were preserved in their
+updated state, not reverted. The later preservation check also found eleven
+new untracked files; these remain unrelated work. Main therefore remains dirty
+by design, while the prospectus worktree is the clean delivery target.
+
+The fetched remote main was an ancestor of the merge; merging it required no
+additional change. Main and the feature were both pushed to `927ee73a1`. This
+post-merge documentation/status follow-up is committed and synchronized by the
+same fast-forward workflow. No force-push, blanket stash, reset or unrelated
+commit is part of the handoff.

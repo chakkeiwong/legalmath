@@ -1,4 +1,22 @@
-# Current next program: authenticate the BES onward sources, 11 October 2026
+# Post-merge validation prerequisite, 11 October 2026
+
+The Git handoff integrated main's additive package-data update in
+`pyproject.toml`. Because the closure controller binds that file, the historical
+R0–R8 receipts are still artifact-valid but are no longer current for the
+merged method. A real refresh updated `next-phase.json`; it now nominates:
+
+```text
+python3 -m scripts.prospectus_delivery --program closure phase --phase R0
+```
+
+The handoff's 69 focused compatibility checks passed. They do not replace the
+phase criteria. Review the changed packaging input and run the necessary
+controller checks before asserting current merged-method validation. Do not
+rewrite sealed receipts or describe old PASS results as a fresh run. The
+substantive remaining program below is unchanged; this packaging change does
+not close or reopen the underlying source/legal findings.
+
+# Current substantive program: authenticate the BES onward sources, 11 October 2026
 
 The retained-corpus onward-source phase has passed. Its evidence is indexed in
 `bes-onward-sources/attempt-002/manifest.json` and explained in
