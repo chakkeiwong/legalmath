@@ -1,0 +1,96 @@
+.....................................F......                             [100%]
+=================================== FAILURES ===================================
+______________ test_basf_global_governing_target_loss_rejects_p3 _______________
+
+case = (PosixPath('/home/chakwong/python/legalmath/.worktrees/bond-gap-closure'), {'bundle_sha256': '3d17903a7d291c2ac1740a9a...onditions': [], ...}], 'construction_sha256': 'ea89ee1f2399f033e576b2740ea518d0c117805972b6200a89c320d9ec67de87', ...})
+products = ({'bundle': {'dependencies': [], 'documents': [{'acquisition': {'path': 'docs/prospectus/evidence-master/requests/044-...'interpretation_input': None, ...}, 'sha256': 'a39d83808e22729d24c3d7e9257bdc6d4a6c587f215c2f4dd328590c5aff25cf', ...})
+
+    def test_basf_global_governing_target_loss_rejects_p3(case, products):
+        request, p1, p2, _ = products
+        payload = deepcopy(p2['payload'])
+        target = basf.KEY + ':p124:l71'
+        next(u for u in payload['assembly']['units'] if u['unit'] == target)['role'] = 'UNKNOWN'
+        changed = service.seal('P2', request['bundle'], {'P1': p1['sha256']}, payload)
+        reference = deepcopy(request['reference_admission'])
+        reference['assembly_sha256'] = digest(payload['assembly'])
+        with pytest.raises(ValueError, match='not operative'):
+>           service.interpretation_product(p1, changed, {'reference_admission': reference})
+
+tests/prospectus_successor/test_closure_basf_global_exchange.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/prospectus/successor/service.py:157: in interpretation_product
+    clauses = clause_graph.build(assembly, supplied)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+assembly = {'continuous_text': 'OPTION I – Anleihebedingungen für Schuldverschreibungen mit fester\nVerzinsung\nANLEIHEBEDINGUNGE...5b2cd933b25fc7bf4461b6a9a19b56985cfcf70ce7488cb29cc7158930ad', ...}, ...], 'version': 'reviewed-dispositions.v1'}, ...}
+supplied = [{'actor': 'unknown', 'affected': 'unknown', 'assets': [], 'conditions': [], ...}, {'actor': 'unknown', 'affected': 'u...ts': [], 'conditions': [], ...}, {'actor': 'unknown', 'affected': 'unknown', 'assets': [], 'conditions': [], ...}, ...]
+
+    def build(assembly, supplied=None):
+        nodes = nominate(assembly) if supplied is None else deepcopy(supplied)
+        units = {u["unit"]: u for u in assembly["units"]}
+        ids = set()
+        for n in nodes:
+            if n["id"] in ids or n["effect"] not in EFFECTS:
+                raise ValueError("Duplicate clause or unsupported typed effect")
+            ids.add(n["id"])
+            if not n["units"] or any(u not in units for u in n["units"]):
+                raise ValueError("Unbound clause")
+            if not n.get("quote") and n["effect"] != "unknown":
+                raise ValueError("Nonempty semantic evidence required")
+            if any(units[u]["role"] not in {"OPERATIVE", "EXAMPLE", "UNKNOWN"} for u in n["units"]):
+                raise ValueError("Semantic assertion from excluded source")
+            # Legacy unique quotations can migrate without guessing an occurrence.
+            if "spans" not in n:
+                if len(n["units"]) != 1 or units[n["units"][0]]["text"].count(n["quote"]) != 1:
+                    raise ValueError("Explicit occurrence spans required for duplicate or multiline quotations")
+                pos = units[n["units"][0]]["text"].index(n["quote"])
+                n["spans"] = [{"unit": n["units"][0], "start": pos, "end": pos + len(n["quote"])}]
+            fragments = []
+            previous = {}
+            for s in n["spans"]:
+                if set(s) != {"unit", "start", "end"} or s["unit"] not in n["units"]:
+                    raise ValueError("Invalid clause occurrence")
+                a, b, text = s["start"], s["end"], units[s["unit"]]["text"]
+                if type(a) is not int or type(b) is not int or not 0 <= a < b <= len(text) or a < previous.get(s["unit"], 0):
+                    raise ValueError("Invalid or overlapping occurrence interval")
+                previous[s["unit"]] = b
+                fragments.append(text[a:b])
+            if " ".join(fragments) != n["quote"] or (n["quote"] and list(dict.fromkeys(s["unit"] for s in n["spans"])) != n["units"]):
+                raise ValueError("Clause quote differs from occurrence spans")
+            for key in ("actor", "affected", "modality", "election", "role", "polarity", "questions", "assets", "conditions", "exceptions"):
+                if key not in n:
+                    raise ValueError("Missing typed clause argument: " + key)
+            if type(n["polarity"]) is not bool or not isinstance(n["assets"], list):
+                raise ValueError("Explicit polarity and asset list required")
+            if not isinstance(n["questions"], list) or set(n["questions"]) != set().union(
+                    *(set(units[u]["questions"]) for u in n["units"])):
+                raise ValueError("Clause question scope must preserve its source-unit scope")
+            if n["role"] == "OPERATIVE" and any(units[u]["role"] != "OPERATIVE" for u in n["units"]):
+>               raise ValueError("Unreviewed or example source cannot become an operative assertion")
+E               ValueError: Unreviewed or example source cannot become an operative assertion
+
+src/legalmath/prospectus/successor/clause_graph.py:110: ValueError
+
+During handling of the above exception, another exception occurred:
+
+case = (PosixPath('/home/chakwong/python/legalmath/.worktrees/bond-gap-closure'), {'bundle_sha256': '3d17903a7d291c2ac1740a9a...onditions': [], ...}], 'construction_sha256': 'ea89ee1f2399f033e576b2740ea518d0c117805972b6200a89c320d9ec67de87', ...})
+products = ({'bundle': {'dependencies': [], 'documents': [{'acquisition': {'path': 'docs/prospectus/evidence-master/requests/044-...'interpretation_input': None, ...}, 'sha256': 'a39d83808e22729d24c3d7e9257bdc6d4a6c587f215c2f4dd328590c5aff25cf', ...})
+
+    def test_basf_global_governing_target_loss_rejects_p3(case, products):
+        request, p1, p2, _ = products
+        payload = deepcopy(p2['payload'])
+        target = basf.KEY + ':p124:l71'
+        next(u for u in payload['assembly']['units'] if u['unit'] == target)['role'] = 'UNKNOWN'
+        changed = service.seal('P2', request['bundle'], {'P1': p1['sha256']}, payload)
+        reference = deepcopy(request['reference_admission'])
+        reference['assembly_sha256'] = digest(payload['assembly'])
+>       with pytest.raises(ValueError, match='not operative'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'not operative'
+E         Actual message: 'Unreviewed or example source cannot become an operative assertion'
+
+tests/prospectus_successor/test_closure_basf_global_exchange.py:142: AssertionError
+=========================== short test summary info ============================
+FAILED tests/prospectus_successor/test_closure_basf_global_exchange.py::test_basf_global_governing_target_loss_rejects_p3
+1 failed, 43 passed in 308.81s (0:05:08)

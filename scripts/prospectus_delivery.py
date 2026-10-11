@@ -17,12 +17,14 @@ def main():
     from legalmath.prospectus.successor import controller
     from legalmath.prospectus.successor.controller import execute, refresh
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--program", choices=["repair", "adoption"], default="repair")
+    parser.add_argument("--program", choices=["repair", "adoption", "closure"], default="repair")
     commands = parser.add_subparsers(dest="command", required=True)
     phase = commands.add_parser("phase")
-    phase.add_argument("--phase", choices=[f"P{i}" for i in range(9)] + [f"A{i}" for i in range(7)], required=True)
+    phase.add_argument("--phase", choices=[f"P{i}" for i in range(9)] + [f"A{i}" for i in range(7)] + [f"R{i}" for i in range(9)], required=True)
     commands.add_parser("run")
     commands.add_parser("status")
+    commands.add_parser("preflight")
+    commands.add_parser("refresh")
     check = commands.add_parser("check")
     check.add_argument("tests", nargs="*", default=["tests/prospectus_successor", "tests/prospectus/test_closure_mechanisms.py"])
     check.add_argument("--junitxml", help="Preserve the regression result for the execution record")
@@ -35,6 +37,21 @@ def main():
         import pytest
         outputs = ["--junitxml=" + args.junitxml] if args.junitxml else []
         raise SystemExit(pytest.main(["-q", *args.tests, *outputs]))
+    if args.program == "closure":
+        from legalmath.prospectus.successor import closure_program as closure
+        import json
+        if args.command == "phase":
+            result = closure.execute(ROOT, args.phase)
+        elif args.command in {"status", "preflight", "refresh"}:
+            result = getattr(closure, args.command)(ROOT)
+        else:
+            parser.error("Closure uses explicit reviewed phase commands")
+        print(json.dumps(result, indent=2))
+        if result.get("execution") in {"FAILED", "HANDLER_OR_DEPENDENCY_MISSING"}:
+            raise SystemExit(1)
+        return
+    if args.command in {"preflight", "refresh"}:
+        parser.error("Use preflight/refresh with the closure program")
     controller.configure(args.program)
     if args.command == "phase" and args.phase not in controller.DAG:
         parser.error("Phase does not belong to selected program")

@@ -4,7 +4,7 @@ from .contracts import VERSION, QueryResult, digest, read, validate_request, wri
 from . import source_graph, contract_assembly, clause_graph, law_facts, financial_profiles
 from .anchors import bind
 
-PRODUCT_VERSION = "prospectus-product.v2"
+PRODUCT_VERSION = "prospectus-product.v3"
 
 
 def seal(stage, bundle, inputs, payload):
@@ -14,7 +14,7 @@ def seal(stage, bundle, inputs, payload):
 
 
 def verify(product, stage, bundle=None, inputs=None):
-    if product.get("version") != PRODUCT_VERSION or product.get("stage") != stage:
+    if product.get("version") not in {PRODUCT_VERSION, "prospectus-product.v2"} or product.get("stage") != stage:
         raise ValueError("Wrong phase product version/stage")
     if product.get("sha256") != digest({k:v for k,v in product.items() if k != "sha256"}):
         raise ValueError("Phase product content changed")
@@ -27,8 +27,15 @@ def verify(product, stage, bundle=None, inputs=None):
 
 def source_product(request, root):
     bundle = validate_request(request)
+    graph = source_graph.build(bundle, root)
+    if request.get("correction_admission"):
+        from .corrections import admit
+        graph["corrections"] = admit(graph, request["correction_admission"])
+    if request.get("layout_admission"):
+        from .admissions import structure
+        graph["layout"] = structure(graph, request["layout_admission"])
     return seal("P1", bundle, {"request": digest(request)},
-                {"request": request, "graph": source_graph.build(bundle, root)})
+                {"request": request, "graph": graph})
 
 
 def construction_product(source, root):
@@ -49,14 +56,21 @@ def construction_product(source, root):
         if digest(path.read_bytes()) != spec["admission_sha256"]:
             raise ValueError("Construction admission changed")
         construction = construct(graph, read(path))
-        assembly = as_assembly(graph, construction)
+        assembly = as_assembly(graph, construction, spec.get("scalar_admission"))
     else:
-        assembly = contract_assembly.assemble(graph, request.get("assembly"))
+        assembly = contract_assembly.assemble(graph, request.get("assembly"),
+                                             predicate_engine=request.get("predicate_engine", "finite"))
+    if request.get("reviewed_dispositions"):
+        from .admissions import dispositions
+        assembly = dispositions(graph, assembly, request["reviewed_dispositions"])
     return seal("P2", bundle, {"P1": source["sha256"]}, {"assembly": assembly, "selected_contract": construction})
 
 
 def dependencies(request, graph, assembly):
+    from .occurrences import uses, target, anchor
     result = list(request["bundle"].get("dependencies", []))
+    from .admissions import governing_dependencies
+    result.extend(governing_dependencies(graph, assembly))
     operative = {u["unit"]: u for u in assembly["units"] if u["role"] in {"OPERATIVE", "UNKNOWN"}}
     documents = {u["source"]["document"] for u in operative.values()}
     for issue in graph["unresolved"]:
@@ -67,45 +81,57 @@ def dependencies(request, graph, assembly):
         raise ValueError("Unknown reference disposition")
     raw_units = {u["id"]: u for u in graph["units"]}
     edges = []
+    reviewed = []
+    if request.get('reference_admission'):
+        from .reviewed_references import admit
+        reviewed, reviewed_edges = admit(graph, assembly, request['reference_admission'])
+        result.extend(reviewed)
+        edges.extend(reviewed_edges)
+    replaced = {}
+    for row in reviewed:
+        for key in row['discovery_ids']:
+            replaced.setdefault((key, row['source_use']['unit']), set()).update(row['questions'])
     for ref in graph["references"]:
-        referencing = operative.get(ref["unit"])
-        if referencing is None:
-            referencing = next((u for u in operative.values() if any(
-                p.get("source", {}).get("unit") == ref["unit"] for p in u.get("character_map", [])
-                if isinstance(p.get("source"), dict))), None)
-        if referencing is None:
+        source = anchor(raw_units[ref["unit"]], ref["start"], ref["end"])
+        referencing = uses(graph, assembly, source, roles=("OPERATIVE", "UNKNOWN"))
+        if not referencing:
+            legacy = operative.get(ref["unit"])
+            if legacy and "character_map" not in legacy and legacy["text"] != raw_units[ref["unit"]]["raw"]:
+                result.append({"id": "unmapped:" + ref["id"], "questions": legacy["questions"], "status": "UNRESOLVED"})
             continue
         decision = supplied.get(ref["id"])
-        resolved = False
+        targets = []
         if decision:
             if not isinstance(decision, dict) or not decision.get("reason") or decision.get("source_sha256") != ref["source_sha256"]:
                 raise ValueError("Reference disposition must bind occurrence edition and reason")
-            targets = decision.get("targets", [])
-            if not targets or any(t not in raw_units or not raw_units[t]["visible"] or t not in operative for t in targets):
+            if not decision.get("targets"):
                 raise ValueError("Reference targets must be available operative source units")
-            resolved = True
-        result.append({"id": ref["id"], "questions": referencing["questions"],
-                       "status": "RESOLVED" if resolved else "UNRESOLVED",
-                       "targets": decision.get("targets", []) if decision else []})
+            targets = [target(graph, assembly, value) for value in decision["targets"]]
+            if len(referencing) > 1 and decision.get("from_use") not in {m["unit"] for m in referencing}:
+                raise ValueError("Repeated reference occurrence requires an explicit from_use")
         kind = decision.get("kind", "reference") if decision else "reference"
         from .reference_closure import KINDS
         if kind not in KINDS:
             raise ValueError("Unsupported reference kind")
         authority = decision.get("authority") if decision else None
         if authority is not None:
-            from .anchors import bind
             bind(graph, authority)
-        for target in (decision.get("targets") if decision else None) or [None]:
-            edges.append({"id": ref["id"], "from": ref["unit"], "to": target, "kind": kind,
-                          "resolved": resolved, "authority": authority})
+        for use in referencing:
+            questions = sorted(set(operative[use["unit"]]["questions"]) - replaced.get((ref["id"], use["unit"]), set()))
+            if not questions:
+                continue
+            applies = bool(targets) and (not decision.get("from_use") or decision["from_use"] == use["unit"])
+            result.append({"id": ref["id"] + "@" + use["unit"], "questions": questions,
+                           "status": "RESOLVED" if applies else "UNRESOLVED",
+                           "source_use": use, "targets": targets if applies else []})
+            for destination in targets if applies else [None]:
+                edges.append({"id": ref["id"] + "@" + use["unit"], "from": use["unit"],
+                              "to": destination["unit"] if destination else None, "kind": kind,
+                              "resolved": applies, "authority": authority, "questions": questions})
     from .reference_closure import close
     for question in ("Q1", "Q2"):
-        roots = {u for u, row in operative.items() if question in row["questions"] and u in raw_units}
-        for row in operative.values():
-            if question in row["questions"]:
-                roots.update(p["source"]["unit"] for p in row.get("character_map", [])
-                             if isinstance(p.get("source"), dict) and "unit" in p["source"])
-        closure = close(raw_units, edges, roots)
+        roots = {u for u, row in operative.items() if question in row["questions"]}
+        closure = close(operative, [edge for edge in edges if question in edge['questions']], roots)
         if closure["unresolved"]:
             result.append({"id": "reference-closure:" + question, "questions": [question],
                            "status": "UNRESOLVED", **closure})
@@ -118,17 +144,30 @@ def interpretation_product(source, construction, interpretation=None):
     bundle = request["bundle"]
     if interpretation is not None:
         from .anchors import fields
-        fields(interpretation, {"clauses", "scope", "observations", "reference_dispositions", "predicate_engine", "predicate_constraints"})
+        fields(interpretation, {"clauses", "scope", "observations", "reference_dispositions", "reference_admission", "predicate_engine", "predicate_constraints", "annotation_admission", "priority_admission"})
         request = {**request, **interpretation}
     selected = verify(construction, "P2", bundle, {"P1": source["sha256"]})
     assembly = selected["assembly"]
-    clauses = clause_graph.build(assembly, request.get("clauses"))
+    supplied = request.get("clauses")
+    if request.get("annotation_admission"):
+        if supplied is not None:
+            raise ValueError("Choose authored evidence or directly supplied clauses")
+        from .admissions import annotation_clauses
+        supplied = annotation_clauses(graph, assembly, request["annotation_admission"])
+    clauses = clause_graph.build(assembly, supplied)
+    if request.get("priority_admission"):
+        from .priorities import admit
+        clauses = admit(graph, assembly, clauses, request["priority_admission"])
     deps = dependencies(request, graph, assembly)
     questions = clause_graph.evaluate(clauses, assembly, request.get("scope", {}), deps, request.get("observations"),
         predicate_engine=request.get("predicate_engine", "finite"), predicate_constraints=request.get("predicate_constraints", ()), source_graph=graph)
+    terms = None
+    if request.get("term_interpretations"):
+        from .contract_terms import admit
+        terms = admit(graph, assembly, request["term_interpretations"])
     return seal("P3", bundle, {"P1": source["sha256"], "P2": construction["sha256"]},
                 {"clauses": clauses, "dependencies": deps, "questions": questions,
-                 "interpretation_input": interpretation, "scope": request.get("scope", {})})
+                 "interpretation_input": interpretation, "scope": request.get("scope", {}), "contract_terms": terms})
 
 
 def law_product(source, interpretation, cases=None, law_input=None):
@@ -140,7 +179,8 @@ def law_product(source, interpretation, cases=None, law_input=None):
         fields(law_input, {"law_bases", "facts", "law_relation"}, {"law_bases", "facts"})
         request = {**request, **law_input}
     question = law_facts.assess(request["bundle"], request.get("law_bases", []), request.get("facts", []),
-                               payload["graph"], request.get("law_relation"))
+                               payload["graph"], request.get("law_relation"),
+                               predicate_engine=request.get("predicate_engine", "finite"))
     return seal("P4", request["bundle"], {"P1": source["sha256"], "P3": interpretation["sha256"]},
                 {"question": question, "cases": cases or [], "law_input": law_input})
 
@@ -150,12 +190,25 @@ def financial_product(source, construction, interpretation, cases=None, scenario
     verify(construction, "P2", request["bundle"], {"P1": source["sha256"]})
     verify(interpretation, "P3", request["bundle"], {"P1": source["sha256"], "P2": construction["sha256"]})
     supplied = scenario if scenario is not None else request.get("financial_scenario")
-    question = financial_profiles.assess(request["bundle"], supplied, verify(source, "P1")["graph"])
+    if request.get("contract_calculation"):
+        if supplied is not None:
+            raise ValueError("Choose selected-contract calculation or separate financial scenario")
+        from .contract_terms import scenario as from_terms
+        semantic = verify(interpretation, "P3")
+        if semantic.get("contract_terms") is None:
+            raise ValueError("Reviewed selected contract terms required")
+        calculated = from_terms(semantic["contract_terms"], request["contract_calculation"],
+                                verify(source, "P1")["graph"], verify(construction, "P2")["assembly"])
+        question = QueryResult("Q5", "CONDITIONAL", value=calculated).json()
+    else:
+        question = financial_profiles.assess(request["bundle"], supplied, verify(source, "P1")["graph"])
     return seal("P5", request["bundle"], {"P2": construction["sha256"], "P3": interpretation["sha256"]},
                 {"question": question, "cases": cases or [], "scenario_input": supplied})
 
 
-def consume(products, root, bank=None, include_artifacts=False):
+def consume(products, root, bank=None, include_artifacts=False, *, mode="frozen"):
+    if mode not in {"frozen", "current"}:
+        raise ValueError("Choose frozen replay or current assessment")
     source, construction, interpretation, law, financial = [products[p] for p in ("P1", "P2", "P3", "P4", "P5")]
     data = verify(source, "P1")
     request, graph = data["request"], data["graph"]
@@ -163,6 +216,23 @@ def consume(products, root, bank=None, include_artifacts=False):
     verify(source, "P1", bundle, {"request": digest(request)})
     if graph["bundle_sha256"] != digest(bundle):
         raise ValueError("Source graph bundle changed")
+    if mode == "current":
+        if any(p.get("version") != PRODUCT_VERSION for p in products.values()):
+            raise ValueError("Legacy products require fresh assessment before current validation")
+        fresh = source_product(request, root)
+        if fresh["payload"]["graph"] != graph:
+            raise ValueError("Source derivative or extraction runtime changed; reassessment required")
+        rebuilt = construction_product(fresh, root)
+        if rebuilt["payload"] != verify(construction, "P2"):
+            raise ValueError("Construction admission changed; reassessment required")
+        fresh_semantic = interpretation_product(fresh, rebuilt, verify(interpretation, "P3").get("interpretation_input"))
+        law_payload, financial_payload = verify(law, "P4"), verify(financial, "P5")
+        fresh_law = law_product(fresh, fresh_semantic, law_payload.get("cases"), law_payload.get("law_input"))
+        fresh_financial = financial_product(fresh, rebuilt, fresh_semantic,
+                                             financial_payload.get("cases"), financial_payload.get("scenario_input"))
+        for old, new in ((interpretation, fresh_semantic), (law, fresh_law), (financial, fresh_financial)):
+            if old["payload"] != new["payload"]:
+                raise ValueError("Current interpretation/calculation differs; reassessment required")
     for document in bundle["documents"]:
         if digest(bound_path(root,document["path"]).read_bytes()) != document["sha256"]:
             raise ValueError("Source bytes changed after intake: " + document["id"])
@@ -189,9 +259,14 @@ def consume(products, root, bank=None, include_artifacts=False):
     questions["Q3"] = QueryResult("Q3", "COMPLETE" if all(v["complete"] for v in completeness.values()) else "PARTIAL",
                                   completeness, quantifier="Declared questions: " + ", ".join(declared)).json()
     result = {"version": VERSION, "instrument_id": bundle["instrument_id"], "request_sha256": digest(request),
+              "source_graph_sha256": digest(graph),
+              "assessment_mode": mode,
+              "validation_profile": "closure-admission.v1" if all(p.get("version") == PRODUCT_VERSION for p in products.values()) else "LEGACY_FROZEN_REPLAY",
               "questions": questions, "consumed_products": {p: products[p]["sha256"] for p in products},
               "law_cases": legal["cases"], "financial_cases": amounts["cases"],
-              "mode": "ASSISTED" if semantic["clauses"]["origin"] == "assisted-proposal" else "AUTOMATIC_BOUNDED",
+              "mode": "ASSISTED" if semantic["clauses"]["origin"] == "assisted-proposal" or any(request.get(k) for k in
+                  ('term_interpretations', 'annotation_admission', 'priority_admission', 'reviewed_dispositions',
+                   'correction_admission', 'layout_admission', 'reference_admission')) else "AUTOMATIC_BOUNDED",
               "independent_legal_acceptance": False, "may_execute_transaction": False}
     if include_artifacts:
         result.update(source_map=graph, assembly=selected["assembly"], selected_contract=selected["selected_contract"],
@@ -203,8 +278,11 @@ def assess(request, root, bank=None):
     p1 = source_product(request, root)
     p2 = construction_product(p1, root)
     p3 = interpretation_product(p1, p2)
-    return consume({"P1": p1, "P2": p2, "P3": p3, "P4": law_product(p1, p3),
+    result = consume({"P1": p1, "P2": p2, "P3": p3, "P4": law_product(p1, p3),
                     "P5": financial_product(p1, p2, p3)}, root, bank, include_artifacts=True)
+    result["assessment_mode"] = "fresh"
+    result["report_sha256"] = digest({k:v for k,v in result.items() if k != "report_sha256"})
+    return result
 
 
 def configure(parser):
@@ -214,6 +292,8 @@ def configure(parser):
         p.add_argument(arg, required=True)
         p.add_argument("--repository", default=".")
         p.add_argument("--output", required=True)
+        if name == "consume":
+            p.add_argument("--mode", choices=("frozen", "current"), default="frozen")
 
 
 def dispatch(args):
@@ -230,7 +310,7 @@ def dispatch(args):
         if bank:
             from ...transaction.evidence import Store
             bank = {**bank, "store": Store(bound_path(root, bank["store"]))}
-        result = consume(products, root, bank)
+        result = consume(products, root, bank, mode=getattr(args, "mode", "frozen"))
     else:
         result = assess(read(args.request), root)
     write(args.output, result)

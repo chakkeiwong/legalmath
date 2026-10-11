@@ -171,7 +171,7 @@ def current(root, state):
                     valid[phase] = False
                     break
         if valid[phase]:
-            from .read_context import current as reads_current
+            from .read_context import reusable as reads_current
             observed = root / row["directory"] / "read-context.json"
             if observed.exists() and not reads_current(root, read(observed)):
                 valid[phase] = False

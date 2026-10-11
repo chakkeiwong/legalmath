@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="34.266" timestamp="2026-10-09T02:56:38.532573+08:00" hostname="DESKTOP-O4SCJCJ"><properties><property name="hypothesis-statistics-tests/prospectus_successor/test_closure_recovery.py::test_real_executor_sequences_match_clean_recomputation" value="dGVzdHMvcHJvc3BlY3R1c19zdWNjZXNzb3IvdGVzdF9jbG9zdXJlX3JlY292ZXJ5LnB5Ojp0ZXN0X3JlYWxfZXhlY3V0b3Jfc2VxdWVuY2VzX21hdGNoX2NsZWFuX3JlY29tcHV0YXRpb246CgogIC0gZHVyaW5nIGdlbmVyYXRlIHBoYXNlICgzLjUxIHNlY29uZHMpOgogICAgLSBUeXBpY2FsIHJ1bnRpbWVzOiB+IDAtNDE3IG1zLCBvZiB3aGljaCA8IDFtcyBpbiBkYXRhIGdlbmVyYXRpb24KICAgIC0gMCBwYXNzaW5nIGV4YW1wbGVzLCA5IGZhaWxpbmcgZXhhbXBsZXMsIDEgaW52YWxpZCBleGFtcGxlcwogICAgLSBGb3VuZCAxIGRpc3RpbmN0IGVycm9yIGluIHRoaXMgcGhhc2UKCiAgLSBkdXJpbmcgc2hyaW5rIHBoYXNlICgzMC4zMSBzZWNvbmRzKToKICAgIC0gVHlwaWNhbCBydW50aW1lczogfiAzNjEtNDI2IG1zLCBvZiB3aGljaCA8IDFtcyBpbiBkYXRhIGdlbmVyYXRpb24KICAgIC0gMCBwYXNzaW5nIGV4YW1wbGVzLCA3OCBmYWlsaW5nIGV4YW1wbGVzLCAwIGludmFsaWQgZXhhbXBsZXMKICAgIC0gVHJpZWQgNzggc2hyaW5rcyBvZiB3aGljaCAwIHdlcmUgc3VjY2Vzc2Z1bAoKICAtIFN0b3BwZWQgYmVjYXVzZSBub3RoaW5nIGxlZnQgdG8gZG8=" /></properties><testcase classname="tests.prospectus_successor.test_closure_recovery" name="test_real_executor_sequences_match_clean_recomputation" time="34.140"><failure message="AssertionError: assert {'error': 'Va...ssing fields'} == {'questions':...', ...}, ...}}&#10;  &#10;  Left contains 1 more item:&#10;  {'error': 'ValueError: Unexpected or missing fields'}&#10;  Right contains 1 more item:&#10;  {'questions': {'Q1': {'creditor_amendments': [],&#10;                        'premise_applicability': [],&#10;                        'qualification': 'CONDITIONAL_ON_SUPPLIED_SCOPE_AND_INTERPRETATION',...&#10;  &#10;  ...Full output truncated (747 lines hidden), use '-vv' to show&#10;Falsifying example: test_real_executor_sequences_match_clean_recomputation(&#10;    actions=['source', 'source'],  # or any other generated value&#10;)">@settings(max_examples=5, derandomize=True, deadline=None)
+&gt;   @given(st.lists(st.sampled_from(['source','missing','repair','holding','calendar','corrupt']), min_size=2, max_size=4))
+                   ^^^
+
+tests/prospectus_successor/test_closure_recovery.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+actions = ['source', 'source']
+
+    @settings(max_examples=5, derandomize=True, deadline=None)
+    @given(st.lists(st.sampled_from(['source','missing','repair','holding','calendar','corrupt']), min_size=2, max_size=4))
+    def test_real_executor_sequences_match_clean_recomputation(actions):
+        with tempfile.TemporaryDirectory(prefix='closure-controller-check-') as temporary:
+            root = Path(temporary)
+            # A real isolated Git baseline supplies the executor's manifest. No
+            # repository under development or external remote is modified.
+            subprocess.run(['git','init','-q',str(root)],check=True,capture_output=True)
+            subprocess.run(['git','-c','user.name=Controller fixture','-c','user.email=fixture@invalid',
+                            'commit','--allow-empty','-qm','Isolated controller fixture'],cwd=root,check=True,capture_output=True)
+            probe = root/'tests/prospectus_successor/probe.py'
+            probe.parent.mkdir(parents=True)
+            probe.write_text(PROBE)
+            case = root/c.REL/'inputs/R0/cases'
+            case.mkdir(parents=True)
+            req = full_term_fixture(case)
+            source = case/'source.txt'
+            original = source.read_bytes()
+            write(case/'request.json',req)
+            old = c.JOBS['R0']
+            c.JOBS['R0'] = ('tests/prospectus_successor/probe.py',None)
+            try:
+                for index,action in enumerate(['repair',*actions]):
+                    if action=='source':
+                        source.write_bytes(original+b'altered')
+                    elif action=='missing':
+                        source.unlink(missing_ok=True)
+                    elif action=='repair':
+                        source.write_bytes(original)
+                    elif action=='holding':
+                        req['contract_calculation']['premises']['holdings'][0]['principal']='200.2'
+                    elif action=='calendar':
+                        req['contract_calculation']['premises']['calendar']['holidays'].append('2025-01-02')
+                    elif action=='corrupt':
+                        current = next(r for r in c.status(root)['phases'] if r['phase']=='R0')
+                        (root/current['directory']/'assessment.json').write_text('corrupted')
+                        assert not c.status(root)['phases'][0]['current']
+                    write(case/'request.json',req)
+                    # Explicit recovery/mutation record supplies the reason for a
+                    # new attempt, including when input bytes return to an old value.
+                    write(root/c.REL/'inputs/R0/recovery.json',{'step':index,'action':action})
+                    assert not c.status(root)['phases'][0]['current']
+                    result = c.execute(root,'R0')
+                    assert result['engineering_checks']=='PASS'
+                    actual = read(root/result['directory']/'assessment.json')
+                    try:
+                        expected = {'questions':service.assess(req,case)['questions']}
+                    except (ValueError,FileNotFoundError) as exc:
+                        expected = {'error':type(exc).__name__+': '+str(exc).replace(str(case),'CASE')}
+&gt;                   assert actual == expected
+E                   AssertionError: assert {'error': 'Va...ssing fields'} == {'questions':...', ...}, ...}}
+E                     
+E                     Left contains 1 more item:
+E                     {'error': 'ValueError: Unexpected or missing fields'}
+E                     Right contains 1 more item:
+E                     {'questions': {'Q1': {'creditor_amendments': [],
+E                                           'premise_applicability': [],
+E                                           'qualification': 'CONDITIONAL_ON_SUPPLIED_SCOPE_AND_INTERPRETATION',...
+E                     
+E                     ...Full output truncated (747 lines hidden), use '-vv' to show
+E                   Falsifying example: test_real_executor_sequences_match_clean_recomputation(
+E                       actions=['source', 'source'],  # or any other generated value
+E                   )
+
+tests/prospectus_successor/test_closure_recovery.py:76: AssertionError</failure></testcase></testsuite></testsuites>

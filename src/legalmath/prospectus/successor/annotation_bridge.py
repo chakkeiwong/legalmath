@@ -4,6 +4,52 @@ from .anchors import fields
 from .contracts import digest
 
 
+def bound_evidence(graph, export_record):
+    """Recover raw occurrences from the signed normalized export, without guessing."""
+    from .anchors import bind
+    fields(export_record, {"packet", "map"}, {"packet", "map"})
+    packet = export_record["packet"]
+    decoded = reimport(packet, packet["text"], packet["source"])
+    mappings = export_record["map"]
+    for row in mappings:
+        fields(row, {"start", "end", "source", "correction"}, {"start", "end", "source"})
+        raw = bind(graph, row["source"])
+        text = raw['quote']
+        if row.get('correction'):
+            entries = [e for e in graph.get('corrections', {}).get('entries', []) if e['id'] == row['correction']]
+            if len(entries) != 1 or entries[0]['source'] != row['source']:
+                raise ValueError('Reading correction source changed')
+            text = entries[0]['text']
+        if (type(row["start"]) is not int or type(row["end"]) is not int or
+                not 0 <= row["start"] < row["end"] <= len(packet["text"]) or
+                packet["text"][row["start"]:row["end"]] != text or
+                raw["document"] != packet["source"]["document"] or
+                raw["source_sha256"] != packet["source"]["source_sha256"]):
+            raise ValueError("Reading export source map changed")
+    evidence = []
+    for group in decoded["groups"]:
+        for span in group["spans"]:
+            covering = [r for r in mappings if r["start"] <= span["start"] < span["end"] <= r["end"]]
+            if len(covering) != 1:
+                raise ValueError("Reading span requires an exact unambiguous source map")
+            row = covering[0]
+            if row.get('correction'):
+                from .corrections import sources
+                for source in sources(graph, row['correction'], span['start']-row['start'], span['end']-row['start']):
+                    bind(graph, source)
+                    if source not in evidence:
+                        evidence.append(source)
+                continue
+            a = row["source"]["start"] + span["start"] - row["start"]
+            source = {**row["source"], "start": a, "end": a + span["end"] - span["start"], "quote": span["quote"]}
+            bind(graph, source)
+            if source not in evidence:
+                evidence.append(source)
+    if not evidence:
+        raise ValueError("Reading export lacks authored evidence")
+    return evidence
+
+
 def to_utf16(text, offset):
     if type(offset) is not int or not 0 <= offset <= len(text):
         raise ValueError("Invalid code-point offset")

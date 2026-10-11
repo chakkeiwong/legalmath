@@ -50,6 +50,21 @@ def _z3_expression(value, variables):
     return (z3.And if op == "all" else z3.Or)(*[_z3_expression(a, variables) for a in args])
 
 
+def dispatch(expr, observations, *, engine="finite", constraints=(), graph=None):
+    """One bounded Boolean interface used by each advertised service phase."""
+    if engine not in {"finite", "z3"}:
+        raise ValueError("Unknown predicate engine")
+    if engine == "z3":
+        return solve(expr, observations, constraints, graph=graph)
+    if constraints:
+        raise ValueError("Named constraints require the explicit z3 engine")
+    required = sorted(names(expr))
+    if len(required) > 12:
+        return {"status": "UNKNOWN", "decision": "UNDETERMINED", "reason": "DOMAIN_LIMIT",
+                "missing": required, "witnesses": {}, "limits": {"max_facts": 12}, "solver": "finite"}
+    return {**decide(expr, observations), "solver": "finite", "limits": {"max_facts": 12}}
+
+
 def solve(expr, observations, constraints=(), *, graph=None, timeout_ms=1000, max_facts=256, solver_factory=None):
     """Optional bounded entailment; named constraints require source occurrences.
 
@@ -69,8 +84,6 @@ def solve(expr, observations, constraints=(), *, graph=None, timeout_ms=1000, ma
         required |= names(row["expression"])
         bind(graph, row["source"])
     required = sorted(required)
-    if len(required) > max_facts:
-        raise ValueError("Predicate exceeds declared solver domain")
     for k in required:
         v = observations.get(k)
         if v is not None and v != "conflict" and type(v) is not bool:
@@ -82,6 +95,8 @@ def solve(expr, observations, constraints=(), *, graph=None, timeout_ms=1000, ma
     def result(status, reason, **extra):
         return {**base, "status": status, "reason": reason, "decision":
                 {"YES": "TRUE", "NO": "FALSE", "UNKNOWN": "UNDETERMINED", "CONFLICT": "CONFLICT"}[status], **extra}
+    if len(required) > max_facts:
+        return result("UNKNOWN", "DOMAIN_LIMIT", solver="z3:NOT_STARTED")
     # Preserve explicit relevant conflicts even if q simplifies to a tautology.
     if conflicts:
         return result("CONFLICT", "EXPLICIT_CONFLICT")

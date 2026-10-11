@@ -1,5 +1,16 @@
 # Integration repair reset
 
+Latest planning continuation, 9 October 2026: the [closure plan](../../plans/prospectus-integration-closure-2026-10-08.md)
+and [reset](../prospectus-integration-closure/RESET.md) map all twenty audit
+findings to repairs and closing checks. Implementation has not started.
+
+Current direction, 8 October 2026: the user requested a code audit before further
+execution. See the [package integration audit](../prospectus-package-integration-audit/REPORT.md)
+and its [reset](../prospectus-package-integration-audit/RESET.md). It distinguishes
+completed trial adapters from missing service consumers and reproduces remaining
+local admission defects. Review those findings before resuming a source-only
+closure plan; no new production repair was executed in the audit.
+
 Latest completed continuation: [BASF table/reference review](../prospectus-basf-reference-repair/RESET.md).
 It adds five exact deletions to the 62 earlier decisions, preserving all prior
 operations and 1,578 source occurrences. Focused run-002 passes 40 checks; adoption

@@ -139,7 +139,7 @@ def build(assembly, supplied=None):
             "origin": "assisted-proposal" if supplied is not None else "automatic-bounded-grammar"}
 
 
-def active(node, by_id, observations, decision=decide):
+def activation_expression(node, by_id):
     def expression(value, kind):
         if not isinstance(value, list):
             return value
@@ -147,8 +147,12 @@ def active(node, by_id, observations, decision=decide):
             return kind == "conditions"
         return {"all" if kind == "conditions" else "any":
                 [by_id.get(k, {}).get("predicate", "unresolved:" + k) for k in value]}
-    return decision({"all": [expression(node["conditions"], "conditions"),
-                           {"not": expression(node["exceptions"], "exceptions")}]}, observations)
+    return {"all": [expression(node["conditions"], "conditions"),
+                    {"not": expression(node["exceptions"], "exceptions")}]}
+
+
+def active(node, by_id, observations, decision=decide):
+    return decision(activation_expression(node, by_id), observations)
 
 
 def evaluate(graph, assembly, scope, dependencies, observations=None, *, predicate_engine="finite",
@@ -156,14 +160,25 @@ def evaluate(graph, assembly, scope, dependencies, observations=None, *, predica
     observations = observations or {}
     if predicate_engine not in {"finite", "z3"} or predicate_constraints and predicate_engine != "z3":
         raise ValueError("Named constraints require the explicit z3 engine")
-    def decision(expr, facts):
-        if predicate_engine == "finite":
-            return decide(expr, facts)
-        from .predicates import solve
-        return solve(expr, facts, predicate_constraints, graph=source_graph)
-    premise_status = decision(True, observations) if predicate_constraints else None
     results, by_id = {}, {n["id"]: n for n in graph["nodes"]}
+    def with_priority(node, path=()):
+        if node['id'] in path:
+            return 'unresolved:priority-cycle'
+        base = activation_expression(node, by_id)
+        higher = [e['higher'] for e in graph.get('priorities', {}).get('edges', []) if e['lower'] == node['id']]
+        if higher:
+            return {'all':[base, {'not':{'any':[with_priority(by_id[k], (*path, node['id'])) for k in higher]}}]}
+        return base
     def answer(question, effects, conversion=None):
+        from .occurrences import constraints
+        from .predicates import dispatch
+        admitted, applicability = constraints(source_graph, assembly, predicate_constraints, question)
+        reasoning = []
+        def decision(expr, facts):
+            value = dispatch(expr, facts, engine=predicate_engine, constraints=admitted, graph=source_graph)
+            reasoning.append({"expression": expr, "result": value})
+            return value
+        premise_status = decision(True, observations) if admitted else None
         relevant_units = {u["unit"] for u in assembly["units"] if question in u["questions"]}
         from .reference_closure import close
         closure = close(by_id, graph["edges"], {n["id"] for n in graph["nodes"] if question in n["questions"]})
@@ -192,7 +207,7 @@ def evaluate(graph, assembly, scope, dependencies, observations=None, *, predica
             if n["actor"] == "unknown" or n["affected"] == "unknown":
                 unresolved.append("Missing actor/affected interest: " + n["id"])
                 continue
-            activation = active(n, by_id, observations, decision)
+            activation = decision(with_priority(n), observations)
             if activation["status"] == "NO":
                 continue
             if activation["status"] == "CONFLICT":
@@ -231,8 +246,9 @@ def evaluate(graph, assembly, scope, dependencies, observations=None, *, predica
         else:
             status = "UNKNOWN"
             unresolved.append("No affirmative absence/repayment interpretation")
-        return QueryResult(question, status, status == "YES" if status in {"YES", "NO"} else None,
-                           positives + negatives + conflicts + mixed, sorted(set(unresolved))).json()
+        return {**QueryResult(question, status, status == "YES" if status in {"YES", "NO"} else None,
+                             positives + negatives + conflicts + mixed, sorted(set(unresolved))).json(),
+                "reasoning": reasoning, "premise_applicability": applicability}
     results["Q1"] = answer("Q1", {"principal_loss"})
     subs = {name: answer("Q2", {"conversion"}, name) for name in ("compulsory_common", "possible_common", "common_only")}
     results["Q2"] = {**subs["compulsory_common"], "subquestions": subs, "question_version": "Q2.v2",

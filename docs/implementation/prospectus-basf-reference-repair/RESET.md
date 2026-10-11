@@ -1,5 +1,14 @@
 # BASF residual repair reset
 
+Latest planning continuation, 9 October 2026: use the [integration closure plan](../../plans/prospectus-integration-closure-2026-10-08.md)
+for the revised repair order. BASF's source obligations below remain open; a
+successful alternative development case cannot close them.
+
+Current direction: the user paused forward execution to audit package integration.
+Read the [current audit](../prospectus-package-integration-audit/REPORT.md) before
+resuming this source plan. It finds missing service consumers and local admission
+defects beyond the source residuals below; the historical results remain intact.
+
 Worktree: `/home/chakwong/python/legalmath/.worktrees/bond-gap-closure`.
 Branch: `feature/prospectus-evidence-master`. Baseline: `3ce50d4eb`, the reviewed
 campaign merge. Main's unrelated assurance work was restored and remains

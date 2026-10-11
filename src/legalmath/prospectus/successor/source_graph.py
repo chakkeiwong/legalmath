@@ -1,5 +1,7 @@
 """Lossless page/line inventory. Geometry and order remain reviewable premises."""
 import re
+from pathlib import Path
+import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 from .contracts import TextUnit, bound_path, digest, timestamp, read
@@ -40,23 +42,35 @@ def pdf_units(path, document):
     if not pages:
         raise ValueError("No PDF pages extracted")
     return units, len(pages), {"extractor": "pdftotext-bbox-layout",
+        "executable_sha256": digest(Path(shutil.which('pdftotext')).resolve().read_bytes()),
+        "dependency_assurance": "DECLARED_EXECUTABLE; native libraries not confined; current assessment reruns extraction",
         "raw_xml_sha256": digest(run.stdout), "xml_illegal_characters": removed, "geometry_review": "PENDING"}
 
 
-def retained_ocr_units(document, root):
+def retained_ocr_units(document, root, *, data=None):
     """Consume a pinned existing CPU OCR result, retaining raw word geometry.
 
     Reviewed transcriptions are a separate interpretation; raw boxes are never
     silently assigned to corrected text with different characters or word order.
     """
-    spec=document["ocr"]
-    path=bound_path(root,spec["path"])
-    if digest(path.read_bytes())!=spec["sha256"]:
-        raise ValueError("OCR extraction changed")
-    data=read(path)
+    if data is None:
+        spec=document["ocr"]
+        path=bound_path(root,spec["path"])
+        if digest(path.read_bytes())!=spec["sha256"]:
+            raise ValueError("OCR extraction changed")
+        data=read(path)
+    else:
+        spec={"sha256": digest(data)}
     if data["source_sha256"]!=document["sha256"] or data["page_count"]!=len(data["pages"]):
         raise ValueError("OCR source identity or page count differs")
-    if data["runtime"].get("dpi")!=300 or data["runtime"].get("language")!="eng":
+    count = data["page_count"]
+    if (type(count) is not int or count <= 0 or
+            any(type(page.get("page")) is not int for page in data["pages"]) or
+            [page["page"] for page in data["pages"]] != list(range(1, count + 1)) or
+            document.get("page_count", count) != count):
+        raise ValueError("OCR pages must cover the exact ordered source sequence 1..N")
+    language = document.get("scan_profile", {}).get("language", "eng")
+    if data["runtime"].get("dpi")!=300 or data["runtime"].get("language")!=language:
         raise ValueError("Unsupported retained OCR settings; review a new profile")
     units=[]
     for p in data["pages"]:
@@ -92,6 +106,10 @@ def retained_ocr_units(document, root):
             units.append(TextUnit(f"{document['id']}:p{p['page']}:ocr-page",document["id"],document["sha256"],
                                   p["page"],0,p["text"],None,f"{document['id']}:p{p['page']}",
                                   document["language"],"retained-original-text-or-blank").json())
+    images = {p['page']:p.get('image_sha256') for p in data['pages']}
+    for unit in units:
+        if images[unit['page']]:
+            unit['image_sha256'] = images[unit['page']]
     return units,data["page_count"],{"extractor":"retained-ocr","runtime":data["runtime"],
                 "ocr_sha256":spec["sha256"],
                 "geometry_normalization":"clamp boundary noise <=1e-3 to [0,10000]",
@@ -129,8 +147,20 @@ def build(bundle, root):
             if digest(receipt.read_bytes()) != a["sha256"]:
                 raise ValueError("Acquisition receipt changed")
             receipt_status = "BYTES_BOUND; AUTHENTICITY_REQUIRES_REVIEW"
-        if doc.get("ocr"):
+        if doc.get("scan_profile"):
+            if doc.get("ocr"):
+                raise ValueError("Choose current scan intake or retained OCR")
+            from .extraction import scan
+            data = scan(doc, root)
+            extracted, count, extraction = retained_ocr_units(doc, root, data=data)
+            extraction["scan_pages"] = [{k:v for k,v in page.items() if k not in {"words", "text"}} for page in data["pages"]]
+            extraction["fresh_extraction"] = True
+        elif doc.get("ocr"):
             extracted, count, extraction = retained_ocr_units(doc, root)
+            if doc.get('format') != 'text':
+                from pypdf import PdfReader
+                if len(PdfReader(path).pages) != count:
+                    raise ValueError('OCR page count differs from original PDF')
         elif doc.get("format") == "text":
             pages = path.read_text().split("\f")
             extracted = [TextUnit(f"{doc['id']}:p{p}:l0", doc["id"], doc["sha256"], p, 0,
@@ -138,13 +168,19 @@ def build(bundle, root):
                 for p, text in enumerate(pages, 1)]
             count, extraction = len(pages), {"geometry_review": "NOT_APPLICABLE_TEXT"}
         else:
-            extracted, count, extraction = pdf_units(path, doc)
+            try:
+                extracted, count, extraction = pdf_units(path, doc)
+            except (OSError, subprocess.SubprocessError) as exc:
+                from .extraction import ExtractionUnavailable
+                raise ExtractionUnavailable("Poppler extraction unavailable; check pdftotext and the declared PDF") from exc
         if doc.get("page_count", count) != count:
             raise ValueError("Source page count changed")
         units.extend({**u, "visible": visible} for u in extracted)
         records.append({**doc, "page_count": count, "visible": visible, "issues": issues,
                         "acquisition_status": receipt_status, **extraction})
         unresolved.extend({"document": doc["id"], "reason": i} for i in issues)
+    if len({u["id"] for u in units}) != len(units):
+        raise ValueError("Duplicate source occurrence identity")
     references = []
     for unit in units:
         for m in REFERENCE.finditer(unit["raw"]):

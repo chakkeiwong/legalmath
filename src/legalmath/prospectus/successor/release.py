@@ -4,6 +4,10 @@ from .contracts import digest
 
 def assess(evaluation, support, signoffs):
     reasons=[]
+    if evaluation.get("source_binding") != "VERIFIED" or evaluation.get("prediction_binding") != "RECOMPUTED_CURRENT_SERVICE":
+        reasons.append("Source-bound labels and executed predictions required")
+    if evaluation.get("review_binding") != "AUTHENTICATED_ASSIGNMENTS_AND_READINGS":
+        reasons.append("Authenticated independent readings and adjudication required")
     if evaluation.get("status")!="FINITE_DESCRIPTIVE_ONLY":
         reasons.append("Independent evaluation missing")
     if not support:

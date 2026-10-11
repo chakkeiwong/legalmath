@@ -251,28 +251,150 @@ def construct(graph, admission):
                       "Review continuous text and clause renumbering",
                       "Resolve incorporated agreements and conflicting annual ranges"]}
 
-def as_assembly(graph, construction):
+def _scalar_bindings(graph, construction, admission, raw_units):
+    from .anchors import bind, fields
+    from .admissions import review
+    if admission is None:
+        return {}
+    fields(admission, {"version", "graph_sha256", "construction_sha256", "review", "bindings"},
+           {"version", "graph_sha256", "construction_sha256", "review", "bindings"})
+    if (admission["version"] != "basf-scalar-bindings.v1" or
+            admission["graph_sha256"] != digest(graph) or
+            admission["construction_sha256"] != digest(construction)):
+        raise ValueError("BASF scalar graph or construction changed")
+    names = {"reviewer", "reason", "kind"}
+    fields(admission["review"], names, names)
+    if any(not isinstance(admission["review"][name], str) for name in names):
+        raise ValueError("BASF scalar review fields must be strings")
+    review(admission["review"])
+    legacy = [o for o in construction["operations"] if o["new"] and "unit" not in o["basis"]]
+    operations = {digest(o): o for o in legacy}
+    if len(operations) != len(legacy):
+        raise ValueError("Duplicate BASF scalar operation")
+    spans = {s["unit"]: s for s in construction["source_map"]}
+    result = {}
+    if not isinstance(admission["bindings"], list):
+        raise ValueError("BASF scalar bindings must be a complete list")
+
+    def bind_source(source):
+        names = {"unit", "document", "source_sha256", "start", "end", "quote"}
+        fields(source, names, names)
+        if not isinstance(source["unit"], str):
+            raise ValueError("BASF scalar source requires a raw unit identity")
+        unit = raw_units.get(source["unit"])
+        return bind({"units": [unit] if unit is not None else []}, source)
+
+    for row in admission["bindings"]:
+        allowed = {"operation_sha256", "kind", "source", "reason"}
+        fields(row, allowed | {"selection_authority"}, allowed)
+        if row["kind"] == "LITERAL_SELECTION":
+            allowed.add("selection_authority")
+        fields(row, allowed, allowed)
+        key = row["operation_sha256"]
+        if (not isinstance(key, str) or key not in operations or key in result or
+                not isinstance(row["reason"], str) or not row["reason"].strip()):
+            raise ValueError("Unknown or duplicate BASF scalar operation")
+        operation = operations[key]
+        source = row["source"]
+        bound = bind_source(source)
+        if source["quote"] != operation["new"]:
+            raise ValueError("BASF scalar replacement differs from its bound source")
+
+        def final_authority(value):
+            bound_value = bind_source(value)
+            basis = operation["basis"]
+            if (bound_value["document"] != basis["document"] or
+                    bound_value["source_sha256"] != basis["source_sha256"] or
+                    bound_value["page"] != basis["page"] or value["quote"] not in basis["quote"]):
+                raise ValueError("BASF scalar source differs from its final-term basis")
+            return bound_value
+
+        if row["kind"] == "VALUE_COPY":
+            final_authority(source)
+        elif row["kind"] == "LITERAL_SELECTION":
+            span = spans.get(source["unit"])
+            if (bound["document"] != KEY or span is None or
+                    not operation["start"] <= span["start"]+source["start"] <
+                    span["start"]+source["end"] <= operation["end"]):
+                raise ValueError("BASF literal must come from its own replaced alternative")
+            authority = final_authority(row["selection_authority"])
+            if (operation["old"] != '["BASF"]["BASF Finance"]' or operation["new"] != '"BASF"' or
+                    authority["quote"] != "BASF SE" or operation["reason"] != "Final terms issuer"):
+                raise ValueError("BASF literal selection lacks the reviewed issuer authority")
+        else:
+            raise ValueError("Unsupported BASF scalar binding kind")
+        result[key] = row
+    if set(result) != set(operations):
+        raise ValueError("BASF scalar admission must cover every legacy substitution")
+    return result
+
+
+def as_assembly(graph, construction, scalar_admission=None):
     """Apply the constructed spans to every original unit, including deletions."""
+    from .anchors import bind
+    from .occurrences import anchor
+    raw_units = {u["id"]: u for u in graph["units"]}
+    if len(raw_units) != len(graph["units"]):
+        raise ValueError("Duplicate BASF source occurrence")
+    scalar_bindings = _scalar_bindings(graph, construction, scalar_admission, raw_units)
     by_unit={s["unit"]:s for s in construction["source_map"]}
     roles={r["unit"]:r["role"] for r in construction["unit_accounting"]}
     units=[]
     for u in graph["units"]:
         mapping=by_unit.get(u["id"])
         text=u["raw"]
+        character_map = None
         role={"PAGE_HEADER":"HEADER","MARGIN_INSTRUCTION":"INSTRUCTION"}.get(roles[u["id"]],"UNKNOWN")
         if mapping:
             start,end=mapping["start"],mapping["end"]
             cursor=start
             parts=[]
+            character_map = []
+            output_offset = 0
+
+            def copy(left, right):
+                nonlocal output_offset
+                if left == right:
+                    return
+                value = construction["raw_body"][left:right]
+                source = anchor(u, left-start, right-start)
+                if value != source["quote"]:
+                    raise ValueError("BASF copy differs from its raw occurrence")
+                parts.append(value)
+                character_map.append({"start": output_offset, "end": output_offset+len(value),
+                                      "operation": "Text", "source": source})
+                output_offset += len(value)
+
             for edit in construction["operations"]:
                 if edit["end"]<=start or edit["start"]>=end:
                     continue
                 left,right=max(edit["start"],start),min(edit["end"],end)
-                parts.append(construction["raw_body"][cursor:left])
+                copy(cursor,left)
                 if start<=edit["start"]<end:
                     parts.append(edit["new"])
+                    if edit["new"]:
+                        piece = {"start": output_offset, "end": output_offset+len(edit["new"])}
+                        basis = edit["basis"]
+                        admitted = scalar_bindings.get(digest(edit)) if scalar_admission is not None else None
+                        if admitted is not None:
+                            piece.update(operation="Field" if admitted["kind"] == "VALUE_COPY" else "Text",
+                                         source=dict(admitted["source"]), scalar_operation_sha256=digest(edit))
+                            if admitted["kind"] == "LITERAL_SELECTION":
+                                piece["selection_authority"] = dict(admitted["selection_authority"])
+                        elif "unit" in basis:
+                            bind({"units": [raw_units[basis["unit"]]] if basis["unit"] in raw_units else []}, basis)
+                            if basis["quote"] != edit["new"]:
+                                raise ValueError("BASF replacement differs from its bound source")
+                            piece.update(operation="Field", source=dict(basis))
+                        else:
+                            # Legacy page-text offsets do not identify a raw PDF
+                            # line occurrence. Never infer a source from a match.
+                            piece.update(operation="UnmappedSubstitution", basis=basis,
+                                         reason="Legacy basis needs an exact reviewed occurrence")
+                        character_map.append(piece)
+                        output_offset += len(edit["new"])
                 cursor=right
-            parts.append(construction["raw_body"][cursor:end])
+            copy(cursor,end)
             text="".join(parts)
             if not text.strip() and u["raw"].strip():
                 role="EXCLUDED"
@@ -283,7 +405,12 @@ def as_assembly(graph, construction):
             "source":{"document":u["document"],"page":u["page"],"bbox":u["bbox"]},
             "original_sha256":u["text_sha256"],"language":u["language"],
             "reason":"Source-mapped construction proposal; unreviewed text remains unknown"})
-    return {"version":"assembled-contract.v1","source_graph_sha256":digest(graph),
+        if character_map is not None:
+            units[-1]["character_map"] = character_map
+    result = {"version":"assembled-contract.v1","source_graph_sha256":digest(graph),
         "units":units,"operations":construction["operations"],"status":"PARTIAL",
         "unresolved":[u["unit"] for u in units if u["role"]=="UNKNOWN"],
         "continuous_text":construction["candidate_text"],"independent_legal_review":False}
+    if scalar_admission is not None:
+        result["scalar_admission"] = scalar_admission
+    return result

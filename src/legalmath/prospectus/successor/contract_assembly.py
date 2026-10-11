@@ -15,7 +15,7 @@ def anchor(graph, item):
     return {**item, "source_sha256": u["source_sha256"], "page": u["page"], "bbox": u["bbox"]}
 
 
-def assemble(graph, specification=None):
+def assemble(graph, specification=None, *, predicate_engine="finite"):
     specification = specification or {}
     operations = specification.get("operations", [])
     units = {u["id"]: u for u in graph["units"]}
@@ -76,5 +76,5 @@ def assemble(graph, specification=None):
         "continuous_text": "\n".join(r["text"] for r in assembled if r["role"] in {"OPERATIVE", "UNKNOWN"})}
     if specification.get("ast"):
         from .construction_ast import assemble as construct_ast
-        return construct_ast(graph, specification["ast"], result)
+        return construct_ast(graph, specification["ast"], result, predicate_engine=predicate_engine)
     return result

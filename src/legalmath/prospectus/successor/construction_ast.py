@@ -4,9 +4,9 @@ This executes admitted construction decisions; it does not infer their legal mea
 """
 from .anchors import bind, fields, in_period
 from .contracts import digest, timestamp
-from .predicates import decide
+from .predicates import dispatch
 
-def render(graph, spec):
+def render(graph, spec, *, predicate_engine="finite"):
     fields(spec, {"version","root","nodes","selections","constraints"}, {"version","root","nodes"})
     if spec["version"] not in {"contract-ast.v1", "contract-ast.v2"} or not isinstance(spec["nodes"], list):
         raise ValueError("Unsupported contract AST")
@@ -35,9 +35,11 @@ def render(graph, spec):
             account(chosen["source"], "PREMISE", (key, "selection"), chosen["reason"])
         for option in n["options"]:
             observations[key + ":" + option] = option == chosen["option"] if chosen else None
+    reasoning = []
     for constraint in spec.get("constraints", []):
-        outcome = decide(constraint, observations)
-        if outcome["status"] == "NO":
+        outcome = dispatch(constraint, observations, engine=predicate_engine)
+        reasoning.append({"expression": constraint, "result": outcome})
+        if outcome["status"] in {"NO", "CONFLICT"}:
             raise ValueError("Correlated construction constraint violated")
         if outcome["status"] != "YES":
             unresolved.append("Unresolved correlated construction constraint")
@@ -152,11 +154,11 @@ def render(graph, spec):
     unresolved += ["Unaccounted source: " + r["unit"] for r in accounting["gaps"] + accounting["unresolved"]]
     return {"version":"rendered-contract.v2","ast_sha256":digest(spec),"text":text,"map":mapping,
             "operations":trace,"unresolved":sorted(set(unresolved)),"covered":{k:sorted(v) for k,v in coverage.items()},
-            "dispositions":dispositions, "accounting":accounting}
+            "dispositions":dispositions, "accounting":accounting, "reasoning": reasoning}
 
 
-def assemble(graph, spec, base):
-    output=render(graph,spec)
+def assemble(graph, spec, base, *, predicate_engine="finite"):
+    output=render(graph,spec,predicate_engine=predicate_engine)
     units=[]
     for i,piece in enumerate(output["map"]):
         if piece["source"] is None:
