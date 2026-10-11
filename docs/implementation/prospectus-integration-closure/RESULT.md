@@ -1,3 +1,42 @@
+# Completed BES onward-source disposition, 11 October 2026
+
+The BES onward-source phase has been executed and passed after a bounded
+source-search repair. The final package is `bes-onward-sources/RESULT.md`,
+with the revised actual service report, request, source-disposition rows,
+applicability review, omission controls, initial diagnostic package and hashes
+retained under `bes-onward-sources/attempt-002/` and `attempt-001/`. The
+revised run completed in roughly three minutes under the reviewed 1,200-second
+bound.
+
+The consumer preserved the protected eight-document BES source map and all
+18,036 source units, seven earlier source-chain edges and question statuses:
+Q1 `UNKNOWN`, Q2 `UNKNOWN`, Q3 `PARTIAL`, Q4 `UNKNOWN`, Q5 `UNSUPPORTED`, and
+Q6 `UNKNOWN`. It added four category-separated applicability edges and eight
+Q1/Q2 dependencies. Four matched omission controls made each edge unresolved
+when its representative passage was removed; wrong-edition and wrong-date
+controls rejected adverse requests.
+
+The revised search indexed 255 retained files, recorded 36 undecodable files,
+and found content or metadata leads for all 14 dependencies. It revalidated
+every historical introducer PDF/text hash, page and quote. These leads remain
+explicitly unauthenticated and all 14 records remain `UNRESOLVED`; the search
+is repository-scoped and makes no exhaustive internet claim. The service
+remains `ASSISTED`; independent legal acceptance, source authenticity, actual
+Interbolsa applicability, collateral eligibility, native confinement,
+second-host portability and broader scan coverage remain open.
+
+The initial package is retained as `attempt-001/`. Its filename-only search and
+single-line applicability anchors were insufficient for a broad absence claim.
+The revised package records the audit, content/metadata search, complete
+paragraph bindings and the original local inventory failure (`BES-DEP-12`).
+These are implementation and evidence-boundary issues, not a fundamental
+package failure. Ignored Python cache files are excluded from both manifests.
+
+The next executable phase is acquisition and authentication of the 14 missing
+originals, followed by a frozen source-specific consumer and independent
+qualified legal review. See `NEXT-PROGRAM.md` and
+`bes-source-chain/NEXT-PROGRAM.md`.
+
 # Completed original coupon-anchor repair, 10 October 2026
 
 The explicit anchored ACT/ACT ICMA path now uses one source-bound original day

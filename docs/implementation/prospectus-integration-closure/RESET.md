@@ -1,3 +1,30 @@
+# Reset memo: BES onward-source disposition complete, 11 October 2026
+
+The active prospectus worktree is `.worktrees/bond-gap-closure` on
+`feature/prospectus-evidence-master`. The onward-source package passed after a
+bounded search and applicability repair. Its result note is
+`bes-onward-sources/RESULT.md`; read its `result.json`, `request.json`,
+`source-disposition.json`, `agency-applicability.json`, `checks.json` and
+`manifest.json` before continuing.
+
+The final actual service run consumed eight retained BES documents, preserved
+18,036 source units and the protected comparator, indexed 255 retained files,
+and retained four separate applicability categories with complete governing
+paragraphs. All 14 named onward documents remain unresolved because no
+authenticated original bytes were retained. The result therefore
+does not establish agreement contents, source authenticity, legal acceptance,
+actual holding-chain or Eurosystem eligibility. Q1/Q2 remain UNKNOWN, Q3 is
+PARTIAL, Q4 UNKNOWN, Q5 UNSUPPORTED and Q6 UNKNOWN.
+
+The historical 29-row dossier was correctly narrowed to the admitted
+`BES-DEP-01`–`BES-DEP-11` scope. `attempt-001/` records the rejected initial
+schema/search boundary; `attempt-002/` records the revised pass. The next local
+work order is not another unchanged replay. Acquire or explicitly disposition
+the 14 originals, then run a hash-bound frozen packet through the
+source-specific consumer and obtain independent qualified legal readings.
+Native confinement, second-host portability and broader scan-family coverage
+remain separate engineering phases.
+
 # Completed BES source-chain consumer, 11 October 2026
 
 The real-scan regression completed with exact partitioned coverage of 685

@@ -1,4 +1,38 @@
-# Completed BES source-chain package; next onward-source phase, 11 October 2026
+# Current next program: authenticate the BES onward sources, 11 October 2026
+
+The retained-corpus onward-source phase has passed. Its evidence is indexed in
+`bes-onward-sources/manifest.json` and explained in
+`bes-onward-sources/RESULT.md`. The current local service consumer is complete
+for the evidence that exists; do not rerun it unchanged.
+
+The remaining phases are:
+
+1. **Acquire and authenticate the 14 missing originals.** Obtain the 11
+   incorporated financial records and three agency agreements through a
+   reviewed source route. Retain original bytes with issuer, date, scope,
+   provenance and SHA-256; reject wrong editions and dates. If acquisition
+   fails, preserve the failure and keep the dependency unresolved. The current
+   search is repository-scoped and does not claim exhaustive internet coverage.
+2. **Run the source-complete consumer.** Review the actual Interbolsa Notes
+   Agency Agreement and Common Representative Appointment Agreement against
+   Condition 22 and the final terms. Keep agency, Portuguese law/forum,
+   book-entry/representation and generic ICSD safekeeper evidence separate.
+   Preserve the 23 final-terms readings and seven earlier source-chain edges,
+   and rerun matched omission and identity controls.
+3. **Obtain independent legal review.** Freeze and hash the source packet,
+   obtain qualified independent readings without exposing the assisted output,
+   and record disagreements and adjudication. A service pass cannot promote a
+   legal conclusion, collateral eligibility or package superiority.
+4. **Close separate engineering gaps.** Continue native dependency
+   confinement, second-host portability and broader scan families under their
+   own reviewed plans. R1–R8 remain partial and `program_complete` remains
+   false until their criteria and the source/legal gates pass.
+
+The evidence contract remains binding: source identity and applicability are
+primary gates, runtime and counts are explanatory, and absent bytes remain
+unresolved.
+
+# Historical completed BES source-chain package; next onward-source phase, 11 October 2026
 
 The eight-document BES source-chain consumer passed after bounded local repairs.
 Read `bes-source-chain/RESULT.md` for the decision table and retained evidence.

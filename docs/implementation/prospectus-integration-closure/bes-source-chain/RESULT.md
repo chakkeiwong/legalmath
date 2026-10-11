@@ -1,3 +1,33 @@
+# BES Series 23 onward-source disposition (11 October 2026)
+
+The next source-disposition phase has now executed after a bounded audit and
+repair. Its final package is `../bes-onward-sources/RESULT.md`; the revised
+actual report, request, disposition rows, applicability review, omission
+controls and hashes are retained under `../bes-onward-sources/attempt-002/`,
+with the initial diagnostic package under `attempt-001/`. The revised phase
+passed in roughly three minutes under the reviewed 1,200-second CPU bound. It
+preserved the eight-document source map, 18,036 source units, seven earlier
+source-chain edges and all six earlier question statuses.
+
+The revised search indexed 255 retained files, recorded 36 undecodable files,
+found content or metadata leads for all 14 dependencies, and revalidated every
+historical introducer PDF/text hash, page and quote. The leads are not
+authenticated originals, so all 14 remain `UNRESOLVED`. Four
+category-separated applicability edges resolved for the retained complete
+paragraphs, and four matched omissions, one wrong edition and one changed-date
+graph all behaved as required. This establishes retained source applicability
+evidence only; it does not establish the contents or authenticity of an absent
+agreement, Portuguese-law advice, an actual ICSD holding chain or Eurosystem
+eligibility.
+
+The initial onward attempt raised `KeyError: BES-DEP-12` because the historical
+dossier has 29 rows while this admitted comparator carries only
+`BES-DEP-01`–`BES-DEP-11`; its filename-only search and one-line anchors were
+also insufficient for a broad absence/applicability claim. Both the failure
+and the revised complete-content search are retained in the two attempt
+directories. These are local request/evidence-boundary defects, not evidence
+that the service or document packages are unsuitable.
+
 # BES Series 23 source-chain consumer
 
 The bounded consumer passed in `consumer/attempt-007` in 357.592 seconds.

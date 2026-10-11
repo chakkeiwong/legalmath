@@ -1,3 +1,29 @@
+# Reset memo: BES onward-source phase completed
+
+The current prospectus worktree is `feature/prospectus-evidence-master` in
+`.worktrees/bond-gap-closure`. The onward-source disposition consumer has
+passed its final bounded run. Read `../bes-onward-sources/RESULT.md`,
+`result.json`, `source-disposition.json`, `agency-applicability.json` and
+`checks.json` before selecting further work.
+
+The final package consumed the protected eight-document BES request with CPU
+mode and preserved the comparator's 18,036 source units, seven source-chain
+edges and Q1/Q2/Q3/Q4/Q5/Q6 statuses (`UNKNOWN`, `UNKNOWN`, `PARTIAL`,
+`UNKNOWN`, `UNSUPPORTED`, `UNKNOWN`). Four applicability categories were kept
+separate: named agency instruments, Portuguese law/forum, Interbolsa
+book-entry/Common Representative language, and generic ICSD safekeeper
+language. Four omission controls and wrong-edition/date controls passed.
+
+The 11 incorporated financial records and three agency agreements have exact
+introducer and expected date/issuer/scope bindings, but their authenticated
+original bytes are absent from the retained corpus. They remain unresolved;
+the retained search is not an exhaustive internet search. Independent legal
+acceptance, source authenticity, actual collateral eligibility, native
+dependency confinement, second-host portability and broader scan families
+remain open. The next action is a bounded acquisition/authentication work
+order, followed by a second source-specific consumer only when bytes are
+retained and hash-bound.
+
 # Reset memo: BES source-chain completion
 
 The current prospectus worktree is `feature/prospectus-evidence-master` at the
