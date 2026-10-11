@@ -1,7 +1,7 @@
 # Current next program: authenticate the BES onward sources, 11 October 2026
 
 The retained-corpus onward-source phase has passed. Its evidence is indexed in
-`bes-onward-sources/manifest.json` and explained in
+`bes-onward-sources/attempt-002/manifest.json` and explained in
 `bes-onward-sources/RESULT.md`. The current local service consumer is complete
 for the evidence that exists; do not rerun it unchanged.
 

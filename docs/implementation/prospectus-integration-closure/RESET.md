@@ -1,11 +1,34 @@
+# Campaign handoff for branch synchronization, 11 October 2026
+
+The completed local engineering campaign is ready for documentation commit and
+integration into `main`. `MASTER-SUMMARY.md` records the delivered repairs,
+retained checks and remaining obligations. The latest implementation commit
+before this handoff is `104ef1406e66abe2b302d268907cea7a6631cad4`.
+This is completion of the bounded local campaign, not completion of the whole
+prospectus program: R0 passes, R1–R8 remain substantively PARTIAL,
+`program_complete` is false and independent legal acceptance is not established.
+
+Current receipts are R0/018, R1–R2/016, R3–R7/014 and R8/015, as recorded
+in `next-phase.json`. The real-scan regression covers all 685 collected
+identities; the later onward-source package has its own 47 passing focused
+checks and retained actual service execution. Do not add these counts as
+independent evidence or repeat unchanged long validation merely to merge.
+
+The user authorized committing this prospectus branch, merging it into main,
+synchronizing main with origin, and bringing this branch up to date. Main's
+separate uncommitted legal-interpretation work must remain intact and outside
+these commits. Git synchronization does not change any scientific or legal
+verdict. Earlier checkpoint instructions below are historical; current source
+acquisition and engineering work is described in `NEXT-PROGRAM.md`.
+
 # Reset memo: BES onward-source disposition complete, 11 October 2026
 
 The active prospectus worktree is `.worktrees/bond-gap-closure` on
 `feature/prospectus-evidence-master`. The onward-source package passed after a
 bounded search and applicability repair. Its result note is
-`bes-onward-sources/RESULT.md`; read its `result.json`, `request.json`,
+`bes-onward-sources/RESULT.md`; read `result.json`, `request.json`,
 `source-disposition.json`, `agency-applicability.json`, `checks.json` and
-`manifest.json` before continuing.
+`manifest.json` under `bes-onward-sources/attempt-002/` before continuing.
 
 The final actual service run consumed eight retained BES documents, preserved
 18,036 source units and the protected comparator, indexed 255 retained files,

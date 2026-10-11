@@ -14,9 +14,11 @@ Q1 `UNKNOWN`, Q2 `UNKNOWN`, Q3 `PARTIAL`, Q4 `UNKNOWN`, Q5 `UNSUPPORTED`, and
 Q6 `UNKNOWN`. It added four category-separated applicability edges and eight
 Q1/Q2 dependencies. Four matched omission controls made each edge unresolved
 when its representative passage was removed; wrong-edition and wrong-date
-controls rejected adverse requests.
+controls rejected adverse requests. The changed-date control tests exact graph
+identity; it does not independently establish legal effective-date correctness.
 
-The revised search indexed 255 retained files, recorded 36 undecodable files,
+The revised search indexed 255 retained files, recorded 36 unsearched files
+(including PDFs intentionally not decoded by this search),
 and found content or metadata leads for all 14 dependencies. It revalidated
 every historical introducer PDF/text hash, page and quote. These leads remain
 explicitly unauthenticated and all 14 records remain `UNRESOLVED`; the search
