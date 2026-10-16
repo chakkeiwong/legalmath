@@ -906,6 +906,17 @@ def validate(mission, tools, root=ROOT):
                 and repair['review'] in r['result_evidence'] for r in history), 'Missing bounded repair history')
             verify_refs(root, repair)
             detours = repair['prior_detours'] + 1
+        local_refresh = master.get('local_refresh')
+        if local_refresh:
+            require(local_refresh.get('profile') == 'integration-post-r10-local-refresh.v1'
+                and local_refresh.get('prior_detours') == detours == 50
+                and local_refresh.get('additional_consolidated_revision') == 1
+                and local_refresh.get('live_calls_added') == local_refresh.get('additional_task_attempts') == 0
+                and program.get('local_refresh') == local_refresh, 'Local refresh changed historical resources')
+            require(any(r['id'] == 'integration-master-local-refresh-2026-10-16'
+                and local_refresh['review'] in r['result_evidence'] for r in history), 'Missing local refresh history')
+            verify_refs(root, local_refresh)
+            detours += 1
     else:
         master_state = None
     require(mission["current_task"] in tasks, "No current substantive task")
@@ -927,6 +938,10 @@ def validate(mission, tools, root=ROOT):
 
 def admit(mission, tools, task_id=None, root=ROOT):
     state = validate(mission, tools, root)
+    return _admit_validated(mission, state, task_id, root)
+
+
+def _admit_validated(mission, state, task_id=None, root=ROOT):
     task_id = task_id or mission["current_task"]
     require(task_id in state["tasks"], "Task is not in the reviewed program")
     require(task_id == mission["current_task"], "Refresh the current task before changing work")
@@ -1010,6 +1025,10 @@ def completion_status(local, mission, root=ROOT, *, settlement='integration-comp
 
 def status(mission, tools, root=ROOT):
     state = validate(mission, tools, root)
+    return _status_validated(mission, tools, state, root)
+
+
+def _status_validated(mission, tools, state, root=ROOT):
     selected = [t for t in tools if t["disposition"] == "selected"]
     from scripts.legal_integration_acceptance import evaluation_summary
     evaluations = evaluation_summary(tools, root)
@@ -1047,6 +1066,20 @@ def status(mission, tools, root=ROOT):
                 else "No renewal; historical ledgers and deadline remain unchanged.")}
 
 
+def refresh(mission, tools, root=ROOT):
+    """Derive both views from one local validation, never a persisted result."""
+    state = validate(mission, tools, root)
+    current = _status_validated(mission, tools, state, root)
+    task = state['tasks'][mission['current_task']]
+    master_active = current.get('integration_master', {}).get('execution') == 'WORK_REMAINS'
+    admission = (_admit_validated(mission, state, root=root) if task['status'] == 'ready' or
+                 (master_active and mission['integration_master'].get('reviewed_reopening')) else
+                 {'admitted': False, 'task_id': task['id'], 'reason': task['status']})
+    return {'status': current, 'admission': admission,
+            'predecessor': mission['history'][-1] if mission['history'] else mission['baseline_evidence'],
+            'refresh': 'Validated recorded selection; no task, budget or phase was created.'}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("check", "status", "admit", "refresh"))
@@ -1060,15 +1093,7 @@ def main(argv=None):
         if args.action == "admit":
             result = admit(mission, tools, args.task)
         elif args.action == "refresh":
-            current = status(mission, tools)
-            task = next(t for t in mission['tasks'] if t['id'] == mission['current_task'])
-            master_active = current.get('integration_master',{}).get('execution') == 'WORK_REMAINS'
-            admission = (admit(mission, tools) if task['status'] == 'ready' or
-                         (master_active and mission['integration_master'].get('reviewed_reopening')) else
-                         {'admitted': False, 'task_id': task['id'], 'reason': task['status']})
-            result = {"status": current, "admission": admission,
-                      "predecessor": mission["history"][-1] if mission["history"] else mission["baseline_evidence"],
-                      "refresh": "Validated recorded selection; no task, budget or phase was created."}
+            result = refresh(mission, tools)
         else:
             result = status(mission, tools)
             if args.action == "check":

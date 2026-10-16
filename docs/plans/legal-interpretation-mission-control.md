@@ -1,5 +1,19 @@
 # Legal interpretation mission control
 
+Current work selection, 16 October: the same
+[integration master](legal-integration-master-2026-10-13.md) now has a reviewed
+post-R10 local refresh. It addresses repeated dispatch-journal validation and
+missing HTTP 504 classification, preserves the newest P14 frontier, and prepares
+independent legal/source and matched tool cases. The
+[reviewed package](../../artifacts/legal-mission-control/2026-10-16/integration-repairs/local-refresh/plan-review.md)
+adds one local detour under the latest user instruction. It does not renew the
+exhausted ten-repair allowance, add live task attempts, clear a circuit or change
+the 2,359/8,100 calls, 41 historical calls, 48 spent replacements or deadlines.
+P14 request/cancellation diagnosis, legitimate Gatecoin refusal review, usable
+service, current binding, complete answers and six matched tool decisions remain
+separate prerequisites. Use the machine register and retained results for actual
+readiness; the older checkpoints below are history.
+
 Current amendment, 15 October 2026: use the same [integration master](legal-integration-master-2026-10-13.md)
 and its [qualification continuation review](../../artifacts/legal-mission-control/2026-10-15/qualification-continuation/review.md).
 The exact exception retry at slot 2115 passed. Revalidate it and the successful

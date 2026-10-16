@@ -35,11 +35,14 @@ def transient_service_details(events, *, output_present):
     messages = [str(e.get('message', '')) for e in events if e.get('type') == 'error']
     if any(re.search(r'insufficient[_ ]quota|quota.{0,20}exceed|billing|payment|unauthori[sz]ed|invalid.{0,10}(?:api.key|token)|authentication', m, re.I) for m in messages):
         return None
+    if any(re.search(r'\b499\b|invalid_request|blocked by our safety systems', m, re.I)
+           for m in messages):
+        return None
     selected = []
     for message in messages:
         lower = message.lower()
-        transient = ((re.search(r'\b(?:502|503)\b', message) and
-            any(s in lower for s in ('status', 'bad gateway', 'service unavailable')))
+        transient = ((re.search(r'\b(?:502|503|504)\b', message) and
+            any(s in lower for s in ('status', 'bad gateway', 'service unavailable', 'gateway timeout')))
             or 'stream disconnected before completion' in lower
             or ('rate limit' in lower and any(s in lower for s in
                 ('temporarily overloaded', 'try again in', 'retry after', 'retry-after')))

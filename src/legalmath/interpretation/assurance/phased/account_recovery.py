@@ -235,9 +235,18 @@ def load(root, reference, input_hash):
     else:
         require('interrupted_details' not in config, 'Interrupted census has no predecessor', 'E_INTEGRITY')
         require('original_dispatches' not in value, 'Unreviewed composite dispatch origins')
-    states = {k: read_evidence(origins[k], root)['calls'][k] for k in expected}
-    require(all(read_evidence(pointer, root).get('input_hash') == input_hash
-        for pointer in origins.values()), 'Composite recovery changed source input')
+    # A composite frontier can give hundreds of accounts the same journal.
+    # Parse each exact journal once in this invocation; verify its bytes again
+    # before returning. No validated object survives this mutation boundary.
+    dispatches = {(value['dispatch']['path'], value['dispatch']['sha256']): state}
+    for pointer in origins.values():
+        identity = (pointer['path'], pointer['sha256'])
+        if identity not in dispatches:
+            dispatches[identity] = read_evidence(pointer, root)
+    states = {k: dispatches[(origins[k]['path'], origins[k]['sha256'])]['calls'][k]
+              for k in expected}
+    require(all(saved.get('input_hash') == input_hash for saved in dispatches.values()),
+        'Composite recovery changed source input')
     require(set(config['originals']) == expected and set(value['calls']) == {
         k for k in expected if states[k]['status'] == 'VALIDATED'},
         'Recovery omits a predecessor request')
@@ -287,6 +296,8 @@ def load(root, reference, input_hash):
     from .account_receipt import checked
     for key, entry in value.get('completed_account_receipts', {}).items():
         checked(root, value, key, entry)
+    for path, sha256 in dispatches:
+        read_evidence({'path': path, 'sha256': sha256}, root, json_value=False)
     return value
 
 

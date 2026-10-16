@@ -18,6 +18,147 @@ WORK = Path('artifacts/legal-mission-control/2026-10-16/integration-repairs')
 KEY = 'repair_execution'
 USER = 'you have 10 repairs and 20 attemps. continue the execution'
 POINTERS = ('authorization', 'review', 'baseline', 'local_review', 'local_validation', 'round_spec')
+LOCAL_WORK = WORK / 'local-refresh'
+LOCAL_USER = 'git commit.  refresh the master program with what you suggested.  review the program.  continue the execution'
+LOCAL_MUTATED = {str(PLAN), 'scripts/legal_mission_execution.py', 'scripts/legal_mission_control.py',
+    'scripts/legal_integration_master.py', 'scripts/legal_integration_repair_execution.py',
+    'src/legalmath/interpretation/search/providers.py',
+    'src/legalmath/interpretation/assurance/phased/account_recovery.py'}
+
+
+def local_refresh_projection(baseline, *, mission=False):
+    allowed = LOCAL_MUTATED | ({str(PROGRAM)} if mission else set())
+    return archives([r for r in baseline['archived'] if r['previous']['path'] in allowed], mission=mission)
+
+
+def expected_local_refresh(old, revision, root, *, plan_reference=None):
+    value = deepcopy(old)
+    value['local_refresh'] = revision
+    value['protected_evidence'] += [revision[k] for k in ('baseline', 'review', 'result')]
+    value['protected_evidence'] += list(revision['implementation'].values())
+    value['protected_evidence'].append(plan_reference or ref(root, PLAN))
+    return value
+
+
+def validate_local_refresh(program, root, *, plan_reference=None):
+    """One local package after R10; the exhausted grant is not extended."""
+    revision = program['local_refresh']
+    require(revision['profile'] == 'integration-post-r10-local-refresh.v1'
+        and revision['user_instruction'] == LOCAL_USER and revision['work'] == str(LOCAL_WORK)
+        and revision['prior_detours'] == 50 and revision['additional_consolidated_revision'] == 1
+        and revision['live_calls_added'] == revision['additional_task_attempts'] == 0
+        and revision['additional_transport_replacements'] == 0
+        and revision['attempts_reset'] is False and revision['reopened_nodes'] == [],
+        'Unreviewed local refresh authority')
+    for key in ('baseline', 'review', 'result', 'prior_program', 'prior_state', 'prior_binding', 'prior_ledger'):
+        verify(root, revision[key])
+    require(set(revision['implementation']) == LOCAL_MUTATED - {str(PLAN)},
+        'Local implementation scope changed')
+    for pointer in revision['implementation'].values():
+        verify(root, pointer)
+    baseline = read(root / revision['baseline']['path'])
+    held = {r['previous']['path']: r['archive'] for r in baseline['archived']}
+    for row in baseline['archived']:
+        require(row['previous']['sha256'] == row['archive']['sha256'], 'Local archive changed historical bytes')
+        verify(root, row['archive'])
+    require(baseline['prior_detours'] == 50 and baseline['calls'] == 2359
+        and baseline['running_owners'] == baseline['reserved_dispatches'] == 0,
+        'Local refresh comparator changed')
+    require(all(revision[key] == held[str(path)] for key, path in (
+        ('prior_program', PROGRAM), ('prior_state', STATE),
+        ('prior_binding', BASE / 'current-binding.json'), ('prior_ledger', BASE / 'live-calls.json'))),
+        'Local refresh lost its frozen predecessor')
+    old, before = read(root / revision['prior_program']['path']), read(root / revision['prior_state']['path'])
+    require(not old.get('local_refresh') and before['program_hash'] == digest(old)
+        and not any(r['status'] == 'RUNNING' for r in before['tasks'].values())
+        and old[KEY]['repair_ids'] == ['R' + str(i) for i in range(1, 11)]
+        and old[KEY]['cumulative_additional_attempts'] == 19, 'Local refresh renewed or changed old allocation')
+    mapping = local_refresh_projection(baseline)
+    projected = historical_projection(old, mapping)
+    with historical_evidence(root, mapping):
+        validate_program(projected, root)
+    expected = expected_local_refresh(projected, revision, root, plan_reference=plan_reference)
+    require(program == project_retained_plan(expected, root, plan_reference),
+        'Local refresh changed graph, deadlines, attempts or unrelated evidence')
+    result = read(root / revision['result']['path'])
+    require(result['verdict'] == 'PASS' and result['provider_calls'] == 0
+        and result['ledger_unchanged'] and result['legal_acceptance'] is False,
+        'Local refresh lacks bounded result evidence')
+    for pointer in result['evidence']:
+        verify(root, pointer)
+    return {n['id']: n['maximum_attempts'] for n in program['tasks']}
+
+
+def register_local_refresh():
+    """Adopt the reviewed local package without reopening any live owner."""
+    from scripts.legal_integration_post_review import finish_transaction
+    from scripts.legal_integration_phased_live import active_live, LIVE
+    journal = LOCAL_WORK / 'registration.json'
+    initial = read(ROOT / PROGRAM)
+    with ExitStack() as stack:
+        for path in dict.fromkeys((active_live(initial) / 'supervisor.lock', LIVE / 'supervisor.lock',
+                STATE.with_suffix('.run.lock'), DOC / 'mission.execution.lock', STATE.with_suffix('.lock'))):
+            handle = stack.enter_context((ROOT / path).open('a'))
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if (ROOT / journal).exists():
+            if read(ROOT / journal)['status'] != 'COMMITTED':
+                finish_transaction(ROOT, journal)
+            require(read(ROOT / PROGRAM).get('local_refresh', {}).get('work') == str(LOCAL_WORK),
+                'Local registration belongs to a different program')
+            return {'registered': True, 'resumed': True, 'live_calls_added': 0}
+        baseline = read(ROOT / LOCAL_WORK / 'baseline.json')
+        held = {r['previous']['path']: r['archive'] for r in baseline['archived']}
+        for path in (PROGRAM, STATE, DOC / 'mission.json', BASE / 'current-binding.json',
+                     BASE / 'live-calls.json', BASE / 'live-grant.json', *map(Path, baseline['dispatch_census'])):
+            require(ref(ROOT, path)['sha256'] == held[str(path)]['sha256'], 'Local baseline changed: ' + str(path))
+        old, before = read(ROOT / PROGRAM), read(ROOT / STATE)
+        binding = read(ROOT / BASE / 'current-binding.json')
+        for name in ('service-circuit.json', 'service-recovery.json'):
+            path = Path(binding['phase_service_scope']['path']).parent / name
+            require(ref(ROOT, path)['sha256'] == held[str(path)]['sha256'], 'Service state changed during local work')
+        revision = dict(profile='integration-post-r10-local-refresh.v1', user_instruction=LOCAL_USER,
+            work=str(LOCAL_WORK), prior_detours=50, additional_consolidated_revision=1,
+            live_calls_added=0, additional_task_attempts=0, additional_transport_replacements=0,
+            attempts_reset=False, reopened_nodes=[],
+            baseline=ref(ROOT, LOCAL_WORK / 'baseline.json'), review=ref(ROOT, LOCAL_WORK / 'review.md'),
+            result=ref(ROOT, LOCAL_WORK / 'local-result.json'),
+            implementation={p: ref(ROOT, p) for p in sorted(LOCAL_MUTATED - {str(PLAN)})},
+            prior_program=held[str(PROGRAM)], prior_state=held[str(STATE)],
+            prior_binding=held[str(BASE / 'current-binding.json')], prior_ledger=held[str(BASE / 'live-calls.json')])
+        program = expected_local_refresh(historical_projection(old, local_refresh_projection(baseline)), revision, ROOT)
+        validate_program(program, ROOT)
+        state = deepcopy(before)
+        state['program_hash'] = digest(program)
+        now = datetime.now(timezone.utc).isoformat()
+        state['events'].append(dict(action='REVIEWED_LOCAL_REFRESH', task_id=None, at_utc=now,
+            review=revision['review'], attempts_reset=False, calls_added=0))
+        mission = historical_projection(read(ROOT / DOC / 'mission.json'), local_refresh_projection(baseline, mission=True))
+        stage = LOCAL_WORK / 'registration-stage'
+        save(ROOT / stage / 'program.json', program); save(ROOT / stage / 'state.json', state)
+        pointer = {'path': str(PROGRAM), 'sha256': ref(ROOT, stage / 'program.json')['sha256']}
+        master = mission['integration_master']
+        for key in master:
+            if key in program and isinstance(program[key], dict) and program[key].get('profile'):
+                master[key] = deepcopy(program[key])
+        master.update(program=pointer, plan=ref(ROOT, PLAN), local_refresh=revision)
+        reason = ('Local service/refresh repairs and four-question/six-tool preparation are complete. '
+            'Next: diagnose P14 invalid_request and 499 cancellation; obtain legitimate Gatecoin refusal review; '
+            'qualify service and bind current code before any existing independent live owner. '
+            'Reuse the newest 36-account/20-synthesis P14 frontier. No blanket retry, new allowance or legal closure.')
+        mission['next_task_reason'] = reason
+        mission['history'].append(dict(id='integration-master-local-refresh-2026-10-16',
+            task_id='product-contribution', kind='product_evaluation', outcome='no_advance',
+            decision='One reviewed local package after R10; preserve the exhausted 10/20 allocation and all live state.',
+            next_task='product-contribution', next_task_reason=reason, recorded_at_utc=now,
+            result_evidence=[pointer, revision['review'], revision['result']]))
+        save(ROOT / stage / 'mission.json', mission)
+        checked = validate_staged_mission(ROOT, stage, mission, 51)
+        save(ROOT / LOCAL_WORK / 'registration-check.json', checked)
+        writes = [{'path': str(path), 'before': ref(ROOT, path), 'replacement': ref(ROOT, stage / name)}
+            for path, name in ((PROGRAM, 'program.json'), (STATE, 'state.json'), (DOC / 'mission.json', 'mission.json'))]
+        save(ROOT / journal, dict(profile='legal-master-registration-transaction.v1', status='PREPARED', writes=writes))
+        finish_transaction(ROOT, journal)
+    return {'registered': True, 'detours': 51, 'reopened_nodes': [], 'live_calls_added': 0}
 
 
 def validate_allocation(old, before, revision, authorization):
@@ -502,16 +643,32 @@ def verification(directory=None):
     require(ledger['calls'][:len(prior['calls'])] == prior['calls'], 'Historical charges changed')
     require(all(state['tasks'][k]['attempts'][:len(v['attempts'])] == v['attempts']
         for k, v in before['tasks'].items()), 'Historical attempts changed')
+    local = program.get('local_refresh')
+    if local:
+        require(state['tasks'] == read(ROOT / local['prior_state']['path'])['tasks'],
+            'Local refresh changed owner attempts or outcomes')
+        require(ref(ROOT, BASE / 'live-calls.json')['sha256'] == local['prior_ledger']['sha256']
+            and ref(ROOT, BASE / 'current-binding.json')['sha256'] == local['prior_binding']['sha256'],
+            'Local refresh changed calls or live binding')
+        held = {r['previous']['path']: r['archive'] for r in read(ROOT / local['baseline']['path'])['archived']}
+        binding = read(ROOT / BASE / 'current-binding.json')
+        for name in ('service-circuit.json', 'service-recovery.json'):
+            path = Path(binding['phase_service_scope']['path']).parent / name
+            require(ref(ROOT, path)['sha256'] == held[str(path)]['sha256'], 'Local refresh changed service state')
     view = MasterExecution(ROOT, PROGRAM, STATE).summary()
     from scripts.legal_integration_acceptance import evaluation_summary
     evaluations = evaluation_summary(read(ROOT / DOC / 'tools.json'), ROOT)
     result = {'profile': 'integration-repair-execution-verification.v1',
-        'calls': len(ledger['calls']), 'historical_calls': 41, 'detours': revision['prior_detours'] + 1,
+        'calls': len(ledger['calls']), 'historical_calls': 41,
+        'detours': local['prior_detours'] + 1 if local else revision['prior_detours'] + 1,
         'repairs_allocated': len(revision['repair_ids']), 'additional_attempts_allocated': revision['cumulative_additional_attempts'],
         'prior_calls_preserved': True, 'prior_attempts_preserved': True,
         **{k: view[k] for k in ('execution', 'ready', 'running', 'blocked')},
         'tools_fully_evaluated': evaluations['selected_tools_fully_evaluated'],
         'original_questions': list(QUESTIONS), 'original_obligations': 46, 'original_readings': 35,
         'integration_complete': False, '_conclusion': 'Repair and accounting verified; original legal acceptance remains required.'}
-    save((directory or ROOT / revision['work']) / 'verification.json', result)
+    if local:
+        result.update(local_refresh_verified=True, live_binding_current=False,
+            additional_local_packages=1, additional_live_task_attempts=0)
+    save((directory or ROOT / (local or revision)['work']) / 'verification.json', result)
     return result

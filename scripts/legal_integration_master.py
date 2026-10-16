@@ -32,7 +32,8 @@ TOOLS = ("bm25", "legalruleml", "pyarg", "carneades", "clingo", "logical-english
 QUESTIONS = ("p10", "p14", "evidence", "gatecoin")
 PRIOR = Path("artifacts/legal-mission-control/2026-10-12/remaining-work")
 TOKENIZER = Path(".localresources/legal-context-methods-2026-10-12/cl100k_base.tiktoken")
-LOCAL_ACTIONS = ("check", "status", "prepare", "verify", "run", "approval-packet")
+LOCAL_ACTIONS = ("check", "status", "prepare", "verify", "run", "approval-packet", "maintain")
+MISSION_REFRESH_TIMEOUT_SECONDS = 900
 
 
 def current_qualification_view(root, program, view):
@@ -103,7 +104,8 @@ class MasterExecution(Execution):
             control.validate(mission, read(self.root / DOC / "tools.json"), self.root)
             save(mission_path, mission)
         result = subprocess.run([".venv/bin/python", "scripts/legal_mission_control.py", "refresh"],
-                                cwd=self.root, capture_output=True, text=True, timeout=300)
+                                cwd=self.root, capture_output=True, text=True,
+                                timeout=MISSION_REFRESH_TIMEOUT_SECONDS)
         (self.root / BASE / "mission-refresh.json").write_text(result.stdout)
         require(result.returncode == 0, "Mission refresh failed: " + result.stderr[-500:])
         save(self.root / BASE / "next-ready.json", self.summary())
@@ -529,6 +531,9 @@ def main():
     elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('remaining_work_revision'):
         from scripts.legal_integration_remaining import verify_repairs
         result = verify_repairs()
+    elif args.action == "maintain":
+        from scripts.legal_integration_repair_execution import register_local_refresh
+        result = register_local_refresh()
     elif args.action == "prepare": result = prepare()
     elif args.action == "worker": result = worker(args.task)
     elif args.action in ("check", "status"): result = summary()

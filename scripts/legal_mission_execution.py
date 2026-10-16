@@ -123,6 +123,10 @@ def validate_program(program, root):
         verify(root, reference)
     tasks = {t['id']: t for t in program['tasks']}
     require(len(tasks) == len(program['tasks']) and tasks, 'Duplicate or empty task graph')
+    if program.get('local_refresh'):
+        from scripts.legal_integration_repair_execution import validate_local_refresh
+        reviewed = validate_local_refresh(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
     if program.get('repair_execution'):
         from scripts.legal_integration_repair_execution import validate_revision
         reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])

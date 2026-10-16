@@ -1,5 +1,52 @@
 # Master program for complete legal-tool integration
 
+Current reviewed refresh, 16 October: the post-R10 frontier is settled at
+2,359/8,100 calls plus 41 historical calls. P14 retains 36 complete accounts and
+20/90 first-level syntheses; five requests failed after dispatch and 65 were
+never sent. Gatecoin retains 34 accounts and 116/117 syntheses, with its remaining
+request explicitly refused by the provider. P10 and evidence retain their own
+unused attempts but require usable shared service. All 48 automatic replacements
+are spent. The old ten-repair allowance is exhausted; nineteen of twenty extra
+task attempts are allocated. Neither this refresh nor a renamed phase renews it.
+
+The user's subsequent instruction authorizes one bounded local package in this
+same master. Its [plan and skeptical review](../../artifacts/legal-mission-control/2026-10-16/integration-repairs/local-refresh/plan-review.md)
+and [implementation review](../../artifacts/legal-mission-control/2026-10-16/integration-repairs/local-refresh/review.md)
+govern the code repair and independent preparation. The runtime profile found
+repeated parsing of the same account dispatch journals. Read each distinct
+journal once per validation and recheck its exact bytes before returning;
+retain full predecessor checks. Derive refresh views from one validation and
+use a measured finite timeout. Treat an ended no-output HTTP 504 as a service
+failure, while preserving unknown 499 cancellation, invalid-request errors and
+explicit refusals outside automatic recovery. These repairs do not establish
+service availability or authorize a dispatch.
+
+| Remaining work | Own success prerequisites | Independent continuation / closure evidence |
+| --- | --- | --- |
+| Local repair and evidence preparation | Frozen settled comparator and passing adverse checks | One local package, detour 51; no live owner reopened or allowance added. Retain actual refresh/verification results. |
+| P14 request diagnosis | Exact slot 2341 request and diagnostic naming the offending parameter, or a reproduced contract defect | Independent of Gatecoin; keep local schema validity separate from provider acceptance. |
+| Cancellation and service recovery | Gateway/client evidence for slots 2356/2358 and a bounded usable-service qualification | A 504 classifier repair cannot reopen the service circuit. Preserve all old charges and zero replacements. |
+| P14 saved-result continuation | Exact newest 36-account/20-synthesis checkpoint, all five failure dispositions, actual production reconstruction, current binding and finite owner allocation | Preserve 65 unsent requests as uncharged. No successful account or synthesis may be sampled again. |
+| Gatecoin refused request | Legitimate explanation/review of the explicit refusal and a permitted route | Do not retry, transform, split or reroute to defeat the refusal. Other questions do not depend on Gatecoin success. |
+| P10 and evidence | Their own retained inputs, current binding and usable shared service | Retain existing unused attempts. Neither requires P14 or Gatecoin answer success. |
+| Dated source applicability and conditional legal analysis | Retained source identity, actor/product/date scope and available authoritative treatment | Continue conditional branches despite missing client facts; retain P14 rivals and Gatecoin scenario-seven tension. Full account/source and answer review remains required. |
+| Baseline/tool answers and matched effects | Successful acquisition for the relevant question, exact tool target/warrant, actual consumer capacity and valid allocation | Use the prepared 24 pair specifications. Inspect real downstream use and supported/adverse cases; record help, no observed benefit, harm, limited support or inconclusive evidence. |
+| Final assessment and plan refresh | Authentic results; completion of every applicable branch, including failures | Keep four questions, 46 obligations, 35 readings and six tool decisions visible. Refresh after every package and continue all independent ready work. |
+
+The local preparation includes four source-bound conditional accounts, six
+authenticated provider-failure receipts, the exact P14 frontier census and all
+24 question/tool specifications. These are retained inputs, not complete answers
+or matched effects. The implementation and service grants must be rebound under
+a concrete reviewed continuation before live work; this local amendment opens
+no live task and adds no calls, retries, attempts or time. The machine register
+governs actual readiness. Existing exact master and mission commands suffice;
+`maintain` registers this fixed local amendment without launching a provider.
+
+After adoption run the exact mission `refresh` and master `verify` commands.
+Record measured results and any failed branch in the same local package. A
+check may validly report BLOCKED; only original product evidence can establish
+complete integration. Earlier entries below are retained history.
+
 Current reviewed repair, 16 October: round 6 reused all 34 Gatecoin accounts
 and settled 116 of 117 first-level syntheses. The remaining request received an
 explicit provider safety refusal. Preserve that failure; do not retry, transform
