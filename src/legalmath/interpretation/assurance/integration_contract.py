@@ -214,7 +214,13 @@ def read_evidence(ref, root, *, json_value=True):
     data = path.read_bytes()
     if raw_digest(data) != ref['sha256']:
         raise LegalMathError('E_HASH_MISMATCH', details=ref['path'])
-    return loads(data) if json_value else data
+    if not json_value:
+        return data
+    value = loads(data)
+    if isinstance(value, dict) and value.get('profile') == 'bounded-exact-evidence-store.v1':
+        from .phased.evidence_store import read
+        return read(path)
+    return value
 
 
 def validate_dossier(value, root=None):

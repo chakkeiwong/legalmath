@@ -19,6 +19,43 @@ PROFILE = 'legalmath.optional-product-tools.v2'
 RESERVED_FIELDS = {'kind', 'packet_hash', 'inputs_hash', 'candidate_hashes', 'key', 'result_hash', 'backend', 'profile'}
 
 
+def adapter_results(check):
+    """Retain individual adapter identities/statuses underneath shared receipts."""
+    names={'BM25':'bm25','LegalRuleML':'legalruleml','Logical English':'logical-english'}
+    result=[]
+    def visit(value):
+        if value.get('tool') in names:
+            result.append({'tool_id':names[value['tool']], 'status':value['status'], 'result_hash':digest(value)})
+        for child in value.get('results',[]):visit(child)
+        selected=value.get('selected_tools',[])
+        for name in selected:
+            if name not in {'pyarg','carneades','clingo'}:raise LegalMathError('E_REFERENCE')
+            row=value.get('checks',{}).get(name)
+            result.append({'tool_id':name,
+                'status':('PASS' if row.get('agrees') is True else 'FAILED') if row is not None else value['status'],
+                'result_hash':digest(row if row is not None else value)})
+    visit(check)
+    if len({r['tool_id'] for r in result}) != len(result):raise LegalMathError('E_DUPLICATE_ID')
+    return result
+
+
+def retrieval_questions(check, questions, candidates):
+    """Original-question applicability requires a bound exact query and target."""
+    inputs=check.get('inputs',check)
+    if inputs.get('kind') != 'retrieval':return [q['question_id'] for q in questions]
+    query=inputs.get('query')
+    target=inputs.get('target_candidate_id')
+    typed_hash=inputs.get('target_question_hash')
+    if target is not None:
+        # Typed candidate questions are not automatically original answer questions.
+        # A reviewed bridge is required; absent that, discuss but do not corroborate.
+        return []
+    if typed_hash is not None:return []
+    if not isinstance(query,str):return []
+    if inputs.get('inputs_hash') != digest({'question':query}):return []
+    return [q['question_id'] for q in questions if q['text']==query]
+
+
 def candidate_hashes(candidates):
     if not isinstance(candidates, dict) or not candidates:
         raise LegalMathError('E_REFERENCE', details='Optional candidate checks require actual readings')
@@ -76,6 +113,8 @@ def report(directory, *, expected_backend=None):
             checks.append({'key': a['key'], 'status': a['status'],
                            'inputs': a['spec']['inputs']})
     return {'profile': profile, **({'backend': deepcopy(binding['inputs']['backend'])} if profile == PROFILE else {}),
+            **({'original_questions':deepcopy(binding['inputs']['original_questions'])}
+               if 'original_questions' in binding['inputs'] else {}),
             'checks': checks,
             'prepared_requests': sum(a['spec']['stage'] == 'prepare-request' for a in state['actions']),
             'execution_complete': bool(checks) and all(c['status'] in ('PASS', 'UNSUPPORTED') for c in checks)
@@ -84,11 +123,16 @@ def report(directory, *, expected_backend=None):
 
 
 class ToolSession:
-    def __init__(self, backend, directory):
+    def __init__(self, backend, directory, *, original_questions=None):
         self.backend = backend
         self.identity = deepcopy(backend.identity())
         self.directory = Path(directory)
-        self.journal = EvidenceJournal(self.directory, {'profile': PROFILE, 'backend': self.identity},
+        from .original_questions import validate as validate_original_questions
+        self.original_questions=validate_original_questions(original_questions) if original_questions is not None else None
+        self._original_question_binding=digest(self.original_questions)
+        inputs={'profile':PROFILE,'backend':self.identity}
+        if self.original_questions is not None:inputs['original_questions']=self.original_questions
+        self.journal = EvidenceJournal(self.directory, inputs,
                                        maximum_actions=200, maximum_per_issue=1, deadline_seconds=86400)
         self.journal.report()
 
@@ -132,6 +176,10 @@ class ToolSession:
     def augment(self, request):
         if self.backend.identity() != self.identity:
             raise LegalMathError('E_STALE_REVIEW', details='Optional tool implementation changed')
+        if digest(self.original_questions) != self._original_question_binding:
+            raise LegalMathError('E_STALE_REVIEW', details='Optional original question binding changed')
+        from .original_questions import attach as attach_original_questions
+        request=attach_original_questions(request,self.original_questions)
         packet = request.get('source_packet')
         if not isinstance(packet, dict) or not packet.get('units'):
             return request
@@ -145,7 +193,8 @@ class ToolSession:
         if previous is not None:
             return loads((self.journal.directory/previous['result_file']).read_bytes())
         typed = request.get('task') == 'SCOPED_SOURCE_FIDELITY'
-        targets=[]
+        targets=([{'question':q['text']} for q in self.original_questions]
+                 if self.original_questions is not None else [])
         if typed:
             for row in request.get('candidates',[]):
                 question=row.get('question')
@@ -154,7 +203,7 @@ class ToolSession:
                     raise LegalMathError('E_REFERENCE',details='Scoped retrieval requires the exact typed candidate question')
                 targets.append({'question':question['question'],'question_hash':digest(question),
                                 'candidate_id':row['candidate_id']})
-        else:
+        elif self.original_questions is None:
             query = request.get('question')
             if not isinstance(query, str) or not query.strip():
                 query = packet.get('selected_slice')

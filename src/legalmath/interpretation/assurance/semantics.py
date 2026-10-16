@@ -127,6 +127,11 @@ def check_quotes(quotes, packet):
 
 def validate_inventory(value, packet):
     result = parse(Inventory, value)
+    return validate_inventory_rows(result, packet)
+
+
+def validate_inventory_rows(result, packet):
+    """Shared evidence/coverage predicate; caller validates response or aggregate shape."""
     units = {u['unit_id'] for u in packet['units']}
     ids = [c['claim_id'] for c in result['claims']]
     if len(ids) != len(set(ids)):
@@ -217,6 +222,18 @@ def inventory_findings(packet, inventories):
                 findings.append({'kind': 'AUTHORITY_NEEDED', 'stage': 'DEPENDENCY', **item})
         findings += [{'kind': 'INVENTORY_UNCERTAINTY', 'stage': 'INTERPRETATION', 'role': role, 'details': q}
                      for q in inv['uncertainties']]
+        for review in inv.get('cross_reviews', []):
+            findings.extend({'kind': 'CROSS_PIECE_ISSUE', 'stage': 'INTERPRETATION', 'role': role, **issue}
+                            for issue in review['issues'])
+            findings.extend({'kind': 'CROSS_PIECE_UNRESOLVED', 'stage': 'INTERPRETATION', 'role': role, 'details': q}
+                            for q in review['unresolved_questions'])
+        for review in inv.get('staged_reviews', []):
+            for row in review['claims']:
+                if row['assessment'] != 'RETAINED' or row['missing_authorities'] or row['qualifications']:
+                    findings.append({'kind':'SOURCE_REVIEW_QUALIFICATION','stage':'INTERPRETATION',
+                        'role':role,'claim_id':row['claim_id'],'review':row})
+            findings.extend({'kind':'SOURCE_REVIEW_UNRESOLVED','stage':'INTERPRETATION',
+                'role':role,'details':q} for q in review['unresolved_questions'])
     # One reader marking a unit context while another finds a selected-control
     # commitment cannot silently shrink the inventory.
     if len(inventories) > 1:

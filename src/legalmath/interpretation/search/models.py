@@ -81,6 +81,9 @@ class Settings(Strict):
     deadline_seconds: int = Field(default=1200,ge=10,le=3600)
     max_input_bytes: int = Field(default=100000,ge=1000,le=200000)
     max_output_bytes: int = Field(default=100000,ge=1000,le=200000)
+    # Optional reviewed transport policy. None preserves the literal contract.
+    max_logical_input_bytes: int | None = Field(default=None,ge=1000,le=16777216)
+    max_expanded_output_bytes: int | None = Field(default=None,ge=1000,le=16777216)
     max_comparisons: int = Field(default=24,ge=1,le=100)
     max_argument_nodes: int = Field(default=12,ge=1,le=16)
     exploration_weight_milli: int = Field(default=1414,ge=0,le=5000)

@@ -74,7 +74,7 @@ def method(runner):
                                          'NOT_ENABLED_IN_COMPLETE_INVESTIGATION'},
         'challenge_panel':panel,
         'installed_dependency_identity':dependencies,
-        'scoped_provider_settings': Settings(timeout_seconds=300, max_input_bytes=200000, max_output_bytes=200000).model_dump(),
+        'scoped_provider_settings': runner.downstream_settings.model_dump(),
         'scoped': {'maximum_actions': runner.maximum_scoped_actions, 'rounds': runner.scoped_rounds,
                    'batch_size': runner.scoped_batch_size, 'pair_order': runner.scoped_pair_order,
                    'schedule': runner.scoped_schedule},

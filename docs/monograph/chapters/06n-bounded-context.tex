@@ -1,0 +1,243 @@
+\section{Reading long sources without losing their legal connections}
+\label{sec:bounded-legal-context}
+
+A sound interpretation may depend on passages that cannot all be presented
+to a language model at once. A circular may state a duty in its main text,
+qualify it in a footnote, and refer to a separate code for the relevant
+standard. A judgment may define a relationship early in its reasons and
+distinguish an apparently similar relationship much later. If a model
+receives only the first passage, it can produce a fluent account of a rule
+whose scope it has misunderstood. If every request receives the whole
+collection, interpretation may never begin because the request exceeds
+the application's capacity.
+
+Long-document processing has established methods for this problem.
+Overlapping chunks preserve nearby context; retrieval can restore a
+passage's surroundings; hierarchical processing combines findings in stages;
+and summary trees or graphs help locate distant connections. These methods
+serve different purposes. Finding a few relevant passages is different from
+reading every required source, and neither operation alone establishes that
+all the legal relationships were understood. A useful design joins the
+methods while retaining the original text against which conclusions can be
+checked.
+
+\subsection{Overlap preserves nearby context}
+
+Consider a document represented by positions 0 to 100. Reading windows
+0--50, 25--75 and 50--100 covers the whole document and repeats material
+around the boundaries. A condition near position 49 can be read together
+with a qualification near position 51. The overlap reduces the chance that
+a local relation is severed merely because a fixed-size chunk ended there.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=0.105cm,y=0.6cm,font=\small]
+  \draw[->] (0,0) -- (103,0);
+  \foreach \x in {0,25,50,75,100} {
+    \draw (\x,0.1)--(\x,-0.1);
+    \node[below] at (\x,-0.1) {\x};
+  }
+  \draw[very thick,navy] (0,1)--(50,1);
+  \draw[very thick,teal] (25,2)--(75,2);
+  \draw[very thick,navy] (50,3)--(100,3);
+  \node[right] at (101,1) {first};
+  \node[right] at (101,2) {second};
+  \node[right] at (101,3) {third};
+  \draw[dashed] (10,0.2)--(10,1.2);
+  \draw[dashed] (90,0.2)--(90,3.2);
+  \node[above] at (10,1.2) {rule};
+  \node[above] at (90,3.2) {exception};
+\end{tikzpicture}
+\caption{Every position is covered, but a rule at position 10 and an
+exception at position 90 are never read together. A later comparison must
+supply that connection. Positions are illustrative, not legal paragraph numbers.}
+\label{fig:legal-overlap}
+\end{figure}
+
+The same example exposes overlap's limit. A rule at position 10 and an
+exception at position 90 lie in different windows. There is no textual gap,
+but an inference remains to be made. Increasing overlap helps local
+continuity without guaranteeing that every consequential pair, or combination
+of several passages, appears together. A later bounded review must bring
+connected findings and their original supporting passages together.
+
+OpenAI's public Python SDK documents a default maximum chunk size of 800
+tokens and overlap of 400 tokens. Its static chunking declaration also
+requires overlap not to exceed half the chunk size
+\citep{openaichunking2026}. The ratio matches Figure~\ref{fig:legal-overlap}.
+These are documented API parameters, not evidence that this width is optimal
+for legal material. Paragraph and section boundaries should be preserved
+where feasible, and quotations, definitions and exceptions near the chosen
+boundaries need testing.
+
+Tokens are units of model encoding, not bytes or characters. A request also
+contains a question, instructions, source metadata and an output specification,
+and needs room for the answer. A chunk that fills the nominal context window
+leaves no space for these other requirements. Token accounting therefore needs
+an explicit tokenizer and must remain separate from application byte limits.
+
+\subsection{Retrieve a passage and restore its surroundings}
+
+A short passage can be a good search result but a poor complete reading
+context. Its distinguishing words may occur in one sentence, while the
+subject of a pronoun or the scope of a condition appears nearby. Searching
+and reading need not use identical units.
+
+LlamaIndex's \texttt{SentenceWindowNodeParser} stores a sentence with
+surrounding sentences as metadata. Its
+\texttt{MetadataReplacementPostProcessor} can replace a retrieved sentence
+with that window before the model reads it. Both operations matter: storing
+a window without delivering it does not restore context. Parent-document
+retrieval follows a similar principle. The inspected LangChain implementation
+indexes small child chunks and returns larger parent sections or documents.
+LlamaIndex's \texttt{AutoMergingRetriever} can merge retrieved children into
+their parent and fill certain intervening gaps
+\citep{llamaindexcontext2026,langchainparent2025}.
+
+These operations restore actual text instead of asking a model to guess what
+was omitted. They do not establish which distant exception applies. A parent
+section can itself exceed the request budget, so expansion needs a measured
+limit and an explicit unresolved result when necessary context cannot fit.
+Identical words in two judgments also remain separate source occurrences;
+text deduplication must not erase their different legal roles.
+
+OpenAI's Responses File Search provides managed retrieval over uploaded
+files. The inspected SDK exposes vector-store IDs, filters, result limits
+and ranking controls, including weights for semantic and keyword matches
+\citep{openaifilesearch2026}. A bounded set of relevant hits does not establish
+that every required source was reviewed. These API details were verified in
+public SDK code; the online guide endpoints were inaccessible during the
+survey. No live service test is reported here.
+
+\subsection{Read every piece and combine findings in stages}
+
+Finding a relevant passage may be served by retrieval alone. Assessing every
+duty in a circular requires a complete reading pass. Standard map/reduce
+processing reads pieces separately and then combines their findings. If the
+combined material still exceeds a request, reduction proceeds through
+further bounded levels.
+
+LlamaIndex's \texttt{TreeSummarize} implements this hierarchy. It repacks
+text to the prompt budget, obtains responses for the pieces and recursively
+combines those responses. It supports structured outputs as well as ordinary
+text \citep{llamaindextree2026}. A legal application can reuse the packing
+and combination mechanism while specifying the distinctions its output must
+preserve.
+
+A general summary can describe a document's main theme accurately while
+omitting a rare exception that changes the present answer. A structured
+reading should distinguish the proposed rule, conditions, exceptions,
+actors, dates, supporting quotations, rival readings and unresolved
+references. The original sources remain available separately. The record of
+which sources and obligations were processed also stays outside the summaries;
+summarizing that record would defeat its purpose.
+
+Suppose the first window produces a duty and the third a possible exception.
+Their findings can request a comparison containing both original passages,
+the question and the necessary definitions. The comparison must explain
+whether the exception qualifies this duty, concerns another actor or period,
+or remains unresolved. Where a necessary dependency is unavailable or still
+too large, the affected conclusion remains qualified while unrelated questions
+continue.
+
+This procedure moves the evidence needed for each inference into a bounded
+request. It cannot make unlimited exact reasoning possible through arbitrary
+compression. A reducer can omit findings, fail to shorten its input or even
+expand it. Finite calls, explicit failure reporting and checks against original
+sources are therefore necessary. A final request that reattaches the whole
+raw dossier recreates the original capacity problem.
+
+\subsection{RAPTOR connects passages through a hierarchy of topics}
+
+Adjacent context is not always the most useful context.
+\citet[sec.~3]{raptor2024} embed chunks, cluster related material, summarize
+each cluster and repeat the process over the summaries. Their soft clustering
+can associate a chunk with more than one topic. Related passages need not be
+adjacent in the document.
+
+RAPTOR retrieves from this hierarchy, either through its levels or from a
+collapsed tree in which nodes at different levels compete for a bounded
+context budget. The author implementation stores child identities alongside
+summaries \citep{raptorcode2026}. A higher-level topic can consequently lead
+back to underlying passages. That could help locate a definition or
+qualification discussed in several places, while leaving the consequential
+proposition to be checked against the original text.
+
+The supporting evidence has a defined scope. Section~4 evaluates NarrativeQA,
+QASPER and QuALITY. Appendices examine clustering, summarization, retrieval
+and the contribution of different levels. Appendix~E reports hallucinations
+in six of 150 inspected summaries and no discernible impact on the reported
+question-answering results. That finding provides no assurance that a summary
+preserves every legally consequential exception. The study motivates a
+candidate retrieval method, not a legal acceptance verdict
+\citep[sec.~4 and Apps.~B--F, I]{raptor2024}.
+
+\subsection{GraphRAG connects entities and relationships}
+
+Microsoft's GraphRAG extracts entities and relationships from chunks,
+constructs hierarchical graph communities and produces community reports.
+Its global search combines partial answers drawn from those reports. It
+addresses questions whose answers are distributed across a collection
+\citep[sec.~3]{graphrag2025}.
+
+A legal investigation, for example, may need to distinguish provider,
+intermediary, custodian and customer across documents. A graph can expose
+proposed relationships for retrieval and comparison. But an extracted edge
+such as “owns” already embodies an interpretation. Possession, legal title
+and beneficial interest cannot be treated as interchangeable merely because
+they connect the same names. The supporting text and uncertainty must survive
+the extraction.
+
+The retained paper evaluates global questions over podcast and news corpora
+using model-judged measures including comprehensiveness and diversity. Its
+statistical comparisons concern those tasks. Section~6.1 identifies domain
+generalization and comparison of fabrication rates as further work
+\citep[secs.~4--6 and App.~G]{graphrag2025}. These results do not establish
+legal accuracy or exhaustive exception retention.
+
+Implementation choices reinforce that distinction. The inspected global
+reducer discards zero-scored points, ranks the remainder and takes what fits
+its token budget. Malformed map output can become an empty result
+\citep{graphragcode2026}. An exhaustive legal review must make such missing
+coverage visible. The paper also evaluates source-text map/reduce, so a graph
+is an alternative to test rather than a prerequisite for hierarchical reading.
+
+\subsection{The design choice for LegalMath}
+
+The justified starting point is an exact source store, overlapping pieces,
+retrieval with restored context, complete structured reading and bounded
+combination of connected findings. LlamaIndex supplies several components;
+LangChain offers alternative parent retrieval. RAPTOR and GraphRAG can be
+tested when simpler retrieval misses consequential distant connections.
+OpenAI File Search is a managed retrieval alternative. Installing every
+package would not establish which helps this product.
+
+The capacity diagnosis gives the choice a concrete purpose. The partial
+regulatory input exceeded an application ceiling of 200,000 bytes even after
+exact sharing of repeated text. Later reviews repeatedly attached large
+common evidence, so changing only the first chunk size could not solve the
+overload. The proposed repair assigns sources and requirements to bounded
+requests while retaining their identities across the complete reading.
+The four original questions, 46 obligations and 35 retained readings remain
+distinct targets; reducing their number is not a capacity repair.
+
+A fair comparison uses the same sources and questions for ordinary overlapping
+retrieval and the expanded-context method. Tests should include a distant
+exception that changes the answer, a definition that changes the actor,
+identical words in different sources, and a quotation or footnote attached to
+the wrong proposition. Both delivered evidence and the resulting answer
+matter. Returning the expected passages is an engineering result; drawing
+and supporting the inference is a separate question.
+
+The route remains optional until checks succeed on actual model responses.
+Scripted local responses can establish source preservation, request bounds,
+coverage accounting and failure handling, but cannot establish legal
+interpretation quality. Retained papers, inspected code versions and source
+hashes make the recommendation reproducible without implying completed
+product acceptance.\footnote{The survey is retained in
+\srcpath{docs/implementation/legal-mission-control/results/context-methods-2026-10-12.md};
+source hashes are in
+\srcpath{.localresources/legal-context-methods-2026-10-12/source-manifest.json}.
+The revised plan is
+\srcpath{docs/plans/legal-mission-capacity-resolution-2026-10-12.md}.}
+

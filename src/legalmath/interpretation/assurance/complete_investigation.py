@@ -59,11 +59,14 @@ class CompleteInvestigation:
                  scoped_pair_order='claim-first',continuation_id=None,
                  scoped_schedule='batch-first',reference_protocol='literal',machine_qualification=False,
                  input_profile='literal',challenge_options=None,challenge_providers=None,semantic_options=None,
-                 optional_tool_backend=None,response_profile='literal'):
+                 optional_tool_backend=None,response_profile='literal',optional_tool_failures='stop'):
         self.root=Path(root).resolve();self.directory=Path(directory).resolve()
         if not self.directory.is_relative_to(self.root):raise LegalMathError('E_REFERENCE')
         self.provider=provider;self.jdk=Path(jdk);self.at=at;self.catala=catala
         self.optional_tool_backend=optional_tool_backend
+        if optional_tool_failures not in ('stop', 'continue-independent'):
+            raise LegalMathError('E_SCHEMA', details='Unknown optional-tool failure policy')
+        self.optional_tool_failures=optional_tool_failures
         self.settings=settings or AssuranceSettings(investigate_abstractions=True,total_model_calls=36,
             semantic_repair_rounds=1,max_derived_comparisons=1,max_documents=8,max_reference_depth=1,
             max_question_partitions=4,max_question_replays=64,
@@ -74,9 +77,12 @@ class CompleteInvestigation:
         self.scoped_batch_size=scoped_batch_size
         self.scoped_pair_order=scoped_pair_order
         self.scoped_schedule=scoped_schedule;self.reference_protocol=reference_protocol
-        if input_profile not in ('literal','readable-tables.v1') or (input_profile!='literal' and reference_protocol=='literal'):
+        if input_profile not in ('literal','readable-tables.v1','shared-evidence.v1') or (input_profile!='literal' and reference_protocol=='literal'):
             raise LegalMathError('E_SCHEMA')
         self.input_profile=input_profile
+        self.downstream_settings=Settings(timeout_seconds=300,max_input_bytes=200000,max_output_bytes=200000,
+            max_logical_input_bytes=self.settings.search.max_logical_input_bytes,
+            max_expanded_output_bytes=self.settings.search.max_expanded_output_bytes)
         from .candidate_responses import validate_configuration
         validate_configuration(response_profile,reference_protocol=reference_protocol,input_profile=input_profile)
         self.response_profile=response_profile
@@ -107,16 +113,61 @@ class CompleteInvestigation:
         from .challenge_continuation import run
         return run(self, predecessor, pilot_guard=pilot_guard, predecessor_snapshot=predecessor_snapshot)
 
-    def run(self,roots,selected_slice,*,retained=(),authority_registry=None,questions=None,qualification_cases=None,semantic_inputs=None):
+    def restart_sources(self, predecessor_revision, roots, selected_slice, *, maximum_restarts=1, **kwargs):
+        """Explicit finite full rebuild; a concern never becomes a patched inventory."""
+        from .source_restart import prepare
+        restart = prepare(self, predecessor_revision, roots, selected_slice, maximum_restarts, kwargs)
+        return self.run(roots, selected_slice, source_restart=restart, **kwargs)
+
+    def run(self,roots,selected_slice,*,retained=(),authority_registry=None,questions=None,qualification_cases=None,semantic_inputs=None,
+            source_context=None,original_questions=None,source_restart=None,bounded_session=None,
+            bounded_acquisition_ref=None):
+        if bounded_session is not None:
+            from .bounded_product import BoundedProduct
+            if (not isinstance(bounded_session, BoundedProduct) or bounded_session.root != self.root
+                    or bounded_session.provider is not self.provider
+                    or bounded_session.route.envelope['original_questions'] != original_questions):
+                raise LegalMathError('E_INTEGRITY', details='Bounded investigation identity differs')
+            if bounded_acquisition_ref is not None:
+                from .phased.retained_acquisition import load
+                return load(bounded_session, bounded_acquisition_ref)
+            return bounded_session.investigate()
+        if bounded_acquisition_ref is not None:
+            raise LegalMathError('E_SCHEMA', details='Retained acquisition requires bounded session')
+        from .original_questions import validate as validate_original_questions
+        original_questions=(validate_original_questions(original_questions,selected_slice)
+            if original_questions is not None else None)
+        if source_restart is not None:
+            from .source_restart import validate
+            validate(self, source_restart, roots, retained, selected_slice, original_questions, source_context)
+        from .route_admission import find_budget
+        route_budget=find_budget(self.provider)
+        if (getattr(self.provider,'live',True) and
+                (self.settings.staged_source_review or self.input_profile=='shared-evidence.v1') and route_budget is None):
+            raise LegalMathError('E_AUTHORITY',details='New evidence route requires reviewed whole-route admission')
+        if route_budget is not None:
+            route_budget.configure(machine_qualification=self.machine_qualification,
+                supplied_questions=questions is not None, semantic_stage=self.semantic_options is not None)
         from ..semantics.integration import investigation_context
+        from .source_context import input_identity, validate as validate_context, ContextProvider
+        if source_context is not None:
+            source_context=validate_context(self.root,source_context,roots,retained=retained)
+        provider=ContextProvider(self.provider,source_context,self.root) if source_context is not None else self.provider
+        if getattr(provider, 'live', True):
+            from .provider_authority import verify_live_provider
+            verify_live_provider(provider)
         prepared_semantic_context=investigation_context(self.semantic_options,None,semantic_inputs)
         self.directory.mkdir(parents=True,exist_ok=True)
         source_ids=[{'url':s['url'],'media_type':s['media_type'],'sha256':raw_digest(s['data'])} for s in [*roots,*retained]]
         binding={'sources':source_ids,'question':selected_slice,'at':self.at,
+                 'source_input_context':input_identity(roots,retained),
                  'settings':self.settings.model_dump(),'implementation':implementation_identity(),
                  'scoped_actions':self.maximum_scoped_actions,'scoped_rounds':self.scoped_rounds,
                  'scoped_batch_size':self.scoped_batch_size,'questions':questions,
                  'authority_catalog':authority_registry.hash if authority_registry else None}
+        if original_questions is not None:binding['original_questions']=original_questions
+        if source_restart is not None:binding['source_restart']=source_restart
+        if source_context is not None:binding['qualified_source_context']=source_context
         if self.scoped_pair_order!='claim-first':binding['scoped_pair_order']=self.scoped_pair_order
         if self.scoped_schedule!='batch-first':binding['scoped_schedule']=self.scoped_schedule
         if self.input_profile!='literal':binding['input_profile']=self.input_profile
@@ -134,6 +185,8 @@ class CompleteInvestigation:
         binding['investigation_method'] = investigation_method(self)
         if self.optional_tool_backend is not None:
             binding['optional_tools']=self.optional_tool_backend.identity()
+            if self.optional_tool_failures != 'stop':
+                binding['optional_tool_failure_policy']=self.optional_tool_failures
         if self.challenge_options is not None:
             binding['challenge_panel']=binding['investigation_method']['challenge_panel']
         revision=digest(binding);directory=self.directory/'revisions'/revision
@@ -157,11 +210,22 @@ class CompleteInvestigation:
              'prior_revisions_valid_for_old_sources_only':True,'release_eligible':False})
         journal=EvidenceJournal(directory/'actions',binding,maximum_actions=32,maximum_per_issue=3,deadline_seconds=86400)
         from .optional_tools import ToolSession
-        tools=ToolSession(self.optional_tool_backend,directory/'optional-tools') if self.optional_tool_backend is not None else None
-        core=IntegratedInvestigation(directory/'core',self.provider,self.jdk,self.at,settings=self.settings,
+        if self.optional_tool_failures == 'continue-independent':
+            from .independent_tools import IndependentToolSession as ToolSession
+        tools=ToolSession(self.optional_tool_backend,directory/'optional-tools',original_questions=original_questions) if self.optional_tool_backend is not None else None
+        core=IntegratedInvestigation(directory/'core',provider,self.jdk,self.at,settings=self.settings,
                                      maximum_actions=100,deadline_seconds=86400,reference_protocol=self.core_reference_protocol,
-                                     input_profile=self.input_profile,optional_tools=tools)
+                                     input_profile=self.input_profile,optional_tools=tools,
+                                     original_questions=original_questions,source_restart=source_restart)
         interpreted=core.run(roots,selected_slice,retained=retained,authority_registry=authority_registry)
+        if interpreted['interpretation']['report'].get('status')=='RESTART_REQUIRED':
+            stop=interpreted['interpretation']['report'].get('repair_stop')
+            save(directory/'prerequisite-failure.json',{'stage':'SOURCE_REVIEW_RESTART',
+                'repair_stop':stop,'new_downstream_calls':0})
+            save(self.directory/'current-state.json',{'revision':revision,'status':'RESTART_REQUIRED',
+                'repair_stop':stop,'release_eligible':False})
+            raise LegalMathError('E_STALE_REVIEW',details={'stage':'SOURCE_REVIEW_RESTART',
+                'repair_stop':stop,'new_downstream_calls':0})
         location=Path(interpreted['interpretation']['directory'])
         if not (location/'candidates.json').exists():
             raise LegalMathError('E_REFERENCE',details={'stage':'SOURCE_INVENTORY',
@@ -170,6 +234,7 @@ class CompleteInvestigation:
         packet=loads((location/'packet.json').read_bytes())
         candidates=loads((location/'candidates.json').read_bytes())
         claims=loads((location/'claims.json').read_bytes())
+        if route_budget is not None:route_budget.observe(claims=len(claims),candidates=len(candidates))
         if not candidates:
             failure={'stage':'GENERATION','reason':'No retained candidate; question assignment and scoped review cannot run.',
                      'interpretation_directory':str(location),'candidate_count':0,'new_downstream_calls':0}
@@ -187,9 +252,9 @@ class CompleteInvestigation:
         def assign(work,request):
             if questions is not None:return validate_questions(questions,packet,candidates)
             save(work/'request.json',request)
-            answer=CompactProvider(self.provider,work/'transport',reference_protocol=self.core_reference_protocol,
-                input_profile=self.input_profile,optional_tools=tools).complete(request,Questions.model_json_schema(),Settings(timeout_seconds=300,
-                max_input_bytes=200000,max_output_bytes=200000))
+            answer=CompactProvider(provider,work/'transport',reference_protocol=self.core_reference_protocol,
+                input_profile=self.input_profile,optional_tools=tools,original_questions=original_questions).complete(
+                request,Questions.model_json_schema(),self.downstream_settings)
             save(work/'raw.json',{'value':answer.value,'provenance':answer.provenance})
             try:return {'status':'VALIDATED','value':validate_questions(answer.value,packet,candidates)}
             except LegalMathError as exc:
@@ -212,14 +277,15 @@ class CompleteInvestigation:
         if self.challenge_options is not None:
             from . import challenge_panel
             challenges=challenge_panel.run(packet,candidates,mapping,self.challenge_providers,directory/'challenges',
+                source_context=source_context,source_context_root=self.root,
                 issue_directory=self.directory/'challenge-issues',**{'input_profile':self.input_profile,**self.challenge_options})
-        scoped=scoped_investigation.investigate(packet,claims,candidates,mapping,self.provider,directory/'scoped',
+        scoped=scoped_investigation.investigate(packet,claims,candidates,mapping,provider,directory/'scoped',
             maximum_actions=self.maximum_scoped_actions,maximum_rounds=self.scoped_rounds,
             batch_size=self.scoped_batch_size,deadline_seconds=86400,
             pair_order=self.scoped_pair_order,
             schedule=self.scoped_schedule,reference_protocol=self.reference_protocol,input_profile=self.input_profile,optional_tools=tools,
             response_profile=self.response_profile,
-            settings=Settings(timeout_seconds=300,max_input_bytes=200000,max_output_bytes=200000))
+            settings=self.downstream_settings,original_questions=original_questions)
         semantic_stage=None
         if self.semantic_options is not None:
             from ..semantics import integration as semantic_integration
@@ -387,6 +453,9 @@ def verify(root,dossier):
         mapping={r['candidate_id']:r['question'] for r in dossier['questions']['assignments']}
         challenges=challenge_panel.verify((root/refs['challenges']['path']).parent,
             read_evidence(dossier['packet'],root),candidates,mapping,expected_configuration=dossier['binding']['challenge_panel'])
+        challenge_binding=loads(((root/refs['challenges']['path']).parent/'binding.json').read_bytes())
+        if challenge_binding.get('qualified_source_context') != dossier['binding'].get('qualified_source_context'):
+            raise LegalMathError('E_STALE_REVIEW',details='Challenge stage lost source qualifications')
     elif 'challenges' in dossier or 'challenges' in refs:raise LegalMathError('E_INTEGRITY')
     semantic_stage=None
     if dossier['binding'].get('semantic_options') is not None:

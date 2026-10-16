@@ -5,7 +5,29 @@ from ...canonical import canonical,digest
 from ...errors import LegalMathError
 from ..contracts import Strict,Text,Id,parse
 from ..search.models import Quote
-from .semantics import Inventory,validate_inventory,inventory_request,check_quotes
+from .semantics import (Inventory, AtomicClaim, UnitAccount, AuthorityNeed,
+                        validate_inventory, validate_inventory_rows, inventory_request,check_quotes)
+
+
+class InventoryAggregate(Strict):
+    """Internal aggregate only. Individual model responses retain their old bounds."""
+    claims: list[AtomicClaim] = Field(max_length=2560)
+    units: list[UnitAccount] = Field(min_length=1, max_length=500)
+    authorities: list[AuthorityNeed] = Field(max_length=1280)
+    uncertainties: list[Text] = Field(max_length=960)
+    pieces: list[dict] = Field(min_length=1, max_length=32)
+    cross_reviews: list[dict] = Field(default_factory=list, max_length=64)
+    staged_reviews: list[dict] = Field(default_factory=list, max_length=256)
+
+
+def validate_aggregate(value, packet):
+    from .evidence_tables import bounded_size
+    bounded_size(value)
+    result = parse(InventoryAggregate, value)
+    count = len(result['pieces'])
+    if any(len(result[k]) > count*n for k,n in (('claims',80),('authorities',40),('uncertainties',30))):
+        raise LegalMathError('E_RESOURCE_LIMIT', details='Aggregate exceeds its actual piece allowance')
+    return validate_inventory_rows(result, packet)
 
 
 class CrossPieceIssue(Strict):
@@ -48,17 +70,29 @@ def piece_request(packet,role,index,total,full_hash):
 
 def merge_pieces(packet,parts):
     """No model merge: exact namespaces and complete source accounting."""
-    result={'claims':[],'units':[],'authorities':[],'uncertainties':[]}
+    if not 1 <= len(parts) <= 32:raise LegalMathError('E_RESOURCE_LIMIT')
+    result={'claims':[],'units':[],'authorities':[],'uncertainties':[], 'pieces':[], 'cross_reviews':[]}
+    original_units={u['unit_id']:u for u in packet['units']}
+    accounted=[]
     for index,(piece,inventory) in enumerate(parts):
+        if ({k:v for k,v in piece.items() if k!='units'} != {k:v for k,v in packet.items() if k!='units'}
+                or any(original_units.get(u['unit_id']) != u for u in piece['units'])):
+            raise LegalMathError('E_INTEGRITY', details='Piece differs from aggregate source')
+        accounted.extend(u['unit_id'] for u in piece['units'])
         inv=validate_inventory(inventory,piece)
         cid={c['claim_id']:'c'+str(index)+'.'+digest(c['claim_id'])[:24] for c in inv['claims']}
+        result['pieces'].append({'index':index,'packet_hash':digest(piece),'inventory_hash':digest(inv),
+            'unit_ids':[u['unit_id'] for u in piece['units']], 'claim_ids':cid,
+            'authority_ids':{a['dependency_id']:'d'+str(index)+'.'+digest(a['dependency_id'])[:24] for a in inv['authorities']},
+            'uncertainty_start':len(result['uncertainties']), 'uncertainty_count':len(inv['uncertainties'])})
         for c in inv['claims']:result['claims'].append({**c,'claim_id':cid[c['claim_id']]})
         for u in inv['units']:result['units'].append({**u,'claim_ids':[cid[c] for c in u['claim_ids']]})
         for a in inv['authorities']:
             result['authorities'].append({**a,'dependency_id':'d'+str(index)+'.'+digest(a['dependency_id'])[:24]})
         result['uncertainties'].extend(inv['uncertainties'])
-    # Keep the existing full-inventory capacity rather than silently dropping rows.
-    return validate_inventory(result,packet)
+    if len(accounted)!=len(set(accounted)) or set(accounted)!=set(original_units):
+        raise LegalMathError('E_REFERENCE', details='Aggregate must account for each source occurrence once')
+    return validate_aggregate(result,packet)
 
 
 def cross_request(packet,role,inventory):
@@ -86,6 +120,9 @@ def validate_cross(value,packet,inventory):
 
 def apply_cross(inventory,cross,packet):
     checked=validate_cross(cross,packet,inventory);result=deepcopy(inventory)
+    if 'pieces' in inventory:
+        result['cross_reviews'].append(checked)
+        return validate_aggregate(result,packet)
     extra=[i['explanation'] for i in checked['issues']]+checked['unresolved_questions']
     # Preserve all diagnostic text in the per-piece record. The existing inventory
     # contract has a finite uncertainty capacity; overflow must fail explicitly.

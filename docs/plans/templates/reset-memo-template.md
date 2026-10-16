@@ -20,5 +20,7 @@ independent review and human/legal acceptance as separate statuses.
 
 ## Next action
 
-First unfinished task with satisfied dependencies; exact input/output and pass
-criterion; what must stop dependent work; useful independent work that may proceed.
+All unfinished tasks with satisfied dependencies, not just the first; exact
+inputs/outputs and pass criteria; failed branches and their blocked dependents;
+independent ready work, declared recovery, shared vetoes and spent attempts.
+Record the ready set to resume, rather than treating this memo as a stopping point.

@@ -33,6 +33,12 @@ Record PASS or repairs needed before execution.
 
 ## Execution and evidence
 
+- For a multi-step run, use the dependency map and continuation rules in
+  [the execution-plan template](execution-plan-template.md), or record equivalent
+  success/completion/recovery edges, independent items, shared resources, finite
+  attempts and resume conditions here. A failed candidate blocks its own
+  promotion; continue independent diagnostics and planned repair unless a
+  declared continuation veto fires.
 - Exact commands/environment/toolchain:
 - CPU/GPU policy (no GPU needed for ordinary LegalMath checks):
 - Small focused diagnostic before the full run:

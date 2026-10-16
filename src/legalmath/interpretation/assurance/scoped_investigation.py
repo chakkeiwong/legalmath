@@ -107,16 +107,18 @@ def execution_complete(result, *, expected_pairs=None):
 def investigate(packet, claims, candidates, questions, provider, out, *, required_pairs=None,
                 batch_size=12, maximum_rounds=3, maximum_actions=200, deadline_seconds=3600,
                 settings=None, pair_order='claim-first', schedule='batch-first', reference_protocol='literal',input_profile='literal',
-                optional_tools=None, stop_on_rejection=False, response_profile='literal'):
+                optional_tools=None, stop_on_rejection=False, response_profile='literal',original_questions=None):
+    from .original_questions import validate as validate_original_questions, attach as attach_original_questions
+    if original_questions is not None:
+        original_questions=validate_original_questions(original_questions,packet['selected_slice'])
     from . import candidate_responses, scoped_response_aliases
     candidate_responses.validate_configuration(response_profile,
         reference_protocol=reference_protocol, input_profile=input_profile)
     live = getattr(provider, 'live', True) is not False
     grant_binding = None
     if live:
-        if not isinstance(provider, CodexProvider) or not isinstance(provider.allowance, GrantedAllowance):
-            raise LegalMathError('E_AUTHORITY', details='Live scoped investigation requires a recorded additional grant')
-        grant_binding = provider.allowance.verify()
+        from .provider_authority import verify_live_provider
+        grant_binding = verify_live_provider(provider)
         grant_binding.pop('used')  # Consumption changes; authorization identity must not.
     if (type(stop_on_rejection) is not bool or type(batch_size) is not int or not 1 <= batch_size <= 64 or
             type(maximum_rounds) is not int or not 1 <= maximum_rounds <= 6):
@@ -124,7 +126,7 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
     if schedule not in ('batch-first', 'round-first') or reference_protocol not in (
             'literal', source_references.PROTOCOL, executable_references.PROTOCOL, executable_references_v2.PROTOCOL):
         raise LegalMathError('E_SCHEMA')
-    if input_profile not in ('literal','readable-tables.v1') or (input_profile!='literal' and reference_protocol=='literal'):
+    if input_profile not in ('literal','readable-tables.v1','shared-evidence.v1') or (input_profile!='literal' and reference_protocol=='literal'):
         raise LegalMathError('E_SCHEMA',details='Readable scoped input requires a source-reference protocol')
     settings = settings or Settings(timeout_seconds=300, max_input_bytes=200000, max_output_bytes=200000)
     pairs = sorted([list(p) for p in required_pairs] if required_pairs is not None else
@@ -141,9 +143,9 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
     requests = []
     for batch in batches:
         claim_ids={p[0] for p in batch};candidate_ids={p[1] for p in batch}
-        requests.append(fidelity_v2.request(packet,[c for c in claims if c['claim_id'] in claim_ids],
+        requests.append(attach_original_questions(fidelity_v2.request(packet,[c for c in claims if c['claim_id'] in claim_ids],
             {k:v for k,v in candidates.items() if k in candidate_ids},
-            {k:v for k,v in questions.items() if k in candidate_ids},batch))
+            {k:v for k,v in questions.items() if k in candidate_ids},batch),original_questions))
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     admission = capacity(len(pairs), batch_size, maximum_actions)
     save(out/'capacity.json', admission)
@@ -163,6 +165,7 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
             path=Path(module.__file__)
             binding['implementation'][path.name]=raw_digest(path.read_bytes())
     if optional_tools is not None:binding['optional_tools']=optional_tools.identity
+    if original_questions is not None:binding['original_questions']=original_questions
     if stop_on_rejection:binding['stop_on_rejection']=True
     if reference_protocol!='literal':
         binding['source_reference_protocol']=reference_protocol
@@ -221,6 +224,8 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
                 'instruction': 'Investigate source support and question relation separately. '
                 'Retain conflicting explanations; do not force agreement or a known answer. '
                 'Use prior diagnostics to repair response shape without manufacturing support.'}
+            from .source_context import augment as qualify_request
+            request = qualify_request(request, getattr(provider, 'source_context', None))
             inputs = {'request': request, 'schema': fidelity_v2.FidelityV2.model_json_schema(),
                       'settings': settings.model_dump()}
             def dispatch(work):
@@ -247,7 +252,7 @@ def investigate(packet, claims, candidates, questions, provider, out, *, require
                     else:
                         answer = provider.complete(wire, inputs['schema'], settings)
                     save(work/'raw-response.json', {'value': answer.value, 'provenance': answer.provenance})
-                    if len(canonical(answer.value)) > settings.max_output_bytes:
+                    if len(canonical(answer.value)) > (settings.max_expanded_output_bytes or settings.max_output_bytes):
                         raise LegalMathError('E_RESOURCE_LIMIT', details='Response exceeds bounded output size')
                     value = fidelity_v2.validate(answer.value, packet, claims, candidates, questions, batch)
                     return {'status': 'VALIDATED_PROPOSAL', 'value': value, 'provenance': answer.provenance}

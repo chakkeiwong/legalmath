@@ -18,9 +18,10 @@ def transient_service_failure(exc):
 
 
 class CompactProvider:
-    def __init__(self,provider,directory,*,reference_protocol='literal',input_profile='literal',optional_tools=None):
+    def __init__(self,provider,directory,*,reference_protocol='literal',input_profile='literal',optional_tools=None,
+                 original_questions=None):
         if reference_protocol not in ('literal',source_references.PROTOCOL):raise LegalMathError('E_SCHEMA')
-        if input_profile not in ('literal','readable-tables.v1'):raise LegalMathError('E_SCHEMA')
+        if input_profile not in ('literal','readable-tables.v1','shared-evidence.v1'):raise LegalMathError('E_SCHEMA')
         self.input_profile=input_profile
         self.reference_protocol=reference_protocol
         self.provider=provider;self.directory=Path(directory);self.directory.mkdir(parents=True,exist_ok=True)
@@ -30,10 +31,23 @@ class CompactProvider:
         if input_profile!='literal':self.routing['input_profile']=input_profile
         self.allowance=getattr(provider,'allowance',None);self.blocked=None
         self.optional_tools=optional_tools
+        from .original_questions import validate as validate_original_questions
+        self.original_questions=validate_original_questions(original_questions) if original_questions is not None else None
+        self._original_question_binding=digest(self.original_questions)
+        if self.original_questions is not None:
+            self.routing['original_question_binding']=digest(self.original_questions)
+        self.source_context=getattr(provider,'source_context',None)
+        self.source_context_root=getattr(provider,'source_context_root',None)
 
     def complete(self,request,schema,settings):
+        if digest(self.original_questions) != self._original_question_binding:
+            raise LegalMathError('E_STALE_REVIEW',details='Original question context changed')
         if self.blocked:
             raise LegalMathError('E_DEPENDENCY',details={'provider_circuit_open':self.blocked,'new_live_call':False})
+        from .source_context import augment
+        from .original_questions import attach as attach_original_questions
+        request=attach_original_questions(request,self.original_questions)
+        request=augment(request,self.source_context)
         if self.optional_tools is not None:
             request=self.optional_tools.augment(request)
         out=self.directory/f'call-{len(list(self.directory.glob("call-*"))):03}'
@@ -43,6 +57,8 @@ class CompactProvider:
                 'original_bytes':len(canonical(request)),'wire_bytes':len(canonical(wire)),'status':'DISPATCHED'}
         save(out/'status.json',record)
         try:
+            if self.input_profile=='literal' and len(canonical(wire)) > settings.max_input_bytes:
+                raise LegalMathError('E_RESOURCE_LIMIT',details='Compact wire request exceeds input cap')
             if (self.reference_protocol!='literal' and 'Quote' in schema.get('$defs',{})) or self.input_profile!='literal':
                 answer=source_references.complete(self.provider,wire,schema,settings,out/'source-references',input_profile=self.input_profile)
             else:answer=self.provider.complete(wire,schema,settings)

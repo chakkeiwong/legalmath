@@ -33,10 +33,11 @@ def context(root, previous):
             {r['candidate_id']:r['question'] for r in previous['questions']['assignments']})
 
 
-def preflight(packet,candidates,questions,configuration,counts,initial):
+def preflight(packet,candidates,questions,configuration,counts,initial,source_context=None):
     bound={'configuration':configuration,'contract':challenge_contract.build(packet,candidates,questions),
            'formal_obligations':{},'inherited_issues':counts,'pilot_guard':True}
     if initial: bound['initial_evidence']=initial
+    if source_context is not None:bound['qualified_source_context']=source_context
     selected=[o['obligation_id'] for o in bound['contract']['obligations']]
     rows=[]
     for offset in range(0,len(selected),configuration['batch_size']):
@@ -92,12 +93,14 @@ def run(runner, predecessor, *, pilot_guard=True, predecessor_snapshot=None):
         raise LegalMathError('E_UNSUPPORTED_PROFILE',details='Capacity continuation requires one readable challenge round')
     refs,counts=inherited(root,previous)
     packet,candidates,questions=context(root,previous)
+    source_context=previous['binding'].get('qualified_source_context')
     initial=[r for r in previous['challenges']['history'] if r['status']=='VALIDATED']
     directory.mkdir(parents=True,exist_ok=True)
     before=method(runner)
-    checked=preflight(packet,candidates,questions,config,counts,initial)
+    checked=preflight(packet,candidates,questions,config,counts,initial,source_context)
     save(directory/'preflight.json',checked)
     result=panel.run(packet,candidates,questions,runner.challenge_providers,directory/'challenges',
+        source_context=source_context,source_context_root=root,
         inherited_issues=counts,initial_evidence=initial,pilot_guard=pilot_guard,**{
             'input_profile':runner.input_profile,**runner.challenge_options})
     if method(runner)!=before:raise LegalMathError('E_STALE_REVIEW')
@@ -139,13 +142,16 @@ def verify(root, report):
     initial=[r for r in previous['challenges']['history'] if r['status']=='VALIDATED']
     if bound.get('inherited_issues')!=counts or bound.get('initial_evidence',[])!=initial:
         raise LegalMathError('E_INTEGRITY',details='Continuation reset or changed original history')
+    source_context=previous['binding'].get('qualified_source_context')
+    if bound.get('qualified_source_context')!=source_context:
+        raise LegalMathError('E_STALE_REVIEW',details='Continuation lost source qualification')
     actual=panel.verify(path,packet,candidates,questions,expected_configuration=binding['configuration'])
     for role in panel.ROLES:
         limits=IssueLimits(path/'issues'/(digest([digest(packet),role])+'.json'),
             {'source_packet_hash':digest(packet),'role':role,'profile':panel.PROFILE},inherited=counts[role])
         if actual['issue_histories'][role]!=limits.report():raise LegalMathError('E_INTEGRITY')
     checked=read_evidence(report['preflight'],root)
-    if checked!=preflight(packet,candidates,questions,binding['configuration'],counts,initial):
+    if checked!=preflight(packet,candidates,questions,binding['configuration'],counts,initial,source_context):
         raise LegalMathError('E_INTEGRITY',details='Preflight does not reconstruct actual requests')
     expected=bool(previous['core']['execution_complete'] and previous['replay'] and
         previous['scoped']['stopped'] is None and actual['execution_complete'])

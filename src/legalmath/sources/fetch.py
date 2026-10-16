@@ -8,7 +8,7 @@ from urllib.parse import urlsplit, urljoin
 
 from ..errors import LegalMathError
 
-HOSTS = frozenset({"apps.sfc.hk", "www.sfc.hk", "www.hkma.gov.hk"})
+HOSTS = frozenset({"apps.sfc.hk", "www.sfc.hk", "www.hkma.gov.hk", "legalref.judiciary.hk"})
 
 
 def validate_url(url, resolver=socket.getaddrinfo):

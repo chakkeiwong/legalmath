@@ -16,6 +16,65 @@ from ...canonical import canonical, loads, digest, raw_digest
 from ...errors import LegalMathError
 
 
+class TerminalServiceFailure(LegalMathError):
+    """A CLI process ended without a structured result after a service error."""
+    def __init__(self, details, *, allowance_slot, request_hash):
+        super().__init__('E_DEPENDENCY', details=details)
+        self.allowance_slot = allowance_slot
+        self.request_hash = request_hash
+
+
+class TerminatedCallTimeout(TerminalServiceFailure):
+    """The local child is dead and retained evidence proves no complete output."""
+
+
+def transient_service_details(events, *, output_present):
+    """Use explicit terminal service messages; never infer retry from model text."""
+    if output_present or any(e.get('type') == 'turn.completed' for e in events):
+        return None
+    messages = [str(e.get('message', '')) for e in events if e.get('type') == 'error']
+    if any(re.search(r'insufficient[_ ]quota|quota.{0,20}exceed|billing|payment|unauthori[sz]ed|invalid.{0,10}(?:api.key|token)|authentication', m, re.I) for m in messages):
+        return None
+    selected = []
+    for message in messages:
+        lower = message.lower()
+        transient = ((re.search(r'\b(?:502|503)\b', message) and
+            any(s in lower for s in ('status', 'bad gateway', 'service unavailable')))
+            or 'stream disconnected before completion' in lower
+            or ('rate limit' in lower and any(s in lower for s in
+                ('temporarily overloaded', 'try again in', 'retry after', 'retry-after')))
+            or ('429' in lower and 'too many requests' in lower))
+        if not transient:
+            continue
+        selected.append(message)
+    if not selected:
+        return None
+    delays, unparsed = [], False
+    for message in selected:
+        lower = message.lower()
+        mentions = len(re.findall(r'try again in|retry[ -]after', lower))
+        matches = list(re.finditer(r'(?:try again in|retry[ -]after\s*:?)\s*(\d+(?:\.\d+)?)\s*([a-z]+)?\b', lower))
+        unparsed = unparsed or len(matches) != mentions
+        for match in matches:
+            amount, unit = float(match.group(1)), match.group(2) or 's'
+            factors = {'ms':0.001,'millisecond':0.001,'milliseconds':0.001,
+                's':1,'sec':1,'secs':1,'second':1,'seconds':1,
+                'm':60,'min':60,'mins':60,'minute':60,'minutes':60,
+                'h':3600,'hour':3600,'hours':3600}
+            if unit not in factors:
+                unparsed = True
+            else:
+                delays.append(amount*factors[unit])
+    return {'message': selected[-1], 'retry_after_seconds': max(delays) if delays else None,
+            'unparsed_retry_after': unparsed}
+
+
+def terminal_service_error(events, *, output_present):
+    """Classify only an ended, no-output transport failure, not model content."""
+    details = transient_service_details(events, output_present=output_present)
+    return details['message'] if details else None
+
+
 @dataclass(frozen=True)
 class Completion:
     value: dict
@@ -117,7 +176,7 @@ class CodexProvider:
                     manifest={'allowance_slot':issued,'request_hash':request_hash,'files':{},
                               'complete_output_present':(directory/'result.json').exists(),
                               'note':'Transport evidence only; a file is not a validated response or legal judgment'}
-                    for name in ('request.json','schema.json','events.jsonl','stderr.txt','result.json'):
+                    for name in ('request.json','schema.json','events.jsonl','stderr.txt','result.json','termination.json'):
                         p=directory/name
                         if not p.exists():continue
                         original=p.read_bytes();data=original
@@ -146,12 +205,14 @@ class CodexProvider:
             shape.write_bytes(canonical(schema));(directory/'request.json').write_bytes(payload)
             logs=[directory/'events.jsonl',directory/'stderr.txt']
             command=self.command(directory,shape,output)
+            timed_out = False
             with (directory/'request.json').open('rb') as stdin, logs[0].open('wb') as stdout, logs[1].open('wb') as stderr:
                 proc=subprocess.Popen(command,stdin=stdin,stdout=stdout,stderr=stderr,start_new_session=True)
                 try:
                     while proc.poll() is None:
                         if time.monotonic()-began>settings.timeout_seconds:
-                            raise LegalMathError('E_RESOURCE_LIMIT',details='Codex call deadline')
+                            timed_out = True
+                            break
                         if any(p.exists() and p.stat().st_size>4_000_000 for p in logs) or (output.exists() and output.stat().st_size>settings.max_output_bytes):
                             raise LegalMathError('E_RESOURCE_LIMIT',details='Codex output byte cap')
                         try: proc.wait(timeout=0.2)
@@ -165,10 +226,24 @@ class CodexProvider:
             forbidden={'command_execution','mcp_tool_call','web_search','file_change'}
             if any(e.get('item',{}).get('type') in forbidden for e in events):
                 raise LegalMathError('E_AUTHORITY',details='Provider attempted tool use')
+            if timed_out:
+                (directory/'termination.json').write_bytes(canonical({
+                    'reason':'LOCAL_DEADLINE', 'process_terminated':proc.poll() is not None,
+                    'returncode':proc.returncode, 'timeout_seconds':settings.timeout_seconds,
+                    'complete_output_present':output.exists(),
+                    'completed_turn_present':any(e.get('type')=='turn.completed' for e in events)}))
+                if not output.exists() and not any(e.get('type')=='turn.completed' for e in events):
+                    raise TerminatedCallTimeout('Codex call deadline; process terminated without complete output',
+                        allowance_slot=issued, request_hash=digest(request))
+                raise LegalMathError('E_RESOURCE_LIMIT',details='Codex call deadline with output; inspect retained evidence')
             if proc.returncode or not output.exists():
                 error=next((e.get('message') for e in events if e.get('type')=='error'),None)
                 diagnostic=logs[1].read_text()[-2000:]
                 diagnostic=re.sub(r'(?i)(bearer\s+|(?:api[_-]?key|token)\s*[=:]\s*)[^\s,\"]+',r'\1[REDACTED]',diagnostic)
+                terminal = terminal_service_error(events, output_present=output.exists())
+                if terminal is not None and proc.returncode is not None:
+                    raise TerminalServiceFailure(terminal[:2000], allowance_slot=issued,
+                                                 request_hash=digest(request))
                 raise LegalMathError('E_DEPENDENCY',details=str(error or diagnostic or 'Codex returned no structured output')[:2000])
             if output.stat().st_size>settings.max_output_bytes: raise LegalMathError('E_RESOURCE_LIMIT')
             value=loads(output.read_bytes())

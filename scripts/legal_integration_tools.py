@@ -18,7 +18,17 @@ def effective_graph(proposal, evaluation):
 
 
 class ProductToolBackend:
+    TOOL_IDS = frozenset({'bm25', 'legalruleml', 'pyarg', 'carneades', 'clingo', 'logical-english'})
+    DEFAULT_TOOLS = ('bm25', 'legalruleml', 'pyarg', 'carneades', 'clingo')
+
+    def __init__(self, tools=None):
+        selected = tuple(self.DEFAULT_TOOLS if tools is None else tools)
+        if not selected or len(set(selected)) != len(selected) or not set(selected) <= self.TOOL_IDS:
+            raise LegalMathError('E_SCHEMA', details='Invalid explicit tool selection')
+        self.tools = tuple(sorted(selected))
+
     def identity(self):
+        from scripts.legal_native_identity import selected_content
         paths = [Path(__file__), ROOT/'scripts/legal_gap_worker.py', ROOT/'scripts/legal_tool_worker.py',
                  ROOT/'scripts/legal_gap_program.py', RES/'venv/bin/python',
                  OLD/'T2/attempt-1/carneades-adapter/trial',
@@ -26,11 +36,21 @@ class ProductToolBackend:
                  ROOT/'src/legalmath/interpretation/assurance/sidecar.py',
                  ROOT/'src/legalmath/interpretation/assurance/diversity.py']
         paths += sorted(RES.glob('*.json'))
-        return {'profile': 'retained-product-tool-backend.v1', 'files': [ref(p) for p in paths],
+        paths.append(ROOT / 'scripts/legal_native_identity.py')
+        result = {'profile': 'retained-product-tool-backend.v3', 'files': [ref(p) for p in paths],
+                'package_content': selected_content(self.tools, RES, ROOT),
+                'selected_tools': list(self.tools),
                 'semantics': 'source-bound retrieval, Boolean AST preservation, effective grounded/preferred/stable graphs',
                 'unsupported': ['general English equivalence', 'legal warrant', 'case analogy', 'unformalized and non-Boolean meanings']}
+        if 'logical-english' in self.tools:
+            from scripts.legal_mission_logical_english import identity
+            result['logical_english'] = identity()
+        return result
 
     def retrieval(self, packet, inputs, work):
+        if 'bm25' not in self.tools:
+            return {'status': 'UNSUPPORTED', 'tool': 'BM25', 'reason': 'DISABLED_BY_PROFILE',
+                    'limit': 'Explicitly disabled; no retrieval result supplied.'}
         units = {u['unit_id']: u['text'] for u in packet['units']}
         result = worker('retrieval', {'corpus': {'units': [{'id': k, 'text': v} for k, v in units.items()]},
             'questions': [{'id': 'exact-product-question', 'question': inputs['question']}]}, work/'retrieval')
@@ -47,6 +67,19 @@ class ProductToolBackend:
                 'limit': 'Location assistance on the same packet; no source sufficiency or legal applicability judgment.'}
 
     def candidates(self, packet, candidates, work):
+        results = []
+        if 'legalruleml' in self.tools:
+            results.append(self._legalruleml(packet, candidates, work))
+        if 'logical-english' in self.tools:
+            from scripts.legal_mission_logical_english import check
+            results.append(check(packet, candidates, work / 'logical-english'))
+        if len(results) == 1: return results[0]
+        return {'status': 'FAILED' if any(r['status']=='FAILED' for r in results) else 'PASS' if any(r['status']=='PASS' for r in results) else 'UNSUPPORTED',
+                'tool': 'Candidate tools', 'results': results,
+                'candidate_bindings': {cid:digest(r) for cid,r in candidates.items()},
+                'limit': 'Independent selected representation checks; no legal warrant established.'}
+
+    def _legalruleml(self, packet, candidates, work):
         encoded, unsupported = [], []
         for cid, r in candidates.items():
             formal = r.get('formalization')
@@ -57,10 +90,27 @@ class ProductToolBackend:
                 unsupported.append({'candidate_id': cid, 'reason': 'NON_BOOLEAN_PROFILE'})
                 continue
             try:
-                encoded.append({'id': cid, 'scope': expression(formal['scope'], 'scope'),
-                                'result': expression(formal['result'], 'result')})
+                declared = {f['name'] for f in formal['facts']}
+                if len(declared) != len(formal['facts']):
+                    raise LegalMathError('E_REFERENCE', details='DUPLICATE_FACT')
+                units = {u['unit_id']:u['text'] for u in packet['units']}
+                if any(not set(f['source_unit_ids']) <= units.keys() for f in formal['facts']):
+                    raise LegalMathError('E_REFERENCE', details='FOREIGN_FACT_SOURCE')
+                if not r['citations'] or any(not c['quote'] or
+                        units.get(c['unit_id'],'').count(c['quote']) != 1 for c in r['citations']):
+                    raise LegalMathError('E_REFERENCE', details='INVALID_CITATION')
+                trees = {k:expression(formal[k],k) for k in ('scope','result')}
+                def facts(value):
+                    if isinstance(value,dict):
+                        if value.get('op') == 'fact': yield value['name']
+                        for item in value.values(): yield from facts(item)
+                    elif isinstance(value,list):
+                        for item in value: yield from facts(item)
+                if not set(facts(trees)) <= declared:
+                    raise LegalMathError('E_REFERENCE', details='UNDECLARED_FACT')
+                encoded.append({'id': cid, **trees})
             except LegalMathError as exc:
-                unsupported.append({'candidate_id': cid, 'reason': exc.code})
+                unsupported.append({'candidate_id': cid, 'reason': exc.details or exc.code})
         result = worker('boolean', {'readings': encoded}, work/'boolean') if encoded else {'readings': []}
         checked = []
         for row in result['readings']:
@@ -79,42 +129,53 @@ class ProductToolBackend:
                 'limit': 'Boolean AST preservation and mutation detection only. Runtime uncertainty and all legal premises remain outside XML validation.'}
 
     def criticism(self, packet, inputs, work):
+        selected = set(self.tools) & {'pyarg','carneades','clingo'}
+        if not selected:
+            return {'status':'UNSUPPORTED','tool':'Argument tools','reason':'DISABLED_BY_PROFILE',
+                    'limit':'No argument engine selected.'}
         proposal, evaluation = inputs['proposal'], inputs['evaluation']
-        case = effective_graph(proposal, evaluation)
+        try: case = effective_graph(proposal, evaluation)
+        except ValueError as exc:
+            return {'status':'UNSUPPORTED','tool':'Argument tools','reason':'GRAPH_PROFILE_CAPACITY',
+                    'selected_tools':sorted(selected),'limit':str(exc)}
         if case is None:
             return {'status': 'UNSUPPORTED', 'tool': 'PyArg/Carneades',
-                    'reason': evaluation['status'], 'limit': 'No complete effective product graph supplied.'}
+                    'selected_tools':sorted(selected),'reason': evaluation['status'], 'limit': 'No complete effective product graph supplied.'}
         save(work/'effective-graph.json', case)
-        external = worker('pyarg', {'cases': [case]}, work/'pyarg')
-        native = work/'carneades'
-        save(native/'input.json', {'cases': [case]})
-        command([OLD/'T2/attempt-1/carneades-adapter/trial', native/'input.json', native/'output.json'], native, 'run')
-        other = read(native/'output.json')
-        # The criticism product defines grounded/stable semantics. Compare its
-        # grounded result directly; preferred agreement is an additional check
-        # by two external engines, never a substitute for the product target.
-        row = external['cases'][0]
-        agree = (external['cases'] == other['cases'] and row['grounded'] == [evaluation['semantics']['grounded']])
-        # The existing sidecar evaluates whatever abstract graph it receives.
-        # Supply effective defeats explicitly here; sending the original raw
-        # criticism would compare a different stable-extension target.
-        stable=work/'normalized-stable'
-        save(stable/'input.json',{'criticism':{'proposal':{
-            'arguments':[{'argument_id':i} for i in case['ids']],
-            'attacks':[{'attacker':a,'target':b} for a,b in case['attacks']]}}})
-        command([ROOT/'.localresources/assurance-tools/venv/bin/python','-m',
-                 'legalmath.interpretation.assurance.sidecar','arguments','--input',stable/'input.json',
-                 '--output',stable/'output.json'],stable,'run',env={'PYTHONPATH':str(ROOT/'src')})
-        checked=read(stable/'output.json')
-        stable_agree=(checked['status']=='PASS' and sorted(checked['clingo']['extensions'])==
-                      sorted(evaluation['semantics']['stable_extensions']))
-        agree=agree and stable_agree
-        return {'status': 'PASS' if agree else 'FAILED', 'tool': 'PyArg/Carneades',
-                'graph_hash': digest(case), 'eligible_arguments': case['ids'], 'defeats': case['attacks'],
-                'blocked_arguments': evaluation['blocked_arguments'],
-                'conditional_arguments': evaluation['conditional_arguments'],
-                'unaccepted_preference_proposals': evaluation['preference_proposals'],
-                'product_grounded': evaluation['semantics']['grounded'], 'external': row,
-                'product_stable':evaluation['semantics']['stable_extensions'],'clingo_stable_agree':stable_agree,
-                'evidence': [ref(work/'effective-graph.json'), ref(work/'pyarg/output.json'), ref(native/'output.json'),ref(stable/'output.json')],
-                'limit': 'Effective defeats after premise blocking and ancestor propagation; proposed priorities remain unaccepted. Grounded and stable product results are checked on this exact graph. Graph acceptance supplies no legal warrant.'}
+        checks = {}
+        if 'pyarg' in selected:
+            external = worker('pyarg', {'cases': [case]}, work/'pyarg')
+            row = external['cases'][0]
+            checks['pyarg'] = {'grounded':row['grounded'],'preferred':row['preferred'],
+                'agrees':row['grounded']==[evaluation['semantics']['grounded']],
+                'evidence':ref(work/'pyarg/output.json')}
+        if 'carneades' in selected:
+            native = work/'carneades'
+            save(native/'input.json', {'cases': [case]})
+            command([OLD/'T2/attempt-1/carneades-adapter/trial', native/'input.json', native/'output.json'], native, 'run')
+            row=read(native/'output.json')['cases'][0]
+            checks['carneades']={'grounded':row['grounded'],'preferred':row['preferred'],
+                'agrees':row['grounded']==[evaluation['semantics']['grounded']],
+                'evidence':ref(native/'output.json')}
+        if {'pyarg','carneades'} <= selected:
+            checks['preferred_agreement']={'agrees':checks['pyarg']['preferred']==checks['carneades']['preferred']}
+        if 'clingo' in selected:
+            stable=work/'normalized-stable'
+            save(stable/'input.json',{'criticism':{'proposal':{
+                'arguments':[{'argument_id':i} for i in case['ids']],
+                'attacks':[{'attacker':a,'target':b} for a,b in case['attacks']]}}})
+            command([ROOT/'.localresources/assurance-tools/venv/bin/python','-m',
+                     'legalmath.interpretation.assurance.sidecar','arguments','--input',stable/'input.json',
+                     '--output',stable/'output.json'],stable,'run',env={'PYTHONPATH':str(ROOT/'src')})
+            checked=read(stable/'output.json')
+            checks['clingo']={'extensions':checked.get('clingo',{}).get('extensions'),
+                'agrees':checked['status']=='PASS' and sorted(checked['clingo']['extensions'])==sorted(evaluation['semantics']['stable_extensions']),
+                'evidence':ref(stable/'output.json')}
+        return {'status':'PASS' if all(c['agrees'] for c in checks.values()) else 'FAILED',
+            'tool':'Argument tools','selected_tools':sorted(selected),'graph_hash':digest(case),
+            'eligible_arguments':case['ids'],'defeats':case['attacks'],
+            'blocked_arguments':evaluation['blocked_arguments'],
+            'conditional_arguments':evaluation['conditional_arguments'],
+            'unaccepted_preference_proposals':evaluation['preference_proposals'],
+            'checks':checks,'evidence':ref(work/'effective-graph.json'),
+            'limit':'Effective graph computation on supplied premises; source-to-warrant correctness unassessed.'}

@@ -151,6 +151,7 @@ class Search:
                     and getattr(exc,'code',None) in ('E_SCHEMA','E_REFERENCE','E_DUPLICATE_ID','E_TYPE')):
                 # Repair only this member's malformed output; no peer answers enter the request.
                 correction={**request,'task':'REPAIR_OUTPUT','invalid_response':answer.value,
+                    'original_task':request.get('original_task',request['task']),
                     'validation_error':getattr(exc,'code',type(exc).__name__),
                     'validation_details':str(getattr(exc,'details',None) or exc)[:1000],
                     'repair_of_request_hash':digest(request),

@@ -91,7 +91,8 @@ def investigation_request(bound,packet,candidates,questions,selected,role,round_
     request['instructions']+='only the candidate under its stated proposed formal premise; challenge a mistaken premise '
     request['instructions']+='explicitly. The declared_grammar_alternatives expose a finite syntax search, not all legal '
     request['instructions']+='readings. Propose a relevant alternative when its stated vocabulary helps, and retain missing abstractions.'
-    return request
+    from .source_context import augment
+    return augment(request,bound.get('qualified_source_context'))
 
 
 def summarize(bound, packet, candidates, questions, history, formal):
@@ -145,12 +146,23 @@ def summarize(bound, packet, candidates, questions, history, formal):
 
 
 def run(packet,candidates,questions,providers,directory,*,batch_size=12,rounds=3,input_profile='readable-tables.v1',
-        maximum_actions=96,formal_obligations=None,issue_directory=None,inherited_issues=None,pilot_guard=False,initial_evidence=None):
+        maximum_actions=96,formal_obligations=None,issue_directory=None,inherited_issues=None,pilot_guard=False,initial_evidence=None,
+        source_context=None,source_context_root=None):
     config=configuration(providers,batch_size=batch_size,rounds=rounds,input_profile=input_profile,maximum_actions=maximum_actions)
     formal_obligations=formal_obligations or {}
     if not set(formal_obligations)<=set(candidates): raise LegalMathError('E_REFERENCE')
     original=contract.build(packet,candidates,questions)
     bound={'configuration':config,'contract':original,'formal_obligations':formal_obligations}
+    if source_context is not None:
+        from .source_context import SourceContext, check_packet
+        from ..contracts import parse
+        from .integration_contract import read_evidence
+        source_context=parse(SourceContext,source_context)
+        check_packet(packet,source_context)
+        if source_context_root is None:raise LegalMathError('E_REFERENCE',details='Qualified challenge needs evidence root')
+        for ref in source_context['qualification']['evidence']:
+            read_evidence(ref,Path(source_context_root).resolve(),json_value=False)
+        bound['qualified_source_context']=source_context
     if inherited_issues is not None: bound['inherited_issues']=deepcopy(inherited_issues)
     if initial_evidence: bound['initial_evidence']=deepcopy(initial_evidence)
     if pilot_guard: bound['pilot_guard']=True
@@ -181,6 +193,9 @@ def run(packet,candidates,questions,providers,directory,*,batch_size=12,rounds=3
                 if pilot_guard and len(history)==2 and any(r['status']!='VALIDATED' for r in history):
                     pilot_failed=True
                     break
+                if source_context is not None:
+                    for ref in source_context['qualification']['evidence']:
+                        read_evidence(ref,Path(source_context_root).resolve(),json_value=False)
                 request=investigation_request(bound,packet,candidates,questions,group,role,round_no,prior)
                 schema=contract.ChallengeResponse.model_json_schema()
                 schema['properties']['answers'].update(minItems=len(group),maxItems=len(group))
@@ -224,6 +239,9 @@ def run(packet,candidates,questions,providers,directory,*,batch_size=12,rounds=3
     summary['issue_histories']={role:limits.report() for role,limits in issues.items()}
     summary['kernel']=proof
     if pilot_guard: summary['pilot_stopped']=pilot_failed
+    if source_context is not None:
+        for ref in source_context['qualification']['evidence']:
+            read_evidence(ref,Path(source_context_root).resolve(),json_value=False)
     save(directory/'result.json',summary)
     return summary
 

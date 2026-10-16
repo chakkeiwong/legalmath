@@ -22,8 +22,8 @@ class JournalProvider:
         if self.calls >= self.maximum or remaining<1:
             raise LegalMathError('E_RESOURCE_LIMIT', details='Assurance call/deadline limit')
         settings=settings.model_copy(update={'timeout_seconds':min(settings.timeout_seconds,remaining)})
-        if len(canonical(request)) > settings.max_input_bytes:
-            raise LegalMathError('E_RESOURCE_LIMIT', details='Assurance request byte cap')
+        from .evidence_tables import bounded_size
+        bounded_size(request, settings.max_logical_input_bytes or settings.max_input_bytes)
         sequence = self.calls
         directory = self.directory / f'call-{sequence:03}'
         directory.mkdir(exist_ok=False)
@@ -33,8 +33,7 @@ class JournalProvider:
         save(directory / 'status.json', status)
         try:
             answer = self.provider.complete(request, schema, settings)
-            if len(canonical(answer.value)) > settings.max_output_bytes:
-                raise LegalMathError('E_RESOURCE_LIMIT', details='Assurance response byte cap')
+            bounded_size(answer.value, settings.max_expanded_output_bytes or settings.max_output_bytes)
             save(directory / 'response.json', {'value': answer.value, 'provenance': answer.provenance})
             status.update(status='RETURNED_UNVALIDATED', response_hash=digest(answer.value))
             save(directory / 'status.json', status)

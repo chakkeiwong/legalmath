@@ -114,35 +114,67 @@ def prepare(request, schema):
     return wire, wire_schema, references
 
 
-def resolve_response(value, schema, wire_schema, references, packet, request_hash):
+def resolve_response(value, schema, wire_schema, references, packet, request_hash, *, maximum=16777216):
     verify_table(references, packet, request_hash)
     error = next(Draft202012Validator(wire_schema).iter_errors(value), None)
     if error:
         raise LegalMathError('E_SCHEMA', details={'field': list(error.absolute_path),
                                                 'reason': error.message[:1500]})
 
-    def visit(item, shape):
+    remaining = maximum
+    visits = 0
+    def charge(n):
+        nonlocal remaining
+        remaining -= n
+        if remaining < 0:
+            raise LegalMathError('E_RESOURCE_LIMIT', details='Source quotation expansion exceeds expanded response limit')
+
+    def visit(item, shape, *, build=True, depth=0):
+        nonlocal visits
+        if not build:
+            visits += 1
+            if depth > 96 or visits > 250000:
+                raise LegalMathError('E_RESOURCE_LIMIT', details='Source response expansion structure limit')
         if '$ref' in shape:
             ref = shape['$ref']
             if ref == '#/$defs/Quote':
-                return _resolve(item, references, packet)
+                # Only one bounded quotation is allocated during preflight;
+                # the repeated expanded response graph is not constructed yet.
+                quote = _resolve(item, references, packet)
+                if not build:
+                    charge(len(canonical(quote)))
+                    return None
+                return quote
             if not ref.startswith('#/$defs/'):
                 raise LegalMathError('E_UNSUPPORTED_PROFILE')
-            return visit(item, schema['$defs'][ref.split('/')[-1]])
+            return visit(item, schema['$defs'][ref.split('/')[-1]], build=build, depth=depth+1)
         if item is None:
+            if not build:charge(4)
             return None
         if 'anyOf' in shape:
             # The wire schema has already validated shape; choose by JSON type.
             options = [s for s in shape['anyOf'] if s.get('type') != 'null']
             if len(options) != 1:
                 raise LegalMathError('E_UNSUPPORTED_PROFILE', details='Ambiguous quotation-bearing union')
-            return visit(item, options[0])
+            return visit(item, options[0], build=build, depth=depth+1)
         if shape.get('type') == 'array':
-            return [visit(x, shape['items']) for x in item]
+            if not build:
+                charge(2+max(0,len(item)-1))
+                for x in item:visit(x,shape['items'],build=False,depth=depth+1)
+                return None
+            return [visit(x, shape['items'], depth=depth+1) for x in item]
         if shape.get('type') == 'object':
-            return {k: visit(v, shape['properties'][k]) for k, v in item.items()}
+            if not build:
+                charge(2+max(0,len(item)-1)+sum(len(canonical(k))+1 for k in item))
+                for k,v in item.items():visit(v,shape['properties'][k],build=False,depth=depth+1)
+                return None
+            return {k: visit(v, shape['properties'][k], depth=depth+1) for k, v in item.items()}
+        if not build:
+            charge(len(canonical(item)))
+            return None
         return deepcopy(item)
 
+    visit(value, schema, build=False)
     result = visit(value, schema)
     if not Draft202012Validator(schema).is_valid(result):
         raise LegalMathError('E_SCHEMA', details='Resolved response violates the original contract')
@@ -150,11 +182,23 @@ def resolve_response(value, schema, wire_schema, references, packet, request_has
 
 
 def complete(provider, request, schema, settings, directory, *, input_profile='literal', response_profile='literal'):
+    from .source_context import before_cache
+    request = before_cache(request, getattr(provider, 'source_context', None))
     from . import candidate_responses
     candidate_responses.validate_configuration(response_profile,
         reference_protocol=request.get('executable_reference_protocol'), input_profile=input_profile)
     out = Path(directory); out.mkdir(parents=True, exist_ok=True)
-    wire, wire_schema, references = prepare(request, schema)
+    from .evidence_tables import bounded_size
+    # The request has already passed source_context; encoded profiles must be
+    # measured after encoding, while the expanded graph keeps a finite cap.
+    bounded_size(request, settings.max_logical_input_bytes or (16777216 if input_profile!='literal' else settings.max_input_bytes))
+    if 'Quote' in schema.get('$defs', {}):
+        wire, wire_schema, references = prepare(request, schema)
+    elif input_profile != 'literal' and response_profile == 'literal':
+        wire, wire_schema, references = deepcopy(request), deepcopy(schema), None
+        wire['response_schema'] = wire_schema
+    else:
+        raise LegalMathError('E_UNSUPPORTED_PROFILE', details='Source references require a Quote schema')
     output_schema = wire_schema
     response_provenance = {}
     if response_profile != 'literal':
@@ -167,15 +211,18 @@ def complete(provider, request, schema, settings, directory, *, input_profile='l
             'candidate_response_binding_hash': digest(response_binding)}
     encoding_provenance = {}
     if input_profile != 'literal':
-        from . import readable_tables, readable_challenges
-        codecs = {c.PROFILE: c for c in (readable_tables, readable_challenges)}
+        from . import readable_tables, readable_challenges, evidence_tables
+        codecs = {c.PROFILE: c for c in (readable_tables, readable_challenges, evidence_tables)}
         if input_profile not in codecs:
             raise LegalMathError('E_UNSUPPORTED_PROFILE', details='Unknown request encoding')
         codec = codecs[input_profile]
         original_wire = wire
         save(out/'expanded-wire-request.json', original_wire)
         wire = codec.encode(original_wire)
-        restored = codec.decode(wire, expected_request_hash=digest(original_wire))
+        decode_args = {'expected_request_hash': digest(original_wire)}
+        if codec is evidence_tables:
+            decode_args['expected_packet_hash'] = digest(original_wire['source_packet'])
+        restored = codec.decode(wire, **decode_args)
         if canonical(restored) != canonical(original_wire):
             raise LegalMathError('E_INTEGRITY', details='Request encoding changed source or evidence')
         encoding_provenance = {'input_encoding_protocol': codec.PROTOCOL,
@@ -200,8 +247,13 @@ def complete(provider, request, schema, settings, directory, *, input_profile='l
             if len(canonical(expanded)) > settings.max_output_bytes:
                 raise LegalMathError('E_RESOURCE_LIMIT', details='Expanded candidate response exceeds bounded output bytes')
             save(out/'candidate-expanded-response.json', expanded)
-        value = resolve_response(expanded, schema, wire_schema, references,
-                                 request['source_packet'], references['request_hash'])
+        value = (resolve_response(expanded, schema, wire_schema, references,
+                                 request['source_packet'], references['request_hash'],
+                                 maximum=settings.max_expanded_output_bytes or settings.max_output_bytes)
+                 if references is not None else expanded)
+        bounded_size(value, settings.max_expanded_output_bytes or settings.max_output_bytes)
+        if not Draft202012Validator(schema).is_valid(value):
+            raise LegalMathError('E_SCHEMA', details='Response violates its original contract')
         save(out/'resolved-response.json', value)
         save(out/'validation.json', {'status': 'REFERENCE_INTEGRITY_CHECKED',
             'semantic_support': 'NOT_ESTABLISHED', 'references_hash': digest(references),
@@ -211,4 +263,4 @@ def complete(provider, request, schema, settings, directory, *, input_profile='l
         raise
     return Completion(value, {**answer.provenance, **encoding_provenance, **response_provenance, 'source_reference_protocol': PROTOCOL,
         'source_reference_table_hash': digest(references), 'source_reference_raw_hash': digest(answer.value),
-        'source_reference_request_hash': references['request_hash'], 'semantic_support': 'NOT_ESTABLISHED'})
+        'source_reference_request_hash': references['request_hash'] if references is not None else None, 'semantic_support': 'NOT_ESTABLISHED'})

@@ -150,6 +150,8 @@ Replayed output is evidence reuse, not another independent model judgment.
         self.provider_id = provider.provider_id
         self.live = provider.live
         self.routing = getattr(provider, 'routing', provider.provider_id)
+        self.source_context = getattr(provider, 'source_context', None)
+        self.source_context_root = getattr(provider, 'source_context_root', None)
         cache_binding = {'case': binding, 'route': self.routing}
         path = Path(directory) / 'journal.json'
         if path.exists():
@@ -174,6 +176,12 @@ Replayed output is evidence reuse, not another independent model judgment.
         self.journal.report()  # Validate history and resource binding before use.
 
     def complete(self, request, schema, settings):
+        from .source_context import before_cache
+        if self.source_context is not None:
+            from .integration_contract import read_evidence
+            for ref in self.source_context['qualification']['evidence']:
+                read_evidence(ref, self.source_context_root, json_value=False)
+        request = before_cache(request, self.source_context)
         inputs = {'request': request, 'schema': schema, 'settings': settings.model_dump()}
         def dispatch(work):
             save(work / 'request.json', request)

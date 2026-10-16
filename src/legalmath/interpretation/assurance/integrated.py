@@ -50,12 +50,18 @@ def diagnostic_numbers(value):
 class IntegratedInvestigation:
     def __init__(self, directory, provider, jdk, at, *, settings=None, tool_python=None,
                  maximum_actions=100, deadline_seconds=7200, reference_protocol='literal',input_profile='literal',
-                 optional_tools=None):
+                 optional_tools=None, source_context=None, source_context_root=None,original_questions=None,source_restart=None):
+        if source_context is not None:
+            from .source_context import ContextProvider
+            provider = ContextProvider(provider, source_context, source_context_root or Path.cwd())
         self.directory = Path(directory); self.directory.mkdir(parents=True, exist_ok=True)
         self.provider, self.jdk, self.at = provider, Path(jdk), at
         self.reference_protocol=reference_protocol
         self.input_profile=input_profile
         self.optional_tools=optional_tools
+        self.source_restart=source_restart
+        from .original_questions import validate as validate_original_questions
+        self.original_questions=validate_original_questions(original_questions) if original_questions is not None else None
         self.settings = settings or AssuranceSettings(investigate_abstractions=True, total_model_calls=30,
             max_derived_comparisons=0, semantic_repair_rounds=1,
             search=Settings(max_model_calls=6, max_rounds=2, scheduler='bfs', reconstruction_required=False,
@@ -84,14 +90,25 @@ class IntegratedInvestigation:
                 'diagnostic_number_representation':'Fractional diagnostic values are decimal strings; the original sidecar bytes remain authoritative evidence.'}
 
     def run(self, roots, selected_slice, *, retained=(), authority_registry=None):
+        if self.original_questions is not None:
+            from .original_questions import validate as validate_original_questions
+            validate_original_questions(self.original_questions,selected_slice)
+        from .source_context import input_identity, validate as validate_context
+        qualified = getattr(self.provider, 'source_context', None)
+        if qualified is not None:
+            validate_context(self.provider.source_context_root, qualified, roots, retained=retained)
         source_binding = [{'url': d['url'], 'media_type': d['media_type'], 'hash': raw_digest(d['data'])}
                           for d in [*roots, *retained]]
         inputs = {'sources': source_binding, 'scope': selected_slice, 'at': self.at,
+                  'source_input_context': input_identity(roots, retained),
                   'implementation': implementation_identity(), 'settings': self.settings.model_dump(),
                   'authority_registry': authority_registry.hash if authority_registry else None}
+        if qualified is not None: inputs['qualified_source_context_hash'] = digest(qualified)
         if self.reference_protocol!='literal':inputs['source_reference_protocol']=self.reference_protocol
         if self.input_profile!='literal':inputs['input_profile']=self.input_profile
         if self.optional_tools is not None:inputs['optional_tools']=self.optional_tools.identity
+        if self.original_questions is not None:inputs['original_questions']=self.original_questions
+        if self.source_restart is not None:inputs['source_restart']=self.source_restart
         def inspect_sources(work):
             rows = []
             for i, document in enumerate([*roots, *retained]):
@@ -111,8 +128,12 @@ class IntegratedInvestigation:
             issue='source.'+identity(source_inputs))
         def interpret(work):
             provider = CompactProvider(self.cache, work/'transport',reference_protocol=self.reference_protocol,
-                                       input_profile=self.input_profile,optional_tools=self.optional_tools)
+                                       input_profile=self.input_profile,optional_tools=self.optional_tools,
+                                       original_questions=self.original_questions)
             engine = Assurance(work/'interpretation', provider, self.jdk, self.at, self.settings,optional_tools=self.optional_tools)
+            engine.source_restart = ({k:self.source_restart[k] for k in
+                ('profile','number','maximum_restarts','predecessor_revision','repair_stop_hash','source_concern')}
+                if self.source_restart is not None else None)
             result = engine.drive(roots, selected_slice, retained=retained, authority_registry=authority_registry)
             if result.get('status') == 'FAILED_INTEGRITY':
                 raise LegalMathError('E_INTEGRITY', details={'interpretation_report': str(work/'interpretation/report.json'),
@@ -123,6 +144,15 @@ class IntegratedInvestigation:
             retry_if=lambda previous: not previous['report'].get('execution_complete', False))
         directory = Path(interpreted['directory'])
         report = interpreted['report']; candidates_path = directory/'candidates.json'
+        if report.get('status') == 'RESTART_REQUIRED':
+            result = {'status':'RESTART_REQUIRED','execution_complete':False,
+                'source':source,'interpretation':interpreted,'independent':None,
+                'receipts':[source_receipt,interpretation_receipt],
+                'release_eligible':False,'legal_correctness_established':False,
+                'model_actions':self.cache.journal.report()['consumed_actions'],
+                'reason':'Complete source revision required before independent/downstream checks.'}
+            save(self.directory/'report.json',result)
+            return result
         candidates = loads(candidates_path.read_bytes()) if candidates_path.exists() else {}
         packet_path = directory/'packet.json'
         packet = loads(packet_path.read_bytes()) if packet_path.exists() else None

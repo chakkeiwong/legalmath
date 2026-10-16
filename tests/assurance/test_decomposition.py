@@ -84,7 +84,8 @@ def test_cross_piece_qualification_cannot_disappear_when_assembled(root,tmp_path
                 'explanation':'The second piece qualifies the condition in the first.'}]
         return value
     result=engine(root,tmp_path,FunctionProvider(adverse))._source_inventories(p)
-    assert all('The second piece qualifies the condition in the first.' in r['uncertainties'] for r in result.values())
+    assert all(any(i['explanation']=='The second piece qualifies the condition in the first.'
+        for review in r['cross_reviews'] for i in review['issues']) for r in result.values())
 
 
 @pytest.mark.parametrize('failed_task',['SOURCE_INVENTORY','INVENTORY_CROSS_CHECK'])
@@ -219,7 +220,7 @@ def test_split_source_reaches_java_and_keeps_cross_piece_concern(root,tmp_path):
         root/'.localresources/java-toolchain/jdk-17.0.20.1+1',AT,config).drive([doc],'Gift rule with a remote fee-discount exception')
     assert result['status']=='UNRESOLVED' and result['execution_complete'],result
     assert result['candidate_ids'] and not result['release_eligible']
-    assert any(f['kind']=='INVENTORY_UNCERTAINTY' and 'second piece' in f['details'] for f in result['findings'])
+    assert any(f['kind']=='CROSS_PIECE_ISSUE' and 'second piece' in f['explanation'] for f in result['findings'])
     assert list((tmp_path/'run/java').rglob('*.jar')) and len(provider.requests)==11
     state=loads((tmp_path/'run/search-state.json').read_bytes())
     assert state['java_checks']
