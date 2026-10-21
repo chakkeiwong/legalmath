@@ -1,0 +1,133 @@
+{
+  "profile": "independent-source-account-review.v1",
+  "at_utc": "2026-10-16T21:50:38.414163+00:00",
+  "git_commit": "91ef5396a7cb5d9c43122cbe4334fa9052f8708b",
+  "command": [
+    ".venv/bin/python",
+    "-c",
+    "\nimport collections,datetime,hashlib,json,pathlib,subprocess,sys,time\nstarted=time.monotonic()\nroot=pathlib.Path.cwd()\nev=root/\"artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence\"\nwork=root/\"artifacts/legal-mission-control/2026-10-17/gap-refresh\"\nstore=json.loads((ev/\"source-store.json\").read_text())\ndispatch=json.loads((ev/\"calls/dispatch.json\").read_text())[\"calls\"]\ninputs=[]\ndef ref(p):\n    return dict(path=str(p.relative_to(root)),sha256=hashlib.sha256(p.read_bytes()).hexdigest())\nrows=[]\nfor name in (\"detail-7\",\"detail-8\"):\n    paths=[ev/\"calls\"/name/\"request.json\",ev/\"calls\"/name/\"result.json\",ev/\"account-presentations\"/(name+\".json\")]\n    q,r,p=[json.loads(x.read_text()) for x in paths]\n    records={x[\"id\"]:x for x in q[\"records\"]}\n    v=r[\"value\"]\n    citations=v[\"support\"]+v[\"contrary\"]\n    result_hash=ref(paths[1])[\"sha256\"]\n    checks=dict(unique_delivered_ids=len(records)==len(q[\"records\"]),exact_store_records=all(store[k]==x for k,x in records.items()),exact_considered=v[\"considered\"]==q[\"required_considered\"],quotes_in_delivered=all(c[\"record_id\"] in records and c[\"quote\"] in records[c[\"record_id\"]][\"text\"] for c in citations),validated_dispatch=dispatch[name][\"status\"]==\"VALIDATED\",dispatch_result_hash=dispatch[name][\"result_hash\"]==result_hash,presentation_result_hash=p[\"result_hash\"]==result_hash,presentation_request_hash=p[\"request_hash\"]==r[\"request_hash\"],legal_acceptance_remains_false=p[\"legal_acceptance\"] is False)\n    assert all(checks.values()),(name,checks)\n    rows.append(dict(account=name,assignment=q[\"payload\"][\"original_assignment\"][\"id\"],question_ids=q[\"payload\"][\"original_assignment\"][\"value\"][\"question_ids\"],delivered_records=len(records),delivered_primary_product_records=[k for k,x in records.items() if x.get(\"source_id\")==\"d996fc27b2d2e\"],checked_quotes=len(citations),checks=checks,result_sha256=result_hash,request_hash=r[\"request_hash\"],legal_entailment=\"Not certified; qualitative observations are retained in the note\"))\n    inputs.extend(ref(x) for x in paths)\nnote=work/\"evidence-account-followthrough-7-8-2026-10-17.md\"\ninputs.extend(ref(x) for x in (ev/\"source-store.json\",work/\"evidence-account-review-2026-10-17.md\",work/\"independent-continuation-review.md\",note))\nstate=json.loads((root/\"artifacts/legal-mission-control/2026-10-13/master/execution-state.json\").read_text())\ncalls=len(json.loads((root/\"artifacts/legal-mission-control/2026-10-13/master/live-calls.json\").read_text())[\"calls\"])\nresult=dict(profile=\"independent-source-account-review.v1\",at_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),git_commit=subprocess.check_output([\"git\",\"rev-parse\",\"HEAD\"],text=True).strip(),command=sys.orig_argv,environment=str(root/\".venv/bin/python\"),devices=\"N/A: standard-library file inspection; no device framework loaded\",data_version=ref(ev/\"source-store.json\"),random_seeds=\"N/A: deterministic saved-file checks; no new model samples\",wall_seconds=time.monotonic()-started,plan_file=str((work/\"evidence-account-review-2026-10-17.md\").relative_to(root)),result_file=str(note.relative_to(root)),question=\"Do accounts 7-8 preserve fulfillment distinctions and correct local Appendix absence without conflating source scope?\",comparator=\"Exact saved request/result and relevant retained primary text\",inputs=inputs,accounts=rows,observed_master_status=dict(collections.Counter(t[\"status\"] for t in state[\"tasks\"].values())),observed_global_calls=calls,new_provider_calls=0,new_owner_attempts=0,implementation_edits=False,authenticated_inputs_changed=False,obligation_closure=False,legal_acceptance=False,tool_effect_established=False,integration_complete=False,next_evidence=\"Actual combined answer and source/account review, then valid matched baseline/tool answers\")\nout=work/\"evidence-account-followthrough-7-8-2026-10-17.manifest.json\"\nwith out.open(\"x\") as f:\n    json.dump(result,f,indent=2)\n    f.write(\"\\n\")\nprint(json.dumps(dict(result=str(out.relative_to(root)),accounts=rows,observed_global_calls=calls),indent=2))\n"
+  ],
+  "environment": "/home/chakwong/python/legalmath/.venv/bin/python",
+  "devices": "N/A: standard-library file inspection; no device framework loaded",
+  "data_version": {
+    "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/source-store.json",
+    "sha256": "7646cd6d74f5b37faf9e22bbe9104cc288ca512c23a46cb8e4f49ae7a97b8aa5"
+  },
+  "random_seeds": "N/A: deterministic saved-file checks; no new model samples",
+  "wall_seconds": 0.20024211425334215,
+  "plan_file": "artifacts/legal-mission-control/2026-10-17/gap-refresh/evidence-account-review-2026-10-17.md",
+  "result_file": "artifacts/legal-mission-control/2026-10-17/gap-refresh/evidence-account-followthrough-7-8-2026-10-17.md",
+  "question": "Do accounts 7-8 preserve fulfillment distinctions and correct local Appendix absence without conflating source scope?",
+  "comparator": "Exact saved request/result and relevant retained primary text",
+  "inputs": [
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/calls/detail-7/request.json",
+      "sha256": "60714e3209bc33ff62ae7d39faeda6422f4f5be1726dbc3c300bec160e50a1b7"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/calls/detail-7/result.json",
+      "sha256": "c5eae76e9b86b28b04b0ca6c914ceb9336456229ac18f398eaa9d62fd89646b9"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/account-presentations/detail-7.json",
+      "sha256": "5dd3c18e529d077b5e124ddaca7437a73d76c58872c5d708dc3418be12ba56f4"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/calls/detail-8/request.json",
+      "sha256": "f5e2af9b01716349c5b1beb342e01777bf56a4638608286f608d1b50d83f9a62"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/calls/detail-8/result.json",
+      "sha256": "5189b2b3b369ff6355630f9e993a0bd4183d70562176c31e906c2e91f622bc8c"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/account-presentations/detail-8.json",
+      "sha256": "d668caeba1b801e769635226497201eea2ae801c6018319028b9572d5af9bdd8"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/source-store.json",
+      "sha256": "7646cd6d74f5b37faf9e22bbe9104cc288ca512c23a46cb8e4f49ae7a97b8aa5"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-17/gap-refresh/evidence-account-review-2026-10-17.md",
+      "sha256": "ccdb30bd960368272836b65ef323be012ca6283f399271c192cfc5b85b17fe28"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-17/gap-refresh/independent-continuation-review.md",
+      "sha256": "77bb7951b75a1f45294a6041f6957e8ec8f16d4f175a2273a48f65b0a2677a54"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-17/gap-refresh/evidence-account-followthrough-7-8-2026-10-17.md",
+      "sha256": "10da5afaa77378caa3f0c0c5405812d29225cfd29bfc02b796910a706eb575d7"
+    }
+  ],
+  "accounts": [
+    {
+      "account": "detail-7",
+      "assignment": "obligation:challenge.5509766cc3cfd5dd5b57312f7aecff6af4eaa11c1a12fb876a4c49bf057d3cac",
+      "question_ids": [
+        "p10",
+        "evidence"
+      ],
+      "delivered_records": 11,
+      "delivered_primary_product_records": [],
+      "checked_quotes": 21,
+      "checks": {
+        "unique_delivered_ids": true,
+        "exact_store_records": true,
+        "exact_considered": true,
+        "quotes_in_delivered": true,
+        "validated_dispatch": true,
+        "dispatch_result_hash": true,
+        "presentation_result_hash": true,
+        "presentation_request_hash": true,
+        "legal_acceptance_remains_false": true
+      },
+      "result_sha256": "c5eae76e9b86b28b04b0ca6c914ceb9336456229ac18f398eaa9d62fd89646b9",
+      "request_hash": "60714e3209bc33ff62ae7d39faeda6422f4f5be1726dbc3c300bec160e50a1b7",
+      "legal_entailment": "Not certified; qualitative observations are retained in the note"
+    },
+    {
+      "account": "detail-8",
+      "assignment": "obligation:challenge.17b41f789ff4bb0ac14b9b4d6c1c2819a9883378b438a4bc9fd39b4247b25ae1",
+      "question_ids": [
+        "p10",
+        "evidence"
+      ],
+      "delivered_records": 9,
+      "delivered_primary_product_records": [],
+      "checked_quotes": 21,
+      "checks": {
+        "unique_delivered_ids": true,
+        "exact_store_records": true,
+        "exact_considered": true,
+        "quotes_in_delivered": true,
+        "validated_dispatch": true,
+        "dispatch_result_hash": true,
+        "presentation_result_hash": true,
+        "presentation_request_hash": true,
+        "legal_acceptance_remains_false": true
+      },
+      "result_sha256": "5189b2b3b369ff6355630f9e993a0bd4183d70562176c31e906c2e91f622bc8c",
+      "request_hash": "f5e2af9b01716349c5b1beb342e01777bf56a4638608286f608d1b50d83f9a62",
+      "legal_entailment": "Not certified; qualitative observations are retained in the note"
+    }
+  ],
+  "observed_master_status": {
+    "SUCCEEDED": 38,
+    "BLOCKED": 1,
+    "FAILED": 3,
+    "PENDING": 52,
+    "RUNNING": 1
+  },
+  "observed_global_calls": 2409,
+  "new_provider_calls": 0,
+  "new_owner_attempts": 0,
+  "implementation_edits": false,
+  "authenticated_inputs_changed": false,
+  "obligation_closure": false,
+  "legal_acceptance": false,
+  "tool_effect_established": false,
+  "integration_complete": false,
+  "next_evidence": "Actual combined answer and source/account review, then valid matched baseline/tool answers"
+}

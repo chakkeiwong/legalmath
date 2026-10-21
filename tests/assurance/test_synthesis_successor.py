@@ -1,5 +1,6 @@
 """A mixed settled phase must reuse successes and dispatch only missing output."""
 from copy import deepcopy
+from pathlib import Path
 from types import SimpleNamespace
 import json
 import pytest
@@ -24,7 +25,7 @@ class Provider:
         return Completion({'conclusion': 'New missing response.'}, {'provider': 'scripted'})
 
 
-def fixture(root):
+def fixture(root, *, source_records=None, locator_bindings=None):
     def put(path, value):
         save(root / path, value)
         return evidence_file(root / path, root)
@@ -38,7 +39,9 @@ def fixture(root):
         'properties': {'conclusion': {'type': 'string'}}, 'required': ['conclusion']}
     for i in range(3):
         key = 'reduce-q-0-' + str(i)
-        request = {'task': 'SYNTHESIZE_FINDINGS', 'records': [], 'payload': {'case': i}}
+        request = {'task': 'SYNTHESIZE_FINDINGS', 'records': deepcopy(source_records or []), 'payload': {'case': i}}
+        if locator_bindings is not None:
+            request['verified_locator_bindings'] = deepcopy(locator_bindings)
         requests.append(request)
         prepared = prepare(request, schema)
         wire_hash = digest(prepared['request'])
@@ -157,3 +160,179 @@ def test_composite_rejects_other_accounts_and_new_key_in_old_phase(tmp_path):
     with pytest.raises(LegalMathError):
         recovery.retained(tmp_path, f.pointer, 'reduce-q-0-99', {}, {}, 'unknown', 'source')
     assert recovery.retained(tmp_path, f.pointer, 'reduce-q-1-0', {}, {}, 'future', 'source') is None
+
+
+@pytest.mark.parametrize('change', [None, 'unreviewed', 'text', 'missing', 'duplicate',
+    'binding', 'payload', 'schema'])
+def test_reviewed_reconstruction_restores_only_exact_source_and_locator_order(tmp_path, change):
+    records = [{'id': 's'+str(i), 'text': 'Original source '+str(i)} for i in range(2)]
+    bindings = [{'record_id': r['id'], 'index_hash': 'source-index',
+        'quote_ranges': [{'start': 0, 'end': 4}]} for r in records]
+    f = fixture(tmp_path, source_records=records, locator_bindings=bindings)
+    manifest = {**f.manifest, 'profile': recovery.REVIEWED}
+    request, schema = deepcopy(f.requests[0]), deepcopy(f.schema)
+    request['records'].reverse()
+    request['verified_locator_bindings'].reverse()
+    if change == 'unreviewed': manifest['profile'] = recovery.SYNTHESIS
+    elif change == 'text': request['records'][0]['text'] = 'Changed source'
+    elif change == 'missing': request['records'].pop()
+    elif change == 'duplicate': request['records'][1] = deepcopy(request['records'][0])
+    elif change == 'binding': request['verified_locator_bindings'][0]['quote_ranges'][0]['end'] = 5
+    elif change == 'payload': request['payload']['case'] = 99
+    elif change == 'schema': schema['properties']['conclusion']['maxLength'] = 5
+    pointer = f.put('reviewed-order.json', manifest)
+    if change is not None:
+        with pytest.raises(LegalMathError):
+            recovery.rewrite(tmp_path, pointer, 'reduce-q-0-0', request, schema, 'source')
+    else:
+        restored = recovery.rewrite(tmp_path, pointer, 'reduce-q-0-0', request, schema, 'source')
+        assert restored == f.requests[0]
+        held = recovery.retained(tmp_path, pointer, 'reduce-q-0-0', restored, schema,
+            f.dispatch.request_identity(restored, schema), 'source')
+        assert held[0]['status'] == 'VALIDATED'
+    assert not f.provider.calls
+
+
+def reviewed_retry_fixture(root):
+    """The same stage paid for a no-output failure, then one exact success."""
+    f = fixture(root)
+    value = deepcopy(f.manifest)
+    key = 'reduce-q-0-0'
+    original = value['rows'][key]
+    held = json.loads((root / original['receipt']['path']).read_text())
+    first_directory = Path(original['receipt']['path']).parent
+    last_directory = Path('provider') / ('0003-' + held['request_hash'][:16])
+    for name in held['files']:
+        source = root / first_directory / name
+        destination = root / last_directory / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(source.read_bytes())
+    f.put(last_directory / 'manifest.json', {**held, 'allowance_slot': 3})
+    failed = {**held, 'complete_output_present': False,
+        'files': {n: v for n, v in held['files'].items() if n != 'result.json'}}
+    message = 'stream disconnected before completion: Our servers are currently overloaded. Please try again later.'
+    events = [{'type': 'error', 'message': message},
+        {'type': 'turn.failed', 'error': {'message': message}}]
+    event_path = root / first_directory / 'events.jsonl'
+    event_path.write_text(''.join(json.dumps(e) + '\n' for e in events))
+    failed['files']['events.jsonl'] = {'bytes': event_path.stat().st_size,
+        'retained_sha256': evidence_file(event_path, root)['sha256']}
+    f.put(first_directory / 'manifest.json', failed)
+    ledger = json.loads((root / value['ledger']['path']).read_text())
+    ledger['calls'].append(deepcopy(ledger['calls'][0]))
+    ledger_ref = f.put('retry-ledger.json', ledger)
+    result = json.loads((root / original['result']['path']).read_text())
+    result['provenance']['allowance_slot'] = 3
+    f.put(original['result']['path'], result)
+    dispatch = json.loads((root / value['dispatch']['path']).read_text())
+    dispatch['calls'][key]['result_hash'] = digest(result)
+    dispatch_ref = f.put('old/calls/dispatch.json', dispatch)
+    phase_value = json.loads((root / value['phase']['path']).read_text())
+    outcome = json.loads((root / phase_value['outcome']['path']).read_text())
+    outcome['results'][0].update(result=result, dispatch_result_hash=digest(result))
+    phase_value['outcome'] = f.put('retry-outcome.json', outcome)
+    phase_ref = f.put('retry-phase.json', phase_value)
+    manifest = recovery.build(root, phase_ref, dispatch_ref, ledger_ref,
+        f.dispatch.provider_binding, 'provider', profile=recovery.REVIEWED)
+    return f, manifest
+
+
+def test_reviewed_historical_retry_authenticates_all_charges_and_reuses_success(tmp_path):
+    f, manifest = reviewed_retry_fixture(tmp_path)
+    pointer = f.put('reviewed.json', manifest)
+    recovery.load(tmp_path, pointer, 'source')
+    result, slots = recovery.checked_row(tmp_path, recovery.metadata(tmp_path, pointer, 'source'), 'reduce-q-0-0')
+    assert slots == [1, 3] and result['provenance']['allowance_slot'] == 3
+    assert not f.provider.calls
+
+
+@pytest.mark.parametrize('change', ['unreviewed', 'missing_receipt', 'earlier_output', 'wrong_slot', 'unknown_failure'])
+def test_historical_retry_rejects_lost_charges_or_unclassified_output(tmp_path, change):
+    f, manifest = reviewed_retry_fixture(tmp_path)
+    row = manifest['rows']['reduce-q-0-0']
+    if change == 'unreviewed': manifest['profile'] = recovery.SYNTHESIS
+    elif change == 'missing_receipt': del row['prior_transport_receipts']
+    elif change == 'wrong_slot': row['prior_transport_receipts'][0]['slot'] = 2
+    else:
+        pointer = row['prior_transport_receipts'][0]['receipt']
+        receipt_value = json.loads((tmp_path / pointer['path']).read_text())
+        if change == 'earlier_output': receipt_value['complete_output_present'] = True
+        else:
+            path = tmp_path / Path(pointer['path']).parent / 'events.jsonl'
+            path.write_text(json.dumps({'type': 'turn.failed', 'error': {'message': 'unknown failure'}}) + '\n')
+            receipt_value['files']['events.jsonl'] = {'bytes': path.stat().st_size,
+                'retained_sha256': evidence_file(path, tmp_path)['sha256']}
+        row['prior_transport_receipts'][0]['receipt'] = f.put('changed-prior/manifest.json', receipt_value)
+        parent = tmp_path / Path(row['prior_transport_receipts'][0]['receipt']['path']).parent
+        source = tmp_path / Path(pointer['path']).parent
+        for name in receipt_value['files']:
+            (parent / name).write_bytes((source / name).read_bytes())
+    with pytest.raises(LegalMathError):
+        recovery.load(tmp_path, f.put('changed-reviewed.json', manifest), 'source')
+    assert not f.provider.calls
+
+
+def alias_binding(tmp_path, *, citations=False):
+    from tests.assurance.test_downstream_capacity import product
+    from tests.assurance.test_bounded_product import envelope
+    from legalmath.interpretation.assurance.bounded_product import NOTE
+    from legalmath.interpretation.assurance.phased.downstream_input import PROFILE
+    p = product(tmp_path)
+    records = [r for r in p.route.records.values() if r['kind'] == 'source']
+    if citations:
+        quotes = [{'record_id':r['id'], 'quote':r['text'], 'locator':''} for r in records[:2]]
+        payload = {'z': [quotes[0], quotes[0]], 'a': [quotes[1], quotes[1]]}
+    else:
+        payload = {'z': ['a' * 64, 'a' * 64], 'a': ['b' * 64, 'b' * 64]}
+    request = p.request('SYNTHESIZE_FINDINGS', envelope()['original_questions'][0], records,
+        payload=payload, expected=['one'])
+    request['downstream_input_profile'] = PROFILE
+    saved = json.loads(json.dumps(prepare(request, NOTE), sort_keys=True))
+    assert prepare(saved['original_request'], NOTE) != saved
+    return saved
+
+
+@pytest.mark.parametrize('citations', [False, True])
+def test_reviewed_historical_hash_permutation_preserves_exact_saved_wire(tmp_path, citations):
+    saved = alias_binding(tmp_path, citations=citations)
+    snapshot = deepcopy(saved)
+    assert recovery.historical_request(saved, reviewed=True) == saved['original_request']
+    assert saved == snapshot
+    with pytest.raises(LegalMathError):
+        recovery.historical_request(saved)
+
+
+@pytest.mark.parametrize('change', ['citation', 'alias_use', 'unused', 'duplicate'])
+def test_citation_permutation_rejects_changed_quote_or_use(tmp_path, change):
+    saved = alias_binding(tmp_path, citations=True)
+    table = saved['request']['account_input_citations']
+    if change == 'citation': table['q0']['locator'] = 'Wrong locator'
+    elif change == 'alias_use': saved['request']['payload']['z'][0] = saved['request']['payload']['a'][0]
+    elif change == 'unused': table['q' + str(len(table))] = {'quote':'unused'}
+    else: table['q0'] = deepcopy(table['q1'])
+    with pytest.raises(LegalMathError): recovery.historical_request(saved, reviewed=True)
+
+
+@pytest.mark.parametrize('change', ['hash', 'alias_use', 'unused', 'duplicate', 'source', 'schema', 'decoder'])
+def test_hash_permutation_does_not_accept_semantic_or_contract_changes(tmp_path, change):
+    saved = alias_binding(tmp_path)
+    table = saved['request']['account_identity_hashes']
+    if change == 'hash': table['h0'] = 'f' * 64
+    elif change == 'alias_use': saved['request']['payload']['z'][0] = saved['request']['payload']['a'][0]
+    elif change == 'unused': table['h' + str(len(table))] = 'f' * 64
+    elif change == 'duplicate': table['h0'] = table['h1']
+    elif change == 'source': saved['original_request']['records'][0]['text'] = 'Changed source.'
+    elif change == 'schema': saved['schema']['description'] = 'Changed schema'
+    else: saved['selections']['s0'] = 'changed-span-identity'
+    with pytest.raises(LegalMathError):
+        recovery.historical_request(saved, reviewed=True)
+
+
+def test_missing_synthesis_replays_saved_wire_and_success_cannot_be_dispatched(tmp_path):
+    f = fixture(tmp_path)
+    key = 'reduce-q-0-1'
+    saved = json.loads((tmp_path / f.manifest['rows'][key]['reference_binding']['path']).read_text())
+    assert recovery.replay_wire(tmp_path, f.combined, key, f.requests[1], f.schema, 'source') == saved
+    with pytest.raises(LegalMathError):
+        recovery.replay_wire(tmp_path, f.combined, 'reduce-q-0-0', f.requests[0], f.schema, 'source')
+    assert not f.provider.calls

@@ -64,3 +64,34 @@ def pack_items(items, measure, *, maximum_items):
     require(len(actual) == len(items) and {r['id']: digest(r) for r in actual} ==
         {r['id']: digest(r) for r in items}, 'Packing changed or lost an item')
     return groups, blocked
+
+
+def contract_pair(items, measure, *, maximum_frontier=16):
+    """Try each unordered pair once at a stalled, small frontier.
+
+    Carry other members unchanged. Returning None reports only this finite
+    screen, not mathematical impossibility of synthesis.
+    """
+    require(type(maximum_frontier) is int and 2 <= maximum_frontier <= 16,
+        'Invalid contraction search bound')
+    require(len({r['id'] for r in items}) == len(items), 'Duplicate input identity')
+    if len(items) > maximum_frontier:
+        return None
+    for left in range(len(items)):
+        for right in range(left + 1, len(items)):
+            receipt = measure([items[left], items[right]])
+            if receipt is None:
+                continue
+            groups = []
+            for index, row in enumerate(items):
+                if index == right:
+                    continue
+                members = [row, items[right]] if index == left else [row]
+                groups.append({'members': deepcopy(members),
+                    'measurement': receipt if index == left else measure(members)})
+            require(all(g['measurement'] is not None for g in groups),
+                'Contraction lost a feasible singleton')
+            require({r['id']:digest(r) for g in groups for r in g['members']} ==
+                {r['id']:digest(r) for r in items}, 'Contraction changed members')
+            return groups
+    return None

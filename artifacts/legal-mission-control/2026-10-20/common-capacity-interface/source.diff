@@ -1,0 +1,2403 @@
+--- scripts/legal_integration_campaign.py
++++ reviewed/scripts/legal_integration_campaign.py
+@@ -47,10 +47,26 @@
+ 
+ 
+ def session(directory, service, *, questions=QUESTIONS, tools=(), shared=None, maximum=8100, downstream_input_profile=None):
+-    return BoundedProduct(ROOT, directory, service, read(ROOT / ENVELOPE),
++    capacity = read(ROOT / PROGRAM).get('common_capacity') if (ROOT / PROGRAM).exists() else None
++    cls, options = BoundedProduct, {}
++    if capacity:
++        from legalmath.interpretation.assurance.phased.product import PhasedProduct
++        from legalmath.interpretation.assurance.phased.downstream_input import PROFILE as INPUT, CAPACITY_PROFILE
++        from scripts.legal_integration_phased_live import phase_admit
++        cls = PhasedProduct
++        downstream_input_profile = INPUT
++        options = dict(common_capacity_profile=capacity['capacity_profile'],
++            downstream_capacity_profile=CAPACITY_PROFILE,
++            phase_identity=ref(ROOT, BASE/'current-binding.json')['sha256'],
++            phase_admit=phase_admit('session-' + digest(str(directory))[:24]))
++    result = cls(ROOT, directory, service, read(ROOT / ENVELOPE),
+         tokenizer(ROOT / TOKENIZER), limits=LIMITS, maximum_calls=maximum,
+         maximum_corrections=MAXIMUM_CORRECTIONS,
+-        active_questions=questions, selected_tools=tools, shared_prefix=shared, downstream_input_profile=downstream_input_profile)
++        active_questions=questions, selected_tools=tools, shared_prefix=shared, downstream_input_profile=downstream_input_profile,
++        **options)
++    if capacity:
++        result.install_dispatch_admission()
++    return result
+ 
+ 
+ def product(directory, service, *, q=None, tool=None, phase='answer', shared=None, maximum=8100,
+@@ -482,12 +498,36 @@
+                 'Failed or unsupported native input cannot establish a tool effect')
+ 
+ 
++def arm_result_path(q, arm):
++    """A completed predecessor arm stays the exact matched comparator."""
++    from scripts.legal_mission_execution import verify
++    value = read(ROOT / PROGRAM)
++    revision = value.get('common_capacity', {})
++    if revision.get('prior_state'):
++        pointer = revision['prior_state']
++        verify(ROOT,pointer)
++        tid = 'baseline-'+q if arm == 'baseline' else 'tool-'+q+'-'+arm
++        prior = read(ROOT/pointer['path'])['tasks'][tid]
++        if prior['status'] == 'SUCCEEDED':
++            verify(ROOT,prior['result'])
++            result = read(ROOT/prior['result']['path'])
++            products=[]
++            for evidence in result['evidence']:
++                verify(ROOT,evidence)
++                body=read(ROOT/evidence['path'])
++                if body.get('product'): products.append(body['product'])
++            require(len(products)==1, 'Completed arm has no unique product evidence')
++            verify(ROOT,products[0])
++            return ROOT/products[0]['path']
++    return ROOT/LIVE/'arms'/q/arm/'result.json'
++
++
+ def compare(q, tool, service):
+     from legalmath.interpretation.assurance.phased.evidence_store import load_exact
+     require(tool in eligible_tools(q), 'Comparison lacks reviewed applicability')
+     from legalmath.interpretation.assurance.bounded_product import obj, array, TEXT, QUOTE
+-    baseline_path = ROOT / LIVE / 'arms' / q / 'baseline/result.json'
+-    candidate_path = ROOT / LIVE / 'arms' / q / tool / 'result.json'
++    baseline_path = arm_result_path(q,'baseline')
++    candidate_path = arm_result_path(q,tool)
+     if not candidate_path.exists():
+         return {'_node_status': 'BLOCKED', 'effect': 'INSUFFICIENT_EVIDENCE',
+                 '_conclusion': 'Candidate failed before a matched answer existed.'}
+@@ -622,12 +662,13 @@
+ 
+ 
+ def release(service):
++    from legalmath.interpretation.assurance.phased.evidence_store import load_exact
+     interactions = {}
+     for arm in ('baseline', *TOOLS):
+         answers = {}
+         for q in QUESTIONS:
+-            path = ROOT / LIVE / 'arms' / q / arm / 'result.json'
+-            if path.exists(): answers[q] = read(path)['answers'][q]
++            path = arm_result_path(q,arm)
++            if path.exists(): answers[q] = load_exact(path)['answers'][q]
+             else: answers[q] = {'status': 'DEPENDENCY_BLOCKED'}
+         reviewer = session(ROOT / LIVE / 'interactions' / arm, service, maximum=6)
+         interactions[arm] = reviewer.audit_interactions(answers)
+--- scripts/legal_integration_common_capacity.py
++++ reviewed/scripts/legal_integration_common_capacity.py
+@@ -0,0 +1,256 @@
++"""Register one reviewed common-capacity revision in the existing master.
++
++The predecessor must be settled. This module preserves every charge, successful
++owner, attempt, service reservation and deadline; it never creates live authority.
++"""
++from contextlib import ExitStack
++from copy import deepcopy
++from datetime import datetime, timezone
++from pathlib import Path
++import fcntl
++import os
++import sys
++os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++from scripts.legal_integration_master import ROOT, BASE, DOC, PROGRAM, STATE, PLAN, MasterExecution
++from scripts.legal_mission_execution import read, save, ref, verify, require, digest, validate_program, historical_evidence
++from scripts.legal_integration_acceptance_revision import historical_projection
++from scripts.legal_integration_phased_repair import archives
++from scripts.legal_integration_repair_execution import project_retained_plan, validate_staged_mission
++from scripts.legal_integration_candidate_retry import archive_rows
++from legalmath.interpretation.assurance.phased.capacity_policy import PROFILE as CAPACITY
++
++KEY = 'common_capacity'
++WORK = Path('artifacts/legal-mission-control/2026-10-20/common-capacity-interface')
++REVIEW = Path('docs/plans/legal-common-capacity-interface-2026-10-20.md')
++USER = 'create a plan to build this common capacity management interface and wire it up to all the stages.  ensure that we test this adequately.  review the plan thoroughly.   refresh the master program.   execute'
++QUESTIONS = ('p10', 'p14', 'evidence', 'gatecoin')
++DEADLINE = '2026-10-20T18:55:16+00:00'
++
++
++def implementation(root):
++    return set(read(root / WORK / 'implementation-files.json'))
++
++
++def checkpoint_refs(revision):
++    return list(revision['checkpoints'].values()) + [pointer
++        for arms in revision.get('arm_checkpoints', {}).values() for pointer in arms.values()]
++
++
++def projection(baseline, *, mission=False, root=ROOT):
++    allowed = implementation(root) | {str(PLAN)} | ({str(PROGRAM)} if mission else set())
++    return archives([r for r in archive_rows(baseline, root) if r['previous']['path'] in allowed], mission=mission)
++
++
++def repair_targets(old, before):
++    """One changed-contract attempt for failed original product owners only."""
++    tasks = {t['id']: t for t in old['tasks']}
++    targets = {}
++    for tid, row in before['tasks'].items():
++        if tid.startswith(('acquire-', 'baseline-', 'tool-', 'compare-')) and row['status'] in (
++                'FAILED', 'BLOCKED', 'DEPENDENCY_BLOCKED', 'INTERRUPTED'):
++            targets[tid] = int(len(row['attempts']) >= tasks[tid]['maximum_attempts'])
++    return targets
++
++
++def expected_program(old, before, revision, root, *, plan_reference=None):
++    value = deepcopy(old)
++    for task in value['tasks']:
++        tid = task['id']
++        if tid in revision['attempt_additions']:
++            task['maximum_attempts'] += revision['attempt_additions'][tid]
++            task['deliverable'] = str(BASE / tid / f"attempt-{task['maximum_attempts']}" / 'result.json')
++            task['inputs'] += [revision['review'], revision['result']]
++    value[KEY] = revision
++    value['protected_evidence'] += [revision[k] for k in ('baseline','review','result')]
++    value['protected_evidence'] += list(revision['implementation'].values()) + checkpoint_refs(revision)
++    value['protected_evidence'].append(plan_reference or ref(root, PLAN))
++    return value
++
++
++def validate_revision(program, root, *, plan_reference=None):
++    revision = program[KEY]
++    require(revision['profile'] == 'integration-common-capacity.v1' and revision['user_instruction'] == USER
++        and revision['capacity_profile'] == CAPACITY and revision['prior_detours'] == 59
++        and revision['additional_consolidated_revision'] == 1 and revision['live_calls_added'] == 0
++        and revision['additional_transport_replacements'] == 0 and revision['attempts_reset'] is False
++        and revision['service_scope_reset'] is False, 'Unreviewed common capacity revision')
++    for key in ('baseline','review','result','prior_program','prior_state','prior_binding','prior_ledger','prior_grant'):
++        verify(root, revision[key])
++    require(set(revision['implementation']) == implementation(root)
++        and set(revision['checkpoints']) == set(QUESTIONS), 'Changed common capacity implementation scope')
++    for item in [*revision['implementation'].values(), *checkpoint_refs(revision)]:
++        verify(root, item)
++    baseline = read(root / revision['baseline']['path'])
++    require(baseline['running_owners'] == 0 and baseline['prior_detours'] == 59, 'Unsettled common capacity baseline')
++    held = {r['previous']['path']:r['archive'] for r in baseline['archived']}
++    for row in baseline['archived']:
++        require(row['previous']['sha256'] == row['archive']['sha256'], 'Changed predecessor bytes')
++        verify(root, row['archive'])
++    for key, path in (('prior_program', PROGRAM), ('prior_state', STATE), ('prior_binding', BASE/'current-binding.json'),
++                     ('prior_ledger', BASE/'live-calls.json'), ('prior_grant', BASE/'live-grant.json')):
++        require(revision[key] == held[str(path)], 'Lost common capacity predecessor ' + key)
++    old, before = read(root / revision['prior_program']['path']), read(root / revision['prior_state']['path'])
++    require(old.get('candidate_capacity_retry') and not old.get(KEY) and before['program_hash'] == digest(old)
++        and not any(r['status'] == 'RUNNING' for r in before['tasks'].values()), 'Wrong or active predecessor')
++    require(revision['attempt_additions'] == repair_targets(old, before)
++        and revision['reopened_nodes'] == sorted(revision['attempt_additions']), 'Changed reopening scope')
++    require(program['deadline_utc'] == old['deadline_utc'] == DEADLINE
++        and program['global_call_ceiling'] == old['global_call_ceiling'], 'Changed global authority')
++    result = read(root / revision['result']['path'])
++    require(result['verdict'] == 'PASS' and result['provider_calls'] == 0 and result['legal_acceptance'] is False,
++        'Common capacity validation did not pass')
++    for item in result['evidence']:
++        verify(root, item)
++    require(read(root / WORK / 'production-replay.json')['verdict'] == 'PASS', 'Production replay failed')
++    mapping = projection(baseline, root=root)
++    with historical_evidence(root, mapping):
++        validate_program(old, root)
++    expected = expected_program(historical_projection(old, mapping), before, revision, root, plan_reference=plan_reference)
++    require(program == project_retained_plan(expected, root, plan_reference), 'Changed unrelated master program')
++    return {t['id']:t['maximum_attempts'] for t in program['tasks']}
++
++
++def project_state(before, program, now):
++    value = deepcopy(before)
++    require(not any(r['status'] == 'RUNNING' for r in value['tasks'].values()), 'Running owner cannot migrate')
++    for tid in program[KEY]['reopened_nodes']:
++        row = value['tasks'][tid]
++        require(row['status'] != 'SUCCEEDED', 'Completed owner cannot be resampled')
++        row.update(status='PENDING', reason='Reviewed common capacity; retain completed preparations and outputs; retry missing work only')
++        for key in ('result','dispatch_status','prerequisite_evidence','shared_scope'):
++            row.pop(key, None)
++    value['program_hash'] = digest(program)
++    value['events'].append(dict(action='REVIEWED_COMMON_CAPACITY', task_id=None, at_utc=now,
++        review=program[KEY]['review'], attempts_reset=False, calls_added=0))
++    return value
++
++
++def validate_state_history(program, state, root):
++    before = read(root / program[KEY]['prior_state']['path'])
++    for tid, row in before['tasks'].items():
++        require(state['tasks'][tid]['attempts'][:len(row['attempts'])] == row['attempts'], 'Lost prior attempt ' + tid)
++        if tid not in program[KEY]['reopened_nodes'] and row['status'] != 'PENDING':
++            require(state['tasks'][tid] == row, 'Changed completed/unrelated owner ' + tid)
++    require(all(v in state.get('continuation_vetoes', []) for v in before.get('continuation_vetoes', [])), 'Lost prior veto')
++    previous = before.get('resolved_continuation_vetoes', [])
++    require(state.get('resolved_continuation_vetoes', [])[:len(previous)] == previous, 'Lost resolved veto history')
++
++
++def acquire(question, service):
++    from scripts import legal_integration_phased_live as live
++    from legalmath.interpretation.assurance.phased.preparation_diagnosis import diagnose
++    folder = WORK/'live'/question/'product'
++    result = live.product_route(question, None, service, preparation_only=True)
++    diagnosis = diagnose(ROOT, ROOT/folder, question, result=result)
++    save(ROOT/folder.parent/'diagnosis.json', diagnosis)
++    require(diagnosis['prepared'], question + ' preparation failed; exact diagnosis retained')
++    return dict(question=question, preparation=ref(ROOT, folder/'result.json'),
++        optional_failures=diagnosis['optional_incomplete_phases'],
++        _conclusion='Completed preparation reused; common-capacity optional work retained. Legal and tool-effect reviews remain mandatory.')
++
++
++def register():
++    from scripts.legal_integration_post_review import finish_transaction
++    from scripts.legal_integration_phased_live import LIVE
++    from scripts.legal_integration_campaign import provider
++    from scripts.legal_integration_settled_recovery import candidate_binding
++    from unittest.mock import patch
++    journal = WORK/'registration.json'
++    with ExitStack() as stack:
++        for path in (LIVE/'supervisor.lock', STATE.with_suffix('.run.lock'), DOC/'mission.execution.lock', STATE.with_suffix('.lock')):
++            (ROOT/path).parent.mkdir(parents=True, exist_ok=True)
++            handle = stack.enter_context((ROOT/path).open('a'))
++            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
++        if (ROOT/journal).exists():
++            if read(ROOT/journal)['status'] != 'COMMITTED':
++                finish_transaction(ROOT, journal)
++            require(read(ROOT/PROGRAM).get(KEY, {}).get('work') == str(WORK), 'Different revision registered')
++            return dict(registered=True, resumed=True)
++        baseline = read(ROOT/WORK/'baseline.json')
++        held = {r['previous']['path']:r['archive'] for r in baseline['archived']}
++        for path in (PROGRAM, STATE, DOC/'mission.json', BASE/'current-binding.json', BASE/'live-calls.json', BASE/'live-grant.json'):
++            require(ref(ROOT, path)['sha256'] == held[str(path)]['sha256'], 'Frozen predecessor changed: ' + str(path))
++        old, before = read(ROOT/PROGRAM), read(ROOT/STATE)
++        additions = repair_targets(old, before)
++        revision = dict(profile='integration-common-capacity.v1', user_instruction=USER, work=str(WORK),
++            capacity_profile=CAPACITY, prior_detours=59, additional_consolidated_revision=1,
++            live_calls_added=0, additional_transport_replacements=0, attempts_reset=False, service_scope_reset=False,
++            attempt_additions=additions, reopened_nodes=sorted(additions),
++            baseline=ref(ROOT, WORK/'baseline.json'), review=ref(ROOT, REVIEW), result=ref(ROOT, WORK/'local-result.json'),
++            implementation={p:ref(ROOT, p) for p in sorted(implementation(ROOT))},
++            checkpoints={q:ref(ROOT, WORK/'checkpoints'/(q+'.json')) for q in QUESTIONS},
++            arm_checkpoints={q:{p.stem:ref(ROOT,p) for p in sorted((ROOT/WORK/'checkpoints/arms'/q).glob('*.json'))}
++                for q in QUESTIONS},
++            recoveries=old['candidate_capacity_retry']['recoveries'],
++            prior_program=held[str(PROGRAM)], prior_state=held[str(STATE)], prior_binding=held[str(BASE/'current-binding.json')],
++            prior_ledger=held[str(BASE/'live-calls.json')], prior_grant=held[str(BASE/'live-grant.json')])
++        program = expected_program(historical_projection(old, projection(baseline)), before, revision, ROOT)
++        validate_program(program, ROOT)
++        now = datetime.now(timezone.utc).isoformat()
++        state = project_state(before, program, now)
++        stage = WORK/'registration-stage'
++        save(ROOT/stage/'program.json', program)
++        save(ROOT/stage/'state.json', state)
++        pointer = dict(path=str(PROGRAM), sha256=ref(ROOT, stage/'program.json')['sha256'])
++        adapted = deepcopy(program)
++        adapted['settled_recovery'] = revision
++        binding = candidate_binding(adapted, pointer, {**baseline, 'archived': archive_rows(baseline)})
++        prior = read(ROOT/revision['prior_binding']['path'])
++        binding.update(user_instruction=USER, review=prior['review'], execution_review=revision['review'],
++            time_extension=prior['time_extension'], effective_deadline_utc=DEADLINE)
++        binding['bindings'] += [revision['review'], binding['time_extension']] + checkpoint_refs(revision)
++        save(ROOT/stage/'binding.json', binding)
++        # Full provider authority validation is possible only before the existing
++        # live deadline. Local registration after expiry grants no execution.
++        if datetime.now(timezone.utc) < datetime.fromisoformat(DEADLINE):
++            targets = {ROOT/PROGRAM:ROOT/stage/'program.json', ROOT/BASE/'current-binding.json':ROOT/stage/'binding.json'}
++            original_text, original_bytes = Path.read_text, Path.read_bytes
++            with patch.object(Path, 'read_text', lambda path,*a,**k: original_text(targets.get(path,path),*a,**k)), \
++                 patch.object(Path, 'read_bytes', lambda path,*a,**k: original_bytes(targets.get(path,path),*a,**k)):
++                require(len(provider().check()['calls']) == baseline['calls'], 'Staged authority changed charges')
++        mission = historical_projection(read(ROOT/DOC/'mission.json'), projection(baseline, mission=True))
++        master = mission['integration_master']
++        for key in master:
++            if key in program and isinstance(program[key], dict) and program[key].get('profile'):
++                master[key] = deepcopy(program[key])
++        master.update(program=pointer, plan=ref(ROOT, PLAN), **{KEY:revision})
++        reason = ('Run the common capacity interface for every active stage. Preserve completed source/account/synthesis '
++            'work and revalidate retained output-size failures; continue independent original answer/tool tasks. '
++            'Atomic semantic limits and the existing shared service circuit remain explicit; calls and deadline unchanged.')
++        mission['next_task_reason'] = reason
++        mission['history'].append(dict(id='integration-master-common-capacity-2026-10-20', task_id='product-contribution',
++            kind='product_evaluation', outcome='no_advance', decision=reason, next_task='product-contribution',
++            next_task_reason=reason, recorded_at_utc=now, result_evidence=[pointer, revision['review'], revision['result']]))
++        save(ROOT/stage/'mission.json', mission)
++        save(ROOT/WORK/'registration-check.json', validate_staged_mission(ROOT, stage, mission, 60))
++        writes = [dict(path=str(path), before=ref(ROOT,path), replacement=ref(ROOT,stage/name)) for path,name in (
++            (PROGRAM,'program.json'), (STATE,'state.json'), (BASE/'current-binding.json','binding.json'), (DOC/'mission.json','mission.json'))]
++        save(ROOT/journal, dict(profile='legal-master-registration-transaction.v1', status='PREPARED', writes=writes))
++        finish_transaction(ROOT, journal)
++    return dict(registered=True, reopened_nodes=sorted(additions), calls_added=0, deadline_utc=DEADLINE)
++
++
++def verification():
++    program = read(ROOT/PROGRAM)
++    validate_program(program, ROOT)
++    validate_state_history(program, read(ROOT/STATE), ROOT)
++    revision = program[KEY]
++    previous, current = read(ROOT/revision['prior_ledger']['path']), read(ROOT/BASE/'live-calls.json')
++    require(current['calls'][:len(previous['calls'])] == previous['calls'], 'Lost old model charges')
++    require(ref(ROOT, BASE/'live-grant.json')['sha256'] == revision['prior_grant']['sha256'], 'Changed grant')
++    binding = read(ROOT/BASE/'current-binding.json')
++    require(binding['program'] == ref(ROOT, PROGRAM) and binding['execution_review'] == revision['review'], 'Wrong capacity binding')
++    for item in binding['bindings']:
++        verify(ROOT, item)
++    view = MasterExecution(ROOT, PROGRAM, STATE).summary()
++    return dict(calls=len(current['calls']), integration_complete=False, common_capacity_profile=CAPACITY,
++        **{k:view[k] for k in ('execution','ready','running','blocked')})
++
++
++if __name__ == '__main__':
++    import argparse, json
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('action', choices=['register', 'verify'])
++    args = parser.parse_args()
++    print(json.dumps({'register':register, 'verify':verification}[args.action](), indent=2))
+--- scripts/legal_integration_master.py
++++ reviewed/scripts/legal_integration_master.py
+@@ -501,7 +501,10 @@
+     parser.add_argument("task", nargs="?")
+     args = parser.parse_args()
+     require((args.action == "worker") == bool(args.task), "Only worker accepts a registered task")
+-    if args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('candidate_capacity_retry'):
++    if args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('common_capacity'):
++        from scripts.legal_integration_common_capacity import verification
++        result = verification()
++    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('candidate_capacity_retry'):
+         from scripts.legal_integration_candidate_retry import verification
+         result = verification()
+     elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('synthesis_resolution'):
+@@ -556,7 +559,9 @@
+         from scripts.legal_integration_remaining import verify_repairs
+         result = verify_repairs()
+     elif args.action == "gap-refresh":
+-        if (ROOT / Path('artifacts/legal-mission-control/2026-10-20/candidate-capacity-retry/local-result.json')).exists():
++        if (ROOT / Path('artifacts/legal-mission-control/2026-10-20/common-capacity-interface/local-result.json')).exists():
++            from scripts.legal_integration_common_capacity import register
++        elif (ROOT / Path('artifacts/legal-mission-control/2026-10-20/candidate-capacity-retry/local-result.json')).exists():
+             from scripts.legal_integration_candidate_retry import register
+         elif (ROOT / Path('artifacts/legal-mission-control/2026-10-19/synthesis-resolution/local-result.json')).exists():
+             from scripts.legal_integration_synthesis_resolution import register
+@@ -593,7 +598,10 @@
+         result = live()
+     else:
+         result = MasterExecution(ROOT, PROGRAM, STATE).run()
+-        if read(ROOT / PROGRAM).get('candidate_capacity_retry'):
++        if read(ROOT / PROGRAM).get('common_capacity'):
++            from scripts.legal_integration_common_capacity import verification
++            verification()
++        elif read(ROOT / PROGRAM).get('candidate_capacity_retry'):
+             from scripts.legal_integration_candidate_retry import verification
+             verification()
+         elif read(ROOT / PROGRAM).get('synthesis_resolution'):
+--- scripts/legal_integration_phased_live.py
++++ reviewed/scripts/legal_integration_phased_live.py
+@@ -22,6 +22,8 @@
+ 
+ 
+ def active_live(program):
++    if program.get('common_capacity'):
++        return Path(program['common_capacity']['work']) / 'live'
+     if program.get('candidate_capacity_retry'):
+         return Path(program['candidate_capacity_retry']['work']) / 'live'
+     if program.get('synthesis_resolution'):
+@@ -63,6 +65,8 @@
+ 
+ 
+ def question_live(program, q):
++    if program.get('common_capacity'):
++        return active_live(program)
+     if q in program.get('candidate_capacity_retry', {}).get('checkpoints', {}):
+         return Path(program['candidate_capacity_retry']['work']) / 'live'
+     if q in program.get('synthesis_resolution', {}).get('recoveries', {}):
+@@ -80,6 +84,8 @@
+ 
+ 
+ def common_directory(program, q):
++    if program.get('common_capacity'):
++        return active_live(program) / q / 'product'
+     if q in program.get('candidate_capacity_retry', {}).get('checkpoints', {}):
+         return Path(program['candidate_capacity_retry']['work']) / 'live' / q / 'product'
+     if q in program.get('synthesis_resolution', {}).get('recoveries', {}):
+@@ -170,10 +176,12 @@
+ def session(directory,service,*,owner,q=None,tool=None,shared=None,envelope=None,maximum_calls=8100):
+     campaign=configure()
+     value=envelope or read(ROOT/campaign.ENVELOPE)
++    capacity = read(ROOT/PROGRAM).get('common_capacity', {}).get('capacity_profile')
+     product=PhasedProduct(ROOT,directory,service,value,tokenizer(ROOT/TOKENIZER),limits=Limits(),
+         maximum_calls=maximum_calls,maximum_corrections=1,selected_tools=[] if tool is None else [tool],
+         active_questions=[q] if q else [x['question_id'] for x in value['original_questions']],
+-        shared_prefix=shared,phase_admit=phase_admit(owner),phase_identity=ref(ROOT,BASE/'current-binding.json')['sha256'])
++        shared_prefix=shared,phase_admit=phase_admit(owner),phase_identity=ref(ROOT,BASE/'current-binding.json')['sha256'],
++        common_capacity_profile=capacity)
+     product.install_dispatch_admission()
+     return product
+ 
+@@ -246,7 +254,8 @@
+     try:
+         prior=load_exact(ROOT/PREVIOUS_WORK/'settled-acquisition/reconstruction/investigation.json')
+         product=BoundedProduct(ROOT,folder,service,read(ROOT/campaign.ENVELOPE),tokenizer(ROOT/TOKENIZER),
+-            limits=Limits(),maximum_calls=60)
++            limits=Limits(),maximum_calls=60,
++            common_capacity_profile=read(ROOT/PROGRAM).get('common_capacity', {}).get('capacity_profile'))
+         result=recover(product,prior,admit=phase_admit('acquisition'),
+             implementation_identity=ref(ROOT,BASE/'current-binding.json')['sha256'])
+         save(folder/'shared-operation.json',{'status':'SETTLED',
+@@ -327,6 +336,12 @@
+         options.pop('retained_initial', None)
+         options.pop('bounded_requirement_account_recovery', None)
+         options['bounded_retained_preparation'] = program['candidate_capacity_retry']['checkpoints'][q]
++    if program.get('common_capacity'):
++        options['bounded_common_capacity_profile'] = program['common_capacity']['capacity_profile']
++        options['bounded_capacity_checkpoint'] = program['common_capacity']['checkpoints'][q]
++        if not preparation_only:
++            options['bounded_capacity_checkpoint'] = program['common_capacity']['arm_checkpoints'].get(q, {}).get(
++                tool or 'baseline', options['bounded_capacity_checkpoint'])
+     directory=ROOT/common if preparation_only else ROOT/route_live/'arms'/q/(tool or 'baseline')
+     shared=None if preparation_only else ROOT/common/'calls'
+     return run_product(ROOT,directory,service,ROOT/'jdk','2026-10-15T00:00:00+08:00',
+@@ -343,6 +358,9 @@
+ 
+ 
+ def acquire(q,service):
++    if read(ROOT/PROGRAM).get('common_capacity'):
++        from scripts.legal_integration_common_capacity import acquire as common_acquire
++        return common_acquire(q, service)
+     if q in read(ROOT/PROGRAM).get('candidate_capacity_retry', {}).get('checkpoints', {}):
+         from scripts.legal_integration_candidate_retry import acquire as retry_candidates
+         return retry_candidates(q,service)
+@@ -434,7 +452,8 @@
+         if tid.startswith('compare-'):
+             q,tool=tid[8:].split('-',1)
+             def action(q=q,tool=tool):
+-                phase_admit('compare-'+q+'-'+tool)('effect',6)
++                if not execution.program.get('common_capacity'):
++                    phase_admit('compare-'+q+'-'+tool)('effect',6)
+                 configure(q)
+                 return campaign.compare(q,tool,service)
+         else:
+--- scripts/legal_mission_control.py
++++ reviewed/scripts/legal_mission_control.py
+@@ -1028,6 +1028,19 @@
+                 and candidate_retry['review'] in r['result_evidence'] for r in history), 'Missing candidate retry history')
+             verify_refs(root, candidate_retry)
+             detours += 1
++        common_capacity = master.get('common_capacity')
++        if common_capacity:
++            require(common_capacity.get('profile') == 'integration-common-capacity.v1'
++                and common_capacity.get('prior_detours') == detours == 59
++                and common_capacity.get('additional_consolidated_revision') == 1
++                and common_capacity.get('live_calls_added') == 0
++                and common_capacity.get('additional_transport_replacements') == 0
++                and common_capacity.get('attempts_reset') is False
++                and program.get('common_capacity') == common_capacity, 'Unreviewed common capacity revision')
++            require(any(r['id'] == 'integration-master-common-capacity-2026-10-20'
++                and common_capacity['review'] in r['result_evidence'] for r in history), 'Missing common capacity history')
++            verify_refs(root, common_capacity)
++            detours += 1
+     else:
+         master_state = None
+     require(mission["current_task"] in tasks, "No current substantive task")
+--- scripts/legal_mission_execution.py
++++ reviewed/scripts/legal_mission_execution.py
+@@ -146,6 +146,10 @@
+         verify(root, reference)
+     tasks = {t['id']: t for t in program['tasks']}
+     require(len(tasks) == len(program['tasks']) and tasks, 'Duplicate or empty task graph')
++    if program.get('common_capacity'):
++        from scripts.legal_integration_common_capacity import validate_revision
++        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
++        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+     if program.get('candidate_capacity_retry'):
+         from scripts.legal_integration_candidate_retry import validate_revision
+         reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+@@ -444,7 +448,10 @@
+                 'tasks': {tid: {'status': 'PENDING', 'attempts': []} for tid in self.tasks}, 'events': []}
+             require(state['program_hash'] == digest(self.program), 'Program changed; reviewed migration required')
+             require(set(state['tasks']) == set(self.tasks), 'State task set changed')
+-            if self.program.get('candidate_capacity_retry'):
++            if self.program.get('common_capacity'):
++                from scripts.legal_integration_common_capacity import validate_state_history
++                validate_state_history(self.program, state, self.root)
++            elif self.program.get('candidate_capacity_retry'):
+                 from scripts.legal_integration_candidate_retry import validate_state_history
+                 validate_state_history(self.program, state, self.root)
+             elif self.program.get('synthesis_resolution'):
+@@ -554,6 +561,7 @@
+         refresh = self.program.get('synthesis_continuation', refresh)
+         refresh = self.program.get('synthesis_resolution', refresh)
+         refresh = self.program.get('candidate_capacity_retry', refresh)
++        refresh = self.program.get('common_capacity', refresh)
+         historical = read(safe(self.root, refresh['prior_state']['path']))['tasks'] if refresh else {}
+         def verify_dependencies(value):
+             if isinstance(value, dict):
+--- scripts/legal_product_completion.py
++++ reviewed/scripts/legal_product_completion.py
+@@ -54,6 +54,8 @@
+                 bounded_downstream_instruction_profile=None,
+                 bounded_downstream_capacity_profile=None,
+                 bounded_retained_preparation=None,
++                bounded_common_capacity_profile=None,
++                bounded_capacity_checkpoint=None,
+                 **investigation_options):
+     root = Path(root).resolve(); directory = Path(directory).resolve()
+     if not directory.is_relative_to(root):
+@@ -95,7 +97,9 @@
+             requirement_account_instruction_profile=bounded_requirement_account_instruction_profile,
+             requirement_account_capacity_profile=bounded_requirement_account_capacity_profile,
+             requirement_account_output_profile=bounded_requirement_account_output_profile,
+-            downstream_input_profile=bounded_downstream_input_profile, **phase_options)
++            downstream_input_profile=bounded_downstream_input_profile,
++            common_capacity_profile=bounded_common_capacity_profile,
++            capacity_checkpoint=bounded_capacity_checkpoint, **phase_options)
+         if bounded_execution == 'phased':
+             session.install_dispatch_admission()
+         session.trace.append('run_product')
+--- src/legalmath/interpretation/assurance/bounded_context.py
++++ reviewed/src/legalmath/interpretation/assurance/bounded_context.py
+@@ -409,6 +409,9 @@
+                     require(cited.get("kind") == "source" and quote["quote"] in cited["text"],
+                             "Quotation absent from delivered original source")
+         data = canonical(value)
++        # The common executor bounds each wire response separately. An assembled
++        # reading can be larger than one response and retains the decoded cap.
++        decoded = decoded or getattr(self, 'common_capacity_profile', None) is not None
+         require(len(data) <= (self.limits.decoded_output_bytes if decoded else self.limits.output_bytes) and
+                 len(self.encode(data.decode())) <= (self.limits.decoded_output_tokens if decoded else self.limits.output_tokens),
+                 "Response exceeds declared budget", "E_RESOURCE_LIMIT")
+--- src/legalmath/interpretation/assurance/bounded_product.py
++++ reviewed/src/legalmath/interpretation/assurance/bounded_product.py
+@@ -108,6 +108,7 @@
+         self.maximum_calls = maximum_calls
+         self.shared_prefix = Path(shared_prefix) if shared_prefix is not None else None
+         self.retained_initial = None
++        self.capacity_manager = None
+         self.settings = Settings(timeout_seconds=300, max_input_bytes=route.limits.input_bytes,
+                                  max_output_bytes=route.limits.output_bytes)
+         self.provider_binding = self.provider_identity()
+@@ -121,11 +122,17 @@
+                 'settings': self.settings.model_dump(), 'limits': asdict(self.route.limits)}
+ 
+     def request_identity(self, request, schema):
++        if self.capacity_manager is not None:
++            from .phased.capacity_policy import annotate
++            request = annotate(request)
+         require(self.provider_binding == self.provider_identity(), 'Provider changed during product execution',
+                 'E_AUTHORITY')
+         return digest({'request': request, 'schema': schema, 'provider_binding': self.provider_binding})
+ 
+     def measure(self, request, schema):
++        if self.capacity_manager is not None:
++            from .phased.capacity_policy import annotate
++            request = annotate(request)
+         # The CLI's hidden service framing is deliberately not called measured.
+         decoded_bytes = len(canonical(request))
+         require(decoded_bytes <= self.route.limits.decoded_output_bytes + self.route.limits.input_bytes,
+@@ -141,11 +148,19 @@
+             require(request['account_instruction_profile'] == ACCOUNT_INSTRUCTIONS_PROFILE,
+                 'Unknown account instruction profile')
+             product_guidance = PRODUCT_GUIDANCE
++        from .phased.capacity_policy import selected, guidance, contract, estimate
++        capacity = selected(request)
++        if capacity is not None:
++            product_guidance = guidance(product_guidance, capacity)
+         payload = canonical({"request": wire_request, "response_schema": wire_schema,
+                              "product_instructions": product_guidance})
+         measured = {"bytes": len(payload), "local_tokens": len(self.route.encode(payload.decode())),
+                     "decoded_request_bytes": decoded_bytes,
+                     "service_framing": "UNMEASURED_CLI_INTERNALS"}
++        if capacity is not None:
++            measured['capacity'] = contract(request, self.route.limits)
++            require(estimate(request) <= capacity.output_tokens,
++                'Estimated independent decisions exceed output budget', 'E_RESOURCE_LIMIT')
+         from .phased.account_input import input_token_limit
+         from .phased.downstream_input import input_byte_limit
+         require(measured["bytes"] <= input_byte_limit(request, self.route.limits) and
+@@ -159,6 +174,14 @@
+         return measured
+ 
+     def call(self, key, request, schema, validator):
++        if self.capacity_manager is not None:
++            return self.capacity_manager.call(key, request, schema, validator)
++        return self._call_direct(key, request, schema, validator)
++
++    def _call_direct(self, key, request, schema, validator):
++        if self.capacity_manager is not None:
++            from .phased.capacity_policy import annotate
++            request = annotate(request)
+         self.route.check()
+         require(re.fullmatch(r"[a-zA-Z0-9_.-]+", key), "Invalid dispatch key")
+         identity = self.request_identity(request, schema)
+@@ -206,7 +229,11 @@
+                     save(state_path, state)
+                     return result
+             if self.shared_prefix is not None and key.startswith(("read-", "dependency-", "detail-", "reduce-", "candidates-", "criticism-")):
+-                shared_state = json.loads((self.shared_prefix / "dispatch.json").read_text())
++                shared_journal = self.shared_prefix / 'dispatch.json'
++                require(shared_journal.exists() or self.capacity_manager is not None,
++                    'Missing historical shared journal', 'E_INTEGRITY')
++                shared_state = (json.loads(shared_journal.read_text()) if shared_journal.exists()
++                    else {'input_hash': self.route.input_hash, 'calls': {}})
+                 require(shared_state["input_hash"] == self.route.input_hash, "Shared acquisition identity changed")
+                 previous = shared_state["calls"].get(key)
+                 if previous is not None:
+@@ -240,6 +267,11 @@
+         veto = None
+         try:
+             service = self.provider.fork() if hasattr(self.provider, 'fork') else self.provider
++            from .phased.capacity_policy import output_bytes
++            from .phased.downstream_input import input_byte_limit
++            settings = self.settings.model_copy(update={
++                'max_input_bytes': input_byte_limit(request, self.route.limits),
++                'max_output_bytes': output_bytes(request, self.route.limits)})
+             prepared = None
+             if getattr(self.provider, 'reference_transport', False):
+                 from .bounded_references import prepare, resolve
+@@ -257,14 +289,11 @@
+                     if retained_wire is not None:
+                         wire = retained_wire
+                         save(directory / 'reference-binding.json', wire)
+-                from .phased.downstream_input import input_byte_limit
+-                settings = self.settings.model_copy(update={
+-                    'max_input_bytes': input_byte_limit(request, self.route.limits)})
+                 response = service.complete(wire['request'], wire['schema'], settings)
+                 dispatching = False
+                 save(directory / 'wire-response.json', {'value': response.value, 'provenance': response.provenance})
+                 from .phased.account_output import output_token_limit
+-                require(len(canonical(response.value)) <= self.route.limits.output_bytes and
++                require(len(canonical(response.value)) <= output_bytes(request, self.route.limits) and
+                         len(self.route.encode(canonical(response.value).decode())) <= output_token_limit(request, self.route.limits),
+                         'Wire output exceeds bounded product profile', 'E_RESOURCE_LIMIT')
+                 from legalmath.interpretation.search.providers import Completion
+@@ -273,12 +302,12 @@
+                     {**response.provenance, 'reference_protocol': prepared['protocol'],
+                      'reference_binding': prepared['binding']})
+             else:
+-                response = service.complete(request, schema, self.settings)
++                response = service.complete(request, schema, settings)
+                 dispatching = False
+             raw = {"value": response.value, "provenance": response.provenance}
+             save(directory / "raw.json", raw)
+             validate(response.value, schema)
+-            byte_limit = self.route.limits.decoded_output_bytes if prepared else self.route.limits.output_bytes
++            byte_limit = self.route.limits.decoded_output_bytes if prepared else output_bytes(request, self.route.limits)
+             from .phased.account_output import output_token_limit
+             token_limit = self.route.limits.decoded_output_tokens if prepared else output_token_limit(request, self.route.limits)
+             require(len(canonical(response.value)) <= byte_limit and
+@@ -315,7 +344,14 @@
+                  maximum_corrections=0, retained_initial=None, requirement_account_profile=None,
+                  requirement_account_recovery=None, requirement_account_input_profile=None,
+                  requirement_account_instruction_profile=None, requirement_account_capacity_profile=None,
+-                 requirement_account_output_profile=None, downstream_input_profile=None):
++                 requirement_account_output_profile=None, downstream_input_profile=None, common_capacity_profile=None,
++                 capacity_checkpoint=None):
++        from .phased.capacity_policy import PROFILE as CAPACITY_PROFILE
++        require(common_capacity_profile in (None, CAPACITY_PROFILE), 'Unknown common capacity selection', 'E_AUTHORITY')
++        self.common_capacity_profile = common_capacity_profile
++        require(capacity_checkpoint is None or common_capacity_profile is not None,
++            'Capacity checkpoint requires common capacity', 'E_AUTHORITY')
++        self.capacity_checkpoint = capacity_checkpoint
+         if downstream_input_profile is not None:
+             from .phased.downstream_input import PROFILE as DOWNSTREAM_PROFILE
+             require(downstream_input_profile == DOWNSTREAM_PROFILE, 'Unknown downstream input profile', 'E_AUTHORITY')
+@@ -381,6 +417,17 @@
+             require(Path(shared_prefix).resolve().is_relative_to(self.root), "Shared checkpoint outside worktree")
+         self.dispatch = BoundDispatch(provider, self.directory / "calls", self.route,
+                                       maximum_calls=maximum_calls, shared_prefix=shared_prefix)
++        self.capacity_manager = None
++        if common_capacity_profile is not None:
++            from .phased.capacity import CapacityManager
++            self.capacity_manager = CapacityManager(self)
++            self.dispatch.capacity_manager = self.capacity_manager
++            self.route.common_capacity_profile = common_capacity_profile
++            if shared_prefix is not None:
++                from .phased.evidence_store import save_exact
++                path = Path(shared_prefix)/'dispatch.json'
++                if not path.exists():
++                    save_exact(path, {'input_hash':self.route.input_hash, 'maximum_calls':maximum_calls, 'calls':{}})
+         if requirement_account_recovery is not None:
+             account_recovery.validate_provider(self.root,
+                 account_recovery.load(self.root, requirement_account_recovery, self.route.input_hash),
+@@ -408,6 +455,10 @@
+                     "active_questions": list(self.active_questions)}
+         if self.requirement_account_profile is not None:
+             identity["requirement_account_profile"] = self.requirement_account_profile
++        if common_capacity_profile is not None:
++            identity['common_capacity_profile'] = common_capacity_profile
++        if capacity_checkpoint is not None:
++            identity['capacity_checkpoint'] = capacity_checkpoint
+         if requirement_account_output_profile is not None:
+             identity['requirement_account_output_profile'] = requirement_account_output_profile
+         if requirement_account_input_profile is not None:
+@@ -665,7 +716,10 @@
+                     if correction is not None:
+                         request['account_correction'] = correction
+         try:
+-            self.dispatch.measure(request, schema)
++            if self.capacity_manager is None:
++                self.dispatch.measure(request, schema)
++            elif not partition:
++                request['capacity_no_partition'] = True
+         except LegalMathError as exc:
+             if exc.code != 'E_RESOURCE_LIMIT' or not partition or audit or len(records) < 2:
+                 raise
+@@ -1295,6 +1349,8 @@
+             before = deepcopy(backend.identity())
+             binding = {'backend': before, 'kind': kind, 'packet_hash': digest(packet),
+                        'inputs_hash': digest(inputs)}
++            if self.capacity_manager is not None:
++                binding['capacity'] = self.capacity_manager.native(kind, packet, inputs)
+             folder.mkdir(parents=True, exist_ok=True)
+             journal = folder/'product-binding.json'
+             result_file = folder/'product-result.json'
+@@ -1311,6 +1367,15 @@
+                     result = json.loads(result_file.read_text())
+                     require(digest(result) == previous['result_hash'], 'Retained native result changed')
+                     return result
++                if self.capacity_manager is not None:
++                    from .phased.capacity_checkpoint import native as retained_native
++                    retained = retained_native(self, binding)
++                    if retained is not None:
++                        save(result_file, retained)
++                        save(journal, {'binding': binding, 'status': 'COMPLETED',
++                            'result_hash': digest(retained), 'capacity_checkpoint': self.capacity_checkpoint,
++                            'legal_warrants_verified': False})
++                        return retained
+                 save(journal, {'binding': binding, 'status': 'RESERVED'})
+                 copied_packet, copied_inputs = deepcopy(packet), deepcopy(inputs)
+                 try:
+--- src/legalmath/interpretation/assurance/bounded_references.py
++++ reviewed/src/legalmath/interpretation/assurance/bounded_references.py
+@@ -300,7 +300,11 @@
+     from .phased.downstream_input import apply as downstream_input
+     from .phased.downstream_instructions import apply as downstream_instructions
+     from .phased.downstream_edits import apply as downstream_edits
+-    return downstream_edits(downstream_instructions(downstream_input(account_instructions(apply(prepared)))))
++    result = downstream_edits(downstream_instructions(downstream_input(account_instructions(apply(prepared)))))
++    if request.get('capacity_profile') is not None:
++        from .phased.capacity_policy import annotate
++        result['request'] = annotate(result['request'])
++    return result
+ 
+ 
+ def resolve(value, prepared, *, maximum_bytes):
+--- src/legalmath/interpretation/assurance/phased/account_output.py
++++ reviewed/src/legalmath/interpretation/assurance/phased/account_output.py
+@@ -13,6 +13,11 @@
+ 
+ 
+ def output_token_limit(request, limits):
++    if request.get('capacity_profile') is not None:
++        from .capacity_policy import output_tokens
++        if request.get('account_output_profile') is not None:
++            validate_profile(request, request['account_output_profile'])
++        return output_tokens(request, limits)
+     profile = request.get('account_output_profile')
+     if profile is None:
+         return limits.output_tokens
+--- src/legalmath/interpretation/assurance/phased/capacity.py
++++ reviewed/src/legalmath/interpretation/assurance/phased/capacity.py
+@@ -0,0 +1,240 @@
++"""Durable bounded split/validate/assemble interface for the active product.
++
++Every leaf uses the existing dispatch journal and phase admission. Service
++retries belong to the provider. Only a capacity failure can trigger subdivision;
++schema or semantic failure never buys another sample. An uncertain leaf is a
++continuation veto. Ordinary failed pieces do not cancel independent siblings.
++"""
++from copy import deepcopy
++import fcntl
++import json
++import re
++import time
++from jsonschema import validate
++from legalmath.canonical import canonical, digest
++from legalmath.errors import LegalMathError
++from ..bounded_context import require
++from ..monitor import save
++from .evidence_store import save_exact
++from . import capacity_policy as policy, capacity_adapters as adapters
++
++
++class CapacityManager:
++    def __init__(self, product):
++        self.product = product
++
++    def call(self, key, request, schema, validator):
++        product = self.product
++        if hasattr(product, 'phase_admit'):
++            from .phase import execute
++            outcome = execute(product, 'call-' + key, [dict(key=key, request=request,
++                schema=schema, validate=validator)], implementation_identity=product.phase_identity,
++                admit=product.phase_admit)
++            return outcome['results'][0]['result']
++        require(not getattr(product.provider, 'live', True),
++            'Live common capacity requires per-leaf phase admission', 'E_AUTHORITY')
++        return self.run(dict(key=key, request=request, schema=schema, validate=validator),
++            lambda call: product.dispatch._call_direct(call['key'], call['request'], call['schema'], call['validate']))
++
++    def phase(self, name, calls, *, implementation_identity, admit, refresh):
++        from .phase import execute
++        product = self.product
++        if hasattr(product, 'prepare_calls'):
++            calls = product.prepare_calls(calls)
++        require(len({c['key'] for c in calls}) == len(calls), 'Duplicate capacity phase key', 'E_INTEGRITY')
++        contract = dict(profile=policy.PROFILE, phase=name, implementation_identity=implementation_identity,
++            calls=[dict(key=c['key'], identity=product.dispatch.request_identity(c['request'], c['schema'])) for c in calls])
++        directory = product.directory / 'capacity-phases' / name
++        if (directory / 'contract.json').exists():
++            require(json.loads((directory / 'contract.json').read_text()) == contract,
++                'Capacity phase changed on resume', 'E_INTEGRITY')
++        save_exact(directory / 'contract.json', contract)
++        # Check uncertain results across the whole ready set before any new
++        # sibling dispatch, including a crash between leaf result and assembly.
++        for call in calls:
++            self.check_retained(call)
++        def leaf(call):
++            result = execute(product, 'capacity-' + call['key'], [call],
++                implementation_identity=implementation_identity, admit=admit, refresh=refresh,
++                _capacity_leaf=True)
++            return result['results'][0]['result'] if result['results'] else result['resource_refusal']
++        results = []
++        for call in calls:
++            try:
++                result = self.run(call, leaf, implementation_identity=implementation_identity)
++            except LegalMathError as exc:
++                result = product.failure(exc)  # Authority/integrity errors are re-raised.
++            results.append({'key': call['key'], 'result': result})
++            refresh(dict(phase=name, last_call=results[-1], execution_complete=False))
++        outcome = dict(phase=name, results=results, legal_acceptance=False,
++            execution_complete=all(r['result']['status'] == 'VALIDATED' for r in results))
++        save_exact(directory / 'outcome.json', outcome)
++        refresh(outcome)
++        return outcome
++
++    def check_retained(self, call):
++        path = self.product.directory / 'capacity' / call['key'] / 'state.json'
++        if not path.exists():
++            return
++        state = json.loads(path.read_text())
++        journal = self.product.dispatch.directory / 'dispatch.json'
++        rows = json.loads(journal.read_text())['calls'] if journal.exists() else {}
++        for key in state['leaves']:
++            row = rows.get(key)
++            require(row is None or row['status'] != 'RESERVED',
++                'Uncertain capacity leaf: ' + key, 'E_AUTHORITY')
++            if row is not None:
++                folder = self.product.dispatch.directory / key
++                request = json.loads((folder / 'request.json').read_text())
++                schema = json.loads((folder / 'schema.json').read_text())
++                require(row['identity'] == state['leaves'][key] == self.product.dispatch.request_identity(request,schema),
++                    'Capacity leaf request/schema changed', 'E_INTEGRITY')
++                result = json.loads((folder / 'result.json').read_text())
++                require(digest(result) == row['result_hash'], 'Capacity leaf evidence changed', 'E_INTEGRITY')
++
++    def run(self, call, execute_leaf, *, implementation_identity=None, _shared=False):
++        product = self.product
++        product.route.check()
++        require(re.fullmatch(r'[a-zA-Z0-9_.-]+', call['key']), 'Unsafe capacity key', 'E_SCHEMA')
++        call = {**call, 'request': policy.annotate(call['request'])}
++        if not _shared and call['request']['task'] in (
++                'GENERATE_SOURCE_WARRANTED_CANDIDATES', 'STRUCTURED_CRITICISM'):
++            from .capacity_shared import execute
++            return execute(self, call, lambda: self.run(call, execute_leaf,
++                implementation_identity=implementation_identity, _shared=True))
++        configuration = policy.contract(call['request'], product.route.limits)
++        adapters.check_population(call['request'])
++        contract = dict(budget=configuration, input_hash=product.route.input_hash,
++            request_identity=product.dispatch.request_identity(call['request'], call['schema']),
++            implementation_identity=implementation_identity or getattr(product, 'phase_identity', 'offline-common-capacity.v1'))
++        directory = product.directory / 'capacity' / call['key']
++        directory.mkdir(parents=True, exist_ok=True)
++        with (directory / 'capacity.lock').open('a') as lock:
++            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++            path = directory / 'state.json'
++            state = json.loads(path.read_text()) if path.exists() else dict(
++                contract=contract, started=int(time.time()), status='PLANNED', leaves={}, nodes={})
++            require(state['contract'] == contract, 'Capacity contract changed on resume', 'E_INTEGRITY')
++            self.check_retained(call)
++            from .capacity_checkpoint import retained
++            imported = retained(product, call)
++            if state['status'] == 'SETTLED':
++                result = json.loads((directory / 'result.json').read_text())
++                require(digest(result) == state['result_hash'], 'Capacity result changed', 'E_INTEGRITY')
++                if result['status'] == 'VALIDATED':
++                    validate(result['value'], call['schema'])
++                    call['validate'](result['value'])
++                return result
++            save_exact(directory / 'request.json', call['request'])
++            save_exact(directory / 'schema.json', call['schema'])
++            save(path, state)
++
++            def fail(reason, code='E_RESOURCE_LIMIT'):
++                return dict(status='FAILED', error=code, reason=reason,
++                    capacity_remainder=dict(stage=call['request']['task'], adapter=configuration['adapter'],
++                        original_request_hash=digest(call['request'])))
++
++            def node(current, depth, *, bridge=False):
++                product.route.check()
++                key = current['key']
++                identity = product.dispatch.request_identity(current['request'], current['schema'])
++                previous = state['nodes'].get(key)
++                if previous:
++                    require(previous['identity'] == identity, 'Changed capacity child', 'E_INTEGRITY')
++                    if 'result_hash' in previous:
++                        value = json.loads((directory / (key + '.json')).read_text())
++                        require(digest(value) == previous['result_hash'], 'Capacity child result changed', 'E_INTEGRITY')
++                        if value['status'] == 'VALIDATED':
++                            validate(value['value'], current['schema'])
++                            current['validate'](value['value'])
++                        return value
++                else:
++                    state['nodes'][key] = dict(identity=identity, depth=depth, bridge=bridge)
++                    save(path, state)
++                def finish(value):
++                    save_exact(directory / (key + '.json'), value)
++                    state['nodes'][key]['result_hash'] = digest(value)
++                    save(path, state)
++                    return value
++                if time.time() - state['started'] > configuration['maximum_seconds']:
++                    return finish(fail('Common capacity elapsed-time bound exhausted'))
++                try:
++                    measured = False
++                    measurement = product.dispatch.measure(current['request'], current['schema'])
++                    require(policy.estimate(current['request']) <= configuration['output_tokens'],
++                        'Estimated independent decisions exceed output budget', 'E_RESOURCE_LIMIT')
++                    state['nodes'][key]['measurement'] = measurement
++                    measured = True
++                    if key not in state['leaves']:
++                        if len(state['leaves']) >= configuration['maximum_calls']:
++                            return finish(fail('Common capacity leaf-call bound exhausted'))
++                        state['leaves'][key] = identity
++                        save(path, state)  # Before admission or transport reservation.
++                    result = execute_leaf(current)
++                except LegalMathError as exc:
++                    result = product.failure(exc)
++                if result['status'] == 'VALIDATED' or result.get('error') != 'E_RESOURCE_LIMIT':
++                    return finish(result)
++                if measured and not any(marker in str(result.get('reason', '')) for marker in (
++                        'output exceeds', 'Output exceeds', 'response output byte cap',
++                        'Wire output exceeds', 'WIRE_OUTPUT', 'DECODED_OUTPUT')):
++                    # Call/time admission, service deadlines and event-log caps
++                    # are not evidence that semantic subdivision would help.
++                    return finish(result)
++                state['nodes'][key]['capacity_failure'] = result
++                save(path, state)
++                if bridge or depth >= configuration['maximum_depth']:
++                    return finish(fail('Joint bridge or finite subdivision bound reached: ' + str(result['reason'])))
++                children = adapters.split(product, current)
++                if not children:
++                    return finish(fail(configuration['reason'] + ' Complete atomic context/result does not fit. '
++                        + str(result['reason'])))
++                state['nodes'][key]['membership'] = [adapters.ids(c['request']) for c in children]
++                save(path, state)
++                # Ordinary failures do not stop independent child decisions.
++                results = [node(child, depth+1) for child in children]
++                if any(r['status'] != 'VALIDATED' for r in results):
++                    return finish(dict(status='FAILED', error='E_DEPENDENCY',
++                        reason='Capacity pieces incomplete; assembly is blocked', pieces=results))
++                validation_started = False
++                try:
++                    assembled = adapters.merge(product, current, children, [r['value'] for r in results])
++                    if configuration['adapter'] == 'source-note':
++                        combined = node(assembled, depth+1, bridge=True)
++                        if combined['status'] != 'VALIDATED':
++                            return finish(combined)
++                        value = combined['value']
++                    else:
++                        value = assembled
++                    policy.measure_output(value, current['request'], product.route.limits,
++                        product.route.encode, expanded=True)
++                    validation_started = True
++                    validate(value, current['schema'])
++                    current['validate'](value)
++                    return finish(dict(status='VALIDATED', value=value,
++                        request_hash=digest(current['request']),
++                        provenance=dict(capacity_profile=policy.PROFILE, assembled=True,
++                            piece_hashes=[digest(r) for r in results], legal_acceptance=False)))
++                except Exception as exc:
++                    if validation_started and getattr(exc, 'code', None) != 'E_AUTHORITY':
++                        return finish(dict(status='FAILED', error=getattr(exc, 'code', type(exc).__name__),
++                            reason=str(getattr(exc, 'details', None) or exc), stage='ASSEMBLED_VALIDATION'))
++                    return finish(product.failure(exc))
++
++            result = imported if imported is not None else node(call, 0)
++            save_exact(directory / 'result.json', result)
++            state.update(status='SETTLED', result_hash=digest(result))
++            save(path, state)
++            return result
++
++    def native(self, kind, packet, inputs):
++        """Native tools consume the complete graph/candidate set, never shards."""
++        require(kind in policy.NATIVE, 'Unregistered native capacity stage', 'E_AUTHORITY')
++        data = canonical(dict(packet=packet, inputs=inputs))
++        limits = self.product.route.limits
++        require(len(data) <= limits.decoded_output_bytes and
++            len(self.product.route.encode(data.decode())) <= limits.decoded_output_tokens,
++            'Complete native input exceeds decoded-memory budget', 'E_RESOURCE_LIMIT')
++        return dict(profile=policy.PROFILE, stage=kind, adapter='complete-native-input',
++            input_hash=digest(dict(packet=packet, inputs=inputs)), bytes=len(data),
++            maximum_bytes=limits.decoded_output_bytes, semantic_partition=False)
+--- src/legalmath/interpretation/assurance/phased/capacity_adapters.py
++++ reviewed/src/legalmath/interpretation/assurance/phased/capacity_adapters.py
+@@ -0,0 +1,154 @@
++"""Semantic partition contracts. No arbitrary JSON splitting or graph union."""
++from copy import deepcopy
++import re
++from jsonschema import validate
++from legalmath.canonical import canonical
++from ..bounded_context import require
++from .capacity_policy import selected
++
++
++def ids(request):
++    mode = selected(request).adapter
++    if mode == 'records':
++        return [r['id'] for r in request['records']]
++    if mode == 'warrants':
++        return [r['id'] for r in request['payload']['issues']]
++    if mode == 'grouped-review':
++        return list(request['required_considered'])
++    if mode == 'source-note':
++        return [r['id'] for r in request['records']]
++    return []
++
++
++def check_population(request):
++    population = ids(request)
++    require(len(population) == len(set(population)), 'Duplicate capacity assignment', 'E_SCHEMA')
++    return population
++
++
++def split(product, call):
++    """Return two strictly smaller assignment sets, with immutable shared context."""
++    request, schema = call['request'], call['schema']
++    mode = selected(request).adapter
++    population = check_population(request)
++    if len(population) < 2 or mode == 'atomic':
++        return []
++    middle = len(population) // 2
++    result = []
++    for number, members in enumerate((population[:middle], population[middle:])):
++        req, shape = deepcopy(request), deepcopy(schema)
++        if mode == 'records':
++            from ..bounded_context import response_schema, observation_schema
++            req['records'] = [r for r in request['records'] if r['id'] in members]
++            shape = (observation_schema if req['task'] == 'REVIEW_REQUIREMENTS' else response_schema)(members)
++            packet = {'request': req, 'schema': shape}
++            from legalmath.canonical import digest
++            packet['packet_hash'] = digest(packet)
++            def check(value, packet=packet):
++                product.route.validate_response(packet, value, decoded=True)
++        elif mode == 'warrants':
++            # Review.issues and every source/account remain complete. Only the
++            # independently requested issue decisions shrink.
++            req['payload']['issues'] = [r for r in request['payload']['issues'] if r['id'] in members]
++            properties = shape['properties']['decisions']['items']['properties']
++            properties['issue_id'] = {**properties['issue_id'], 'enum': members}
++            shape['properties']['decisions'].update(minItems=len(members), maxItems=len(members))
++            def check(value, req=req, members=members):
++                actual = [r['issue_id'] for r in value['decisions']]
++                require(len(actual) == len(set(actual)) and set(actual) == set(members), 'Lost warrant issue')
++                require(value['considered'] == req['required_considered'], 'Changed warrant owner')
++                product.citations(value, req['records'])
++                for row in value['decisions']:
++                    require(row['disposition'] != 'WARRANTED' or row['support'], 'Unsupported warrant')
++                    require(row['disposition'] != 'UNWARRANTED' or row['support'] or
++                        row['basis'] == 'QUESTION_SCOPE', 'Unsupported discarded criticism')
++        elif mode == 'grouped-review':
++            # Full assignments, origin table, sources and answer remain in the
++            # request. This is output pagination, not source-context truncation.
++            req['required_considered'] = members
++            req['capacity_assignment_instruction'] = (
++                'All assignments are retained as joint context. Return decisions only for '
++                'required_considered. Preserve exceptions and relationships from the full context.')
++            shape['properties']['assignments']['properties'] = {
++                key: value for key, value in shape['properties']['assignments']['properties'].items() if key in members}
++            shape['properties']['assignments']['required'] = members
++            shape['properties']['analyses']['maxItems'] = len(members)
++            def check(value, req=req, members=members):
++                from .group_review import validate as validate_group
++                validate_group(product, req['question']['question_id'], value, members, req['records'])
++        elif mode == 'source-note':
++            req['records'] = [r for r in request['records'] if r['id'] in members]
++            req['verified_locator_bindings'] = [r for r in request.get('verified_locator_bindings', [])
++                if r['record_id'] in members]
++            req['capacity_piece_instruction'] = (
++                'This is a partial source reading for the same original requirement. Preserve all '
++                'conditions and contrary evidence. Explicitly retain dependencies on other pieces '
++                'as unresolved. Only a later joint synthesis can state the combined conclusion.')
++            def check(value, req=req):
++                require(len(value['considered']) == len(set(value['considered'])) and
++                    set(value['considered']) == set(req['required_considered']), 'Lost requirement owner')
++                product.citations(value, req['records'])
++                require(value['support'] or value['unresolved'], 'Unsupported partial note')
++                if req.get('account_contract'):
++                    from .account_contract import validate as validate_account
++                    validate_account(value, product, req['records'])
++        else:
++            return []
++        def checked(value, shape=shape, check=check):
++            validate(value, shape)
++            check(value)
++        result.append(dict(key=call['key'] + '-p' + str(number), request=req,
++                           schema=shape, validate=checked))
++    require([i for child in result for i in ids(child['request'])] == population,
++        'Capacity partition changed assignment order or coverage', 'E_INTEGRITY')
++    require(all(0 < len(ids(c['request'])) < len(population) for c in result),
++        'Capacity partition did not contract', 'E_INTEGRITY')
++    return result
++
++
++def merge(product, call, children, values):
++    request = call['request']
++    mode = selected(request).adapter
++    require(len(children) == len(values), 'Missing capacity piece', 'E_INTEGRITY')
++    require([i for c in children for i in ids(c['request'])] == check_population(request),
++        'Changed capacity membership', 'E_INTEGRITY')
++    if mode == 'records':
++        return {'records': [r for value in values for r in value['records']]}
++    if mode == 'grouped-review':
++        assembled = {'analyses': [], 'assignments': {}}
++        for number, value in enumerate(values):
++            names = {row['analysis_id']: str(number) + ':' + row['analysis_id'] for row in value['analyses']}
++            for row in value['analyses']:
++                assembled['analyses'].append({**deepcopy(row), 'analysis_id': names[row['analysis_id']]})
++            for key, row in value['assignments'].items():
++                require(key not in assembled['assignments'], 'Duplicate assembled assignment', 'E_INTEGRITY')
++                assembled['assignments'][key] = {'analysis_id': names[row['analysis_id']]}
++        return assembled
++    if mode == 'warrants':
++        result = {'decisions': [], 'considered': deepcopy(request['required_considered']),
++                  'source_gaps': [], 'assertion_bindings': []}
++        for value in values:
++            offset = len(result['decisions'])
++            for binding in value['assertion_bindings']:
++                path = binding['path']
++                match = re.fullmatch(r'/decisions/([0-9]+)(/.*)?', path)
++                require(match and int(match[1]) < len(value['decisions']),
++                    'Cannot safely rebase a non-decision warrant assertion', 'E_SCHEMA')
++                result['assertion_bindings'].append({**deepcopy(binding),
++                    'path': '/decisions/' + str(offset + int(match[1])) + (match[2] or '')})
++            result['decisions'].extend(deepcopy(value['decisions']))
++            for gap in value['source_gaps']:
++                if gap not in result['source_gaps']:
++                    result['source_gaps'].append(deepcopy(gap))
++        return result
++    require(mode == 'source-note', 'No merge adapter', 'E_INTEGRITY')
++    # Keep every original source in the joint bridge. If that complete relation
++    # cannot fit, return an explicit limitation rather than silently summarize
++    # away the distant exception which the bridge is supposed to check.
++    req = deepcopy(request)
++    req['capacity_partial_readings'] = values
++    req['capacity_bridge_instruction'] = (
++        'Reconcile ALL partial source readings against ALL original source text. Check cross-piece '
++        'conditions, exceptions, alternatives and conflicts. Preserve unresolved relations. '
++        'Return one complete original requirement account; partial conclusions are proposals.')
++    return dict(key=call['key'] + '-bridge', request=req, schema=call['schema'], validate=call['validate'])
+--- src/legalmath/interpretation/assurance/phased/capacity_checkpoint.py
++++ reviewed/src/legalmath/interpretation/assurance/phased/capacity_checkpoint.py
+@@ -0,0 +1,123 @@
++"""Authenticated reuse across the explicit capacity-policy transition.
++
++Only identical substantive requests/schemas may reuse completed values. A
++retained output rejected solely by size may be revalidated against the reviewed
++new budget. The old failure and every transport file stay unchanged.
++"""
++import json
++from copy import deepcopy
++from jsonschema import validate
++from legalmath.canonical import canonical, digest
++from ..bounded_context import require
++from ..integration_contract import read_evidence
++from . import capacity_policy as policy
++
++PROFILE = 'common-capacity-checkpoint.v1'
++
++
++def retained(product, call):
++    pointer = product.capacity_checkpoint
++    if pointer is None:
++        return None
++    checkpoint = read_evidence(pointer, product.root)
++    require(checkpoint['profile'] == PROFILE and checkpoint['input_hash'] == product.route.input_hash,
++        'Foreign capacity checkpoint', 'E_INTEGRITY')
++    wanted = policy.annotate(call['request'])
++    keys = ([call['key']] if call['key'] in checkpoint['calls'] else []) + [
++        k for k in checkpoint['calls'] if k != call['key']]
++    row = None
++    for key in keys:
++        candidate = checkpoint['calls'][key]
++        request = read_evidence(candidate['request'], product.root)
++        if policy.annotate(request) != wanted:
++            # Answer reuse is mandatory. Changed review populations may create
++            # new decisions, but cannot silently buy a new successful answer.
++            require(key != call['key'] or wanted['task'] != 'ANSWER_ORIGINAL_QUESTION',
++                'Capacity reuse changed substantive answer request', 'E_INTEGRITY')
++            continue
++        schema = read_evidence(candidate['schema'], product.root)
++        require(schema == call['schema'], 'Capacity reuse changed substantive schema', 'E_INTEGRITY')
++        row, original_key = candidate, key
++        break
++    if row is None:
++        return None
++    prior = read_evidence(row['result'], product.root)
++    require(not prior.get('continuation_veto'), 'Retained capacity continuation veto: '+str(prior.get('reason')), 'E_AUTHORITY')
++    if row.get('dispatch'):
++        journal = read_evidence(row['dispatch'], product.root)
++        recorded = journal['calls'][original_key]
++        require(journal['input_hash'] == product.route.input_hash and recorded['status'] != 'RESERVED'
++            and recorded['result_hash'] == digest(prior), 'Unsettled or changed predecessor call', 'E_INTEGRITY')
++    if row['mode'] == 'RETAINED_FAILURE':
++        require(prior['status'] == 'FAILED', 'Cannot import a success as a failure', 'E_INTEGRITY')
++        return deepcopy(prior)
++    if row['mode'] == 'VALIDATED':
++        require(prior['status'] == 'VALIDATED', 'Cannot import incomplete capacity checkpoint', 'E_INTEGRITY')
++        value = deepcopy(prior['value'])
++    else:
++        require(row['mode'] == 'OUTPUT_BUDGET_REVALIDATION' and prior['status'] == 'FAILED'
++            and prior['error'] == 'E_RESOURCE_LIMIT' and any(message in prior['reason'] for message in
++                ('output byte cap', 'output exceeds', 'Output exceeds', 'Wire output exceeds')),
++            'Only an identified output-budget failure may be revalidated', 'E_AUTHORITY')
++        prepared = read_evidence(row['reference_binding'], product.root)
++        require(prepared['original_request'] == request and prepared['original_schema'] == schema,
++            'Retained decoding contract changed', 'E_INTEGRITY')
++        manifest = read_evidence(row['transport_manifest'], product.root)
++        parent = (product.root / row['transport_manifest']['path']).parent
++        for name, item in manifest['files'].items():
++            data = (parent / name).read_bytes()
++            from hashlib import sha256
++            require(sha256(data).hexdigest() == item['retained_sha256'] and len(data) == item['bytes'],
++                'Retained transport changed', 'E_INTEGRITY')
++        wire_request = json.loads((parent/'request.json').read_text())
++        wire_schema = json.loads((parent/'schema.json').read_text())
++        require(wire_request == prepared['request'] and wire_schema == prepared['schema']
++            and digest(wire_request) == manifest['request_hash'], 'Transport request differs', 'E_INTEGRITY')
++        events = [json.loads(line) for line in (parent/'events.jsonl').read_text().splitlines() if line.strip()]
++        require(any(e.get('type') == 'turn.completed' for e in events) and not any(
++            e.get('item', {}).get('type') in {'command_execution','mcp_tool_call','web_search','file_change'}
++            for e in events), 'Retained transport is incomplete or used tools', 'E_AUTHORITY')
++        raw = (parent/'result.json').read_bytes()
++        require(len(raw) <= policy.output_bytes(call['request'], product.route.limits),
++            'Retained raw response still exceeds capacity', 'E_RESOURCE_LIMIT')
++        wire_value = json.loads(raw)
++        policy.measure_output(wire_value, policy.annotate(call['request']), product.route.limits, product.route.encode)
++        validate(wire_value, prepared['schema'])
++        from ..bounded_references import resolve
++        value = resolve(wire_value, prepared, maximum_bytes=product.route.limits.decoded_output_bytes)
++    policy.measure_output(value, policy.annotate(call['request']), product.route.limits, product.route.encode, expanded=True)
++    validate(value, schema)
++    call['validate'](value)
++    return dict(status='VALIDATED', value=value, request_hash=digest(policy.annotate(call['request'])),
++        provenance=dict(capacity_checkpoint=pointer, original_key=original_key, original_result=row['result'], mode=row['mode'],
++            new_provider_calls=0, legal_acceptance=False))
++
++
++def native(product, binding):
++    """Keep exact native outputs (including evidence paths) in resumed arms."""
++    if product.capacity_checkpoint is None:
++        return None
++    checkpoint = read_evidence(product.capacity_checkpoint, product.root)
++    require(checkpoint['profile'] == PROFILE and checkpoint['input_hash'] == product.route.input_hash,
++        'Foreign native capacity checkpoint', 'E_INTEGRITY')
++    prior_binding = {k:v for k,v in binding.items() if k != 'capacity'}
++    rows = [row for row in checkpoint.get('native', []) if row['kind'] == binding['kind']]
++    require(len(rows) <= 1, 'Ambiguous native capacity checkpoint', 'E_INTEGRITY')
++    if not rows:
++        return None
++    row = rows[0]
++    previous = read_evidence(row['binding'], product.root)
++    require(previous['binding'] == prior_binding and previous['status'] == 'COMPLETED',
++        'Changed or unsettled retained native input', 'E_INTEGRITY')
++    value = read_evidence(row['result'], product.root)
++    require(digest(value) == previous['result_hash'], 'Changed retained native result', 'E_INTEGRITY')
++    def verify_refs(value):
++        if isinstance(value, dict):
++            if set(value) == {'path', 'sha256'}:
++                read_evidence(value, product.root, json_value=False)
++            else:
++                for child in value.values(): verify_refs(child)
++        elif isinstance(value, list):
++            for child in value: verify_refs(child)
++    verify_refs(value)
++    return deepcopy(value)
+--- src/legalmath/interpretation/assurance/phased/capacity_policy.py
++++ reviewed/src/legalmath/interpretation/assurance/phased/capacity_policy.py
+@@ -0,0 +1,134 @@
++"""Versioned capacity policy shared by planning, transport and validation.
++
++Budgets are engineering bounds, not predictions of semantic completeness or of
++the provider's hidden context window. Unselected historical routes stay exact.
++"""
++from copy import deepcopy
++from dataclasses import asdict, dataclass, replace
++from ..bounded_context import require
++
++PROFILE = 'common-stage-capacity.v1'
++
++
++@dataclass(frozen=True)
++class Stage:
++    adapter: str
++    output_tokens: int
++    output_bytes: int
++    reason: str
++    maximum_calls: int = 31
++    maximum_depth: int = 4
++    maximum_seconds: int = 14400
++
++
++def stage(adapter, tokens, reason):
++    return Stage(adapter, tokens, max(24000, 8 * tokens), reason)
++
++
++STAGES = {
++    'READ_SOURCE': stage('records', 3000, 'Independent source observations; later dependency review is mandatory.'),
++    'REVIEW_REQUIREMENTS': stage('records', 3000, 'Independent metadata observations, never legal-source warrants.'),
++    'REVIEW_SOURCE_DEPENDENCY': stage('atomic', 4096, 'The linked passages must be jointly interpreted.'),
++    'ASSESS_ORIGINAL_REQUIREMENT': stage('source-note', 4096, 'Source pieces require a joint semantic synthesis and original-source review.'),
++    'SYNTHESIZE_FINDINGS': stage('atomic', 4096, 'The synthesis owner packs and contracts complete findings with exact membership.'),
++    'GENERATE_SOURCE_WARRANTED_CANDIDATES': stage('atomic', 8192, 'Readings and six dimensions must cover the entire supplied source packet.'),
++    'STRUCTURED_CRITICISM': stage('atomic', 8192, 'Premises, attacks and preferences form one graph; graph verdicts cannot be unioned.'),
++    'ANSWER_ORIGINAL_QUESTION': stage('atomic', 4096, 'The answer must reconcile the complete prepared findings; subsequent reviews retain originals.'),
++    'AUDIT_ANSWER_AGAINST_SOURCE': stage('atomic', 4096, 'The caller packs source assignments against the complete answer.'),
++    'AUDIT_ANSWER_AND_DETAILED_ACCOUNT': stage('atomic', 4096, 'One complete answer/account relation must remain joint.'),
++    'AUDIT_SOURCE_DEPENDENCY_ASSIGNMENTS': stage('grouped-review', 8192, 'Decisions can be partitioned while keeping the complete shared answer and source context.'),
++    'AUDIT_SOURCE_AND_DEPENDENCIES': stage('atomic', 4096, 'Joint source/dependency judgment cannot be reduced to votes.'),
++    'AUDIT_EXPLICIT_DEPENDENCY_CONTEXT': stage('atomic', 4096, 'This is the joint bridge required by a prior missing-context review.'),
++    'AUDIT_WITHIN_QUESTION_DEPENDENCY': stage('atomic', 4096, 'One dependency and its complete context stay together.'),
++    'REVIEW_CROSS_QUESTION_DEPENDENCIES': stage('atomic', 4096, 'Both answers must be considered jointly.'),
++    'ASSESS_REVIEW_WARRANT': stage('warrants', 4096, 'Independent issue decisions share the entire answer, review, accounts and source context.'),
++    'CORRECT_REVIEWED_REQUIREMENT': stage('atomic', 4096, 'One correction must preserve all warranted defects and source gaps.'),
++    'CORRECT_REVIEWED_ANSWER': stage('atomic', 4096, 'One correction must preserve all warranted defects; fresh reviews remain mandatory.'),
++    'CORRECT_REFERENCE_FORMAT': stage('atomic', 4096, 'Reference-only repair must preserve the complete retained response.'),
++    'ASSESS_MATCHED_TOOL_EFFECT': stage('atomic', 8192, 'Both accepted answers and native evidence must be assessed jointly.'),
++}
++NATIVE = {'retrieval', 'candidates', 'criticism', 'metadata-inventory'}
++
++
++def selected(request):
++    profile = request.get('capacity_profile')
++    if profile is None:
++        return None
++    require(profile == PROFILE, 'Unknown common capacity profile', 'E_AUTHORITY')
++    require(request.get('task') in STAGES, 'Unregistered capacity stage: ' + str(request.get('task')), 'E_AUTHORITY')
++    value = STAGES[request['task']]
++    if request.get('capacity_no_partition') is not None:
++        require(request['capacity_no_partition'] is True, 'Invalid capacity partition restriction', 'E_AUTHORITY')
++        value = replace(value, adapter='atomic', reason='The caller requires this complete relation to remain atomic.')
++    return value
++
++
++def guidance(text, policy):
++    # Only instruction strings are changed; source, answer and evidence prose
++    # are never traversed or rewritten.
++    return text.replace('3000 local tokens', str(policy.output_tokens) + ' local tokens').replace(
++        '3000-local-token', str(policy.output_tokens) + '-local-token')
++
++
++def annotate(request):
++    require(request.get('capacity_profile') in (None, PROFILE), 'Conflicting capacity profile', 'E_AUTHORITY')
++    result = deepcopy(request)
++    result['capacity_profile'] = PROFILE
++    policy = selected(result)
++    for key in ('instructions', 'downstream_instructions', 'response_reference_instructions'):
++        if isinstance(result.get(key), str):
++            result[key] = guidance(result[key], policy)
++    result['capacity_instructions'] = (
++        f'Return the full requested result within {policy.output_tokens} local tokens and '
++        f'{policy.output_bytes} UTF-8 bytes, including JSON. Preserve every material '
++        'condition, exception, rival and unresolved dependency. These bounds never '
++        'authorize omitting an assigned item or inventing a settled conclusion.')
++    if 'output_limit' in result:
++        result['output_limit'] = dict(local_tokens=policy.output_tokens, bytes=policy.output_bytes)
++    return result
++
++
++def output_bytes(request, limits):
++    policy = selected(request)
++    return policy.output_bytes if policy else limits.output_bytes
++
++
++def output_tokens(request, limits):
++    policy = selected(request)
++    return policy.output_tokens if policy else limits.output_tokens
++
++
++def estimate(request):
++    policy = selected(request)
++    if policy is None:
++        return 0
++    if policy.adapter == 'warrants':
++        return 512 + 768 * len(request['payload']['issues'])
++    if policy.adapter == 'grouped-review':
++        return 1024 + 1200 * len(request['required_considered'])
++    if policy.adapter == 'records':
++        return 512 + 768 * len(request['records'])
++    return 0  # No justified size estimator for free legal prose or a graph.
++
++
++def contract(request, limits):
++    from .account_input import input_token_limit
++    from .downstream_input import input_byte_limit
++    policy = selected(request)
++    require(policy is not None, 'Capacity contract not selected', 'E_AUTHORITY')
++    return dict(profile=PROFILE, stage=request['task'], **asdict(policy),
++        input_tokens=input_token_limit(request, limits), input_bytes=input_byte_limit(request, limits),
++        decoded_bytes=limits.decoded_output_bytes, decoded_tokens=limits.decoded_output_tokens,
++        estimated_output_tokens=estimate(request), estimate_is_guarantee=False)
++
++
++def measure_output(value, request, limits, encode, *, expanded=False):
++    from legalmath.canonical import canonical
++    data = canonical(value)
++    size, tokens = len(data), len(encode(data.decode()))
++    maximum_bytes = limits.decoded_output_bytes if expanded else output_bytes(request, limits)
++    maximum_tokens = limits.decoded_output_tokens if expanded else output_tokens(request, limits)
++    require(size <= maximum_bytes and tokens <= maximum_tokens,
++        dict(stage='DECODED_OUTPUT' if expanded else 'WIRE_OUTPUT', bytes=size, local_tokens=tokens,
++             maximum_bytes=maximum_bytes, maximum_tokens=maximum_tokens), 'E_RESOURCE_LIMIT')
++    return dict(bytes=size, local_tokens=tokens, expanded=expanded)
+--- src/legalmath/interpretation/assurance/phased/capacity_shared.py
++++ reviewed/src/legalmath/interpretation/assurance/phased/capacity_shared.py
+@@ -0,0 +1,62 @@
++"""Share exact completed candidate/criticism work among matched tool arms.
++
++The lock covers lookup, dispatch and publication. Failures remain shared too:
++an ordinary later arm cannot resample a failed common interpretation.
++"""
++import fcntl
++import json
++from pathlib import Path
++from jsonschema import validate
++from legalmath.canonical import digest
++from ..bounded_context import require
++from ..integration_contract import evidence_file, read_evidence
++from .evidence_store import save_exact
++from .capacity_policy import contract
++
++
++def execute(manager, call, run):
++    product, dispatch = manager.product, manager.product.dispatch
++    shared = (dispatch.shared_prefix or dispatch.directory) / 'capacity-shared'
++    shared.mkdir(parents=True, exist_ok=True)
++    path = shared / (call['key'] + '.json')
++    identity = dispatch.request_identity(call['request'], call['schema'])
++    budget = contract(call['request'], product.route.limits)
++    with path.with_suffix('.lock').open('a') as lock:
++        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++        if path.exists():
++            row = json.loads(path.read_text())
++            require(row['identity'] == identity and row['input_hash'] == product.route.input_hash,
++                'Changed common tool capacity context', 'E_INTEGRITY')
++            require(row['budget'] == budget, 'Changed shared capacity policy', 'E_INTEGRITY')
++            if row['status'] == 'SETTLED':
++                for pointer in row['evidence']:
++                    read_evidence(pointer, product.root, json_value=False)
++                # Preserve the source checkpoint's integrity, including an imported
++                # output that originally failed only the size screen.
++                if product.capacity_checkpoint is not None:
++                    from .capacity_checkpoint import retained
++                    retained(product, call)
++                value = read_evidence(row['result'], product.root)
++                if value['status'] == 'VALIDATED':
++                    validate(value['value'], call['schema'])
++                    call['validate'](value['value'])
++                return value
++            require(row['status'] == 'RUNNING' and row['owner'] == str(product.directory),
++                'Common interpretation interrupted in another arm; reconcile its dispatch before reuse', 'E_AUTHORITY')
++        # Publication can be interrupted after transport settles. Only the same
++        # owner may resume its durable journal; another arm may never resample.
++        save_exact(path, dict(profile='shared-common-capacity.v1', status='RUNNING',
++            identity=identity, input_hash=product.route.input_hash, budget=budget, owner=str(product.directory)))
++        value = run()
++        folder = product.directory/'capacity'/call['key']
++        state = json.loads((folder/'state.json').read_text())
++        evidence = [evidence_file(folder/name, product.root) for name in ('state.json','request.json','schema.json')]
++        for key in state['leaves']:
++            for name in ('request.json','schema.json','result.json'):
++                source = dispatch.directory/key/name
++                if source.exists():
++                    evidence.append(evidence_file(source, product.root))
++        result = evidence_file(folder/'result.json', product.root)
++        save_exact(path, dict(profile='shared-common-capacity.v1', status='SETTLED', identity=identity,
++            input_hash=product.route.input_hash, budget=budget, result=result, evidence=evidence))
++        return value
+--- src/legalmath/interpretation/assurance/phased/inventory.py
++++ reviewed/src/legalmath/interpretation/assurance/phased/inventory.py
+@@ -21,6 +21,10 @@
+             require(record['kind']=='metadata','Unknown inventory kind')
+             row['substantive_account_required']=False
+         records.append(row)
++    if getattr(product, 'capacity_manager', None) is not None:
++        from .evidence_store import save_exact
++        save_exact(product.directory / 'inventory-capacity.json',
++            product.capacity_manager.native('metadata-inventory', {}, records))
+     return {'profile':'exact-product-inventory.v2','status':'INVENTORY_PRESERVED',
+         'input_hash':route.input_hash,'store_hash':route.store_hash,
+         'records':records,'counts':dict(Counter(r['record']['kind'] for r in records)),
+--- src/legalmath/interpretation/assurance/phased/phase.py
++++ reviewed/src/legalmath/interpretation/assurance/phased/phase.py
+@@ -15,9 +15,12 @@
+ from .evidence_store import save_exact
+ 
+ 
+-def execute(product, name, calls, *, implementation_identity, admit, refresh=lambda _: None):
++def execute(product, name, calls, *, implementation_identity, admit, refresh=lambda _: None, _capacity_leaf=False):
+     require(re.fullmatch(r'[a-zA-Z0-9_.-]+', name), 'Invalid phase name')
+     require(implementation_identity, 'Phase requires explicit implementation binding')
++    manager = getattr(product, 'capacity_manager', None)
++    if manager is not None and not _capacity_leaf:
++        return manager.phase(name, calls, implementation_identity=implementation_identity, admit=admit, refresh=refresh)
+     if hasattr(product, 'prepare_calls'):
+         calls = product.prepare_calls(calls)
+     require(len(calls) == len({r['key'] for r in calls}), 'Duplicate phase call')
+@@ -62,8 +65,11 @@
+     require(state['measurements'] == measured and state['input_blocks'] == blocked, 'Phase measurement changed')
+     if 'logical_dispatches' not in state:
+         shared_path = product.dispatch.shared_prefix
+-        shared = json.loads((shared_path / 'dispatch.json').read_text()) if shared_path is not None else {'calls': {}}
+-        if shared_path is not None:
++        shared_exists = shared_path is not None and (shared_path / 'dispatch.json').exists()
++        require(shared_path is None or shared_exists or manager is not None,
++            'Missing historical shared dispatch', 'E_INTEGRITY')
++        shared = json.loads((shared_path / 'dispatch.json').read_text()) if shared_exists else {'calls': {}}
++        if shared_exists:
+             require(shared['input_hash'] == product.route.input_hash, 'Shared phase input changed', 'E_INTEGRITY')
+         actual = []
+         measured_keys = {r['key'] for r in measured}
+@@ -121,6 +127,8 @@
+             continue
+         try:
+             dispatch_call = getattr(product.dispatch, '_phase_original_call', product.dispatch.call)
++            if _capacity_leaf:
++                dispatch_call = product.dispatch._call_direct
+             result = dispatch_call(call['key'], call['request'], call['schema'], call['validate'])
+         except LegalMathError as exc:
+             if exc.code in ('E_AUTHORITY', 'E_INTEGRITY'):
+--- src/legalmath/interpretation/assurance/phased/preparation_diagnosis.py
++++ reviewed/src/legalmath/interpretation/assurance/phased/preparation_diagnosis.py
+@@ -18,7 +18,13 @@
+         failures.append(dict(origin='returned_answer', error=answer.get('error', 'UNKNOWN'),
+             reason=answer.get('reason', 'Preparation returned FAILED')))
+     phases = []
+-    for path in sorted((directory/'phases').glob('*/outcome.json')):
++    paths = list((directory/'phases').glob('*/outcome.json'))
++    if (directory/'capacity-phases').exists():
++        # A failed leaf may have been successfully decomposed. Diagnose the
++        # complete logical result; leaf failures stay retained as evidence.
++        paths = [p for p in paths if not p.parent.name.startswith('capacity-')]
++        paths += list((directory/'capacity-phases').glob('*/outcome.json'))
++    for path in sorted(paths):
+         value = json.loads(path.read_text())
+         if value.get('execution_complete') is True:
+             continue
+--- src/legalmath/interpretation/search/providers.py
++++ reviewed/src/legalmath/interpretation/search/providers.py
+@@ -226,8 +226,10 @@
+                         if time.monotonic()-began>settings.timeout_seconds:
+                             timed_out = True
+                             break
+-                        if any(p.exists() and p.stat().st_size>4_000_000 for p in logs) or (output.exists() and output.stat().st_size>settings.max_output_bytes):
+-                            raise LegalMathError('E_RESOURCE_LIMIT',details='Codex output byte cap')
++                        if any(p.exists() and p.stat().st_size>4_000_000 for p in logs):
++                            raise LegalMathError('E_RESOURCE_LIMIT',details='Codex event-log byte cap')
++                        if output.exists() and output.stat().st_size>settings.max_output_bytes:
++                            raise LegalMathError('E_RESOURCE_LIMIT',details='Codex response output byte cap')
+                         try: proc.wait(timeout=0.2)
+                         except subprocess.TimeoutExpired: pass
+                 finally:
+@@ -259,7 +261,8 @@
+                     raise TerminalServiceFailure(terminal[:2000], allowance_slot=issued,
+                                                  request_hash=digest(request))
+                 raise LegalMathError('E_DEPENDENCY',details=str(error or diagnostic or 'Codex returned no structured output')[:2000])
+-            if output.stat().st_size>settings.max_output_bytes: raise LegalMathError('E_RESOURCE_LIMIT')
++            if output.stat().st_size>settings.max_output_bytes:
++                raise LegalMathError('E_RESOURCE_LIMIT',details='Codex response output byte cap')
+             value=loads(output.read_bytes())
+             usage=[e['usage'] for e in events if e.get('type')=='turn.completed' and 'usage' in e]
+             return Completion(value,{'provider':self.provider_id,'fresh_context':True,
+--- tests/assurance/test_common_capacity.py
++++ reviewed/tests/assurance/test_common_capacity.py
+@@ -0,0 +1,548 @@
++"""Behavioral controls for the common capacity path; no live model calls."""
++from copy import deepcopy
++from dataclasses import replace
++from pathlib import Path
++import json
++import pytest
++from jsonschema import validate
++from legalmath.canonical import canonical, digest
++from legalmath.errors import LegalMathError
++from legalmath.interpretation.assurance.bounded_context import Limits
++from legalmath.interpretation.assurance.bounded_product import BoundedProduct, NOTE, WARRANT
++from legalmath.interpretation.assurance.phased.product import PhasedProduct
++from legalmath.interpretation.assurance.phased import capacity_policy as policy, capacity_adapters as adapters
++from legalmath.interpretation.assurance.phased.phase import execute
++from legalmath.interpretation.search.providers import Completion
++from tests.assurance.test_bounded_product import Scripted, envelope, limits
++from tests.assurance.test_phased_product import PhasedScripted
++
++
++def product(tmp_path, provider=None, *, phased=False, **kwargs):
++    options = dict(common_capacity_profile=policy.PROFILE, limits=limits(), **kwargs)
++    if phased:
++        options.update(phase_admit=lambda name, count: {'name': name, 'count': count}, phase_identity='test-code.v1')
++    cls = PhasedProduct if phased else BoundedProduct
++    return cls(tmp_path, tmp_path/'product', provider or Scripted(), envelope(), list, **options)
++
++
++def warrant(p, count=6):
++    sources = [r for r in p.route.records.values() if r['kind'] == 'source']
++    req = p.request('ASSESS_REVIEW_WARRANT', envelope()['original_questions'][0], sources,
++        payload=dict(answer={'conclusion': 'Only if the exception does not apply.'},
++            review={'issues': ['Full original issue context remains visible.']},
++            issues=[dict(id='i'+str(i), text='Check source condition '+str(i)) for i in range(count)]), expected=['review-0'])
++    def check(value):
++        actual = [r['issue_id'] for r in value['decisions']]
++        assert actual == ['i'+str(i) for i in range(count)]
++        p.citations(value, sources)
++    return dict(key='warrant', request=req, schema=WARRANT, validate=check)
++
++
++def run(p, c):
++    return p.dispatch.call(c['key'], c['request'], c['schema'], c['validate'])
++
++
++def test_output_exact_boundary_and_one_over():
++    req = policy.annotate({'task': 'STRUCTURED_CRITICISM'})
++    value = {'a': 'x'*50}
++    length = len(canonical(value))
++    cap = Limits(decoded_output_bytes=length, decoded_output_tokens=length)
++    assert policy.measure_output(value, req, cap, list, expanded=True)['bytes'] == length
++    with pytest.raises(LegalMathError):
++        policy.measure_output({'a': 'x'*51}, req, cap, list, expanded=True)
++    tokens = policy.output_tokens(req, cap)
++    assert policy.measure_output({'a': 'x'*(tokens-8)}, req, cap, list)['local_tokens'] == tokens
++    with pytest.raises(LegalMathError):
++        policy.measure_output({'a': 'x'*(tokens-7)}, req, cap, list)
++
++
++def test_unknown_stage_and_profile_fail_before_transport(tmp_path):
++    p = product(tmp_path)
++    for req in ({'task': 'UNREVIEWED_STAGE'}, {'task': 'READ_SOURCE', 'capacity_profile': 'future'}):
++        with pytest.raises(LegalMathError):
++            p.dispatch.call('bad', req, {}, lambda _: None)
++    assert not p.provider.requests
++
++
++def test_warrant_output_partition_preserves_full_context_and_resumes(tmp_path):
++    p = product(tmp_path)
++    c = warrant(p)
++    value = run(p, c)
++    assert value['status'] == 'VALIDATED'
++    assert len(p.provider.requests) == 2
++    for req in p.provider.requests:
++        for field in ('answer', 'review'):
++            assert req['payload'][field] == c['request']['payload'][field]
++        assert req['records'] == c['request']['records']
++        assert len(req['payload']['issues']) == 3
++    assert run(p, c) == value and len(p.provider.requests) == 2
++
++
++@pytest.mark.parametrize('mutation', ['source', 'schema', 'version'])
++def test_changed_contract_cannot_reuse(tmp_path, monkeypatch, mutation):
++    p = product(tmp_path)
++    c = warrant(p)
++    run(p, c)
++    if mutation == 'source':
++        c['request']['records'][0]['text'] += ' Changed.'
++    elif mutation == 'schema':
++        c['schema'] = deepcopy(c['schema'])
++        c['schema']['properties']['considered']['maxItems'] = 1
++    else:
++        monkeypatch.setitem(policy.STAGES, 'ASSESS_REVIEW_WARRANT',
++            replace(policy.STAGES['ASSESS_REVIEW_WARRANT'], maximum_depth=3))
++    with pytest.raises(LegalMathError):
++        run(p, c)
++    assert len(p.provider.requests) == 2
++
++
++def test_failed_independent_child_does_not_cancel_sibling(tmp_path):
++    p = product(tmp_path, Scripted(fail_at=1))
++    result = run(p, warrant(p))
++    assert result['status'] == 'FAILED' and result['error'] == 'E_DEPENDENCY'
++    assert len(p.provider.requests) == 2
++    assert result['pieces'][1]['status'] == 'VALIDATED'
++
++
++def test_uncertain_leaf_blocks_resampling(tmp_path):
++    p = product(tmp_path)
++    c = warrant(p)
++    run(p, c)
++    path = p.dispatch.directory/'dispatch.json'
++    state = json.loads(path.read_text())
++    state['calls']['warrant-p0']['status'] = 'RESERVED'
++    path.write_text(json.dumps(state))
++    with pytest.raises(LegalMathError) as error:
++        run(p, c)
++    assert error.value.code == 'E_AUTHORITY'
++    assert len(p.provider.requests) == 2
++
++
++def test_completed_leaf_tampering_blocks_assembled_reuse(tmp_path):
++    p = product(tmp_path)
++    c = warrant(p)
++    run(p, c)
++    (p.dispatch.directory/'warrant-p0/result.json').write_text('{}')
++    with pytest.raises(LegalMathError) as error:
++        run(p, c)
++    assert error.value.code == 'E_INTEGRITY'
++
++
++class Overflow(Scripted):
++    def complete(self, request, schema, settings):
++        if len(request['payload']['issues']) > 1:
++            self.requests.append(deepcopy(request))
++            raise LegalMathError('E_RESOURCE_LIMIT', details='Actual provider output exceeds local token allowance')
++        return super().complete(request, schema, settings)
++
++
++def test_actual_overflow_has_finite_recovery_not_same_request_retry(tmp_path):
++    p = product(tmp_path, Overflow())
++    c = warrant(p, 3)
++    result = run(p, c)
++    assert result['status'] == 'VALIDATED'
++    assert [len(r['payload']['issues']) for r in p.provider.requests] == [3, 1, 2, 1, 1]
++    assert len({digest(r) for r in p.provider.requests}) == 5
++    assert json.loads((p.dispatch.directory/'warrant/result.json').read_text())['status'] == 'FAILED'
++    assert run(p, c) == result and len(p.provider.requests) == 5
++
++
++def test_semantic_failure_is_not_a_capacity_retry(tmp_path):
++    class Wrong(Scripted):
++        def complete(self, request, schema, settings):
++            result = super().complete(request, schema, settings)
++            result.value['decisions'] = []
++            return result
++    p = product(tmp_path, Wrong())
++    result = run(p, warrant(p, 2))
++    assert result['status'] == 'FAILED' and len(p.provider.requests) == 1
++
++
++def test_service_deadline_is_not_split(tmp_path):
++    class Deadline(Scripted):
++        def complete(self, request, schema, settings):
++            self.requests.append(request)
++            raise LegalMathError('E_RESOURCE_LIMIT', details='Codex call deadline with output; inspect retained evidence')
++    p = product(tmp_path, Deadline())
++    assert run(p, warrant(p, 2))['status'] == 'FAILED'
++    assert len(p.provider.requests) == 1
++
++
++def test_leaf_call_and_depth_bounds(tmp_path, monkeypatch):
++    monkeypatch.setitem(policy.STAGES, 'ASSESS_REVIEW_WARRANT',
++        replace(policy.STAGES['ASSESS_REVIEW_WARRANT'], maximum_depth=1, maximum_calls=2))
++    p = product(tmp_path, Overflow())
++    result = run(p, warrant(p, 3))
++    assert result['status'] == 'FAILED' and len(p.provider.requests) <= 2
++
++
++def test_oversized_atomic_context_is_explicit(tmp_path):
++    p = product(tmp_path)
++    req = p.request('STRUCTURED_CRITICISM', envelope()['original_questions'][0], [], payload='x'*250000)
++    result = p.dispatch.call('criticism', req, {}, lambda _: None)
++    assert result['status'] == 'FAILED' and result['capacity_remainder']['adapter'] == 'atomic'
++    assert 'graph' in result['reason'] and not p.provider.requests
++
++
++def test_grouped_review_keeps_remote_exception_and_namespaces(tmp_path):
++    from legalmath.interpretation.assurance.phased import group_review
++    class Review(PhasedScripted):
++        def complete(self, request, schema, settings):
++            # A hostile omission would turn this fixture's answer into ACCEPT.
++            assert any('exception' in r['text'] for r in request['records'])
++            return super().complete(request, schema, settings)
++    p = product(tmp_path, Review(), phased=True)
++    sources = [r for r in p.route.records.values() if r['kind'] == 'source']
++    ids = ['assignment-'+str(i) for i in range(8)]
++    req = p.request('AUDIT_SOURCE_DEPENDENCY_ASSIGNMENTS', envelope()['original_questions'][0], sources,
++        payload=dict(answer={'conclusion':'Duty always applies.'}, assignments=ids), expected=ids)
++    shape = group_review.schema(ids, legal_indexes=[])
++    result = p.dispatch.call('group', req, shape,
++        lambda v: group_review.validate(p, 'p14', v, ids, sources))
++    assert result['status'] == 'VALIDATED'
++    assert len(p.provider.requests) == 2
++    assert len({r['analysis_id'] for r in result['value']['analyses']}) == 2
++    assert all(r['decision']['verdict'] == 'UNRESOLVED' for r in result['value']['analyses'])
++    assert set(result['value']['assignments']) == set(ids)
++
++
++def test_missing_or_duplicate_assignments_are_rejected(tmp_path):
++    p = product(tmp_path)
++    c = warrant(p, 2)
++    c['request']['payload']['issues'][1]['id'] = 'i0'
++    with pytest.raises(LegalMathError):
++        run(p, c)
++    assert not p.provider.requests
++
++
++def test_original_assembled_validation_can_veto_merge(tmp_path):
++    p = product(tmp_path)
++    c = warrant(p)
++    def reject(value):
++        raise LegalMathError('E_SCHEMA', details='Contradictory assembled decisions')
++    c['validate'] = reject
++    result = run(p, c)
++    assert result['status'] == 'FAILED' and result['error'] == 'E_SCHEMA'
++    assert len(p.provider.requests) == 2
++
++
++def test_all_active_model_stages_are_registered_and_budgeted(tmp_path):
++    p = product(tmp_path)
++    for task, definition in policy.STAGES.items():
++        req = {'task': task, 'payload': {'issues': []}, 'records': [], 'required_considered': []}
++        measurement = p.dispatch.measure(req, {'type': 'object'})
++        assert measurement['capacity']['stage'] == task
++        assert measurement['capacity']['output_tokens'] == definition.output_tokens
++    assert len(policy.STAGES) == 20
++
++
++def test_real_product_entry_and_reviews_use_common_interface(tmp_path):
++    provider = PhasedScripted()
++    old = BoundedProduct(tmp_path, tmp_path/'acquisition', provider, envelope(), list, limits=limits())
++    investigation = old.investigate()
++    p = product(tmp_path, provider, phased=True)
++    p.install_dispatch_admission()
++    count = len(provider.requests)
++    outcome = p.answer(investigation)
++    assert outcome['answers']['p14']['answer']['status'] == 'VALIDATED'
++    assert not outcome['all_question_reviews_accepted']
++    assert all(r['capacity_profile'] == policy.PROFILE for r in provider.requests[count:])
++    assert len(list((p.directory/'capacity').glob('*/state.json'))) > 2
++    used = len(provider.requests)
++    assert p.answer(investigation)['answers'] == outcome['answers']
++    assert len(provider.requests) == used
++
++
++def test_native_complete_graph_has_memory_bound(tmp_path):
++    p = product(tmp_path)
++    graph = {'arguments':['a','b'], 'attacks':[['a','b']]}
++    receipt = p.capacity_manager.native('criticism', {}, graph)
++    assert receipt['input_hash'] == digest(dict(packet={}, inputs=graph))
++    assert not receipt['semantic_partition']
++    with pytest.raises(LegalMathError):
++        p.capacity_manager.native('criticism', {}, {'text':'x'*3000000})
++    with pytest.raises(LegalMathError):
++        p.capacity_manager.native('unknown-solver', {}, graph)
++
++
++def test_instructions_and_transport_settings_agree(tmp_path):
++    p = product(tmp_path)
++    req = policy.annotate(p.request('ANSWER_ORIGINAL_QUESTION', envelope()['original_questions'][0], [], payload={}, expected=[]))
++    from legalmath.interpretation.assurance.bounded_references import prepare
++    wire = prepare(req, NOTE)
++    assert '3000 local tokens' not in wire['request']['instructions']
++    assert str(policy.STAGES[req['task']].output_tokens) in wire['request']['capacity_instructions']
++    assert p.dispatch.measure(req, NOTE)['bytes'] > len(canonical(req))
++
++
++def test_independent_phase_survives_atomic_capacity_failure(tmp_path):
++    p = product(tmp_path, phased=True)
++    bad = dict(key='atomic', request={'task':'STRUCTURED_CRITICISM','text':'x'*250000},
++        schema={}, validate=lambda _: None)
++    good = warrant(p, 1)
++    result = execute(p, 'independent', [bad, good], implementation_identity='test-code.v1',
++        admit=p.phase_admit)
++    assert [r['result']['status'] for r in result['results']] == ['FAILED','VALIDATED']
++
++
++def test_source_reading_partitions_then_validates_complete_population(tmp_path):
++    class ReadingOverflow(Scripted):
++        def complete(self, request, schema, settings):
++            if len(request['records']) > 1:
++                self.requests.append(request)
++                raise LegalMathError('E_RESOURCE_LIMIT', details='Actual provider output exceeds local token allowance')
++            return super().complete(request, schema, settings)
++    p = product(tmp_path, ReadingOverflow())
++    ids = [r['id'] for r in p.route.records.values() if r['kind'] == 'source']
++    packet = p.route.make_packet('READ_SOURCE', ids)
++    result = p.dispatch.call('reading', packet['request'], packet['schema'],
++        lambda value: p.route.validate_response(packet, value))
++    assert result['status'] == 'VALIDATED'
++    assert [r['id'] for r in result['value']['records']] == ids
++    assert len(p.provider.requests) == 3
++    assert all(r['status'] == 'UNRESOLVED' for r in result['value']['records'])
++
++
++@pytest.mark.parametrize('broken_bridge', [False, True])
++def test_partial_source_notes_require_joint_exception_bridge(tmp_path, broken_bridge):
++    class NoteOverflow(Scripted):
++        def complete(self, request, schema, settings):
++            if len(request['records']) > 1 and 'capacity_partial_readings' not in request:
++                self.requests.append(request)
++                raise LegalMathError('E_RESOURCE_LIMIT', details='Actual provider output exceeds local token allowance')
++            if 'capacity_partial_readings' in request:
++                assert len(request['records']) == 2
++                assert len(request['capacity_partial_readings']) == 2
++                assert any('exception' in row['text'] for row in request['records'])
++                if broken_bridge:
++                    self.requests.append(request)
++                    raise RuntimeError('Joint bridge failed')
++            return super().complete(request, schema, settings)
++    p = product(tmp_path, NoteOverflow())
++    sources = [r for r in p.route.records.values() if r['kind'] == 'source']
++    req = p.request('ASSESS_ORIGINAL_REQUIREMENT', envelope()['original_questions'][0], sources,
++        payload={'assignment':'Assess the duty with its exception.'}, expected=['requirement'])
++    def check(value):
++        assert any('exception' in row['consequence'] for row in value['alternatives'])
++    result = p.dispatch.call('source-notes', req, NOTE, check)
++    assert result['status'] == ('FAILED' if broken_bridge else 'VALIDATED')
++    assert len(p.provider.requests) == 4
++
++
++def test_warrant_merge_rebases_exact_assertion_paths(tmp_path):
++    p = product(tmp_path)
++    c = warrant(p, 2)
++    c['request'] = policy.annotate(c['request'])
++    children = adapters.split(p, c)
++    values = []
++    for child in children:
++        value = Scripted().complete(child['request'], child['schema'], p.dispatch.settings).value
++        value['assertion_bindings'] = [{'path':'/decisions/0/reason', 'index_hash':'test',
++            'citation':{'record_id':'r', 'quote':'q', 'locator':''}}]
++        values.append(value)
++    merged = adapters.merge(p, c, children, values)
++    assert [r['path'] for r in merged['assertion_bindings']] == ['/decisions/0/reason','/decisions/1/reason']
++    values[0]['assertion_bindings'][0]['path'] = '/unrecognized'
++    with pytest.raises(LegalMathError):
++        adapters.merge(p, c, children, values)
++
++
++def test_actual_provider_output_budget_and_settings(tmp_path, monkeypatch):
++    from legalmath.interpretation.assurance.bounded_provider import BoundedCodexProvider
++    from legalmath.interpretation.search.providers import CodexProvider
++    class Allowance:
++        def service_recovery_policy(self): return None
++        def terminal_recovery_attempts(self): return 0
++    p = object.__new__(BoundedCodexProvider)
++    p.allowance, p.encode, p.limits = Allowance(), list, Limits()
++    p.check = lambda: None
++    p.measure = lambda *args: {}
++    req = policy.annotate({'task':'STRUCTURED_CRITICISM'})
++    def complete(self, request, schema, settings):
++        return Completion({'a':'x'*4000}, {})
++    monkeypatch.setattr(CodexProvider, 'complete', complete)
++    from legalmath.interpretation.search.models import Settings
++    assert p._complete(req, {}, Settings()).value['a'] == 'x'*4000
++    with pytest.raises(LegalMathError):
++        p._complete({'task':'STRUCTURED_CRITICISM'}, {}, Settings())
++
++
++def test_remaining_wall_time_is_durable(tmp_path, monkeypatch):
++    from legalmath.interpretation.assurance.phased import capacity
++    p = product(tmp_path)
++    c = warrant(p)
++    # Persist a plan before a simulated crash, without a dispatched leaf.
++    original = capacity.adapters.split
++    def crash(*args): raise RuntimeError('interruption before subdivision')
++    monkeypatch.setattr(capacity.adapters, 'split', crash)
++    with pytest.raises(RuntimeError): run(p, c)
++    monkeypatch.setattr(capacity.adapters, 'split', original)
++    original_time = capacity.time.time()
++    monkeypatch.setattr(capacity.time, 'time', lambda: original_time + 20000)
++    result = run(p, c)
++    assert result['status'] == 'FAILED' and 'elapsed-time' in result['reason']
++    assert not p.provider.requests
++
++
++def test_full_native_tool_entry_receives_complete_candidates_and_graph(tmp_path):
++    from legalmath.interpretation.search.models import DIMENSIONS
++    class Tools(Scripted):
++        def complete(self, req, schema, settings):
++            self.requests.append(req)
++            if req['task'] == 'GENERATE_SOURCE_WARRANTED_CANDIDATES':
++                units = req['source_packet']['units']
++                value = dict(readings=[dict(local_id='candidate', family='scope', subject='Duty',
++                    statement='Conditional duty', distinction='Consent matters', citations=[
++                        {'unit_id':units[0]['unit_id'], 'quote':units[0]['text']}],
++                    assumptions=[], questions=[], formalization=None)],
++                    dimensions=[dict(dimension=d, status='AMBIGUOUS', source_unit_ids=[r['unit_id'] for r in units],
++                        explanation='Requires review') for d in DIMENSIONS],
++                    coverage=[dict(unit_id=r['unit_id'], status='CONTEXT', reason='Source retained') for r in units], questions=[])
++            else:
++                value = dict(arguments=[], attacks=[], preferences=[], cases=[], case_queries=[], questions=['Unresolved'])
++            return Completion(value, {})
++    class Backend:
++        tools = ('bm25','legalruleml','pyarg')
++        def identity(self): return {'version':'test'}
++        def retrieval(self, packet, inputs, folder): return {'status':'PASS'}
++        def candidates(self, packet, inputs, folder):
++            assert list(inputs) == ['candidate']
++            return {'status':'UNSUPPORTED'}
++        def criticism(self, packet, inputs, folder):
++            assert 'proposal' in inputs and 'evaluation' in inputs
++            return {'status':'UNSUPPORTED'}
++    p = product(tmp_path, Tools(), selected_tools=Backend.tools)
++    p.tools('p14', envelope()['original_questions'][0], Backend(), findings=[])
++    bindings = list((p.directory/'native').rglob('product-binding.json'))
++    assert len(bindings) == 3
++    assert all(json.loads(path.read_text())['binding']['capacity']['semantic_partition'] is False for path in bindings)
++    second = BoundedProduct(tmp_path, tmp_path/'another-arm', p.provider, envelope(), list, limits=limits(),
++        selected_tools=Backend.tools, shared_prefix=p.dispatch.directory, common_capacity_profile=policy.PROFILE)
++    previous = len(p.provider.requests)
++    second.tools('p14', envelope()['original_questions'][0], Backend(), findings=[])
++    assert len(p.provider.requests) == previous
++    assert len(list((second.directory/'native').rglob('product-binding.json'))) == 3
++
++
++def test_input_exact_boundary_includes_schema_and_guidance(tmp_path):
++    p = product(tmp_path)
++    c = warrant(p, 1)
++    measured = p.dispatch.measure(c['request'], c['schema'])
++    p.route.limits = replace(p.route.limits, input_tokens=measured['local_tokens'], input_bytes=measured['bytes'])
++    assert p.dispatch.measure(c['request'], c['schema'])['bytes'] == measured['bytes']
++    p.route.limits = replace(p.route.limits, input_bytes=measured['bytes']-1)
++    with pytest.raises(LegalMathError): p.dispatch.measure(c['request'], c['schema'])
++
++
++def test_budget_profile_reaches_nonreference_transport(tmp_path):
++    class SettingsCapture(Scripted):
++        def complete(self, request, schema, settings):
++            assert settings.max_output_bytes == policy.STAGES[request['task']].output_bytes
++            return super().complete(request, schema, settings)
++    p = product(tmp_path, SettingsCapture())
++    assert run(p, warrant(p, 1))['status'] == 'VALIDATED'
++
++
++def test_matched_comparison_routes_through_phases(tmp_path, monkeypatch):
++    from scripts import legal_integration_campaign as campaign, legal_integration_phased_live as live
++    from legalmath.interpretation.assurance.monitor import save
++    class Comparison(Scripted):
++        def complete(self, request, schema, settings):
++            self.requests.append(request)
++            assert request['task'] == 'ASSESS_MATCHED_TOOL_EFFECT'
++            return Completion(dict(effect='insufficient', reason='Synthetic only', baseline_quote='Conditional duty',
++                candidate_quote='Conditional duty', support=[], unresolved=['No legal claim'], tool_consideration='Retained'), {})
++    for attr, value in [('ROOT',tmp_path), ('LIVE',Path('live')), ('ENVELOPE',Path('envelope.json')),
++                        ('PROGRAM',Path('program.json')), ('TOKENIZER',Path('tokenizer'))]:
++        monkeypatch.setattr(campaign, attr, value)
++    monkeypatch.setattr(campaign, 'tokenizer', lambda _: list)
++    monkeypatch.setattr(campaign, 'eligible_tools', lambda _: ['bm25'])
++    monkeypatch.setattr(campaign, 'applicability_pairs', lambda: {('p14','bm25'):{'scope':'test'}})
++    monkeypatch.setattr(campaign, 'validate_effect', lambda *args: None)
++    monkeypatch.setattr(campaign, 'ref', lambda *args: {'path':'test','sha256':'test'})
++    monkeypatch.setattr(live, 'phase_admit', lambda owner: lambda name,count: dict(name=name,count=count))
++    save(tmp_path/'program.json', {'common_capacity':{'capacity_profile':policy.PROFILE}})
++    save(tmp_path/'envelope.json', envelope())
++    value = {'input_hash':'same', 'active_questions':['p14'], 'answers':{'p14':{'answer':{
++        'status':'VALIDATED', 'value':{'conclusion':'Conditional duty'}}, 'tools':[], 'review_accepted':True}}}
++    save(tmp_path/'live/arms/p14/baseline/result.json', value)
++    save(tmp_path/'live/arms/p14/bm25/result.json', value)
++    service = Comparison()
++    result = campaign.compare('p14','bm25',service)
++    assert result['result']['status'] == 'VALIDATED'
++    assert service.requests[0]['capacity_profile'] == policy.PROFILE
++    assert list((tmp_path/'live/comparisons/p14/bm25/capacity').glob('*/state.json'))
++
++
++def test_exact_valid_answer_migrates_without_resampling(tmp_path):
++    from legalmath.interpretation.assurance.integration_contract import evidence_file
++    from legalmath.interpretation.assurance.monitor import save
++    provider = Scripted()
++    old = BoundedProduct(tmp_path, tmp_path/'old', provider, envelope(), list, limits=limits())
++    question = envelope()['original_questions'][0]
++    sources = [r for r in old.route.records.values() if r['kind'] == 'source']
++    previous = old.note('answer-p14', 'ANSWER_ORIGINAL_QUESTION', question, sources, {}, ['one'])
++    assert previous['status'] == 'VALIDATED'
++    row = {n:evidence_file(old.dispatch.directory/'answer-p14'/(n+'.json'), tmp_path)
++        for n in ('request','schema','result')}
++    row.update(mode='VALIDATED', dispatch=evidence_file(old.dispatch.directory/'dispatch.json', tmp_path))
++    save(tmp_path/'checkpoint.json', dict(profile='common-capacity-checkpoint.v1',
++        input_hash=old.route.input_hash, calls={'answer-p14':row}))
++    p = product(tmp_path, provider, phased=True, capacity_checkpoint=evidence_file(tmp_path/'checkpoint.json',tmp_path))
++    used = len(provider.requests)
++    value = p.note('answer-p14','ANSWER_ORIGINAL_QUESTION',question,sources,{},['one'])
++    assert value['value'] == previous['value'] and len(provider.requests) == used
++    assert value['provenance']['new_provider_calls'] == 0
++    assert not (p.dispatch.directory/'dispatch.json').exists()
++    assert p.note('answer-p14','ANSWER_ORIGINAL_QUESTION',question,sources,{},['one']) == value
++
++
++def test_failed_semantic_checkpoint_is_not_resampled(tmp_path):
++    from legalmath.interpretation.assurance.integration_contract import evidence_file
++    from legalmath.interpretation.assurance.monitor import save
++    p = product(tmp_path)
++    call = warrant(p, 1)
++    row = dict(mode='RETAINED_FAILURE')
++    failure = dict(status='FAILED', error='E_SCHEMA', reason='Retained semantic rejection')
++    for name,value in [('request',call['request']),('schema',call['schema']),('result',failure)]:
++        save(tmp_path/(name+'.json'),value)
++        row[name] = evidence_file(tmp_path/(name+'.json'),tmp_path)
++    save(tmp_path/'checkpoint.json', dict(profile='common-capacity-checkpoint.v1',
++        input_hash=p.route.input_hash, calls={'warrant':row}))
++    p.capacity_checkpoint = evidence_file(tmp_path/'checkpoint.json',tmp_path)
++    assert run(p,call) == failure and not p.provider.requests
++
++
++def test_interrupted_shared_interpretation_cannot_move_to_another_arm(tmp_path):
++    from legalmath.interpretation.assurance.phased.capacity_shared import execute as shared
++    p = product(tmp_path)
++    call = dict(key='candidates-p14',request=policy.annotate({'task':'GENERATE_SOURCE_WARRANTED_CANDIDATES'}),
++        schema={},validate=lambda _:None)
++    def crash(): raise RuntimeError('Interrupted before publication')
++    with pytest.raises(RuntimeError): shared(p.capacity_manager,call,crash)
++    second = BoundedProduct(tmp_path,tmp_path/'other',p.provider,envelope(),list,limits=limits(),
++        shared_prefix=p.dispatch.directory, common_capacity_profile=policy.PROFILE)
++    with pytest.raises(LegalMathError) as error:
++        shared(second.capacity_manager,call,lambda:pytest.fail('Duplicate interpretation'))
++    assert error.value.code == 'E_AUTHORITY' and not p.provider.requests
++
++
++def test_native_retention_preserves_evidence_paths_and_detects_changes(tmp_path):
++    from legalmath.interpretation.assurance.phased.capacity_checkpoint import native
++    from legalmath.interpretation.assurance.integration_contract import evidence_file
++    from legalmath.interpretation.assurance.monitor import save
++    p = product(tmp_path)
++    binding = dict(kind='retrieval',packet_hash='p',inputs_hash='i',backend={'version':'old'},capacity={})
++    save(tmp_path/'native-evidence.json',{'hits':['remote exception']})
++    value = dict(status='PASS',evidence=evidence_file(tmp_path/'native-evidence.json',tmp_path))
++    save(tmp_path/'native-result.json',value)
++    save(tmp_path/'native-binding.json',dict(status='COMPLETED',
++        binding={k:v for k,v in binding.items() if k!='capacity'},result_hash=digest(value)))
++    save(tmp_path/'checkpoint.json',dict(profile='common-capacity-checkpoint.v1',input_hash=p.route.input_hash,
++        calls={},native=[dict(kind='retrieval',binding=evidence_file(tmp_path/'native-binding.json',tmp_path),
++            result=evidence_file(tmp_path/'native-result.json',tmp_path))]))
++    p.capacity_checkpoint = evidence_file(tmp_path/'checkpoint.json',tmp_path)
++    assert native(p,binding) == value
++    with pytest.raises(LegalMathError): native(p,{**binding,'inputs_hash':'changed'})
++    save(tmp_path/'native-evidence.json',{})
++    with pytest.raises(LegalMathError): native(p,binding)
+--- tests/tooling/test_common_capacity_deploy.py
++++ reviewed/tests/tooling/test_common_capacity_deploy.py
+@@ -0,0 +1,114 @@
++from copy import deepcopy
++from pathlib import Path
++import pytest
++from scripts import legal_common_capacity_deploy as deploy
++
++
++def environment(tmp_path, monkeypatch):
++    for key, value in dict(ROOT=tmp_path, WORK=tmp_path/'work', STAGE=tmp_path/'work/staging',
++            OLD=tmp_path/'old', BASE=tmp_path/'master', PROGRAM=tmp_path/'program.json',
++            MISSION=tmp_path/'mission.json', PLAN=tmp_path/'plan.md').items():
++        monkeypatch.setattr(deploy,key,value)
++    process = dict(pid=123,start='old')
++    deploy.save(deploy.PROGRAM, {'program':'old'})
++    deploy.save(deploy.WORK/'implementation-files.json', ['scripts/changed.py'])
++    rows = []
++    for name in ('scripts/changed.py','plan.md'):
++        path = deploy.STAGE/name
++        path.parent.mkdir(parents=True,exist_ok=True)
++        path.write_text('reviewed replacement')
++        rows.append(dict(target=name,before=None,replacement=deploy.ref(path)))
++    manifest = dict(profile='common-capacity-deployment.v1', deadline_utc=deploy.DEADLINE.isoformat(),
++        provider_calls_added=0,evidence=[],writes=rows,
++        predecessor_program=deploy.ref(deploy.PROGRAM),predecessor_worker=process)
++    deploy.save(deploy.WORK/'deployment-manifest.json',manifest)
++    deploy.save(deploy.OLD/'execution/worker.json', {'process':process})
++    deploy.save(deploy.OLD/'execution/active-command.json', {'process':dict(pid=124,start='child')})
++    deploy.save(deploy.OLD/'execution/result.json', {'commands':[]})
++    commands=[]
++    for i in range(4):
++        row={}
++        for stream in ('stdout','stderr'):
++            path=deploy.OLD/('log-'+str(i)+stream)
++            path.write_text('complete')
++            row[stream]=deploy.ref(path)
++        commands.append(row)
++    deploy.save(deploy.OLD/'execution/result.json', {'commands':commands})
++    deploy.save(deploy.BASE/'execution-state.json', {'tasks':{'old-owner':{'status':'FAILED'}}})
++    monkeypatch.setattr(deploy,'identity',lambda pid:None)
++    return manifest
++
++
++@pytest.mark.parametrize('mutation', ['outside','protected','replacement','duplicate','authority','source'])
++def test_manifest_refuses_unreviewed_writes(tmp_path,monkeypatch,mutation):
++    manifest=environment(tmp_path,monkeypatch)
++    assert deploy.checked_manifest()==manifest
++    if mutation=='outside': manifest['writes'][0]['target']='../outside.py'
++    elif mutation=='protected': manifest['writes'][0]['target']='.codex/config.toml'
++    elif mutation=='replacement': manifest['writes'][0]['replacement']=deploy.ref(deploy.PROGRAM)
++    elif mutation=='duplicate': manifest['writes'].append(deepcopy(manifest['writes'][0]))
++    elif mutation=='authority': manifest['provider_calls_added']=1
++    else: (deploy.STAGE/'scripts/changed.py').write_text('unreviewed')
++    deploy.save(deploy.WORK/'deployment-manifest.json',manifest)
++    with pytest.raises(ValueError): deploy.checked_manifest()
++
++
++def test_running_predecessor_only_delays_adoption(tmp_path,monkeypatch):
++    manifest=environment(tmp_path,monkeypatch)
++    monkeypatch.setattr(deploy,'identity',lambda pid:manifest['predecessor_worker'])
++    assert deploy.settled(manifest) is False
++    with pytest.raises(ValueError):deploy.adopt()
++    assert not (deploy.ROOT/'scripts/changed.py').exists()
++
++
++@pytest.mark.parametrize('blocker',['child','owner','reserved','missing_result','master','logs'])
++def test_settlement_requires_complete_authenticated_quiescence(tmp_path,monkeypatch,blocker):
++    manifest=environment(tmp_path,monkeypatch)
++    assert deploy.settled(manifest)
++    if blocker=='child':
++        monkeypatch.setattr(deploy,'identity',lambda pid:dict(pid=124,start='child') if pid==124 else None)
++    elif blocker=='owner':
++        deploy.save(deploy.BASE/'execution-state.json', {'tasks':{'old-owner':{'status':'RUNNING'}}})
++    elif blocker=='reserved':
++        deploy.save(deploy.OLD/'live/q/calls/dispatch.json', {'calls':{'pending':{'status':'RESERVED'}}})
++    elif blocker=='missing_result': (deploy.OLD/'execution/result.json').unlink()
++    elif blocker=='master': deploy.save(deploy.PROGRAM,{'changed':True})
++    else: (deploy.OLD/'log-0stdout').write_text('changed')
++    with pytest.raises(ValueError):deploy.settled(manifest)
++
++
++def test_adopted_reentry_checks_files_without_requiring_old_master(tmp_path,monkeypatch):
++    manifest=environment(tmp_path,monkeypatch)
++    for row in manifest['writes']:
++        path=deploy.ROOT/row['target']
++        path.parent.mkdir(parents=True,exist_ok=True)
++        path.write_bytes((deploy.ROOT/row['replacement']['path']).read_bytes())
++    deploy.save(deploy.WORK/'adoption.json',dict(status='APPLIED',manifest=deploy.ref(deploy.WORK/'deployment-manifest.json')))
++    deploy.save(deploy.PROGRAM,{'program':'new'})
++    assert deploy.adopt()['reused']
++    (deploy.ROOT/'scripts/changed.py').write_text('changed')
++    with pytest.raises(ValueError):deploy.adopt()
++
++
++def test_command_never_reissues_an_interrupted_child(tmp_path,monkeypatch):
++    environment(tmp_path,monkeypatch)
++    deploy.save(deploy.WORK/'continuation-state.json',dict(stage='live',process=dict(pid=1,start='s')))
++    with pytest.raises(ValueError):deploy.command('live',['never','dispatch'])
++
++
++def test_worker_runs_independent_local_refresh_after_live_failure(tmp_path,monkeypatch):
++    environment(tmp_path,monkeypatch)
++    monkeypatch.setattr(deploy,'adopt',lambda:{'adopted':True})
++    commands=[]
++    def command(label,argv):
++        commands.append(label)
++        return dict(exit_code=1 if label=='live' else 0)
++    monkeypatch.setattr(deploy,'command',command)
++    # Deterministic future deadline for this isolated control only.
++    from datetime import datetime,timezone,timedelta
++    monkeypatch.setattr(deploy,'DEADLINE',datetime.now(timezone.utc)+timedelta(days=1))
++    monkeypatch.setattr(deploy,'checked_manifest',lambda:{})
++    monkeypatch.setattr(deploy,'settled',lambda _:True)
++    result=deploy.worker()
++    assert commands==['register','refresh','verify','live','ready','final-refresh','final-verify']
++    assert result['status']=='BLOCKED' and not result['integration_complete']
+--- tests/tooling/test_common_capacity_registration.py
++++ reviewed/tests/tooling/test_common_capacity_registration.py
+@@ -0,0 +1,70 @@
++from copy import deepcopy
++import pytest
++from scripts import legal_integration_common_capacity as repair
++from scripts.legal_mission_execution import save, ref, Refused
++
++
++def setup(root):
++    old = dict(tasks=[dict(id=name, maximum_attempts=2, inputs=[], deliverable='prior')
++        for name in ('acquire-p10','acquire-p14','baseline-p14','tool-p14-bm25','compare-p14-bm25','source-qualification')],
++        protected_evidence=[], deadline_utc=repair.DEADLINE, global_call_ceiling=0,
++        candidate_capacity_retry={'profile':'prior'}, delayed_service_recovery={'maximum_replacements':24})
++    before = dict(tasks={t['id']:dict(status='FAILED', attempts=[{'number':1},{'number':2}]) for t in old['tasks']},
++        events=[], continuation_vetoes=[{'reason':'preserved'}])
++    before['tasks']['acquire-p14']['status'] = 'SUCCEEDED'
++    before['tasks']['tool-p14-bm25']['attempts'] = []
++    before['tasks']['tool-p14-bm25']['status'] = 'BLOCKED'
++    before['tasks']['compare-p14-bm25']['status'] = 'PENDING'
++    save(root/'before.json', before)
++    save(root/repair.PLAN, {'plan':'test'})
++    revision = dict(attempt_additions=repair.repair_targets(old,before),
++        reopened_nodes=sorted(repair.repair_targets(old,before)),
++        prior_state=ref(root,'before.json'), implementation={}, review={}, result={}, baseline={}, checkpoints={})
++    program = repair.expected_program(old, before, revision, root, plan_reference={})
++    return old,before,program
++
++
++def test_only_missing_original_work_is_reopened(tmp_path):
++    old,before,program = setup(tmp_path)
++    assert program[repair.KEY]['attempt_additions'] == {'acquire-p10':1, 'baseline-p14':1, 'tool-p14-bm25':0}
++    after = repair.project_state(before, program, 'now')
++    repair.validate_state_history(program, after, tmp_path)
++    assert after['tasks']['acquire-p14'] == before['tasks']['acquire-p14']
++    assert after['tasks']['source-qualification'] == before['tasks']['source-qualification']
++    for tid in before['tasks']:
++        assert after['tasks'][tid]['attempts'] == before['tasks'][tid]['attempts']
++    assert program['deadline_utc'] == old['deadline_utc']
++    assert program['delayed_service_recovery'] == old['delayed_service_recovery']
++
++
++@pytest.mark.parametrize('mutation', ['active','attempt','success','veto'])
++def test_registration_refuses_running_or_lost_history(tmp_path, mutation):
++    old,before,program = setup(tmp_path)
++    if mutation == 'active':
++        before['tasks']['tool-p14-bm25']['status'] = 'RUNNING'
++        with pytest.raises(Refused): repair.project_state(before, program, 'now')
++    else:
++        after = repair.project_state(before, program, 'now')
++        if mutation == 'attempt': after['tasks']['acquire-p10']['attempts'].pop()
++        elif mutation == 'success': after['tasks']['acquire-p14']['status'] = 'PENDING'
++        else: after['continuation_vetoes'].clear()
++        with pytest.raises(Refused): repair.validate_state_history(program, after, tmp_path)
++
++
++def test_comparison_reads_successful_predecessor_arm(tmp_path, monkeypatch):
++    from scripts import legal_integration_campaign as campaign
++    from pathlib import Path
++    monkeypatch.setattr(campaign,'ROOT',tmp_path)
++    monkeypatch.setattr(campaign,'PROGRAM',Path('program.json'))
++    monkeypatch.setattr(campaign,'LIVE',Path('new-live'))
++    save(tmp_path/'old-product.json',{'exact':'answer'})
++    save(tmp_path/'old-evidence.json',{'product':ref(tmp_path,'old-product.json')})
++    save(tmp_path/'old-result.json',{'evidence':[ref(tmp_path,'old-evidence.json')]})
++    save(tmp_path/'prior-state.json',{'tasks':{
++        'tool-p14-bm25':{'status':'SUCCEEDED','result':ref(tmp_path,'old-result.json')},
++        'baseline-p14':{'status':'FAILED'}}})
++    save(tmp_path/'program.json',{'common_capacity':{'prior_state':ref(tmp_path,'prior-state.json')}})
++    assert campaign.arm_result_path('p14','bm25')==tmp_path/'old-product.json'
++    assert campaign.arm_result_path('p14','baseline')==tmp_path/'new-live/arms/p14/baseline/result.json'
++    save(tmp_path/'old-product.json',{'changed':True})
++    with pytest.raises(Refused):campaign.arm_result_path('p14','bm25')
+--- docs/plans/legal-integration-master-2026-10-13.md
++++ reviewed/docs/plans/legal-integration-master-2026-10-13.md
+@@ -1581,3 +1581,50 @@
+ repairs closes the original questions, 46 obligations, 35 readings or six
+ answer-level tool evaluations. Missing source access and unresolved legal
+ alternatives must remain visible in the delivered analysis.
++
++## Common capacity interface, 20 October 2026
++
++The governing amendment is
++`docs/plans/legal-common-capacity-interface-2026-10-20.md`. It introduces one
++versioned interface for every current model stage, and complete-input memory
++checks for native tools and metadata inventory. Stage adapters define budgets,
++semantic partitioning, validation and assembly. Independent decisions may split;
++coupled graphs and complete comparisons remain atomic with explicit limitations.
++Actual input, raw output, expanded output, leaf calls, depth and elapsed time are
++bounded. Output overflow can trigger finite subdivision; semantic rejection and
++service timeouts cannot trigger another sample.
++
++Retain all completed source readings, accounts and syntheses. Revalidate a
++complete output rejected solely by size only through its exact transport and
++original validators. Preserve the old failure. Share common candidate and
++criticism results among tool arms so they use the same interpretation. The
++4-question, 46-obligation, 35-reading and six-tool acceptance duties remain.
++
++Deployment waits for the authenticated predecessor worker to settle, checks
++every staged file against its reviewed manifest, archives changed predecessor
++bytes, and registers `common_capacity` in the same integration graph. It retains
++attempt histories, spent service replacements, the 8,100-call ceiling and
++20 October 2026 18:55:16 UTC deadline. Only missing original owners may receive
++one changed-contract attempt; successful owners remain completed. After each
++checkpoint the existing master refreshes the ready set and runs independent
++work. A pending service retry retains its ownership; no replacement worker is
++launched over it.
++
++Exact local commands are:
++
++```text
++.venv-context/bin/python scripts/legal_common_capacity_work.py test
++.venv-context/bin/python scripts/legal_common_capacity_replay.py
++.venv-context/bin/python scripts/legal_common_capacity_deploy.py status
++.venv-context/bin/python scripts/legal_common_capacity_deploy.py arm
++.venv-context/bin/python scripts/legal_integration_master.py gap-refresh
++.venv/bin/python scripts/legal_mission_control.py refresh
++.venv-context/bin/python scripts/legal_integration_master.py verify
++.venv-context/bin/python scripts/legal_integration_master.py live
++```
++
++The fixed deploy wrapper performs one validated adoption and continuation, has
++no arbitrary command argument, and cannot reset the grant or service circuit.
++If the existing deadline expires, it may finish local adoption/verification but
++must not dispatch live calls. Capacity validation is engineering evidence; it
++does not establish legal acceptance or native-tool benefit.

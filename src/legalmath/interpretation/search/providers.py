@@ -28,20 +28,29 @@ class TerminatedCallTimeout(TerminalServiceFailure):
     """The local child is dead and retained evidence proves no complete output."""
 
 
-def transient_service_details(events, *, output_present):
+def transient_service_details(events, *, output_present, allow_terminal_499=False):
     """Use explicit terminal service messages; never infer retry from model text."""
     if output_present or any(e.get('type') == 'turn.completed' for e in events):
         return None
     messages = [str(e.get('message', '')) for e in events if e.get('type') == 'error']
+    messages += [str(e.get('error', {}).get('message', '')) for e in events
+                 if e.get('type') == 'turn.failed' and isinstance(e.get('error'), dict)]
     if any(re.search(r'insufficient[_ ]quota|quota.{0,20}exceed|billing|payment|unauthori[sz]ed|invalid.{0,10}(?:api.key|token)|authentication', m, re.I) for m in messages):
         return None
-    if any(re.search(r'\b499\b|invalid_request|blocked by our safety systems', m, re.I)
+    if any(re.search(r'invalid_request|blocked by our safety systems|cannot (?:assist|comply)|can.t (?:assist|comply)', m, re.I)
            for m in messages):
+        return None
+    cancellation = any(re.search(r'\b499\b', m) for m in messages)
+    if cancellation and (not allow_terminal_499
+            or not any(e.get('type') == 'turn.failed' for e in events)
+            or any(e.get('item', {}).get('type') == 'agent_message' for e in events)):
         return None
     selected = []
     for message in messages:
         lower = message.lower()
-        transient = ((re.search(r'\b(?:502|503|504)\b', message) and
+        transient = ((allow_terminal_499 and cancellation and
+            re.search(r'(?:http|status)\s*499\b', message, re.I))
+            or (re.search(r'\b(?:502|503|504)\b', message) and
             any(s in lower for s in ('status', 'bad gateway', 'service unavailable', 'gateway timeout')))
             or 'stream disconnected before completion' in lower
             or ('rate limit' in lower and any(s in lower for s in
@@ -72,9 +81,10 @@ def transient_service_details(events, *, output_present):
             'unparsed_retry_after': unparsed}
 
 
-def terminal_service_error(events, *, output_present):
+def terminal_service_error(events, *, output_present, allow_terminal_499=False):
     """Classify only an ended, no-output transport failure, not model content."""
-    details = transient_service_details(events, output_present=output_present)
+    details = transient_service_details(events, output_present=output_present,
+        allow_terminal_499=allow_terminal_499)
     return details['message'] if details else None
 
 
@@ -216,8 +226,10 @@ class CodexProvider:
                         if time.monotonic()-began>settings.timeout_seconds:
                             timed_out = True
                             break
-                        if any(p.exists() and p.stat().st_size>4_000_000 for p in logs) or (output.exists() and output.stat().st_size>settings.max_output_bytes):
-                            raise LegalMathError('E_RESOURCE_LIMIT',details='Codex output byte cap')
+                        if any(p.exists() and p.stat().st_size>4_000_000 for p in logs):
+                            raise LegalMathError('E_RESOURCE_LIMIT',details='Codex event-log byte cap')
+                        if output.exists() and output.stat().st_size>settings.max_output_bytes:
+                            raise LegalMathError('E_RESOURCE_LIMIT',details='Codex response output byte cap')
                         try: proc.wait(timeout=0.2)
                         except subprocess.TimeoutExpired: pass
                 finally:
@@ -243,12 +255,14 @@ class CodexProvider:
                 error=next((e.get('message') for e in events if e.get('type')=='error'),None)
                 diagnostic=logs[1].read_text()[-2000:]
                 diagnostic=re.sub(r'(?i)(bearer\s+|(?:api[_-]?key|token)\s*[=:]\s*)[^\s,\"]+',r'\1[REDACTED]',diagnostic)
-                terminal = terminal_service_error(events, output_present=output.exists())
+                terminal = terminal_service_error(events, output_present=output.exists(),
+                    allow_terminal_499=getattr(self, 'retry_terminal_499', False))
                 if terminal is not None and proc.returncode is not None:
                     raise TerminalServiceFailure(terminal[:2000], allowance_slot=issued,
                                                  request_hash=digest(request))
                 raise LegalMathError('E_DEPENDENCY',details=str(error or diagnostic or 'Codex returned no structured output')[:2000])
-            if output.stat().st_size>settings.max_output_bytes: raise LegalMathError('E_RESOURCE_LIMIT')
+            if output.stat().st_size>settings.max_output_bytes:
+                raise LegalMathError('E_RESOURCE_LIMIT',details='Codex response output byte cap')
             value=loads(output.read_bytes())
             usage=[e['usage'] for e in events if e.get('type')=='turn.completed' and 'usage' in e]
             return Completion(value,{'provider':self.provider_id,'fresh_context':True,

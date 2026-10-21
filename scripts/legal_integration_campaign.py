@@ -41,11 +41,32 @@ def provider():
         routing_file=ROOT / BASE / 'campaign-routing.toml')
 
 
+def effective_deadline():
+    from legalmath.interpretation.assurance.time_authority import effective_deadline as checked
+    return checked(ROOT, ROOT / BASE)
+
+
 def session(directory, service, *, questions=QUESTIONS, tools=(), shared=None, maximum=8100, downstream_input_profile=None):
-    return BoundedProduct(ROOT, directory, service, read(ROOT / ENVELOPE),
+    capacity = read(ROOT / PROGRAM).get('common_capacity') if (ROOT / PROGRAM).exists() else None
+    cls, options = BoundedProduct, {}
+    if capacity:
+        from legalmath.interpretation.assurance.phased.product import PhasedProduct
+        from legalmath.interpretation.assurance.phased.downstream_input import PROFILE as INPUT, CAPACITY_PROFILE
+        from scripts.legal_integration_phased_live import phase_admit
+        cls = PhasedProduct
+        downstream_input_profile = INPUT
+        options = dict(common_capacity_profile=capacity['capacity_profile'],
+            downstream_capacity_profile=CAPACITY_PROFILE,
+            phase_identity=ref(ROOT, BASE/'current-binding.json')['sha256'],
+            phase_admit=phase_admit('session-' + digest(str(directory))[:24]))
+    result = cls(ROOT, directory, service, read(ROOT / ENVELOPE),
         tokenizer(ROOT / TOKENIZER), limits=LIMITS, maximum_calls=maximum,
         maximum_corrections=MAXIMUM_CORRECTIONS,
-        active_questions=questions, selected_tools=tools, shared_prefix=shared, downstream_input_profile=downstream_input_profile)
+        active_questions=questions, selected_tools=tools, shared_prefix=shared, downstream_input_profile=downstream_input_profile,
+        **options)
+    if capacity:
+        result.install_dispatch_admission()
+    return result
 
 
 def product(directory, service, *, q=None, tool=None, phase='answer', shared=None, maximum=8100,
@@ -54,7 +75,7 @@ def product(directory, service, *, q=None, tool=None, phase='answer', shared=Non
     return run_product(ROOT, directory, service, ROOT / '/unused-jdk', '2026-10-13T00:00:00Z',
         sources=[], questions=envelope['original_questions'], acceptance_ref=None, qualification={},
         required={'maximum_calls': maximum, 'maximum_corrections': MAXIMUM_CORRECTIONS},
-        deadline_utc=read(ROOT / BASE / 'live-grant.json')['deadline_utc'],
+        deadline_utc=effective_deadline(),
         selected_tools=[] if tool is None else [tool], settings=None, consumer_profile=PROFILE,
         bounded_envelope=envelope, bounded_encode=tokenizer(ROOT / TOKENIZER), bounded_limits=LIMITS,
         active_questions=questions if questions is not None else QUESTIONS if q is None else [q],
@@ -239,13 +260,27 @@ def complete_node(execution, tid, function):
     save(directory / 'evidence.json', value)
     if value.get('continuation_veto'):
         execution.record_continuation_veto(value['error'], value['reason'],
-            [ref(ROOT, directory / 'evidence.json')], live_consumers(execution))
+            [ref(ROOT, directory / 'evidence.json')], continuation_scope(execution, tid, value))
     save(directory / 'result.json', {'task_id': tid, 'status': status, 'conclusion': conclusion,
         'next_action': 'Refresh and continue independent ready nodes; preserve every failed dependency.',
         'evidence': [ref(ROOT, directory / 'evidence.json')], 'plan': str(PLAN),
         'wall_seconds': time.monotonic() - began, 'legal_acceptance': False})
     execution.finish(tid, directory / 'result.json')
     return value
+
+
+def continuation_scope(execution, tid, value):
+    """A phase-resume mismatch affects its own task and true dependants."""
+    if (execution.program.get('settled_recovery') and value.get('error') == 'E_INTEGRITY'
+            and value.get('reason') == 'Changed phase on resume'):
+        scope = {tid}
+        while True:
+            expanded = scope | {key for key, task in execution.tasks.items()
+                if scope.intersection(task.get('requires', []))}
+            if expanded == scope:
+                return sorted(scope)
+            scope = expanded
+    return live_consumers(execution)
 
 
 def live_consumers(execution):
@@ -404,7 +439,7 @@ def acquire(q, service):
     tools = eligible_tools(q)
     downstream_bound = (1 + len(tools)) * bound + 6 * len(tools)
     require(remaining >= bound, 'No single complete answer arm fits the remaining campaign')
-    seconds = (datetime.fromisoformat(read(ROOT / BASE / 'live-grant.json')['deadline_utc']) -
+    seconds = (datetime.fromisoformat(effective_deadline()) -
                datetime.now(timezone.utc)).total_seconds()
     require(seconds >= bound * CALL_TIMEOUT + 305,
             'Insufficient deadline headroom for one complete answer arm')
@@ -463,12 +498,36 @@ def validate_effect(value, baseline, candidate, evaluator, sources):
                 'Failed or unsupported native input cannot establish a tool effect')
 
 
+def arm_result_path(q, arm):
+    """A completed predecessor arm stays the exact matched comparator."""
+    from scripts.legal_mission_execution import verify
+    value = read(ROOT / PROGRAM)
+    revision = value.get('common_capacity', {})
+    if revision.get('prior_state'):
+        pointer = revision['prior_state']
+        verify(ROOT,pointer)
+        tid = 'baseline-'+q if arm == 'baseline' else 'tool-'+q+'-'+arm
+        prior = read(ROOT/pointer['path'])['tasks'][tid]
+        if prior['status'] == 'SUCCEEDED':
+            verify(ROOT,prior['result'])
+            result = read(ROOT/prior['result']['path'])
+            products=[]
+            for evidence in result['evidence']:
+                verify(ROOT,evidence)
+                body=read(ROOT/evidence['path'])
+                if body.get('product'): products.append(body['product'])
+            require(len(products)==1, 'Completed arm has no unique product evidence')
+            verify(ROOT,products[0])
+            return ROOT/products[0]['path']
+    return ROOT/LIVE/'arms'/q/arm/'result.json'
+
+
 def compare(q, tool, service):
     from legalmath.interpretation.assurance.phased.evidence_store import load_exact
     require(tool in eligible_tools(q), 'Comparison lacks reviewed applicability')
     from legalmath.interpretation.assurance.bounded_product import obj, array, TEXT, QUOTE
-    baseline_path = ROOT / LIVE / 'arms' / q / 'baseline/result.json'
-    candidate_path = ROOT / LIVE / 'arms' / q / tool / 'result.json'
+    baseline_path = arm_result_path(q,'baseline')
+    candidate_path = arm_result_path(q,tool)
     if not candidate_path.exists():
         return {'_node_status': 'BLOCKED', 'effect': 'INSUFFICIENT_EVIDENCE',
                 '_conclusion': 'Candidate failed before a matched answer existed.'}
@@ -603,12 +662,13 @@ def live():
 
 
 def release(service):
+    from legalmath.interpretation.assurance.phased.evidence_store import load_exact
     interactions = {}
     for arm in ('baseline', *TOOLS):
         answers = {}
         for q in QUESTIONS:
-            path = ROOT / LIVE / 'arms' / q / arm / 'result.json'
-            if path.exists(): answers[q] = read(path)['answers'][q]
+            path = arm_result_path(q,arm)
+            if path.exists(): answers[q] = load_exact(path)['answers'][q]
             else: answers[q] = {'status': 'DEPENDENCY_BLOCKED'}
         reviewer = session(ROOT / LIVE / 'interactions' / arm, service, maximum=6)
         interactions[arm] = reviewer.audit_interactions(answers)

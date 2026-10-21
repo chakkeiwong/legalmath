@@ -13,6 +13,11 @@ def validate_profile(request, profile):
 
 
 def output_token_limit(request, limits):
+    if request.get('capacity_profile') is not None:
+        from .capacity_policy import output_tokens
+        if request.get('account_output_profile') is not None:
+            validate_profile(request, request['account_output_profile'])
+        return output_tokens(request, limits)
     profile = request.get('account_output_profile')
     if profile is None:
         return limits.output_tokens

@@ -1,0 +1,134 @@
+........................................................................ [ 17%]
+........................................................................ [ 35%]
+........................................................................ [ 53%]
+........................................................................ [ 71%]
+........................................................................ [ 89%]
+F........................................                                [100%]
+=================================== FAILURES ===================================
+_________ test_product_route_uses_exact_successor_not_stale_synthesis __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c5f0b0dee90>
+tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-50/test_product_route_uses_exact_0')
+
+    def test_product_route_uses_exact_successor_not_stale_synthesis(monkeypatch,tmp_path):
+        from scripts import legal_product_completion
+        q='evidence'; pointer={'path':'new-checkpoint','sha256':'exact'}
+        program={'prerequisite_repair':{'source':{'path':'envelope'}},
+            'repair_execution':{'recoveries':{q:{'path':'old','sha256':'old'}},
+            'downstream_input_profile':'exact-downstream-input-32k.v1',
+            'downstream_instruction_profile':'schema-specific-downstream-instructions.v1',
+            'synthesis_successors':{q:{'path':'stale','sha256':'stale'}},
+            'live_directories':{q:'old-live'},'common_directories':{q:'old-common'}},
+            'lossless_account_repair':{'retained':True},'account_instruction_repair':{'retained':True},
+            'settled_recovery':{'work':'recovery','recoveries':{q:pointer},
+            'live_directories':{q:'new-live'},'common_directories':{q:'new-common'}}}
+        monkeypatch.setattr(live,'configure',lambda:SimpleNamespace(ENVELOPE='envelope'))
+        def read(path):
+            if path==live.ROOT/live.PROGRAM:return program
+            if str(path).endswith('live-grant.json'):return {'deadline_utc':'unchanged'}
+            return {'original_questions':[{'question_id':q}]}
+        monkeypatch.setattr(live,'read',read); monkeypatch.setattr(live,'ref',lambda *a:{'path':'test','sha256':'test'})
+        monkeypatch.setattr(live,'tokenizer',lambda *a:object()); monkeypatch.setattr(live,'phase_admit',lambda *a:object())
+        monkeypatch.setattr(legal_product_completion,'run_product',lambda *args,**kw:(args,kw))
+>       args,kw=live.product_route(q,None,object(),preparation_only=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/tooling/test_settled_recovery_registration.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+q = 'evidence', tool = None, service = <object object at 0x7c5f61339720>
+
+    def product_route(q,tool,service,*,preparation_only=False,recovery_context=None):
+        from scripts.legal_product_completion import run_product
+        from legalmath.interpretation.assurance.bounded_product import PROFILE
+        campaign=configure()
+        value=read(ROOT/campaign.ENVELOPE)
+        program=read(ROOT/PROGRAM)
+        revision=(program.get('repair_execution') or program.get('complete_account_capacity_repair') or program.get('account_reconstruction_repair') or program.get('account_instruction_repair') or program.get('lossless_account_repair')
+            or program.get('account_capacity_repair'))
+        route_live=active_live(program)
+        options={}
+        if revision:
+            from legalmath.interpretation.assurance.phased import account_contract, account_input
+            options={'bounded_requirement_account_profile':account_contract.PROFILE,
+                'bounded_requirement_account_input_profile':account_input.PROFILE,
+                'bounded_requirement_account_recovery':revision['recoveries'][q]}
+            if program.get('account_instruction_repair'):
+                from legalmath.interpretation.assurance.phased.account_instructions import PROFILE as INSTRUCTION_PROFILE
+                options['bounded_requirement_account_instruction_profile'] = INSTRUCTION_PROFILE
+            if program.get('repair_execution') or (program.get('complete_account_capacity_repair') and q in revision['failed_questions']):
+                options['bounded_requirement_account_capacity_profile'] = account_input.CAPACITY_PROFILE
+                from legalmath.interpretation.assurance.phased.account_output import PROFILE as OUTPUT_PROFILE
+                options['bounded_requirement_account_output_profile'] = OUTPUT_PROFILE
+            if program.get('repair_execution'):
+                options['bounded_downstream_input_profile'] = revision['downstream_input_profile']
+                if revision.get('downstream_instruction_profile'):
+                    options['bounded_downstream_instruction_profile'] = revision['downstream_instruction_profile']
+                if q in revision.get('synthesis_successors', {}):
+                    options['retained_initial'] = revision['synthesis_successors'][q]
+            if program.get('lossless_account_repair'):
+                from legalmath.interpretation.assurance.phased import account_encoding
+                options['bounded_requirement_account_input_profile'] = account_encoding.PROFILE
+        if q in program.get('settled_recovery', {}).get('recoveries', {}):
+            options['bounded_requirement_account_recovery'] = program['settled_recovery']['recoveries'][q]
+            options.pop('retained_initial', None)
+        common=common_directory(program,q)
+        route_live=question_live(program,q)
+        admission=phase_admit('prepare-'+q if preparation_only else q+'-'+(tool or 'baseline'))
+        if program.get('failure_recovery') and q=='p10' and not program.get('synthesis_resolution'):
+            if recovery_context is None:
+                if program.get('synthesis_continuation'):
+                    from scripts.legal_integration_synthesis_continuation import completion
+                elif program.get('gap_preservation'):
+                    from scripts.legal_integration_gap_preservation import completion
+                else:
+                    from scripts.legal_integration_failure_recovery import completion
+                done=completion()
+                require(done is not None, 'P10 requires completed recovery or explicit active repair pass')
+                options['bounded_requirement_account_recovery']=done['recovery']
+            else:
+                require(preparation_only and tool is None,'Repair context is preparation-only')
+                options['bounded_requirement_account_recovery']=recovery_context['recovery']
+                common=Path(recovery_context['common_directory'])
+                admission=lambda name,count:admit(ROOT,BASE,Path(recovery_context['phase_directory']),name,count,owner='prepare-'+q)
+            options.pop('retained_initial',None)
+        if q in program.get('synthesis_resolution', {}).get('recoveries', {}):
+            resolved = program['synthesis_resolution']
+            options.update(bounded_requirement_account_recovery=resolved['recoveries'][q],
+                retained_initial=resolved['successors'][q],
+                bounded_downstream_capacity_profile=resolved['downstream_capacity_profile'])
+            if recovery_context is not None:
+                require(preparation_only and tool is None, 'Resolution context is preparation-only')
+                common = Path(recovery_context['common_directory'])
+                admission = lambda name,count:admit(ROOT,BASE,Path(recovery_context['phase_directory']),name,count,owner='prepare-'+q)
+        if q in program.get('candidate_capacity_retry', {}).get('checkpoints', {}):
+            require(recovery_context is None, 'Completed preparation has no mutable recovery context')
+            options.pop('retained_initial', None)
+            options.pop('bounded_requirement_account_recovery', None)
+            options['bounded_retained_preparation'] = program['candidate_capacity_retry']['checkpoints'][q]
+        if program.get('common_capacity'):
+            options['bounded_common_capacity_profile'] = program['common_capacity']['capacity_profile']
+            options['bounded_capacity_checkpoint'] = program['common_capacity']['checkpoints'][q]
+            if not preparation_only:
+                options['bounded_capacity_checkpoint'] = program['common_capacity']['arm_checkpoints'].get(q, {}).get(
+                    tool or 'baseline', options['bounded_capacity_checkpoint'])
+        directory=ROOT/common if preparation_only else ROOT/route_live/'arms'/q/(tool or 'baseline')
+        shared=None if preparation_only else ROOT/common/'calls'
+        return run_product(ROOT,directory,service,ROOT/'jdk','2026-10-15T00:00:00+08:00',
+            sources=[],questions=value['original_questions'],acceptance_ref=None,qualification={},
+            required={'maximum_calls':8100,'maximum_corrections':1},
+>           deadline_utc=campaign.effective_deadline(),
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            selected_tools=[] if tool is None else [tool],settings=None,consumer_profile=PROFILE,
+            bounded_envelope=value,bounded_encode=tokenizer(ROOT/TOKENIZER),bounded_limits=Limits(),
+            active_questions=[q],shared_prefix=shared,
+            bounded_phase='prepare' if preparation_only else 'answer',bounded_execution='phased',
+            bounded_acquisition_ref=ref(ROOT,LIVE/'acquisition/investigation.json'),
+            bounded_phase_admit=admission,
+            bounded_phase_identity=ref(ROOT,BASE/'current-binding.json')['sha256'],**options)
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'effective_deadline'
+
+scripts/legal_integration_phased_live.py:350: AttributeError
+=========================== short test summary info ============================
+FAILED tests/tooling/test_settled_recovery_registration.py::test_product_route_uses_exact_successor_not_stale_synthesis
+1 failed, 400 passed in 36.00s

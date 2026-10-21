@@ -1,5 +1,5 @@
 """Fresh Codex service calls bound to a separately approved master campaign."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import fcntl
 import hashlib
@@ -7,6 +7,7 @@ import json
 import time
 import random
 import math
+import os
 
 from legalmath.canonical import canonical, digest
 from legalmath.interpretation.search.providers import CodexProvider
@@ -29,10 +30,31 @@ SERVICE_SINGLE_DISPATCH_POLICY = {'profile': 'counted-service-recovery.v4',
     'backoff_seconds': [30], 'maximum_retry_after_seconds': 120,
     'jitter_seconds': 0, 'consecutive_failure_ceiling': 1}
 
+# New user-authorized hourly recovery has its own ledger. The historical
+# 48-replacement reserve is retained, never replenished by this policy.
+SERVICE_DELAYED_POLICY = {'profile': 'counted-service-recovery.v5',
+    'timeout_seconds': 300, 'per_request_replacements': 24, 'maximum_replacements': 24,
+    'backoff_seconds': [3600] + [7200] * 23,
+    'maximum_retry_after_seconds': 7200, 'jitter_seconds': 0,
+    'consecutive_failure_ceiling': 1}
+
+# A separately reviewed opt-in; v5's historical classification stays intact.
+# It shares v5's spent ledger, cooldowns, exact-request checks and deadline.
+TERMINAL_CANCELLATION_POLICY = {'profile': 'terminal-no-output-http499.v1',
+    'requires_terminal_failed_turn': True, 'requires_no_model_output': True,
+    'replacement_reserve': 'EXISTING_DELAYED_SERVICE_LEDGER', 'new_calls': 0}
+
 
 def recovery_delay(policy, used, details):
     """Never shorten a requested wait to fit our finite recovery allowance."""
     delay = policy['backoff_seconds'][used]
+    if policy == SERVICE_DELAYED_POLICY:
+        require(not details.get('unparsed_retry_after'),
+            'Explicit retry wait cannot be parsed; defer request', 'E_RESOURCE_LIMIT')
+        requested = details.get('retry_after_seconds') or 0
+        require(isinstance(requested, (int, float)) and math.isfinite(requested) and requested >= 0,
+            'Invalid retry wait', 'E_RESOURCE_LIMIT')
+        return math.ceil(max(delay, requested))
     if policy['profile'] == 'counted-service-recovery.v3':
         require(not details.get('unparsed_retry_after'),
             'Explicit retry wait cannot be parsed; defer request', 'E_RESOURCE_LIMIT')
@@ -50,6 +72,7 @@ class CampaignAllowance:
         self.path = Path(directory) / "live-calls.json"
         self.routing = routing
         self.expected = None
+        self.expected_schema = None
 
     def check(self):
         from .integration_contract import read_evidence as read_raw
@@ -163,7 +186,9 @@ class CampaignAllowance:
         else:
             for reference in proposal["bindings"]:
                 verify_binding(reference)
-        remaining = (datetime.fromisoformat(grant["deadline_utc"]) - datetime.now(timezone.utc)).total_seconds()
+        from .time_authority import effective_deadline
+        deadline = effective_deadline(self.root, self.grant_path.parent, grant=grant, binding=current)
+        remaining = (datetime.fromisoformat(deadline) - datetime.now(timezone.utc)).total_seconds()
         require(remaining >= 305, "Insufficient approved deadline for one complete call", "E_AUTHORITY")
         require((datetime.fromisoformat(grant["deadline_utc"]) -
                  datetime.fromisoformat(grant["started_utc"])).total_seconds() <= proposal["window_seconds"],
@@ -220,7 +245,7 @@ class CampaignAllowance:
                         'Current stage call ceiling reached', 'E_RESOURCE_LIMIT')
                 if stage.get('profile') == 'integration-current-stage.v2':
                     stage_hash = pointer['sha256']
-            self.service_circuit()
+            self.service_circuit(reserving=True)
             state["calls"].append({"request_hash": request_hash, "issued_at_ns": str(time.time_ns()),
                 **({'stage_hash': stage_hash} if stage_hash else {})})
             save(self.path, state)
@@ -237,11 +262,22 @@ class CampaignAllowance:
             return None
         binding = json.loads(self.grant_path.with_name('current-binding.json').read_text())
         require(policy == binding.get('service_recovery_policy') and
-                policy in (SERVICE_RECOVERY_POLICY, SERVICE_CONTINUATION_POLICY, SERVICE_SINGLE_DISPATCH_POLICY),
+                policy in (SERVICE_RECOVERY_POLICY, SERVICE_CONTINUATION_POLICY,
+                           SERVICE_SINGLE_DISPATCH_POLICY, SERVICE_DELAYED_POLICY),
                 'Unbound service recovery policy', 'E_AUTHORITY')
         require(stage.get('service_recovery_maximum') == policy['maximum_replacements'],
                 'Unreviewed service replacement ceiling', 'E_AUTHORITY')
         return policy
+
+    def terminal_cancellation_enabled(self):
+        binding = json.loads(self.grant_path.with_name('current-binding.json').read_text())
+        selected = binding.get('terminal_cancellation_recovery')
+        if selected is None:
+            return False
+        require(selected == TERMINAL_CANCELLATION_POLICY
+            and binding.get('service_recovery_policy') == SERVICE_DELAYED_POLICY,
+            'Unreviewed terminal cancellation recovery', 'E_AUTHORITY')
+        return True
 
     def service_scope(self):
         from .integration_contract import read_evidence
@@ -273,7 +309,7 @@ class CampaignAllowance:
                 'Service scope changed authority', 'E_AUTHORITY')
         return scope, (self.root / scope['path']).parent, value
 
-    def service_circuit(self, *, failure=None, success=False):
+    def service_circuit(self, *, failure=None, success=False, reserving=False):
         """Persist an outage stop across provider forks and process reloads."""
         policy = self.service_recovery_policy()
         if not policy or policy.get('consecutive_failure_ceiling') is None:
@@ -291,15 +327,31 @@ class CampaignAllowance:
                     state['failed_slots'].append(failure.allowance_slot)
                     state['consecutive_failures'] += 1
                     state['open'] = state['open'] or state['consecutive_failures'] >= policy['consecutive_failure_ceiling']
+                    state.pop('half_open_request_hash', None)
+                    state.pop('half_open_schema_hash', None)
+                    state.pop('half_open_reserved', None)
             elif success and not state['open']:
                 state['consecutive_failures'] = 0
+                state.pop('half_open_request_hash', None)
+                state.pop('half_open_schema_hash', None)
+                state.pop('half_open_reserved', None)
             if failure is not None or success:
                 save(path, state)
             if success:
                 return
+            if failure is not None and policy == SERVICE_DELAYED_POLICY:
+                return  # Persist the outage before scheduling its counted wait.
             require(not state['open'],
                 'Shared service circuit open after repeated terminal failures; stage requires reviewed continuation',
                 'E_RESOURCE_LIMIT')
+            if state.get('half_open_request_hash'):
+                require(state['half_open_request_hash'] == self.expected
+                    and state.get('half_open_schema_hash') == self.expected_schema
+                    and not state.get('half_open_reserved'),
+                    'Only the scheduled service retry may probe the open circuit', 'E_RESOURCE_LIMIT')
+                if reserving:
+                    state['half_open_reserved'] = True
+                    save(path, state)
 
     def reserve_service_recovery(self, failure):
         """Retain a finite replacement charge only for proved no-output failures."""
@@ -329,8 +381,16 @@ class CampaignAllowance:
             require(ended.get('reason') == 'LOCAL_DEADLINE' and ended.get('process_terminated') is True
                 and ended.get('returncode') is not None and not ended.get('complete_output_present')
                 and not ended.get('completed_turn_present'), 'Timeout termination not established', 'E_AUTHORITY')
+            if policy == SERVICE_DELAYED_POLICY:
+                require(not any(e.get('type') == 'error' for e in events)
+                    or transient_service_details(events, output_present=False,
+                        allow_terminal_499=self.terminal_cancellation_enabled()) is not None,
+                    'Ended timeout also contains a nonservice error; inspect before retry', 'E_AUTHORITY')
+                require(not any(e.get('item', {}).get('type') == 'agent_message' for e in events),
+                    'Ended timeout contains model output; inspect before retry', 'E_AUTHORITY')
         else:
-            details = transient_service_details(events, output_present=False)
+            details = transient_service_details(events, output_present=False,
+                allow_terminal_499=self.terminal_cancellation_enabled())
             require(details is not None,
                 'Unclassified failure cannot receive replacement', 'E_AUTHORITY')
         ledger = recovery_directory/'service-recovery.json'
@@ -346,12 +406,80 @@ class CampaignAllowance:
                 'Failure already received a replacement reservation', 'E_AUTHORITY')
             used = sum(r['request_hash'] == failure.request_hash for r in state['charges'])
             require(used < policy['per_request_replacements'], 'Request replacements exhausted', 'E_RESOURCE_LIMIT')
-            delay = recovery_delay(policy, used, details)
-            state['charges'].append({'failed_slot':failure.allowance_slot, 'request_hash':failure.request_hash,
+            # The hourly schedule is shared across this continuation, so moving
+            # to another request does not reset subsequent waits to one hour.
+            delay = recovery_delay(policy, len(state['charges']) if policy == SERVICE_DELAYED_POLICY else used, details)
+            charge = {'failed_slot':failure.allowance_slot, 'request_hash':failure.request_hash,
                 'failure_kind':type(failure).__name__, 'backoff_seconds':delay,
-                'evidence':str((directory/'manifest.json').relative_to(self.root))})
+                'evidence':str((directory/'manifest.json').relative_to(self.root))}
+            if policy == SERVICE_DELAYED_POLICY:
+                request_data, schema_data = retained('request.json'), retained('schema.json')
+                require(digest(json.loads(request_data)) == failure.request_hash == self.expected
+                    and digest(json.loads(schema_data)) == self.expected_schema,
+                    'Delayed replacement changed its exact request or schema', 'E_INTEGRITY')
+                now = datetime.now(timezone.utc)
+                due = now + timedelta(seconds=delay)
+                from .time_authority import effective_deadline
+                deadline = datetime.fromisoformat(effective_deadline(self.root, self.grant_path.parent))
+                require(due + timedelta(seconds=policy['timeout_seconds'] + 5) <= deadline,
+                    'Delayed retry cannot finish within original grant deadline', 'E_AUTHORITY')
+                charge.update(scheduled_at_utc=now.isoformat(), next_retry_at_utc=due.isoformat(),
+                    schema_hash=self.expected_schema, stage=stage_pointer,
+                    receipt_sha256=hashlib.sha256((directory / 'manifest.json').read_bytes()).hexdigest(),
+                    worker={'pid': os.getpid(),
+                        'start': Path('/proc/self/stat').read_text().rsplit(') ', 1)[1].split()[19]})
+            state['charges'].append(charge)
             save(ledger, state)
             return delay
+
+    def wait_service_recovery(self, failure):
+        """Wait on the retained UTC schedule, then admit one exact probe."""
+        require(self.service_recovery_policy() == SERVICE_DELAYED_POLICY,
+            'Hourly wait lacks its bound policy', 'E_AUTHORITY')
+        pointer, directory, _ = self.service_scope()
+        ledger_path = directory / 'service-recovery.json'
+        ledger = json.loads(ledger_path.read_text())
+        require(ledger['profile'] == SERVICE_DELAYED_POLICY['profile']
+            and ledger['stage_hash'] == pointer['sha256']
+            and ledger['maximum'] == SERVICE_DELAYED_POLICY['maximum_replacements']
+            and 0 < len(ledger['charges']) <= ledger['maximum'],
+            'Delayed retry ledger changed', 'E_INTEGRITY')
+        matches = [r for r in ledger['charges'] if r['failed_slot'] == failure.allowance_slot]
+        require(len(matches) == 1 and matches[0]['request_hash'] == failure.request_hash == self.expected
+            and matches[0]['schema_hash'] == self.expected_schema,
+            'Delayed retry has no unique reservation', 'E_AUTHORITY')
+        charge = matches[0]
+        due = datetime.fromisoformat(charge['next_retry_at_utc'])
+        scheduled = datetime.fromisoformat(charge['scheduled_at_utc'])
+        require(due.tzinfo is not None and scheduled.tzinfo is not None
+            and (due - scheduled).total_seconds() == charge['backoff_seconds']
+            and charge['backoff_seconds'] >= SERVICE_DELAYED_POLICY['backoff_seconds'][ledger['charges'].index(charge)],
+            'Delayed retry was shortened or lost its UTC schedule', 'E_INTEGRITY')
+        def unchanged():
+            require(json.loads(ledger_path.read_text()) == ledger
+                and json.loads(self.grant_path.with_name('current-stage.json').read_text()) == charge['stage']
+                and hashlib.sha256((self.root / charge['evidence']).read_bytes()).hexdigest() == charge['receipt_sha256'],
+                'Delayed retry evidence changed during wait', 'E_INTEGRITY')
+        while True:
+            self.check()
+            unchanged()
+            remaining = (due - datetime.now(timezone.utc)).total_seconds()
+            if remaining <= 0:
+                break
+            time.sleep(min(60, remaining))
+        with (directory / 'service-circuit.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            path = directory / 'service-circuit.json'
+            state = json.loads(path.read_text())
+            unchanged()
+            require(state['stage_hash'] == pointer['sha256'] and state['open']
+                and state['failed_slots'][-1] == failure.allowance_slot,
+                'Delayed retry circuit changed during wait', 'E_AUTHORITY')
+            state.update(open=False, half_open_request_hash=failure.request_hash,
+                half_open_schema_hash=self.expected_schema,
+                half_open_reserved=False, resumed_after_slot=failure.allowance_slot,
+                resumed_at_utc=datetime.now(timezone.utc).isoformat())
+            save(path, state)
 
     def reserve_terminal_recovery(self, failure):
         """Spend one reviewed semantic-stage recovery after an archived terminal failure."""
@@ -437,6 +565,10 @@ class BoundedCodexProvider(CodexProvider):
         self._arguments = (root, directory, encode, limits)
         self._routing_file = routing_file
         self.acquisition_workers = 2
+        binding = self.allowance.grant_path.with_name('current-binding.json')
+        self.retry_terminal_499 = self.allowance.terminal_cancellation_enabled() if binding.exists() else False
+        if binding.exists() and json.loads(binding.read_text()).get('service_recovery_policy') == SERVICE_DELAYED_POLICY:
+            self.acquisition_workers = 1
 
     def fork(self):
         return type(self)(*self._arguments, routing_file=self._routing_file)
@@ -453,15 +585,29 @@ class BoundedCodexProvider(CodexProvider):
         result = {"bytes": len(wire), "local_tokens": len(self.encode(wire.decode())),
                   "service_framing": "CLI_INTERNALS_UNMEASURED; ACTUAL_USAGE_RETAINED"}
         from .phased.account_input import input_token_limit
-        require(result["bytes"] <= self.limits.input_bytes and
+        from .phased.downstream_input import input_byte_limit
+        require(result["bytes"] <= input_byte_limit(request, self.limits) and
                 result["local_tokens"] <= input_token_limit(request, self.limits),
                 {"stage": "PROVIDER_VISIBLE_INPUT", **result}, "E_RESOURCE_LIMIT")
         return result
 
     def complete(self, request, schema, settings):
+        policy = (self.allowance.service_recovery_policy()
+            if hasattr(self.allowance, 'service_recovery_policy') else None)
+        if policy == SERVICE_DELAYED_POLICY:
+            # One live request owns an hourly wait. Independent local work can
+            # continue, but a second process cannot steal its half-open probe.
+            _, directory, _ = self.allowance.service_scope()
+            with (directory / 'service-worker.lock').open('a') as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return self._complete(request, schema, settings)
+        return self._complete(request, schema, settings)
+
+    def _complete(self, request, schema, settings):
         self.check()
         measurement = self.measure(request, schema)
         self.allowance.expected = digest(request)
+        self.allowance.expected_schema = digest(schema)
         policy = (self.allowance.service_recovery_policy()
             if hasattr(self.allowance, 'service_recovery_policy') else None)
         timeout = policy['timeout_seconds'] if policy else 120
@@ -486,7 +632,10 @@ class BoundedCodexProvider(CodexProvider):
                         raise
                     delay = self.allowance.reserve_service_recovery(failure)
                     self.check()
-                    time.sleep(delay)
+                    if policy == SERVICE_DELAYED_POLICY:
+                        self.allowance.wait_service_recovery(failure)
+                    else:
+                        time.sleep(delay)
                     continue
                 from legalmath.interpretation.search.providers import TerminatedCallTimeout
                 if isinstance(failure, TerminatedCallTimeout):

@@ -102,6 +102,29 @@ def historical_evidence(root, archives):
         _HISTORICAL_EVIDENCE.reset(token)
 
 
+def merged_historical_archives(root, archives):
+    """Compose a predecessor's aliases with any enclosing validation scope.
+
+    A later amendment can archive implementation bytes that an earlier
+    amendment did not need to archive.  Nested predecessor validation must
+    retain both sets of exact aliases; dropping the enclosing set makes an
+    unchanged historical program look different merely because its reference
+    points at the current path.  Conflicting aliases remain an integrity
+    failure.
+    """
+    root_key = str(root.resolve())
+    inherited = {
+        (path, sha256): dict(archive)
+        for (scope, path, sha256), archive in (_HISTORICAL_EVIDENCE.get() or {}).items()
+        if scope == root_key
+    }
+    for key, archive in archives.items():
+        require(key not in inherited or inherited[key] == archive,
+            'Conflicting historical evidence archive: ' + key[0])
+        inherited[key] = dict(archive)
+    return inherited
+
+
 def process_identity(pid):
     """Linux process start time prevents a recycled PID looking like our worker."""
     try:
@@ -123,6 +146,46 @@ def validate_program(program, root):
         verify(root, reference)
     tasks = {t['id']: t for t in program['tasks']}
     require(len(tasks) == len(program['tasks']) and tasks, 'Duplicate or empty task graph')
+    if program.get('time_continuation'):
+        from scripts.legal_integration_time_continuation import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('common_capacity'):
+        from scripts.legal_integration_common_capacity import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('candidate_capacity_retry'):
+        from scripts.legal_integration_candidate_retry import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('synthesis_resolution'):
+        from scripts.legal_integration_synthesis_resolution import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('synthesis_continuation'):
+        from scripts.legal_integration_synthesis_continuation import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('gap_preservation'):
+        from scripts.legal_integration_gap_preservation import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('failure_recovery'):
+        from scripts.legal_integration_failure_recovery import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('settled_recovery'):
+        from scripts.legal_integration_settled_recovery import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('frontier_refresh'):
+        from scripts.legal_integration_gap_refresh import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('delayed_service_recovery'):
+        from scripts.legal_integration_delayed_service import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
     if program.get('local_refresh'):
         from scripts.legal_integration_repair_execution import validate_local_refresh
         reviewed = validate_local_refresh(program, root, plan_reference=program['protected_evidence'][-1])
@@ -389,6 +452,36 @@ class Execution:
                 'tasks': {tid: {'status': 'PENDING', 'attempts': []} for tid in self.tasks}, 'events': []}
             require(state['program_hash'] == digest(self.program), 'Program changed; reviewed migration required')
             require(set(state['tasks']) == set(self.tasks), 'State task set changed')
+            if self.program.get('time_continuation'):
+                from scripts.legal_integration_time_continuation import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('common_capacity'):
+                from scripts.legal_integration_common_capacity import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('candidate_capacity_retry'):
+                from scripts.legal_integration_candidate_retry import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('synthesis_resolution'):
+                from scripts.legal_integration_synthesis_resolution import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('synthesis_continuation'):
+                from scripts.legal_integration_synthesis_continuation import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('gap_preservation'):
+                from scripts.legal_integration_gap_preservation import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('failure_recovery'):
+                from scripts.legal_integration_failure_recovery import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('settled_recovery'):
+                from scripts.legal_integration_settled_recovery import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('frontier_refresh'):
+                from scripts.legal_integration_gap_refresh import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('delayed_service_recovery'):
+                from scripts.legal_integration_delayed_service import validate_state_history
+                validate_state_history(self.program, state, self.root)
             for revision in (self.program.get('acceptance_revision'), self.program.get('remaining_work_revision'),
                              self.program.get('substantive_continuation_revision'),
                              self.program.get('substantive_continuation_revision', {}).get('post_review'),
@@ -467,6 +560,15 @@ class Execution:
         refresh = self.program.get('account_reconstruction_repair', refresh)
         refresh = self.program.get('complete_account_capacity_repair', refresh)
         refresh = self.program.get('repair_execution', refresh)
+        refresh = self.program.get('delayed_service_recovery', refresh)
+        refresh = self.program.get('frontier_refresh', refresh)
+        refresh = self.program.get('settled_recovery', refresh)
+        refresh = self.program.get('failure_recovery', refresh)
+        refresh = self.program.get('gap_preservation', refresh)
+        refresh = self.program.get('synthesis_continuation', refresh)
+        refresh = self.program.get('synthesis_resolution', refresh)
+        refresh = self.program.get('candidate_capacity_retry', refresh)
+        refresh = self.program.get('common_capacity', refresh)
         historical = read(safe(self.root, refresh['prior_state']['path']))['tasks'] if refresh else {}
         def verify_dependencies(value):
             if isinstance(value, dict):

@@ -409,6 +409,9 @@ class ContextRoute:
                     require(cited.get("kind") == "source" and quote["quote"] in cited["text"],
                             "Quotation absent from delivered original source")
         data = canonical(value)
+        # The common executor bounds each wire response separately. An assembled
+        # reading can be larger than one response and retains the decoded cap.
+        decoded = decoded or getattr(self, 'common_capacity_profile', None) is not None
         require(len(data) <= (self.limits.decoded_output_bytes if decoded else self.limits.output_bytes) and
                 len(self.encode(data.decode())) <= (self.limits.decoded_output_tokens if decoded else self.limits.output_tokens),
                 "Response exceeds declared budget", "E_RESOURCE_LIMIT")

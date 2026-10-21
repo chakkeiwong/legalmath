@@ -300,7 +300,11 @@ def prepare(request, schema):
     from .phased.downstream_input import apply as downstream_input
     from .phased.downstream_instructions import apply as downstream_instructions
     from .phased.downstream_edits import apply as downstream_edits
-    return downstream_edits(downstream_instructions(downstream_input(account_instructions(apply(prepared)))))
+    result = downstream_edits(downstream_instructions(downstream_input(account_instructions(apply(prepared)))))
+    if request.get('capacity_profile') is not None:
+        from .phased.capacity_policy import annotate
+        result['request'] = annotate(result['request'])
+    return result
 
 
 def resolve(value, prepared, *, maximum_bytes):

@@ -22,6 +22,22 @@ LIVE = WORK / 'live'
 
 
 def active_live(program):
+    if program.get('common_capacity'):
+        return Path(program['common_capacity']['work']) / 'live'
+    if program.get('candidate_capacity_retry'):
+        return Path(program['candidate_capacity_retry']['work']) / 'live'
+    if program.get('synthesis_resolution'):
+        return Path(program['synthesis_resolution']['work']) / 'live'
+    if program.get('synthesis_continuation'):
+        return Path(program['synthesis_continuation']['work']) / 'live'
+    if program.get('gap_preservation'):
+        return Path(program['gap_preservation']['work']) / 'live'
+    if program.get('failure_recovery'):
+        return Path(program['failure_recovery']['work']) / 'live'
+    if program.get('settled_recovery'):
+        return Path(program['settled_recovery']['work']) / 'live'
+    if program.get('frontier_refresh'):
+        return Path(program['frontier_refresh']['work']) / 'live'
     if program.get('repair_execution'):
         return Path(program['repair_execution']['work']) / 'live'
     if program.get('complete_account_capacity_repair'):
@@ -49,11 +65,48 @@ def active_live(program):
 
 
 def question_live(program, q):
+    if program.get('common_capacity'):
+        return active_live(program)
+    if q in program.get('candidate_capacity_retry', {}).get('checkpoints', {}):
+        return Path(program['candidate_capacity_retry']['work']) / 'live'
+    if q in program.get('synthesis_resolution', {}).get('recoveries', {}):
+        return Path(program['synthesis_resolution']['work']) / 'live'
+    if program.get('synthesis_continuation') and q == 'p10':
+        return Path(program['synthesis_continuation']['work']) / 'live'
+    if program.get('gap_preservation') and q == 'p10':
+        return Path(program['gap_preservation']['work']) / 'live'
+    if program.get('failure_recovery') and q == 'p10':
+        return Path(program['failure_recovery']['work']) / 'live'
+    if q in program.get('settled_recovery', {}).get('live_directories', {}):
+        return Path(program['settled_recovery']['live_directories'][q])
     revision = program.get('repair_execution') or program.get('complete_account_capacity_repair')
     return Path(revision['live_directories'][q]) if revision else active_live(program)
 
 
 def common_directory(program, q):
+    if program.get('common_capacity'):
+        return active_live(program) / q / 'product'
+    if q in program.get('candidate_capacity_retry', {}).get('checkpoints', {}):
+        return Path(program['candidate_capacity_retry']['work']) / 'live' / q / 'product'
+    if q in program.get('synthesis_resolution', {}).get('recoveries', {}):
+        return Path(program['synthesis_resolution']['work']) / 'live' / q / 'product'
+    if program.get('synthesis_continuation') and q == 'p10':
+        from scripts.legal_integration_synthesis_continuation import completion
+        done = completion()
+        if done is not None:
+            return Path(done['common_directory'])
+    if program.get('gap_preservation') and q == 'p10':
+        from scripts.legal_integration_gap_preservation import completion
+        done = completion()
+        if done is not None:
+            return Path(done['common_directory'])
+    if program.get('failure_recovery') and q == 'p10':
+        from scripts.legal_integration_failure_recovery import completion
+        done = completion()
+        if done is not None:
+            return Path(done['common_directory'])
+    if q in program.get('settled_recovery', {}).get('common_directories', {}):
+        return Path(program['settled_recovery']['common_directories'][q])
     revision = program.get('repair_execution') or program.get('complete_account_capacity_repair')
     return Path(revision['common_directories'][q]) if revision else active_live(program) / 'common' / q
 
@@ -123,10 +176,12 @@ def phase_admit(owner):
 def session(directory,service,*,owner,q=None,tool=None,shared=None,envelope=None,maximum_calls=8100):
     campaign=configure()
     value=envelope or read(ROOT/campaign.ENVELOPE)
+    capacity = read(ROOT/PROGRAM).get('common_capacity', {}).get('capacity_profile')
     product=PhasedProduct(ROOT,directory,service,value,tokenizer(ROOT/TOKENIZER),limits=Limits(),
         maximum_calls=maximum_calls,maximum_corrections=1,selected_tools=[] if tool is None else [tool],
         active_questions=[q] if q else [x['question_id'] for x in value['original_questions']],
-        shared_prefix=shared,phase_admit=phase_admit(owner),phase_identity=ref(ROOT,BASE/'current-binding.json')['sha256'])
+        shared_prefix=shared,phase_admit=phase_admit(owner),phase_identity=ref(ROOT,BASE/'current-binding.json')['sha256'],
+        common_capacity_profile=capacity)
     product.install_dispatch_admission()
     return product
 
@@ -199,7 +254,8 @@ def acquisition(service):
     try:
         prior=load_exact(ROOT/PREVIOUS_WORK/'settled-acquisition/reconstruction/investigation.json')
         product=BoundedProduct(ROOT,folder,service,read(ROOT/campaign.ENVELOPE),tokenizer(ROOT/TOKENIZER),
-            limits=Limits(),maximum_calls=60)
+            limits=Limits(),maximum_calls=60,
+            common_capacity_profile=read(ROOT/PROGRAM).get('common_capacity', {}).get('capacity_profile'))
         result=recover(product,prior,admit=phase_admit('acquisition'),
             implementation_identity=ref(ROOT,BASE/'current-binding.json')['sha256'])
         save(folder/'shared-operation.json',{'status':'SETTLED',
@@ -212,7 +268,7 @@ def acquisition(service):
         raise
 
 
-def product_route(q,tool,service,*,preparation_only=False):
+def product_route(q,tool,service,*,preparation_only=False,recovery_context=None):
     from scripts.legal_product_completion import run_product
     from legalmath.interpretation.assurance.bounded_product import PROFILE
     campaign=configure()
@@ -243,24 +299,83 @@ def product_route(q,tool,service,*,preparation_only=False):
         if program.get('lossless_account_repair'):
             from legalmath.interpretation.assurance.phased import account_encoding
             options['bounded_requirement_account_input_profile'] = account_encoding.PROFILE
+    if q in program.get('settled_recovery', {}).get('recoveries', {}):
+        options['bounded_requirement_account_recovery'] = program['settled_recovery']['recoveries'][q]
+        options.pop('retained_initial', None)
     common=common_directory(program,q)
     route_live=question_live(program,q)
+    admission=phase_admit('prepare-'+q if preparation_only else q+'-'+(tool or 'baseline'))
+    if program.get('failure_recovery') and q=='p10' and not program.get('synthesis_resolution'):
+        if recovery_context is None:
+            if program.get('synthesis_continuation'):
+                from scripts.legal_integration_synthesis_continuation import completion
+            elif program.get('gap_preservation'):
+                from scripts.legal_integration_gap_preservation import completion
+            else:
+                from scripts.legal_integration_failure_recovery import completion
+            done=completion()
+            require(done is not None, 'P10 requires completed recovery or explicit active repair pass')
+            options['bounded_requirement_account_recovery']=done['recovery']
+        else:
+            require(preparation_only and tool is None,'Repair context is preparation-only')
+            options['bounded_requirement_account_recovery']=recovery_context['recovery']
+            common=Path(recovery_context['common_directory'])
+            admission=lambda name,count:admit(ROOT,BASE,Path(recovery_context['phase_directory']),name,count,owner='prepare-'+q)
+        options.pop('retained_initial',None)
+    if q in program.get('synthesis_resolution', {}).get('recoveries', {}):
+        resolved = program['synthesis_resolution']
+        options.update(bounded_requirement_account_recovery=resolved['recoveries'][q],
+            retained_initial=resolved['successors'][q],
+            bounded_downstream_capacity_profile=resolved['downstream_capacity_profile'])
+        if recovery_context is not None:
+            require(preparation_only and tool is None, 'Resolution context is preparation-only')
+            common = Path(recovery_context['common_directory'])
+            admission = lambda name,count:admit(ROOT,BASE,Path(recovery_context['phase_directory']),name,count,owner='prepare-'+q)
+    if q in program.get('candidate_capacity_retry', {}).get('checkpoints', {}):
+        require(recovery_context is None, 'Completed preparation has no mutable recovery context')
+        options.pop('retained_initial', None)
+        options.pop('bounded_requirement_account_recovery', None)
+        options['bounded_retained_preparation'] = program['candidate_capacity_retry']['checkpoints'][q]
+    if program.get('common_capacity'):
+        options['bounded_common_capacity_profile'] = program['common_capacity']['capacity_profile']
+        options['bounded_capacity_checkpoint'] = program['common_capacity']['checkpoints'][q]
+        if not preparation_only:
+            options['bounded_capacity_checkpoint'] = program['common_capacity']['arm_checkpoints'].get(q, {}).get(
+                tool or 'baseline', options['bounded_capacity_checkpoint'])
     directory=ROOT/common if preparation_only else ROOT/route_live/'arms'/q/(tool or 'baseline')
     shared=None if preparation_only else ROOT/common/'calls'
     return run_product(ROOT,directory,service,ROOT/'jdk','2026-10-15T00:00:00+08:00',
         sources=[],questions=value['original_questions'],acceptance_ref=None,qualification={},
         required={'maximum_calls':8100,'maximum_corrections':1},
-        deadline_utc=read(ROOT/BASE/'live-grant.json')['deadline_utc'],
+        deadline_utc=campaign.effective_deadline(),
         selected_tools=[] if tool is None else [tool],settings=None,consumer_profile=PROFILE,
         bounded_envelope=value,bounded_encode=tokenizer(ROOT/TOKENIZER),bounded_limits=Limits(),
         active_questions=[q],shared_prefix=shared,
         bounded_phase='prepare' if preparation_only else 'answer',bounded_execution='phased',
         bounded_acquisition_ref=ref(ROOT,LIVE/'acquisition/investigation.json'),
-        bounded_phase_admit=phase_admit('prepare-'+q if preparation_only else q+'-'+(tool or 'baseline')),
+        bounded_phase_admit=admission,
         bounded_phase_identity=ref(ROOT,BASE/'current-binding.json')['sha256'],**options)
 
 
 def acquire(q,service):
+    if read(ROOT/PROGRAM).get('common_capacity'):
+        from scripts.legal_integration_common_capacity import acquire as common_acquire
+        return common_acquire(q, service)
+    if q in read(ROOT/PROGRAM).get('candidate_capacity_retry', {}).get('checkpoints', {}):
+        from scripts.legal_integration_candidate_retry import acquire as retry_candidates
+        return retry_candidates(q,service)
+    if q in read(ROOT/PROGRAM).get('synthesis_resolution', {}).get('recoveries', {}):
+        from scripts.legal_integration_synthesis_resolution import acquire as resolve_synthesis
+        return resolve_synthesis(q,service)
+    if q=='p10' and read(ROOT/PROGRAM).get('synthesis_continuation'):
+        from scripts.legal_integration_synthesis_continuation import acquire as continue_synthesis
+        return continue_synthesis(q,service)
+    if q=='p10' and read(ROOT/PROGRAM).get('gap_preservation'):
+        from scripts.legal_integration_gap_preservation import acquire as recover_failed
+        return recover_failed(q,service)
+    if q=='p10' and read(ROOT/PROGRAM).get('failure_recovery'):
+        from scripts.legal_integration_failure_recovery import acquire as recover_failed
+        return recover_failed(q,service)
     investigation=acquisition(service)
     require(investigation['question_acquisition_complete'][q],'Source recovery failed for '+q)
     result=product_route(q,None,service,preparation_only=True)
@@ -324,6 +439,32 @@ def defer_open_service(execution, tid):
     return True
 
 
+def drain_answers(execution, campaign, service):
+    """Run ready consumers without waiting for another question's acquisition."""
+    while True:
+        view=execution.summary()
+        ready=[t for t in view['ready']+view['running'] if t.startswith(('baseline-','tool-','compare-'))]
+        if not ready:
+            return
+        tid=ready[0]
+        if defer_open_service(execution, tid):
+            continue
+        if tid.startswith('compare-'):
+            q,tool=tid[8:].split('-',1)
+            def action(q=q,tool=tool):
+                if not execution.program.get('common_capacity'):
+                    phase_admit('compare-'+q+'-'+tool)('effect',6)
+                configure(q)
+                return campaign.compare(q,tool,service)
+        else:
+            if tid.startswith('baseline-'):
+                q,tool=tid[9:],None
+            else:
+                q,tool=tid[5:].split('-',1)
+            action=lambda q=q,tool=tool:answer(q,tool,service)
+        campaign.complete_node(execution,tid,action)
+
+
 def live():
     campaign=configure();execution=MasterExecution(ROOT,PROGRAM,STATE)
     (ROOT/LIVE).mkdir(parents=True,exist_ok=True)
@@ -351,7 +492,8 @@ def live():
         account_revision=(current_program.get('repair_execution') or current_program.get('complete_account_capacity_repair') or current_program.get('account_reconstruction_repair') or current_program.get('account_instruction_repair')
             or current_program.get('lossless_account_repair') or current_program.get('account_capacity_repair'))
         if account_revision:
-            order=sorted(QUESTIONS,key=lambda q:len(read(ROOT/account_revision['recoveries'][q]['path'])['account_recovery']['roots']))
+            recoveries = {**account_revision['recoveries'], **current_program.get('settled_recovery', {}).get('recoveries', {})}
+            order=sorted(QUESTIONS,key=lambda q:len(read(ROOT/recoveries[q]['path'])['account_recovery']['roots']))
             if account_revision.get('service_continuation'):
                 first = account_revision['service_continuation']['question']
                 order = [first] + [q for q in order if q != first]
@@ -359,25 +501,7 @@ def live():
             view=execution.summary();tid='acquire-'+q
             if tid in view['ready']+view['running'] and not defer_open_service(execution, tid):
                 campaign.complete_node(execution,tid,lambda q=q:acquire(q,service))
-        while True:
-            view=execution.summary()
-            ready=[t for t in view['ready']+view['running'] if t.startswith(('baseline-','tool-','compare-'))]
-            if not ready:
-                break
-            tid=ready[0]
-            if defer_open_service(execution, tid):
-                continue
-            if tid.startswith('compare-'):
-                q,tool=tid[8:].split('-',1)
-                def action(q=q,tool=tool):
-                    phase_admit('compare-'+q+'-'+tool)('effect',6)
-                    configure(q)
-                    return campaign.compare(q,tool,service)
-            else:
-                if tid.startswith('baseline-'):
-                    q,tool=tid[9:],None
-                else:
-                    q,tool=tid[5:].split('-',1)
-                action=lambda q=q,tool=tool:answer(q,tool,service)
-            campaign.complete_node(execution,tid,action)
+            if current_program.get('settled_recovery'):
+                drain_answers(execution, campaign, service)
+        drain_answers(execution, campaign, service)
         return execution.summary()

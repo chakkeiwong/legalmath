@@ -1,0 +1,123 @@
+{
+  "profile": "integration-progress-result.v1",
+  "at_utc": "2026-10-17T05:50:16.157516+00:00",
+  "git_commit": "91ef5396a7cb5d9c43122cbe4334fa9052f8708b",
+  "command": [
+    ".venv/bin/python",
+    "-c",
+    "\nimport collections,datetime,hashlib,json,pathlib,subprocess,sys,time\nstart=time.monotonic(); r=pathlib.Path.cwd(); w=r/\"artifacts/legal-mission-control/2026-10-17/gap-refresh\"; b=r/\"artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence\"\ndef read(p): return json.loads(p.read_text())\ndef ref(p): return dict(path=str(p.relative_to(r)),sha256=hashlib.sha256(p.read_bytes()).hexdigest())\nq=read(b/\"calls/detail-50/request.json\"); out=read(b/\"calls/detail-50/result.json\"); p=read(b/\"account-presentations/detail-50.json\"); store=read(b/\"source-store.json\"); records={x[\"id\"]:x for x in q[\"records\"]}; citations=out[\"value\"][\"support\"]+out[\"value\"][\"contrary\"]; dh=ref(b/\"calls/detail-50/result.json\")[\"sha256\"]; dispatch=read(b/\"calls/dispatch.json\")[\"calls\"]; checks=dict(records_equal_source=all(store[k]==v for k,v in records.items()),quotes_in_delivered=all(c[\"record_id\"] in records and c[\"quote\"] in records[c[\"record_id\"]][\"text\"] for c in citations),result_matches_dispatch=dispatch[\"detail-50\"][\"result_hash\"]==dh,result_matches_presentation=p[\"result_hash\"]==dh,request_matches_presentation=p[\"request_hash\"]==out[\"request_hash\"],exact_considered=out[\"value\"][\"considered\"]==q[\"required_considered\"],legal_acceptance_false=p[\"legal_acceptance\"] is False); assert all(checks.values()),checks\ninputs=[b/\"calls/detail-50/request.json\",b/\"calls/detail-50/result.json\",b/\"account-presentations/detail-50.json\",b/\"source-store.json\",w/\"current-progress-diagnostic.json\",w/\"current-progress-registration.json\",w/\"current-progress-result.md\",r/\"docs/implementation/legal-mission-control/results/gap-refresh-progress-2026-10-17.md\",r/\"src/legalmath/interpretation/assurance/phased/product.py\",r/\"src/legalmath/interpretation/assurance/phased/inventory.py\",r/\"src/legalmath/interpretation/assurance/phased/synthesis.py\"]\nstate=read(r/\"artifacts/legal-mission-control/2026-10-13/master/execution-state.json\"); details=read(b/\"requirement-details.json\"); result=dict(profile=\"integration-progress-result.v1\",at_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),git_commit=subprocess.check_output([\"git\",\"rev-parse\",\"HEAD\"],text=True).strip(),command=sys.orig_argv,environment=str(r/\".venv/bin/python\"),devices=\"N/A: standard-library file checks; no device framework loaded\",random_seeds=\"N/A: deterministic saved-file checks\",wall_seconds=time.monotonic()-start,inputs=[ref(p) for p in inputs],account=\"detail-50\",assignment=q[\"payload\"][\"original_assignment\"][\"id\"],checks=checks,quotes_checked=len(citations),primary_delivered=[x for x in records if x.startswith(\"source:d996fc27b2d2e\")],legal_entailment=\"Bounded observed reconciliation only; not a full entailment review\",mission_commands_observed=[dict(command=[\".venv/bin/python\",\"scripts/legal_mission_control.py\",a],exit_code=0) for a in (\"check\",\"status\",\"admit\",\"refresh\")],observed_root_results=dict(collections.Counter(x[\"result\"][\"status\"] for x in details)),observed_owner=state[\"tasks\"][\"acquire-evidence\"][\"status\"],calls=len(read(r/\"artifacts/legal-mission-control/2026-10-13/master/live-calls.json\")[\"calls\"]),new_provider_calls=0,new_repairs=0,new_owner_attempts=0,legal_acceptance=False,integration_complete=False)\np=w/\"current-progress-result.manifest.json\"\nwith p.open(\"x\") as f: json.dump(result,f,indent=2); f.write(\"\\n\")\nprint(json.dumps(dict(manifest=str(p.relative_to(r)),checks=checks,root_results=result[\"observed_root_results\"],owner=result[\"observed_owner\"],calls=result[\"calls\"]),indent=2))\n"
+  ],
+  "environment": "/home/chakwong/python/legalmath/.venv/bin/python",
+  "devices": "N/A: standard-library file checks; no device framework loaded",
+  "random_seeds": "N/A: deterministic saved-file checks",
+  "wall_seconds": 0.22615955024957657,
+  "inputs": [
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/calls/detail-50/request.json",
+      "sha256": "c093acf38f9b9228e6ac7ba1b1f22dda279c85b00d11f06da8290c3ea40e68ea"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/calls/detail-50/result.json",
+      "sha256": "5baffd52bd5d2916f5fe3f0f2f86df4e53c7688890ec8b2994458ea280a728e4"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/account-presentations/detail-50.json",
+      "sha256": "0e13ceb9498279b6fe74ec60ad8825fd7e0628152044208e43eee606376bd961"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-16/integration-repairs/round-7/live/common/evidence/source-store.json",
+      "sha256": "7646cd6d74f5b37faf9e22bbe9104cc288ca512c23a46cb8e4f49ae7a97b8aa5"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-17/gap-refresh/current-progress-diagnostic.json",
+      "sha256": "c0f92ce02067a4c750d3d68d4f8444a8f337292a43bad88ce9435807ecf38ed1"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-17/gap-refresh/current-progress-registration.json",
+      "sha256": "5ff0b398aec6a79dc4d816d8d7d76e9693a9eeb0fc9b9d8cc1397c43d30aff5f"
+    },
+    {
+      "path": "artifacts/legal-mission-control/2026-10-17/gap-refresh/current-progress-result.md",
+      "sha256": "dc8fd0ff88971888500305953182d6076ebed0f682034f6790afe35aecfe0ce9"
+    },
+    {
+      "path": "docs/implementation/legal-mission-control/results/gap-refresh-progress-2026-10-17.md",
+      "sha256": "329f9f2fc4cdaef9ba637c0d0f3100cfe8cae4d36c875c71c4fddeba74950d4a"
+    },
+    {
+      "path": "src/legalmath/interpretation/assurance/phased/product.py",
+      "sha256": "357e99a28965ddd56b582f884e09124ead83849722c87e77f9823508d1d29c75"
+    },
+    {
+      "path": "src/legalmath/interpretation/assurance/phased/inventory.py",
+      "sha256": "412da969f2939d7b5ab2c293166f75092fb95718e0d00f70a33478eba5c8a089"
+    },
+    {
+      "path": "src/legalmath/interpretation/assurance/phased/synthesis.py",
+      "sha256": "f4c2636538715b758c5be9526529c47d71f375add5a255276e03d79a5e67b89b"
+    }
+  ],
+  "account": "detail-50",
+  "assignment": "reading:alternative.004.3104c53459d53628",
+  "checks": {
+    "records_equal_source": true,
+    "quotes_in_delivered": true,
+    "result_matches_dispatch": true,
+    "result_matches_presentation": true,
+    "request_matches_presentation": true,
+    "exact_considered": true,
+    "legal_acceptance_false": true
+  },
+  "quotes_checked": 25,
+  "primary_delivered": [
+    "source:d996fc27b2d2e.u17.3312:0",
+    "source:d996fc27b2d2e.u40.6899:0",
+    "source:d996fc27b2d2e.u18.3536:0"
+  ],
+  "legal_entailment": "Bounded observed reconciliation only; not a full entailment review",
+  "mission_commands_observed": [
+    {
+      "command": [
+        ".venv/bin/python",
+        "scripts/legal_mission_control.py",
+        "check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "scripts/legal_mission_control.py",
+        "status"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "scripts/legal_mission_control.py",
+        "admit"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        ".venv/bin/python",
+        "scripts/legal_mission_control.py",
+        "refresh"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "observed_root_results": {
+    "VALIDATED": 63,
+    "FAILED": 1
+  },
+  "observed_owner": "RUNNING",
+  "calls": 2637,
+  "new_provider_calls": 0,
+  "new_repairs": 0,
+  "new_owner_attempts": 0,
+  "legal_acceptance": false,
+  "integration_complete": false
+}

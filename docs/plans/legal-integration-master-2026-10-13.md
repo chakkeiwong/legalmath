@@ -1,5 +1,167 @@
 # Master program for complete legal-tool integration
 
+Current continuation, 20 October (Hong Kong): the user authorized a bounded
+repair and retry, offering a million-token work allowance. The governing
+amendment is [candidate capacity and saved preparation](legal-candidate-capacity-retry-2026-10-20.md).
+The last worker settled at 08:51:42 UTC with all four original syntheses
+PREPARED. Optional candidate generation exceeded local input bounds; the
+acquisition wrapper incorrectly treated these optional failures as required
+preparation failures. The ledger contains 3,447 charges and the delayed-service
+reserve has used 18 of 24 replacements. No owner was running at the frozen
+09:20:14 UTC checkpoint.
+
+Reuse the authenticated completed accounts and synthesis for each question.
+Candidate and criticism requests explicitly select the existing 70,000-token /
+250,000-byte envelope and lossless duplicate-source sharing. Baseline and
+BM25-only answers do not depend on candidate generation. Preserve optional
+failures for the tools that need them; authority and evidence-integrity failures
+remain vetoes. No legal acceptance criterion, service limit, previous attempt
+or historical result changes. One further attempt per exhausted acquisition
+owner releases the original independent answer/tool branches. Refresh after
+each result and continue ready work under the existing 8,100-call ceiling and
+20 October 18:55:16 UTC deadline. The token offer does not establish service
+capacity or authorize an enlarged request context.
+
+The earlier amendments below retain their historical findings and limits.
+
+Continuation, 19 October (Hong Kong): the user authorized 48 more hours.
+The [reviewed synthesis continuation](legal-synthesis-window-continuation-2026-10-19.md)
+fixes the effective deadline at 2026-10-20 18:55:16 UTC (21 October, 02:55:16
+Hong Kong). Preserve the original grant, 3177 charges, 8100 total ceiling,
+service history and all prior attempts. All 85 P10 accounts now validate.
+Attempt 11's first synthesis level was refused before dispatch because its
+105 calls required 31,805 seconds under the old time window. One additional
+P10 continuation reuses the complete checkpoint and executes that pending phase
+with unchanged checks. The returned-failure diagnosis now records nested phase
+refusals and model failures. Each prepared question releases its independently
+eligible baseline/tool branches; unrelated exhausted attempts are retained.
+The machine register records adoption and actual results. Full legal answers,
+matched tool effects and integration acceptance remain unestablished.
+
+Current amendment, 19 October (Hong Kong): the reviewed
+[bounded failure recovery](legal-integration-failure-recovery-2026-10-19.md)
+adds the missing completion-only diagnosis and repair transition. P10 attempt 9
+finished with 78 of 85 validated accounts; four reference-format failures and
+three unexplained no-output invalid requests remain. One additional P10 owner
+attempt contains at most two durable passes, one correction/replay per request,
+and a refreshed diagnosis after each settlement. Preserve every validated
+account, source gap, earlier attempt and charge. Independent original nodes
+continue under their own prerequisites. The global grant, deadline, 8,100-call
+ceiling and service-retry ledger are unchanged. The machine register governs
+adoption and actual execution; this amendment does not assert legal completion.
+
+Current settled recovery, 17 October: the [reviewed closure amendment](../implementation/legal-mission-control/results/settled-gap-recovery-2026-10-17.md)
+governs this same master after acquisition settled at 2,734 calls. Evidence has
+85 validated roots and one rejected account; P10 has a reproduced predecessor
+phase-binding mismatch. The user's renewed instruction authorizes one bounded
+local package and one additional attempt for each of these two owners after
+actual production replay passes. Preserve every original attempt, R1-R10,
+the 8,100-call ceiling, the 18 October UTC live deadline and delayed retry ledger.
+
+Build exact composite recovery checkpoints and separate new phase/admission
+records. Correct only the evidenced rejected response, preserve all source gaps,
+and never rewrite successful accounts or predecessor phases. Evidence and P10
+are independent; each successful preparation releases its existing baseline,
+six tool arms and matched comparisons. Review and refresh after each settlement.
+P14 parameter tracing, Gatecoin's explicit refusal disposition, dated source
+applicability and complete source-grounded answer review remain distinct duties.
+No blind P14 retry or refusal circumvention is admitted. Missing client facts
+restrict dependent conclusions while supported conditional analysis continues.
+
+The same literal commands remain in use: master `gap-refresh` registers the
+validated amendment, mission `refresh` and master `verify` check it, and the
+existing `.venv-context/bin/python scripts/legal_integration_master.py live`
+executes ready original nodes. No host approval rule or broad command privilege
+is changed. Program completion remains a result to establish, not a promise.
+
+Earlier amendments below retain their historical evidence and limits.
+
+Current execution amendment, 17 October: the
+[frontier review and closure actions](../implementation/legal-mission-control/results/gap-refresh-2026-10-17.md)
+govern the remaining work in this same master. Its dependency table distinguishes
+our P10 receipt-construction defect, terminal service cancellation, P14's unknown
+invalid parameter, Gatecoin's refusal, source applicability, full legal answers
+and the six tool evaluations. Keep four questions, 46 obligations, 35 readings
+and 24 matched question/tool comparisons visible. None of the six tools is fully
+evaluated at the 2,369-call comparator.
+
+First prove and repair P10's order-only reconstruction failure without a model
+call. Restore the authenticated completed contract only after every complete
+record and every other base field agree. Normal receipt, decoded-output and
+citation checks still apply. Register the passing proof and preserve the exact
+old veto under resolved history. Allocate only the previously unallocated
+twentieth extra task attempt to P10; retain R1–R10 as exhausted. Evidence keeps
+its own unused attempt and can proceed independently. P14 and Gatecoin retain
+their separate blockers and exhausted owner allocations.
+
+Extend hourly recovery to explicitly terminal, no-output HTTP 499 under a bound
+opt-in. Keep partial output, unknown dispatch, invalid requests and refusals out
+of automatic recovery. Reuse the existing shared service scope and 1/24 spent
+delayed ledger, the original 8,100-call ceiling, both deadlines and gpt-6.1-sol.
+Wait one hour for the first reserved replacement and two hours thereafter;
+honor longer explicit server delays. A durable worker retains the exact request,
+receipt and next retry time across editor reloads. Continue independent local
+work while service waits. This amendment adds no calls, replacements, repairs or
+time and records one consolidated revision, detour 53.
+
+After adoption, continue the original ready acquisition, baseline, tool and
+comparison nodes. Refresh after each settled package and retain actual failures.
+P14 parameter diagnosis and dated conditional source analysis remain independent
+local work; do not turn an unknown parameter into an invented explanation.
+Missing client facts restrict conclusions while conditional analysis continues.
+Treat the refused Gatecoin request as a retained limitation requiring a legitimate
+disposition. Tool closure requires actual downstream consideration and matched
+answer effects, including adverse cases. Use the existing command forms:
+
+```text
+.venv/bin/python scripts/legal_integration_master.py gap-refresh
+.venv/bin/python scripts/legal_mission_control.py refresh
+.venv/bin/python scripts/legal_integration_master.py verify
+.venv-context/bin/python scripts/legal_integration_master.py live
+```
+
+The entries below remain historical execution evidence.
+
+Current execution amendment, 16 October: the user authorizes waiting one or two
+hours before retrying an intermittent Sol failure. The
+[delayed-service plan and skeptical review](../implementation/legal-mission-control/results/delayed-service-retry-policy.md)
+govern this amendment of the same master. Keep `gpt-6.1-sol`, the original
+8,100-call ceiling and grant deadline. Retain all 2,359 earlier charges, 41
+separate historical calls and the spent 48-replacement reserve. A separate,
+finite reserve of at most 24 hourly replacements implements this instruction;
+it adds no global calls, owner attempts, repair allowance or time.
+
+Registration and binding are local adoption. Reopen only the original P10 and
+evidence owners, each using its existing unused attempt. P14 and Gatecoin retain
+their distinct invalid-request/cancellation and refusal issues. Their failures
+do not block P10/evidence. Completed responses are reused. The first necessary
+request after the elapsed cooldown tests service availability on actual work.
+
+A classified terminal no-output service failure saves its receipt, exact
+request/schema, worker identity and next UTC retry time before waiting. Wait
+one hour on the first new failure and two hours thereafter; honor a longer
+explicit server delay. Dispatch only when that delay and the normal timeout
+fit the original deadline. One live request owns the cooldown and subsequent
+half-open probe; independent local work may continue. A surviving detached
+worker continues through an editor reload. An unknown in-flight request must
+be reconciled before another process can send it.
+
+After successful P10/evidence preparation, execute the original eligible
+baseline, tool and comparison branches under their existing dependencies.
+Refresh after each settled owner. Record an active timed wait as waiting, with
+the actual next retry time; do not infer permanent unavailability from an
+outage. Local tests or a successful Sol response do not establish legal
+acceptance or complete tool integration. Use the exact commands:
+
+```text
+.venv/bin/python scripts/legal_integration_master.py delayed-service
+.venv/bin/python scripts/legal_mission_control.py refresh
+.venv/bin/python scripts/legal_integration_master.py verify
+.venv/bin/python scripts/legal_integration_master.py live
+```
+
+The review below predates this delayed-service instruction and remains history.
+
 Current reviewed refresh, 16 October: the post-R10 frontier is settled at
 2,359/8,100 calls plus 41 historical calls. P14 retains 36 complete accounts and
 20/90 first-level syntheses; five requests failed after dispatch and 65 were
@@ -1377,3 +1539,106 @@ CPU-only status, input hashes, seed applicability, wall time, primary/veto
 criteria, uncertainty, next action and unsupported conclusions. Append mission
 history and refresh after each work package. The machine frontier and reset memo
 must survive reloads without resetting attempts, history or call reservations.
+
+## Source-gap preservation repair, 19 October 2026
+
+The bounded failure recovery repaired six of seven failed accounts and preserved
+all 78 previous successes. The remaining complete response retained all required
+source gaps but disclosed four more; exact-list equality incorrectly rejected
+it. The reviewed amendment is
+`docs/plans/legal-account-gap-preservation-2026-10-19.md`.
+
+Continue through the same master using an authenticated reassessment of that
+already charged response, with no replacement model sample. Every required gap
+must remain unchanged; additional distinct, source-checked gaps stay explicit.
+All 84 successful accounts, previous failures, attempts, charges and deadlines
+remain. One settled-owner continuation completes the affected parent accounts
+and ordinary synthesis, diagnoses its result, and drains independently eligible
+original tasks. Account validation does not establish legal acceptance or tool
+integration completion.
+
+## Pending synthesis resolution, 19 October 2026
+
+The P10 continuation completed all 85 accounts and five synthesis levels but
+stopped with three groups that could not combine under the 32768-token bound.
+Evidence stopped at four groups; a nonadjacent pair fits but the old contiguous
+packing did not try it. P14 and Gatecoin have complete, already charged
+original-form diagnostic responses requiring authenticated reassessment.
+
+The governing amendment is
+`docs/plans/legal-synthesis-resolution-2026-10-19.md`. Preserve all earlier
+attempts and 3311 charges. It adds one opportunity for each exhausted acquisition
+owner, using unchanged successful accounts and synthesis levels, bounded pair
+search and the user's requested 70000-token/250000-byte downstream envelope.
+Local replay must pass through every completed level without provider calls
+before registration. Historical retries retain all charges. Reloaded input
+aliases must be proved bijective with unchanged source, schema and decoder maps.
+
+The existing four question branches keep their dependencies. After each owner
+settles, retain diagnosis and refresh the ready set; continue its eligible answer
+branches and the other acquisition owners. The call ceiling remains 8100 and
+the approved deadline remains 2026-10-20T18:55:16+00:00. None of these engineering
+repairs closes the original questions, 46 obligations, 35 readings or six
+answer-level tool evaluations. Missing source access and unresolved legal
+alternatives must remain visible in the delivered analysis.
+
+## Common capacity interface, 20 October 2026
+
+The governing amendment is
+`docs/plans/legal-common-capacity-interface-2026-10-20.md`. It introduces one
+versioned interface for every current model stage, and complete-input memory
+checks for native tools and metadata inventory. Stage adapters define budgets,
+semantic partitioning, validation and assembly. Independent decisions may split;
+coupled graphs and complete comparisons remain atomic with explicit limitations.
+Actual input, raw output, expanded output, leaf calls, depth and elapsed time are
+bounded. Output overflow can trigger finite subdivision; semantic rejection and
+service timeouts cannot trigger another sample.
+
+Retain all completed source readings, accounts and syntheses. Revalidate a
+complete output rejected solely by size only through its exact transport and
+original validators. Preserve the old failure. Share common candidate and
+criticism results among tool arms so they use the same interpretation. The
+4-question, 46-obligation, 35-reading and six-tool acceptance duties remain.
+
+Deployment waits for the authenticated predecessor worker to settle, checks
+every staged file against its reviewed manifest, archives changed predecessor
+bytes, and registers `common_capacity` in the same integration graph. It retains
+attempt histories, spent service replacements, the 8,100-call ceiling and
+20 October 2026 18:55:16 UTC deadline. Only missing original owners may receive
+one changed-contract attempt; successful owners remain completed. After each
+checkpoint the existing master refreshes the ready set and runs independent
+work. A pending service retry retains its ownership; no replacement worker is
+launched over it.
+
+Exact local commands are:
+
+```text
+.venv-context/bin/python scripts/legal_common_capacity_work.py test
+.venv-context/bin/python scripts/legal_common_capacity_replay.py
+.venv-context/bin/python scripts/legal_common_capacity_deploy.py status
+.venv-context/bin/python scripts/legal_common_capacity_deploy.py arm
+.venv-context/bin/python scripts/legal_integration_master.py gap-refresh
+.venv/bin/python scripts/legal_mission_control.py refresh
+.venv-context/bin/python scripts/legal_integration_master.py verify
+.venv-context/bin/python scripts/legal_integration_master.py live
+```
+
+The fixed deploy wrapper performs one validated adoption and continuation, has
+no arbitrary command argument, and cannot reset the grant or service circuit.
+If the existing deadline expires, it may finish local adoption/verification but
+must not dispatch live calls. Capacity validation is engineering evidence; it
+does not establish legal acceptance or native-tool benefit.
+
+## Approved time continuation, 21 October 2026
+
+The user approved “you have 72 hours more.” The reviewed time-only amendment is
+`docs/plans/legal-capacity-time-continuation-2026-10-21.md`. Its effective
+deadline is 24 October 2026 02:19:15 UTC, measured from recorded receipt.
+The original grant, older time extension and all 3,485 charges remain retained;
+the 8,100-call ceiling, attempts, repairs, service policy and completed work are
+unchanged. No task is reopened by the time amendment. The installed common
+capacity program supplies the ready work and substantive acceptance criteria.
+Service-reservation diagnosis remains distinct from time authorization. After
+each result retain the diagnosis, refresh the frontier and continue independent
+authorized branches. The four questions, 46 obligations, 35 readings and six
+tool-effect evaluations remain the delivery duties.

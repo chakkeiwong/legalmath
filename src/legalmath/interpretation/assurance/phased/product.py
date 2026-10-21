@@ -14,7 +14,12 @@ from .phase import execute
 
 
 class PhasedProduct(BoundedProduct):
-    def __init__(self, *args, phase_admit, phase_identity, downstream_instruction_profile=None, **kwargs):
+    def __init__(self, *args, phase_admit, phase_identity, downstream_instruction_profile=None,
+                 downstream_capacity_profile=None, retained_preparation=None, **kwargs):
+        from .downstream_input import CAPACITY_PROFILE
+        require(downstream_capacity_profile in (None, CAPACITY_PROFILE),
+            'Unknown downstream capacity selection', 'E_AUTHORITY')
+        self.downstream_capacity_profile = downstream_capacity_profile
         super().__init__(*args, **kwargs)
         from . import downstream_instructions
         require(downstream_instruction_profile in (None, downstream_instructions.PROFILE),
@@ -25,6 +30,35 @@ class PhasedProduct(BoundedProduct):
         require(callable(phase_admit) and phase_identity, 'Missing phase execution binding', 'E_AUTHORITY')
         self.phase_admit, self.phase_identity = phase_admit, phase_identity
         self.current_dependencies = []
+        self.prepared_checkpoint = None
+        if retained_preparation is not None:
+            from .prepared_checkpoint import load
+            self.prepared_checkpoint = load(self, retained_preparation)
+            checkpoint_path = self.directory / 'retained-preparation.json'
+            if checkpoint_path.exists():
+                require(json.loads(checkpoint_path.read_text()) == retained_preparation,
+                    'Prepared checkpoint changed on resume', 'E_INTEGRITY')
+            else:
+                save_exact(checkpoint_path, retained_preparation)
+            # A preparation with no new successful calls still supplies an
+            # authenticated empty journal to independent downstream arms.
+            journal_path = self.dispatch.directory / 'dispatch.json'
+            if not journal_path.exists():
+                save_exact(journal_path, {'input_hash': self.route.input_hash,
+                    'maximum_calls': self.dispatch.maximum_calls, 'calls': {}})
+        if downstream_capacity_profile is not None:
+            require(self.downstream_input_profile is not None,
+                'Capacity requires explicit downstream transport', 'E_AUTHORITY')
+            save_exact(self.directory/'synthesis-resolution-options.json', {
+                'downstream_capacity_profile': downstream_capacity_profile,
+                'pair_search_maximum_frontier': 16})
+
+    def request(self, task, *args, **kwargs):
+        value = super().request(task, *args, **kwargs)
+        from .downstream_input import TASKS
+        if self.downstream_capacity_profile is not None and task in TASKS and task != 'SYNTHESIZE_FINDINGS':
+            value['downstream_capacity_profile'] = self.downstream_capacity_profile
+        return value
 
     def run_phase(self, name, calls):
         return execute(self, name, calls, implementation_identity=self.phase_identity,
@@ -35,8 +69,9 @@ class PhasedProduct(BoundedProduct):
         if self.downstream_instruction_profile is None:
             return calls
         from ..integration_contract import read_evidence
-        from . import downstream_instructions, synthesis_recovery
+        from . import downstream_instructions, synthesis_recovery, synthesis_catalog
         from .downstream_input import TASKS
+        from .tool_input import TASKS as TOOL_TASKS
         checkpoint = None
         if self.dispatch.retained_initial:
             root, reference = self.dispatch.retained_initial
@@ -46,7 +81,7 @@ class PhasedProduct(BoundedProduct):
         prepared, service_first = [], set()
         for call in calls:
             request = call['request']
-            if request.get('task') not in TASKS:
+            if request.get('task') not in TASKS or request.get('task') in TOOL_TASKS:
                 prepared.append(call)
                 continue
             revised = None
@@ -56,7 +91,10 @@ class PhasedProduct(BoundedProduct):
                     'Synthesis instruction scope differs from checkpoint', 'E_AUTHORITY')
                 revised = synthesis_recovery.rewrite(self.root, checkpoint, call['key'], request,
                     call['schema'], self.route.input_hash, limits=self.route.limits)
-                row = metadata['rows'].get(call['key'], {})
+                pointer = (synthesis_catalog.selected(self.root, checkpoint, call['key'], self.route.input_hash)
+                    if metadata.get('profile') == synthesis_catalog.PROFILE else None)
+                row = (read_evidence(pointer,self.root)['rows'][call['key']] if pointer
+                    else metadata['rows'].get(call['key'], {}))
                 if row.get('disposition') == 'CHARGED_NO_OUTPUT_FAILURE':
                     service_first.add(call['key'])
             if revised is None:
@@ -66,7 +104,9 @@ class PhasedProduct(BoundedProduct):
                 downstream_instructions.validate_correction(request, value)
                 validate(value)
             prepared.append({**call, 'request': revised, 'validate': checked})
-        require(len(service_first) <= 1, 'More than one explicit service retry', 'E_AUTHORITY')
+        require(len(service_first) <= 1 or (checkpoint and
+            read_evidence(checkpoint,self.root).get('profile') == synthesis_catalog.PROFILE),
+            'More than one explicit service retry', 'E_AUTHORITY')
         return sorted(prepared, key=lambda call: call['key'] not in service_first)
 
     def install_dispatch_admission(self):
@@ -85,12 +125,16 @@ class PhasedProduct(BoundedProduct):
         raise LegalMathError('E_AUTHORITY', details='Phased answers require an explicitly retained acquisition')
 
     def reduce(self, qid, question, rows):
+        if self.prepared_checkpoint is not None:
+            from .prepared_checkpoint import findings
+            return findings(self, qid, question, self.prepared_checkpoint)
         # answer() supplies the exact original acquisition; replace only the
         # redundant copies in its synthesis population, with audited mapping.
         rows, _ = synthesis.prepare(self, qid, self.retained_acquisition, self.retained_details)
-        from .grouping import pack_items
+        from .grouping import pack_items, contract_pair
         normalized = set()
         maximum_levels = len(rows) + 1
+        large_capacity = False
         def build(group):
             request = self.request('SYNTHESIZE_FINDINGS', question, self.source_records(group),
                 payload=group, expected=[r['id'] for r in group])
@@ -101,18 +145,26 @@ class PhasedProduct(BoundedProduct):
                     'This summary is a proposal: complete original accounts and sources remain separately '
                     'retained for independent answer review. Do not equate considered-ID coverage with '
                     'semantic completeness. State any unfinished analysis explicitly in unresolved.')
+            if large_capacity:
+                request['downstream_capacity_profile'] = self.downstream_capacity_profile
             return request
         level = 0
         while len(rows) > 1:
+            large_capacity = False
             require(level < maximum_levels, 'Synthesis exceeded its finite progress bound', 'E_RESOURCE_LIMIT')
             def measure(group):
                 request = build(group)
                 if self.downstream_instruction_profile is not None:
                     from ..integration_contract import read_evidence
-                    from . import synthesis_recovery, downstream_instructions
+                    from . import synthesis_recovery, downstream_instructions, synthesis_catalog
                     retained = self.dispatch.retained_initial
                     historical_first = (level == 0 and retained is not None and
                         read_evidence(retained[1], retained[0]).get('profile') == synthesis_recovery.PROFILE)
+                    if historical_first:
+                        combined=read_evidence(retained[1],retained[0])
+                        metadata=read_evidence(combined['synthesis'],self.root)
+                        if metadata.get('profile') == synthesis_catalog.PROFILE:
+                            historical_first = not metadata['first_level_instructions']
                     if not historical_first:
                         request = downstream_instructions.annotate(request)
                 try:
@@ -122,9 +174,22 @@ class PhasedProduct(BoundedProduct):
                         raise
                     return None
             groups, blocked = pack_items(rows, measure, maximum_items=6)
+            if blocked and self.downstream_capacity_profile is not None:
+                large_capacity = True
+                groups, blocked = pack_items(rows, measure, maximum_items=6)
             require(not blocked, 'Atomic finding cannot enter synthesis', 'E_RESOURCE_LIMIT')
             normalize = {i for i, g in enumerate(groups) if len(g['members']) == 1
                 and g['members'][0]['id'] not in normalized and self.downstream_input_profile is not None}
+            if len(groups) == len(rows) and not normalize and self.downstream_capacity_profile is not None:
+                paired = contract_pair(rows, measure)
+                if paired is not None:
+                    groups = paired
+                elif not large_capacity:
+                    large_capacity = True
+                    groups, blocked = pack_items(rows, measure, maximum_items=6)
+                    require(not blocked, 'Atomic finding exceeds reviewed enlarged input', 'E_RESOURCE_LIMIT')
+                    if len(groups) == len(rows):
+                        groups = contract_pair(rows, measure) or groups
             require(len(groups) < len(rows) or normalize,
                 'Synthesis cannot contract without losing support', 'E_RESOURCE_LIMIT')
             calls, carry = [], {}
@@ -159,7 +224,10 @@ class PhasedProduct(BoundedProduct):
         return rows
 
     def requirement_details(self):
-        rows = super().requirement_details()
+        rows = (deepcopy(self.prepared_checkpoint[2]) if self.prepared_checkpoint is not None
+            else super().requirement_details())
+        if self.prepared_checkpoint is not None:
+            save_exact(self.directory / 'requirement-details.json', rows)
         self.retained_details = rows
         exact = inventory.preserve(self)
         save_exact(self.directory / 'exact-inventory.json', exact)

@@ -32,7 +32,7 @@ TOOLS = ("bm25", "legalruleml", "pyarg", "carneades", "clingo", "logical-english
 QUESTIONS = ("p10", "p14", "evidence", "gatecoin")
 PRIOR = Path("artifacts/legal-mission-control/2026-10-12/remaining-work")
 TOKENIZER = Path(".localresources/legal-context-methods-2026-10-12/cl100k_base.tiktoken")
-LOCAL_ACTIONS = ("check", "status", "prepare", "verify", "run", "approval-packet", "maintain")
+LOCAL_ACTIONS = ("check", "status", "prepare", "verify", "run", "approval-packet", "maintain", "delayed-service", "gap-refresh")
 MISSION_REFRESH_TIMEOUT_SECONDS = 900
 
 
@@ -501,7 +501,37 @@ def main():
     parser.add_argument("task", nargs="?")
     args = parser.parse_args()
     require((args.action == "worker") == bool(args.task), "Only worker accepts a registered task")
-    if args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('repair_execution'):
+    if args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('time_continuation'):
+        from scripts.legal_integration_time_continuation import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('common_capacity'):
+        from scripts.legal_integration_common_capacity import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('candidate_capacity_retry'):
+        from scripts.legal_integration_candidate_retry import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('synthesis_resolution'):
+        from scripts.legal_integration_synthesis_resolution import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('synthesis_continuation'):
+        from scripts.legal_integration_synthesis_continuation import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('gap_preservation'):
+        from scripts.legal_integration_gap_preservation import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('failure_recovery'):
+        from scripts.legal_integration_failure_recovery import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('settled_recovery'):
+        from scripts.legal_integration_settled_recovery import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('frontier_refresh'):
+        from scripts.legal_integration_gap_refresh import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('delayed_service_recovery'):
+        from scripts.legal_integration_delayed_service import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('repair_execution'):
         from scripts.legal_integration_repair_execution import verification
         result = verification()
     elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('complete_account_capacity_repair'):
@@ -531,6 +561,27 @@ def main():
     elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('remaining_work_revision'):
         from scripts.legal_integration_remaining import verify_repairs
         result = verify_repairs()
+    elif args.action == "gap-refresh":
+        if (ROOT / Path('artifacts/legal-mission-control/2026-10-20/common-capacity-interface/local-result.json')).exists():
+            from scripts.legal_integration_common_capacity import register
+        elif (ROOT / Path('artifacts/legal-mission-control/2026-10-20/candidate-capacity-retry/local-result.json')).exists():
+            from scripts.legal_integration_candidate_retry import register
+        elif (ROOT / Path('artifacts/legal-mission-control/2026-10-19/synthesis-resolution/local-result.json')).exists():
+            from scripts.legal_integration_synthesis_resolution import register
+        elif (ROOT / Path('artifacts/legal-mission-control/2026-10-19/synthesis-continuation/local-result.json')).exists():
+            from scripts.legal_integration_synthesis_continuation import register
+        elif (ROOT / Path('artifacts/legal-mission-control/2026-10-19/gap-preservation/local-result.json')).exists():
+            from scripts.legal_integration_gap_preservation import register
+        elif (ROOT / Path('artifacts/legal-mission-control/2026-10-19/failure-recovery/local-result.json')).exists():
+            from scripts.legal_integration_failure_recovery import register
+        elif (ROOT / Path('artifacts/legal-mission-control/2026-10-17/gap-refresh/settled-recovery/local-result.json')).exists():
+            from scripts.legal_integration_settled_recovery import register
+        else:
+            from scripts.legal_integration_gap_refresh import register
+        result = register()
+    elif args.action == "delayed-service":
+        from scripts.legal_integration_delayed_service import register
+        result = register()
     elif args.action == "maintain":
         from scripts.legal_integration_repair_execution import register_local_refresh
         result = register_local_refresh()
@@ -550,7 +601,32 @@ def main():
         result = live()
     else:
         result = MasterExecution(ROOT, PROGRAM, STATE).run()
-        if read(ROOT / PROGRAM).get('repair_execution'):
+        if read(ROOT / PROGRAM).get('common_capacity'):
+            from scripts.legal_integration_common_capacity import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('candidate_capacity_retry'):
+            from scripts.legal_integration_candidate_retry import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('synthesis_resolution'):
+            from scripts.legal_integration_synthesis_resolution import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('synthesis_continuation'):
+            from scripts.legal_integration_synthesis_continuation import verification
+        elif read(ROOT / PROGRAM).get('gap_preservation'):
+            from scripts.legal_integration_gap_preservation import verification
+        elif read(ROOT / PROGRAM).get('failure_recovery'):
+            from scripts.legal_integration_failure_recovery import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('settled_recovery'):
+            from scripts.legal_integration_settled_recovery import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('frontier_refresh'):
+            from scripts.legal_integration_gap_refresh import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('delayed_service_recovery'):
+            from scripts.legal_integration_delayed_service import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('repair_execution'):
             from scripts.legal_integration_repair_execution import verification
             verification()
         elif read(ROOT / PROGRAM).get('complete_account_capacity_repair'):

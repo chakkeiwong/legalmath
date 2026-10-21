@@ -16,6 +16,8 @@ def admit(root, base, live, name, logical_calls, *, owner):
     require(type(logical_calls) is int and logical_calls > 0, 'Invalid phase population')
     binding = json.loads((root / base / 'current-binding.json').read_text())
     grant = json.loads((root / base / 'live-grant.json').read_text())
+    from ..time_authority import effective_deadline
+    deadline = effective_deadline(root, root / base, grant=grant, binding=binding)
     ledger = json.loads((root / base / 'live-calls.json').read_text())
     policy = binding['service_recovery_policy']
     maximum = logical_calls + min(policy['maximum_replacements'],
@@ -30,18 +32,22 @@ def admit(root, base, live, name, logical_calls, *, owner):
     else:
         remaining = grant['maximum_calls'] - len(ledger['calls'])
         require(maximum <= remaining, 'Phase exceeds remaining global calls', 'E_RESOURCE_LIMIT')
-        seconds = (datetime.fromisoformat(grant['deadline_utc']) - datetime.now(timezone.utc)).total_seconds()
+        seconds = (datetime.fromisoformat(deadline) - datetime.now(timezone.utc)).total_seconds()
         replacements = maximum - logical_calls
         bound = maximum * policy['timeout_seconds'] + replacements * (
             max(max(policy['backoff_seconds']), policy.get('maximum_retry_after_seconds', 0))
             + policy.get('jitter_seconds', 0)) + 305
+        if policy['profile'] == 'counted-service-recovery.v5':
+            # Hourly outages are contingencies, not required work. Each actual
+            # wait and retry separately checks the unchanged global deadline.
+            bound = logical_calls * policy['timeout_seconds'] + 305
         require(bound <= seconds, 'Phase exceeds original global window', 'E_RESOURCE_LIMIT')
         save(folder / 'ledger-before.json', ledger)
         stage = {'profile': 'integration-current-stage.v2', 'name': name, 'owner': owner,
             'maximum_calls': maximum, 'logical_calls': logical_calls,
             'grant_hash': digest(grant), 'binding_hash': digest(binding),
             'ledger_before': evidence_file(folder / 'ledger-before.json', root),
-            'deadline_utc': grant['deadline_utc'], 'review': binding['review'],
+            'deadline_utc': deadline, 'review': binding['review'],
             'service_recovery_policy': policy, 'service_recovery_maximum': policy['maximum_replacements'],
             'service_scope': binding['phase_service_scope']}
         save(path, stage)

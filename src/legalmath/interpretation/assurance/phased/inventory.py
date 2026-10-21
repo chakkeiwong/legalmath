@@ -21,6 +21,10 @@ def preserve(product):
             require(record['kind']=='metadata','Unknown inventory kind')
             row['substantive_account_required']=False
         records.append(row)
+    if getattr(product, 'capacity_manager', None) is not None:
+        from .evidence_store import save_exact
+        save_exact(product.directory / 'inventory-capacity.json',
+            product.capacity_manager.native('metadata-inventory', {}, records))
     return {'profile':'exact-product-inventory.v2','status':'INVENTORY_PRESERVED',
         'input_hash':route.input_hash,'store_hash':route.store_hash,
         'records':records,'counts':dict(Counter(r['record']['kind'] for r in records)),

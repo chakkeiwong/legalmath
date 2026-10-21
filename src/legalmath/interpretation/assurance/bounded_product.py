@@ -108,6 +108,7 @@ class BoundDispatch:
         self.maximum_calls = maximum_calls
         self.shared_prefix = Path(shared_prefix) if shared_prefix is not None else None
         self.retained_initial = None
+        self.capacity_manager = None
         self.settings = Settings(timeout_seconds=300, max_input_bytes=route.limits.input_bytes,
                                  max_output_bytes=route.limits.output_bytes)
         self.provider_binding = self.provider_identity()
@@ -121,11 +122,17 @@ class BoundDispatch:
                 'settings': self.settings.model_dump(), 'limits': asdict(self.route.limits)}
 
     def request_identity(self, request, schema):
+        if self.capacity_manager is not None:
+            from .phased.capacity_policy import annotate
+            request = annotate(request)
         require(self.provider_binding == self.provider_identity(), 'Provider changed during product execution',
                 'E_AUTHORITY')
         return digest({'request': request, 'schema': schema, 'provider_binding': self.provider_binding})
 
     def measure(self, request, schema):
+        if self.capacity_manager is not None:
+            from .phased.capacity_policy import annotate
+            request = annotate(request)
         # The CLI's hidden service framing is deliberately not called measured.
         decoded_bytes = len(canonical(request))
         require(decoded_bytes <= self.route.limits.decoded_output_bytes + self.route.limits.input_bytes,
@@ -141,13 +148,22 @@ class BoundDispatch:
             require(request['account_instruction_profile'] == ACCOUNT_INSTRUCTIONS_PROFILE,
                 'Unknown account instruction profile')
             product_guidance = PRODUCT_GUIDANCE
+        from .phased.capacity_policy import selected, guidance, contract, estimate
+        capacity = selected(request)
+        if capacity is not None:
+            product_guidance = guidance(product_guidance, capacity)
         payload = canonical({"request": wire_request, "response_schema": wire_schema,
                              "product_instructions": product_guidance})
         measured = {"bytes": len(payload), "local_tokens": len(self.route.encode(payload.decode())),
                     "decoded_request_bytes": decoded_bytes,
                     "service_framing": "UNMEASURED_CLI_INTERNALS"}
+        if capacity is not None:
+            measured['capacity'] = contract(request, self.route.limits)
+            require(estimate(request) <= capacity.output_tokens,
+                'Estimated independent decisions exceed output budget', 'E_RESOURCE_LIMIT')
         from .phased.account_input import input_token_limit
-        require(measured["bytes"] <= self.route.limits.input_bytes and
+        from .phased.downstream_input import input_byte_limit
+        require(measured["bytes"] <= input_byte_limit(request, self.route.limits) and
                 measured["local_tokens"] <= input_token_limit(request, self.route.limits),
                 measured, "E_RESOURCE_LIMIT")
         if hasattr(self.provider, "measure"):
@@ -158,6 +174,14 @@ class BoundDispatch:
         return measured
 
     def call(self, key, request, schema, validator):
+        if self.capacity_manager is not None:
+            return self.capacity_manager.call(key, request, schema, validator)
+        return self._call_direct(key, request, schema, validator)
+
+    def _call_direct(self, key, request, schema, validator):
+        if self.capacity_manager is not None:
+            from .phased.capacity_policy import annotate
+            request = annotate(request)
         self.route.check()
         require(re.fullmatch(r"[a-zA-Z0-9_.-]+", key), "Invalid dispatch key")
         identity = self.request_identity(request, schema)
@@ -205,7 +229,11 @@ class BoundDispatch:
                     save(state_path, state)
                     return result
             if self.shared_prefix is not None and key.startswith(("read-", "dependency-", "detail-", "reduce-", "candidates-", "criticism-")):
-                shared_state = json.loads((self.shared_prefix / "dispatch.json").read_text())
+                shared_journal = self.shared_prefix / 'dispatch.json'
+                require(shared_journal.exists() or self.capacity_manager is not None,
+                    'Missing historical shared journal', 'E_INTEGRITY')
+                shared_state = (json.loads(shared_journal.read_text()) if shared_journal.exists()
+                    else {'input_hash': self.route.input_hash, 'calls': {}})
                 require(shared_state["input_hash"] == self.route.input_hash, "Shared acquisition identity changed")
                 previous = shared_state["calls"].get(key)
                 if previous is not None:
@@ -239,16 +267,33 @@ class BoundDispatch:
         veto = None
         try:
             service = self.provider.fork() if hasattr(self.provider, 'fork') else self.provider
+            from .phased.capacity_policy import output_bytes
+            from .phased.downstream_input import input_byte_limit
+            settings = self.settings.model_copy(update={
+                'max_input_bytes': input_byte_limit(request, self.route.limits),
+                'max_output_bytes': output_bytes(request, self.route.limits)})
             prepared = None
             if getattr(self.provider, 'reference_transport', False):
                 from .bounded_references import prepare, resolve
                 prepared = prepare(request, schema)
                 save(directory / 'reference-binding.json', prepared)
-                response = service.complete(prepared['request'], prepared['schema'], self.settings)
+                wire = prepared
+                if self.retained_initial is not None:
+                    from .phased.failure_recovery import replay_wire
+                    from .phased import synthesis_recovery
+                    root, checkpoint = self.retained_initial
+                    retained_wire = synthesis_recovery.replay_wire(root, checkpoint, key,
+                        request, schema, self.route.input_hash, limits=self.route.limits)
+                    if retained_wire is None:
+                        retained_wire = replay_wire(root, checkpoint, key, request, schema)
+                    if retained_wire is not None:
+                        wire = retained_wire
+                        save(directory / 'reference-binding.json', wire)
+                response = service.complete(wire['request'], wire['schema'], settings)
                 dispatching = False
                 save(directory / 'wire-response.json', {'value': response.value, 'provenance': response.provenance})
                 from .phased.account_output import output_token_limit
-                require(len(canonical(response.value)) <= self.route.limits.output_bytes and
+                require(len(canonical(response.value)) <= output_bytes(request, self.route.limits) and
                         len(self.route.encode(canonical(response.value).decode())) <= output_token_limit(request, self.route.limits),
                         'Wire output exceeds bounded product profile', 'E_RESOURCE_LIMIT')
                 from legalmath.interpretation.search.providers import Completion
@@ -257,12 +302,12 @@ class BoundDispatch:
                     {**response.provenance, 'reference_protocol': prepared['protocol'],
                      'reference_binding': prepared['binding']})
             else:
-                response = service.complete(request, schema, self.settings)
+                response = service.complete(request, schema, settings)
                 dispatching = False
             raw = {"value": response.value, "provenance": response.provenance}
             save(directory / "raw.json", raw)
             validate(response.value, schema)
-            byte_limit = self.route.limits.decoded_output_bytes if prepared else self.route.limits.output_bytes
+            byte_limit = self.route.limits.decoded_output_bytes if prepared else output_bytes(request, self.route.limits)
             from .phased.account_output import output_token_limit
             token_limit = self.route.limits.decoded_output_tokens if prepared else output_token_limit(request, self.route.limits)
             require(len(canonical(response.value)) <= byte_limit and
@@ -299,7 +344,14 @@ class BoundedProduct:
                  maximum_corrections=0, retained_initial=None, requirement_account_profile=None,
                  requirement_account_recovery=None, requirement_account_input_profile=None,
                  requirement_account_instruction_profile=None, requirement_account_capacity_profile=None,
-                 requirement_account_output_profile=None, downstream_input_profile=None):
+                 requirement_account_output_profile=None, downstream_input_profile=None, common_capacity_profile=None,
+                 capacity_checkpoint=None):
+        from .phased.capacity_policy import PROFILE as CAPACITY_PROFILE
+        require(common_capacity_profile in (None, CAPACITY_PROFILE), 'Unknown common capacity selection', 'E_AUTHORITY')
+        self.common_capacity_profile = common_capacity_profile
+        require(capacity_checkpoint is None or common_capacity_profile is not None,
+            'Capacity checkpoint requires common capacity', 'E_AUTHORITY')
+        self.capacity_checkpoint = capacity_checkpoint
         if downstream_input_profile is not None:
             from .phased.downstream_input import PROFILE as DOWNSTREAM_PROFILE
             require(downstream_input_profile == DOWNSTREAM_PROFILE, 'Unknown downstream input profile', 'E_AUTHORITY')
@@ -365,6 +417,17 @@ class BoundedProduct:
             require(Path(shared_prefix).resolve().is_relative_to(self.root), "Shared checkpoint outside worktree")
         self.dispatch = BoundDispatch(provider, self.directory / "calls", self.route,
                                       maximum_calls=maximum_calls, shared_prefix=shared_prefix)
+        self.capacity_manager = None
+        if common_capacity_profile is not None:
+            from .phased.capacity import CapacityManager
+            self.capacity_manager = CapacityManager(self)
+            self.dispatch.capacity_manager = self.capacity_manager
+            self.route.common_capacity_profile = common_capacity_profile
+            if shared_prefix is not None:
+                from .phased.evidence_store import save_exact
+                path = Path(shared_prefix)/'dispatch.json'
+                if not path.exists():
+                    save_exact(path, {'input_hash':self.route.input_hash, 'maximum_calls':maximum_calls, 'calls':{}})
         if requirement_account_recovery is not None:
             account_recovery.validate_provider(self.root,
                 account_recovery.load(self.root, requirement_account_recovery, self.route.input_hash),
@@ -392,6 +455,10 @@ class BoundedProduct:
                     "active_questions": list(self.active_questions)}
         if self.requirement_account_profile is not None:
             identity["requirement_account_profile"] = self.requirement_account_profile
+        if common_capacity_profile is not None:
+            identity['common_capacity_profile'] = common_capacity_profile
+        if capacity_checkpoint is not None:
+            identity['capacity_checkpoint'] = capacity_checkpoint
         if requirement_account_output_profile is not None:
             identity['requirement_account_output_profile'] = requirement_account_output_profile
         if requirement_account_input_profile is not None:
@@ -605,6 +672,10 @@ class BoundedProduct:
         typed_account = task == "ASSESS_ORIGINAL_REQUIREMENT" and self.requirement_account_profile is not None
         if typed_account and self.requirement_account_recovery is not None and partition:
             from .phased import account_recovery
+            from .phased.failure_recovery import held_result
+            held = held_result(self.root, self.requirement_account_recovery, key, request, self.route.input_hash)
+            if held is not None:
+                return held
             if account_recovery.has_retained_children(self.root, self.requirement_account_recovery,
                     key, self.route.input_hash):
                 require(len(records) >= 2, 'Retained account partition lost its source population')
@@ -645,7 +716,10 @@ class BoundedProduct:
                     if correction is not None:
                         request['account_correction'] = correction
         try:
-            self.dispatch.measure(request, schema)
+            if self.capacity_manager is None:
+                self.dispatch.measure(request, schema)
+            elif not partition:
+                request['capacity_no_partition'] = True
         except LegalMathError as exc:
             if exc.code != 'E_RESOURCE_LIMIT' or not partition or audit or len(records) < 2:
                 raise
@@ -667,8 +741,8 @@ class BoundedProduct:
             if typed_account:
                 account_contract.validate(value, self, request['records'])
                 if request.get('account_correction'):
-                    require(value['source_gaps'] == request['account_correction']['required_source_gaps'],
-                        'Account correction changed required document-qualified source gaps')
+                    from .phased.account_gap_preservation import preserve
+                    preserve(request['account_correction']['required_source_gaps'], value['source_gaps'])
             if audit:
                 require(value["verdict"] != "ACCEPT" or not value["issues"], "Accepted audit retains defects")
                 require(value["support"] or value["verdict"] != "ACCEPT", "Acceptance lacks source support")
@@ -738,9 +812,35 @@ class BoundedProduct:
 
     def requirement_details(self):
         details = []
+        preserved = {}
+        if self.requirement_account_recovery is not None:
+            from .integration_contract import read_evidence
+            checkpoint = read_evidence(self.requirement_account_recovery, self.root)
+            if checkpoint.get('failure_recovery'):
+                from .phased import account_recovery, account_contract
+                checkpoint = account_recovery.load(self.root, self.requirement_account_recovery, self.route.input_hash)
+                for row in read_evidence(checkpoint['account_recovery']['details'], self.root):
+                    if row['result']['status'] == 'VALIDATED':
+                        preserved[row['id']] = row
         for i, record in enumerate(r for r in self.route.records.values()
                                    if r['kind'] in ('obligation', 'reading', 'case')):
             if not any(self.applicable(record, q) for q in self.active_questions):
+                continue
+            if record['id'] in preserved:
+                row = preserved[record['id']]
+                require(row.get('requirement_hash') == digest(record), 'Retained root changed requirement')
+                refs = checkpoint['calls'].get(f'detail-{i}')
+                require(refs is not None and read_evidence(refs['result'], self.root) == row['result'],
+                    'Retained root differs from its validated dispatch')
+                request = read_evidence(refs['request'], self.root)
+                schema = read_evidence(refs['schema'], self.root)
+                _, typed = account_recovery.baseline_request(request, schema, root=self.root)
+                require(request['required_considered'] == [record['id']], 'Retained root changed considered requirement')
+                if typed: account_contract.validate(row['result']['value'], self, request['records'])
+                else: self.citations(row['result']['value'], request['records'])
+                if row.get('presentation'): read_evidence(row['presentation'], self.root)
+                details.append(deepcopy(row))
+                save(self.directory / 'requirement-details.json', details)
                 continue
             try:
                 scope = set(self.requirement_questions(record))
@@ -994,7 +1094,8 @@ class BoundedProduct:
                 dependencies = [r for r in investigation.get('discovered_dependencies', []) if r['question_id'] == qid]
                 rows += [{'id': row['id'], 'value': row} for row in dependencies]
                 reduced = self.reduce(qid, question, rows)
-                tool_rows = self.tools(qid, question, backend, findings=reduced)
+                tool_rows = (self.tools(qid, question, backend, findings=reduced)
+                    if preparation_only or self.selected_tools else [])
                 if preparation_only:
                     answers[qid] = {'status': 'PREPARED', 'findings': reduced, 'tools': tool_rows,
                                     'requirement_ids': [row['id'] for row in relevant]}
@@ -1217,6 +1318,19 @@ class BoundedProduct:
             results.append(result)
         return results
 
+    def tool_request(self, request, records):
+        """Opt selected tool consumers into the existing downstream envelope."""
+        if self.downstream_input_profile is None:
+            return request
+        from .phased.tool_input import TASKS
+        require(request.get('task') in TASKS, 'Unknown tool request contract')
+        value = {**request, 'records': records,
+            'downstream_input_profile': self.downstream_input_profile}
+        capacity = getattr(self, 'downstream_capacity_profile', None)
+        if capacity is not None:
+            value['downstream_capacity_profile'] = capacity
+        return value
+
     def tools(self, qid, question, backend, *, findings=None):
         from .arguments import Criticism, criticism_request, evaluate_criticism
         from legalmath.interpretation.search.models import GRAMMAR
@@ -1235,6 +1349,8 @@ class BoundedProduct:
             before = deepcopy(backend.identity())
             binding = {'backend': before, 'kind': kind, 'packet_hash': digest(packet),
                        'inputs_hash': digest(inputs)}
+            if self.capacity_manager is not None:
+                binding['capacity'] = self.capacity_manager.native(kind, packet, inputs)
             folder.mkdir(parents=True, exist_ok=True)
             journal = folder/'product-binding.json'
             result_file = folder/'product-result.json'
@@ -1251,6 +1367,15 @@ class BoundedProduct:
                     result = json.loads(result_file.read_text())
                     require(digest(result) == previous['result_hash'], 'Retained native result changed')
                     return result
+                if self.capacity_manager is not None:
+                    from .phased.capacity_checkpoint import native as retained_native
+                    retained = retained_native(self, binding)
+                    if retained is not None:
+                        save(result_file, retained)
+                        save(journal, {'binding': binding, 'status': 'COMPLETED',
+                            'result_hash': digest(retained), 'capacity_checkpoint': self.capacity_checkpoint,
+                            'legal_warrants_verified': False})
+                        return retained
                 save(journal, {'binding': binding, 'status': 'RESERVED'})
                 copied_packet, copied_inputs = deepcopy(packet), deepcopy(inputs)
                 try:
@@ -1275,6 +1400,8 @@ class BoundedProduct:
         if "bm25" in self.selected_tools:
             value = native('retrieval', {"question": question["text"]}, work / "bm25")
             rows.append({"id": "tool-bm25", "value": value})
+        if set(self.selected_tools) == {'bm25'}:
+            return rows
         # Candidate and argument checkpoints are common inputs for every arm.
         # Failed generation remains explicit and cannot block the baseline.
         request = {"task": "GENERATE_SOURCE_WARRANTED_CANDIDATES", "source_packet": packet,
@@ -1284,6 +1411,7 @@ class BoundedProduct:
                        "Formalize only a warranted supported profile; retain null when unavailable. Do not invent facts. "
                        + GRAMMAR,
                    "question": question}
+        request = self.tool_request(request, records)
         generation = self.dispatch.call(f"candidates-{qid}", request, Generation.model_json_schema(),
                                          lambda v: validate_generation(v, packet))
         if generation["status"] != "VALIDATED":
@@ -1294,7 +1422,7 @@ class BoundedProduct:
         if set(self.selected_tools) & {"legalruleml", "logical-english"}:
             value = native('candidates', candidates, work / "formal")
             rows.append({"id": "tool-formal", "value": value})
-        request = criticism_request(packet, [], candidates)
+        request = self.tool_request(criticism_request(packet, [], candidates), records)
         criticism = self.dispatch.call(f"criticism-{qid}", request, Criticism.model_json_schema(),
             lambda v: evaluate_criticism(v, packet, list(candidates)))
         if criticism["status"] == "VALIDATED":

@@ -6,9 +6,13 @@ original accounts and sources. The ordinary product limits are unchanged.
 from copy import deepcopy
 from ..bounded_context import require
 from . import account_input, account_encoding
+from . import tool_input
 
 PROFILE = 'exact-downstream-input-32k.v1'
 INPUT_TOKENS = 32768
+CAPACITY_PROFILE = 'exact-downstream-capacity-70k-250k.v1'
+CAPACITY_TOKENS = 70000
+CAPACITY_BYTES = 250000
 TASKS = frozenset({
     'SYNTHESIZE_FINDINGS', 'ANSWER_ORIGINAL_QUESTION',
     'AUDIT_SOURCE_DEPENDENCY_ASSIGNMENTS', 'AUDIT_EXPLICIT_DEPENDENCY_CONTEXT',
@@ -16,7 +20,7 @@ TASKS = frozenset({
     'AUDIT_WITHIN_QUESTION_DEPENDENCY', 'REVIEW_CROSS_QUESTION_DEPENDENCIES',
     'ASSESS_MATCHED_TOOL_EFFECT', 'CORRECT_REVIEWED_ANSWER',
     'ASSESS_REVIEW_WARRANT', 'CORRECT_REVIEWED_REQUIREMENT',
-})
+}) | tool_input.TASKS
 
 
 def validate(request):
@@ -25,6 +29,8 @@ def validate(request):
         and not any(k in request for k in ('account_contract', 'account_input_profile',
             'account_capacity_profile', 'account_output_profile')),
         'Downstream input profile outside its declared contract', 'E_AUTHORITY')
+    require(request.get('downstream_capacity_profile') in (None, CAPACITY_PROFILE),
+        'Unknown downstream capacity profile', 'E_AUTHORITY')
 
 
 def apply(prepared):
@@ -33,6 +39,7 @@ def apply(prepared):
     validate(prepared['original_request'])
     result = deepcopy(prepared)
     result['request'] = account_input.pack(prepared['request'])
+    result['request'] = tool_input.pack(result['request'])
     # Metadata observations keep their original shape. Source-only requests can
     # additionally use the exact record table and integer quotation selectors.
     records = result['request'].get('records', [])
@@ -52,4 +59,12 @@ def apply(prepared):
 def input_token_limit(request, limits):
     validate(request)
     require(limits.input_tokens == 12000, 'Downstream capacity has a different baseline', 'E_AUTHORITY')
-    return INPUT_TOKENS
+    return CAPACITY_TOKENS if request.get('downstream_capacity_profile') else INPUT_TOKENS
+
+
+def input_byte_limit(request, limits):
+    if request.get('downstream_capacity_profile') is None:
+        return limits.input_bytes
+    validate(request)
+    require(limits.input_bytes == 200000, 'Downstream byte capacity has a different baseline', 'E_AUTHORITY')
+    return CAPACITY_BYTES

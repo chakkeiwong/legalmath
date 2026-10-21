@@ -102,6 +102,29 @@ def merge_details(previous, latest):
     return deepcopy(latest + previous[len(latest):])
 
 
+def inherited_receipts(root, inherited, predecessor, state, originals, origins):
+    """Keep charged output, or prove its exact promotion to a saved success."""
+    from .account_receipt import retained
+    receipts = {}
+    for key, entry in inherited.get('completed_account_receipts', {}).items():
+        if key not in state['calls']:
+            require(originals.get(key) == entry['originals']
+                and origins.get(key) == entry['dispatch'],
+                'Changed inherited completed receipt origin', 'E_INTEGRITY')
+            receipts[key] = deepcopy(entry)
+            continue
+        row = state['calls'][key]
+        require(row['status'] == 'VALIDATED',
+            'Completed receipt cannot be replaced by a failed retry', 'E_INTEGRITY')
+        request, schema, result = (read_evidence(originals[key][name], root)
+            for name in ('request', 'schema', 'result'))
+        expected, provenance = retained(root, inherited, predecessor, key, request, schema)
+        require(result == expected and row.get('retained_initial') == provenance
+            and row.get('result_hash') == digest(expected),
+            'Completed receipt successor is not its exact authenticated reuse', 'E_INTEGRITY')
+    return receipts
+
+
 def build(root, directory, details, *, predecessor=None, complete_details_path=None):
     """Freeze a settled call inventory. Caller must separately settle its owner."""
     from ..bounded_product import NOTE
@@ -167,7 +190,7 @@ def build(root, directory, details, *, predecessor=None, complete_details_path=N
             'Different assignments share one account root')
         contracts[root_key] = deepcopy(contract)
         originals[key] = references
-        if result['status'] == 'FAILED' and result.get('reason') == 'Numbered assertion has no document/proposition binding':
+        if result['status'] == 'FAILED' and result.get('reason') == 'Numbered assertion has no document/proposition binding' and 'account_correction' not in request:
             raw_ref = evidence_file(Path(root) / Path(references['request']['path']).parent / 'raw.json', root)
             raw = read_evidence(raw_ref, root)['value']
             from .account_contract import prose_fields
@@ -185,8 +208,10 @@ def build(root, directory, details, *, predecessor=None, complete_details_path=N
     require(represented == set(ids), 'An account has no reconstructible predecessor assignment')
     require(evidence_file(directory / 'dispatch.json', root) == dispatch_ref,
         'Predecessor changed during recovery census', 'E_AUTHORITY')
+    receipts = inherited_receipts(root, inherited, predecessor, state, originals, origins) if inherited else {}
     return {'profile': 'bounded-exact-checkpoint.v2', 'input_hash': state['input_hash'],
         'dispatch': dispatch_ref, 'calls': calls,
+        **({'completed_account_receipts': receipts} if receipts else {}),
         **({'predecessor_recovery': predecessor, 'original_dispatches': origins} if inherited else {}),
         'account_recovery': {'profile': PROFILE, 'roots': sorted(roots),
             'contracts': contracts, 'originals': originals,
@@ -224,6 +249,11 @@ def load(root, reference, input_hash):
         require(value.get('original_dispatches') == origins, 'Changed composite dispatch origins')
         require(set(config.get('originals', {})) == expected,
             'Recovery omits a predecessor request', 'E_INTEGRITY')
+        receipts = inherited_receipts(root, inherited, value['predecessor_recovery'],
+            state, config['originals'], origins)
+        require(all(value.get('completed_account_receipts', {}).get(key) == entry
+            for key, entry in receipts.items()),
+            'Recovery lost or changed an inherited completed receipt', 'E_INTEGRITY')
         for key in inherited_keys:
             if key not in state['calls']:
                 require(config['originals'][key] == inherited['account_recovery']['originals'][key],
@@ -298,6 +328,11 @@ def load(root, reference, input_hash):
         checked(root, value, key, entry)
     for path, sha256 in dispatches:
         read_evidence({'path': path, 'sha256': sha256}, root, json_value=False)
+    if value.get('failure_recovery'):
+        from .failure_recovery import validate
+        validate(root, value)
+    else:
+        require('held_roots' not in config, 'Held roots lack reviewed failure recovery', 'E_AUTHORITY')
     return value
 
 
@@ -347,6 +382,20 @@ def retained_contract(root, reference, key, request, input_hash):
     value = load(root, reference, input_hash)
     require(KEY.fullmatch(key) is not None, 'Invalid retained account key')
     row = value['calls'].get(key)
+    if key in value.get('completed_account_receipts', {}):
+        # A reviewed complete response can still have a FAILED original row:
+        # the old wire-size limit rejected it before product validation. Use
+        # the authenticated contract, just as for ordinary saved successes.
+        # Rebuilding the combination can reorder otherwise identical sources.
+        from .account_receipt import checked
+        from .account_output import PROFILE as OUTPUT_PROFILE
+        old, schema, _, _ = checked(root, value, key, value['completed_account_receipts'][key])
+        original, typed = baseline_request(old, schema, root=root)
+        require(typed, 'Complete account receipt lacks its typed contract', 'E_INTEGRITY')
+        restore_record_order(original, request)
+        selected = deepcopy(old)
+        selected['account_output_profile'] = OUTPUT_PROFILE
+        return selected, schema, typed
     if row is None:
         return None
     old, schema = (read_evidence(row[k], root) for k in ('request', 'schema'))
@@ -375,6 +424,20 @@ def restore_record_order(original, request):
     require(populations[0] == populations[1], message, 'E_INTEGRITY')
     restored = deepcopy(request)
     restored['records'] = deepcopy(original['records'])
+    # Locator rows follow source traversal order. Authenticate the complete
+    # unique rows before restoring their historical order alongside records.
+    if original.get('verified_locator_bindings') != request.get('verified_locator_bindings'):
+        indexed = []
+        for candidate in (original, request):
+            rows = candidate.get('verified_locator_bindings')
+            require(isinstance(rows, list) and all(isinstance(row, dict)
+                and isinstance(row.get('record_id'), str) and isinstance(row.get('index_hash'), str)
+                and row['record_id'] in populations[0] for row in rows), message, 'E_INTEGRITY')
+            by_identity = {(row['record_id'], row['index_hash']): row for row in rows}
+            require(len(by_identity) == len(rows), message, 'E_INTEGRITY')
+            indexed.append(by_identity)
+        require(indexed[0] == indexed[1], message, 'E_INTEGRITY')
+        restored['verified_locator_bindings'] = deepcopy(original['verified_locator_bindings'])
     require(restored == original, message, 'E_INTEGRITY')
     return restored
 

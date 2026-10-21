@@ -15,9 +15,12 @@ from legalmath.interpretation.assurance.integration_contract import evidence_fil
 from .evidence_store import save_exact
 
 
-def execute(product, name, calls, *, implementation_identity, admit, refresh=lambda _: None):
+def execute(product, name, calls, *, implementation_identity, admit, refresh=lambda _: None, _capacity_leaf=False):
     require(re.fullmatch(r'[a-zA-Z0-9_.-]+', name), 'Invalid phase name')
     require(implementation_identity, 'Phase requires explicit implementation binding')
+    manager = getattr(product, 'capacity_manager', None)
+    if manager is not None and not _capacity_leaf:
+        return manager.phase(name, calls, implementation_identity=implementation_identity, admit=admit, refresh=refresh)
     if hasattr(product, 'prepare_calls'):
         calls = product.prepare_calls(calls)
     require(len(calls) == len({r['key'] for r in calls}), 'Duplicate phase call')
@@ -62,8 +65,11 @@ def execute(product, name, calls, *, implementation_identity, admit, refresh=lam
     require(state['measurements'] == measured and state['input_blocks'] == blocked, 'Phase measurement changed')
     if 'logical_dispatches' not in state:
         shared_path = product.dispatch.shared_prefix
-        shared = json.loads((shared_path / 'dispatch.json').read_text()) if shared_path is not None else {'calls': {}}
-        if shared_path is not None:
+        shared_exists = shared_path is not None and (shared_path / 'dispatch.json').exists()
+        require(shared_path is None or shared_exists or manager is not None,
+            'Missing historical shared dispatch', 'E_INTEGRITY')
+        shared = json.loads((shared_path / 'dispatch.json').read_text()) if shared_exists else {'calls': {}}
+        if shared_exists:
             require(shared['input_hash'] == product.route.input_hash, 'Shared phase input changed', 'E_INTEGRITY')
         actual = []
         measured_keys = {r['key'] for r in measured}
@@ -121,6 +127,8 @@ def execute(product, name, calls, *, implementation_identity, admit, refresh=lam
             continue
         try:
             dispatch_call = getattr(product.dispatch, '_phase_original_call', product.dispatch.call)
+            if _capacity_leaf:
+                dispatch_call = product.dispatch._call_direct
             result = dispatch_call(call['key'], call['request'], call['schema'], call['validate'])
         except LegalMathError as exc:
             if exc.code in ('E_AUTHORITY', 'E_INTEGRITY'):

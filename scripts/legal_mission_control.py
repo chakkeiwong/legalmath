@@ -917,6 +917,144 @@ def validate(mission, tools, root=ROOT):
                 and local_refresh['review'] in r['result_evidence'] for r in history), 'Missing local refresh history')
             verify_refs(root, local_refresh)
             detours += 1
+        delayed = master.get('delayed_service_recovery')
+        if delayed:
+            require(delayed.get('profile') == 'integration-delayed-service.v1'
+                and delayed.get('prior_detours') == detours == 51
+                and delayed.get('additional_consolidated_revision') == 1
+                and delayed.get('live_calls_added') == delayed.get('additional_task_attempts') == 0
+                and delayed.get('additional_transport_replacements') == 24
+                and program.get('delayed_service_recovery') == delayed,
+                'Delayed continuation changed historical resources')
+            require(any(r['id'] == 'integration-master-delayed-service-2026-10-16'
+                and delayed['review'] in r['result_evidence'] for r in history), 'Missing delayed service history')
+            verify_refs(root, delayed)
+            detours += 1
+        frontier = master.get('frontier_refresh')
+        if frontier:
+            require(frontier.get('profile') == 'integration-frontier-refresh.v1'
+                and frontier.get('prior_detours') == detours == 52
+                and frontier.get('additional_consolidated_revision') == 1
+                and frontier.get('live_calls_added') == frontier.get('additional_transport_replacements') == 0
+                and frontier.get('additional_task_attempts') == 1
+                and frontier.get('cumulative_additional_attempts') == 20
+                and frontier.get('repair_allowance_added') == 0
+                and program.get('frontier_refresh') == frontier,
+                'Frontier refresh changed historical resources')
+            require(any(r['id'] == 'integration-master-frontier-refresh-2026-10-17'
+                and frontier['review'] in r['result_evidence'] for r in history), 'Missing frontier refresh history')
+            verify_refs(root, frontier)
+            detours += 1
+        settled = master.get('settled_recovery')
+        if settled:
+            require(settled.get('profile') == 'integration-settled-recovery.v1'
+                and settled.get('prior_detours') == detours == 53
+                and settled.get('additional_consolidated_revision') == 1
+                and settled.get('additional_task_attempts') == 2
+                and settled.get('attempt_increments') == {'acquire-evidence': 1, 'acquire-p10': 1}
+                and settled.get('live_calls_added') == settled.get('additional_transport_replacements') == 0
+                and program.get('settled_recovery') == settled, 'Settled recovery changed reviewed authority')
+            require(any(r['id'] == 'integration-master-settled-recovery-2026-10-17'
+                and settled['review'] in r['result_evidence'] for r in history), 'Missing settled recovery history')
+            verify_refs(root, settled)
+            detours += 1
+        failure_recovery = master.get('failure_recovery')
+        if failure_recovery:
+            require(failure_recovery.get('profile') == 'integration-failure-recovery.v1'
+                and failure_recovery.get('prior_detours') == detours == 54
+                and failure_recovery.get('additional_consolidated_revision') == 1
+                and failure_recovery.get('additional_task_attempts') == 1
+                and failure_recovery.get('reopened_nodes') == ['acquire-p10']
+                and failure_recovery.get('maximum_passes') == 2
+                and failure_recovery.get('live_calls_added') == 0
+                and program.get('failure_recovery') == failure_recovery, 'Unreviewed bounded failure recovery')
+            require(any(r['id'] == 'integration-master-failure-recovery-2026-10-19'
+                and failure_recovery['review'] in r['result_evidence'] for r in history), 'Missing failure recovery history')
+            verify_refs(root, failure_recovery)
+            detours += 1
+        gap_preservation = master.get('gap_preservation')
+        if gap_preservation:
+            require(gap_preservation.get('profile') == 'integration-gap-preservation.v1'
+                and gap_preservation.get('prior_detours') == detours == 55
+                and gap_preservation.get('additional_consolidated_revision') == 1
+                and gap_preservation.get('additional_task_attempts') == 1
+                and gap_preservation.get('reopened_nodes') == ['acquire-p10']
+                and gap_preservation.get('maximum_passes') == 1
+                and gap_preservation.get('live_calls_added') == 0
+                and program.get('gap_preservation') == gap_preservation, 'Unreviewed gap preservation')
+            require(any(r['id'] == 'integration-master-gap-preservation-2026-10-19'
+                and gap_preservation['review'] in r['result_evidence'] for r in history), 'Missing gap-preservation history')
+            verify_refs(root, gap_preservation)
+            detours += 1
+        synthesis_continuation = master.get('synthesis_continuation')
+        if synthesis_continuation:
+            require(synthesis_continuation.get('profile') == 'integration-synthesis-continuation.v1'
+                and synthesis_continuation.get('prior_detours') == detours == 56
+                and synthesis_continuation.get('additional_consolidated_revision') == 1
+                and synthesis_continuation.get('additional_task_attempts') == 1
+                and synthesis_continuation.get('reopened_nodes') == ['acquire-p10']
+                and synthesis_continuation.get('maximum_passes') == 1
+                and synthesis_continuation.get('live_calls_added') == 0
+                and program.get('synthesis_continuation') == synthesis_continuation, 'Unreviewed synthesis continuation')
+            require(any(r['id'] == 'integration-master-synthesis-continuation-2026-10-19'
+                and synthesis_continuation['review'] in r['result_evidence'] for r in history), 'Missing synthesis continuation history')
+            verify_refs(root, synthesis_continuation)
+            detours += 1
+        synthesis_resolution = master.get('synthesis_resolution')
+        if synthesis_resolution:
+            require(synthesis_resolution.get('profile') == 'integration-synthesis-resolution.v1'
+                and synthesis_resolution.get('prior_detours') == detours == 57
+                and synthesis_resolution.get('additional_consolidated_revision') == 1
+                and synthesis_resolution.get('additional_task_attempts') == 1
+                and synthesis_resolution.get('reopened_nodes') == ['acquire-p10','acquire-evidence','acquire-p14','acquire-gatecoin']
+                and synthesis_resolution.get('maximum_passes') == 1
+                and synthesis_resolution.get('live_calls_added') == 0
+                and program.get('synthesis_resolution') == synthesis_resolution, 'Unreviewed synthesis resolution')
+            require(any(r['id'] == 'integration-master-synthesis-resolution-2026-10-19'
+                and synthesis_resolution['review'] in r['result_evidence'] for r in history), 'Missing synthesis resolution history')
+            verify_refs(root, synthesis_resolution)
+            detours += 1
+        candidate_retry = master.get('candidate_capacity_retry')
+        if candidate_retry:
+            require(candidate_retry.get('profile') == 'integration-candidate-capacity-retry.v1'
+                and candidate_retry.get('prior_detours') == detours == 58
+                and candidate_retry.get('additional_consolidated_revision') == 1
+                and candidate_retry.get('additional_task_attempts') == 1
+                and candidate_retry.get('reopened_nodes') == ['acquire-p10','acquire-evidence','acquire-p14','acquire-gatecoin']
+                and candidate_retry.get('live_calls_added') == 0
+                and candidate_retry.get('additional_transport_replacements') == 0
+                and program.get('candidate_capacity_retry') == candidate_retry, 'Unreviewed candidate capacity retry')
+            require(any(r['id'] == 'integration-master-candidate-retry-2026-10-20'
+                and candidate_retry['review'] in r['result_evidence'] for r in history), 'Missing candidate retry history')
+            verify_refs(root, candidate_retry)
+            detours += 1
+        common_capacity = master.get('common_capacity')
+        if common_capacity:
+            require(common_capacity.get('profile') == 'integration-common-capacity.v1'
+                and common_capacity.get('prior_detours') == detours == 59
+                and common_capacity.get('additional_consolidated_revision') == 1
+                and common_capacity.get('live_calls_added') == 0
+                and common_capacity.get('additional_transport_replacements') == 0
+                and common_capacity.get('attempts_reset') is False
+                and program.get('common_capacity') == common_capacity, 'Unreviewed common capacity revision')
+            require(any(r['id'] == 'integration-master-common-capacity-2026-10-20'
+                and common_capacity['review'] in r['result_evidence'] for r in history), 'Missing common capacity history')
+            verify_refs(root, common_capacity)
+            detours += 1
+        time_continuation = master.get('time_continuation')
+        if time_continuation:
+            require(time_continuation.get('profile') == 'integration-time-continuation.v1'
+                and time_continuation.get('prior_detours') == detours == 60
+                and time_continuation.get('additional_consolidated_revision') == 0
+                and time_continuation.get('additional_task_attempts') == 0
+                and time_continuation.get('live_calls_added') == 0
+                and time_continuation.get('additional_transport_replacements') == 0
+                and time_continuation.get('attempts_reset') is False
+                and time_continuation.get('service_scope_reset') is False
+                and program.get('time_continuation') == time_continuation, 'Unreviewed time continuation')
+            require(any(r['id'] == 'integration-master-time-continuation-2026-10-21'
+                and time_continuation['review'] in r['result_evidence'] for r in history), 'Missing time continuation history')
+            verify_refs(root, time_continuation)
     else:
         master_state = None
     require(mission["current_task"] in tasks, "No current substantive task")

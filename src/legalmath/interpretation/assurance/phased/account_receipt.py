@@ -35,10 +35,13 @@ def historical_request(prepared):
 
 def checked(root, checkpoint, key, entry):
     """Authenticate a reviewed receipt against the frozen failed-call census."""
+    from . import account_gap_preservation
+    if entry.get('profile') == account_gap_preservation.PROFILE:
+        return account_gap_preservation.checked(root, checkpoint, key, entry)
     config = checkpoint['account_recovery']
     require(entry.get('profile') == PROFILE and key in config['failed_calls']
             and entry['originals'] == config['originals'][key]
-            and entry['dispatch'] == checkpoint['dispatch'],
+            and entry['dispatch'] == checkpoint.get('original_dispatches', {}).get(key, checkpoint['dispatch']),
             'Unbound complete account receipt')
     amendment = read_evidence(entry['amendment'], root)
     require(amendment.get('profile') == 'completed-account-receipt-review.v1'
@@ -111,6 +114,10 @@ def retained(root, checkpoint, reference, key, request, schema, *, limits=None, 
     entry = checkpoint.get('completed_account_receipts', {}).get(key)
     if entry is None:
         return None
+    from . import account_gap_preservation
+    if entry.get('profile') == account_gap_preservation.PROFILE:
+        return account_gap_preservation.retained(root, checkpoint, reference, key, request, schema,
+            limits=limits, encode=encode)
     old, old_schema, value, measurement = checked(root, checkpoint, key, entry)
     limits = limits or Limits()
     require(request.get('account_output_profile') == OUTPUT_PROFILE
