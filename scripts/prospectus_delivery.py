@@ -47,7 +47,8 @@ def main():
         else:
             parser.error("Closure uses explicit reviewed phase commands")
         print(json.dumps(result, indent=2))
-        if result.get("execution") in {"FAILED", "HANDLER_OR_DEPENDENCY_MISSING"}:
+        if (result.get("execution") in {"FAILED", "HANDLER_OR_DEPENDENCY_MISSING", "REPAIR_REQUIRED"}
+                or result.get("engineering_checks") == "FAIL"):
             raise SystemExit(1)
         return
     if args.command in {"preflight", "refresh"}:

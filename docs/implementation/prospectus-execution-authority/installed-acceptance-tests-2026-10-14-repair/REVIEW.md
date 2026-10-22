@@ -1,0 +1,3 @@
+# Current acceptance methods
+
+Prior130 checks passed, but the actual retained-evidence diagnostic found that worktree preflight computes worktree worker paths. Installed execution correctly records installed worker paths. The validator now translates only ocr_worker.py and native_inputs.py after requiring identical manifest hashes, with regression controls for changed/missing worker declarations and unrelated sources. Prior test snapshots and diagnostic failure remain immutable. No source experiment, native child or installed workflow is repeated. Skeptical audit: PASS for this comparison-only repair; byte equality and every other declaration are preserved, so no runtime boundary is weakened. Acceptance remains finite preservation.

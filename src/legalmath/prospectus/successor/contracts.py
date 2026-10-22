@@ -99,12 +99,24 @@ class QueryResult:
 def validate_request(request):
     from .anchors import fields
     fields(request, {"version", "bundle", "assembly", "construction", "clauses", "scope",
-                     "reference_dispositions", "law_bases", "law_relation", "facts",
+                     "reference_dispositions", "law_bases", "law_relation", "facts", "ratio_facts", "calendar_facts", "law_explanation",
                      "financial_scenario", "bank", "observations", "predicate_engine", "predicate_constraints",
-                     "layout_admission", "reviewed_dispositions", "annotation_admission",
-                     "term_interpretations", "contract_calculation", "priority_admission", "correction_admission", "reference_admission"}, {"version", "bundle"})
+                     "layout_admission", "governing_admission", "reviewed_dispositions", "annotation_admission",
+                     "term_interpretations", "contract_calculation", "priority_admission", "correction_admission", "reference_admission",
+                     "source_report_readings", "source_report_scope", "source_discrepancies", "source_statement_cells", "source_cash_flow",
+                     "incorporation_admission", "relation_discovery", "archive_observations", "statutory_references", "definition_sources", "structural_roles", "contract_source_chain"}, {"version", "bundle"})
+    if "relation_discovery" in request and request["relation_discovery"] not in (
+            "enumerated-row-candidates.v1", "explicit-scope-candidates.v2"):
+        raise ValueError("Unsupported relation discovery profile")
     if request.get("version") not in {VERSION, "prospectus-successor.v2"}:
         raise ValueError("Unsupported request version")
+    if "ratio_facts" in request and not isinstance(request["ratio_facts"], list):
+        raise ValueError("Ratio facts must be a list")
+    if "calendar_facts" in request and not isinstance(request["calendar_facts"], list):
+        raise ValueError("Calendar facts must be a list")
+    if 'law_explanation' in request:
+        from .explanations import validate_option
+        validate_option(request['law_explanation'])
     bundle = request["bundle"]
     if not bundle.get("instrument_id") or bundle.get("purpose") not in PURPOSES:
         raise ValueError("Instrument and declared purpose required")

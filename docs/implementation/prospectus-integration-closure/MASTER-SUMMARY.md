@@ -1,3 +1,168 @@
+# Current master result after the geometry repair, 12 October 2026
+
+The refreshed executable program completed its four bounded stages and the
+R0–R8 closure ladder. The Portuguese 2009 reports now reach the actual final
+consumer through an explicitly selected profile that preserves every OCR word
+and image identity while withholding one invalid position. Both spatial
+adapters reject projection on the affected page. Strict admission still rejects
+the bad box. The 67 focused checks, four matched prior consumers and forty
+adverse controls pass; current intake reproduces the matched P1 inputs exactly.
+Raw passage matching remains 9/11, with two reviewed punctuation maps giving
+11/11 assisted display matches. Raw quotations and corrections stay separate.
+
+The tested upstream defect is in MuPDF's grouping and PDF placement: a later
+vertical join changes an already horizontal character group, producing an
+oversized advance. Native recognition returns a valid six-pixel colon box;
+matched fresh PDF output and the inspected writer explain the failure. This
+locates a concrete producer defect without establishing package unsuitability
+or validating a native fix. The next reviewed plan freezes wider layout
+controls before comparing two native/adapter remedies.
+
+All nine current engineering receipts pass; R4 retains 428 checks and the final
+attribution-only update passes R8/025. The LaTeX chapter's isolated nine-page
+proof builds and its changed pages have been inspected. Evidence, actual
+commands and limitations are in `ocr-geometry-repair-2026-10-12/FINAL.md`.
+
+Whole-program completion remains unestablished. Remaining work includes wider
+page/layout coverage, Portuguese 2008 consumption, source authority and dates,
+fourteen onward dependencies, native confinement, portability and qualified
+independent review. The work remains uncommitted on
+`feature/prospectus-evidence-master`; no merge or push was performed here.
+
+# Historical source-report checkpoint, 12 October 2026
+
+The optional report-reading path now connects retained P1 regions through P2
+and P3 to final source-use explanations. Four actual BES comparisons pass:
+the 2009 statutory financial opinion, 2009 committee concurrence, and 2010
+limited sustainability assurance in English and Portuguese. Forty adverse
+controls reject changed sources, missing field records, incompatible subjects,
+changed report dates and dropped/reordered regions. The matched contractual
+answers, assemblies and dependencies remain unchanged. The focused suite passes
+103 tests. Read `source-report-scope-2026-10-12/RESULT.md` for the limits of
+supplied interpretation and the distinction between translation status and
+priority. The changed-method controller now passes all nine phases with current
+receipts; R4 has 428 passing checks. No controller worker remains active.
+
+All three Portuguese 2008/2009/2010 originals were already retained from the
+issuer archive; receipt checks now reconcile their availability. The later
+2010 acquisition is a duplicate of the earlier verified copy. Historical
+publication and authenticity remain unresolved. A newly tested Portuguese 2009
+case fails actual P1 intake on an out-of-page colon box already encoded in its
+generated OCR PDF. Default and accurate-bbox extraction reproduce it. The
+strict validator correctly rejects that geometry; the reviewed next program
+investigates its producer and an explicit optional unknown-geometry contract.
+
+The LaTeX discussion is updated and its changed pages visually checked after
+compilation. Native runtime confinement, broader source/layout coverage,
+fourteen onward dependencies, historical/authority evidence, second-host
+portability and qualified independent adjudication remain open. No fundamental
+package-unsuitability or complete legal-interpretation verdict is established.
+
+# Prior master-program state after resumed review, 12 October 2026
+
+The executable repair program now includes a reproduced ordinary-reading bug,
+an explicit BASF compatibility boundary, a finite changed-input phase refresh,
+and a newly acquired Portuguese source with actual P1 consumers. The final
+focused consumer suite passes 23 checks and the real BES footer replay passes;
+the 54-test BASF compatibility probe passes. All nine engineering phases are
+current and PASS, verified together in `final-current-status.json`. The first
+coordinator result remains incomplete as historical evidence; the two R8
+failures were diagnosed and a reviewed attribution refresh passed. A test total
+is not legal completion.
+
+Eleven interrupted visual leads are dispositioned, with twenty other candidate
+pages still outside enlarged review. The Portuguese 2010 report is retained
+and validated; all 35,998 native units survive selected-page OCR, and 178 OCR
+units are added. The full negative-assurance sentence requires a supplied
+body/margin reading: raw 12/13 critical spans, reviewed reading 13/13. Every
+page-89 word character and the margin survive, with changed-text, overlap and
+stale-graph controls rejected.
+
+Remaining substantive work includes report-type/scope facts and downstream use,
+automatic layout/coverage, independent issuer-edition and publication-date
+evidence, fourteen unresolved onward dependencies, native runtime confinement,
+portability and qualified independent acceptance. The 2010 Portuguese wording
+gap has narrowed; edition history and the other Portuguese originals have not
+been certified. See the new package `RESULT.md` files for actual evidence and
+retained implementation/harness/environment failures.
+
+# Earlier master-program checkpoint, 12 October 2026
+
+Execution continued beyond the four-page repair. Both pinned bilingual language
+orders passed two known-case P1 screens: 24/25 critical spans on the new pages
+and 16/18 on the earlier audit pages, preserving every previously matched span.
+English gave 21/25 and 15/18. No default was changed; two earlier accent errors
+and the generalization question remain. The official model bytes and comparison
+manifests are retained under `bes-original-acquisition/language-profile/`.
+
+The remaining 2010 p89 phrase is a region-order problem: all extraction sort
+variants interleave sidebar words. The actual product's existing layout adapter
+now consumes supplied body/sidebar regions, preserves all raw text and sidebar
+characters, and recovers seven of seven frozen page spans with adverse controls.
+This is supplied geometry, not automatic Docling inference or legal scope.
+`bes-original-acquisition/reading-order/RESULT.md` records the integration.
+
+The corrected eleven-document legal consumer remains the separate passing
+English baseline with all fourteen dependencies unresolved. R0–R8 remain
+current; substantive R1–R8 acceptance remains PARTIAL. Broader coverage,
+automatic regions, authenticated source/date/translation evidence, native
+confinement/portability and independent legal review are still required.
+
+# Current master-program state after report coverage repair, 12 October 2026
+
+The four-page BES report repair is complete as a local engineering package.
+The actual eleven-document consumer retains 123,263 raw units, including 231
+new units, with every earlier one of the 123,032 units preserved. Nine exact
+image-bound display corrections survive the service. A reviewed footer
+disposition removes a false legal reference and its omission reproduces it.
+The preflight guard and answer comparator now reject invalid evidence without
+mistaking expected new unresolved material for a regression.
+
+The run also corrected an error in our oracle after enlarged image inspection.
+The frozen prospective result remains 20/25; the retrospective corrected
+oracle gives 21/25 raw matches. Assisted token corrections and an explicit
+ordered reading account for 25/25. Raw ordering, whole-document coverage and
+other language/layout families remain open. These scores do not establish
+automatic extraction or package ranking.
+
+R0–R8 remain current and engineering PASS. R1–R8 substantive criteria remain
+PARTIAL, all fourteen onward sources remain UNRESOLVED, and independent legal
+acceptance is NOT_ESTABLISHED. The entire programme is incomplete. The new
+evidence and decision table are in
+`bes-original-acquisition/coverage-expansion/RESULT.md`; code-level causes
+are in its `ROOT-CAUSES.md`. The failed raw attempt, original oracle and all
+historical receipts are preserved. `NEXT-PROGRAM.md` records the remaining
+source, layout, runtime and independent-review work.
+
+# Current master-program state after hybrid integration, 11 October 2026
+
+The hybrid PDF intake and its controller revalidation are complete on
+`feature/prospectus-evidence-master` in `.worktrees/bond-gap-closure`. This is a
+current engineering checkpoint, not completion of the prospectus program.
+R0–R8 are current, valid and engineering PASS under the hybrid method; R1–R8
+primary criteria remain PARTIAL and external acceptance is
+NOT_ESTABLISHED. The closure status has no stale next command and retains
+`program_complete: false`.
+
+The delivered method keeps native extraction byte-for-byte, adds OCR only for
+reviewed original pages, preserves original PDF page numbers, binds source,
+model, runtime and image hashes, and rerenders retained images before service
+intake. The real consumer passed for BES 2008 (fresh OCR), 2009 (retained OCR
+with rerender verification) and 2010 (native), producing 104,996 graph units;
+wrong-source evidence was rejected. Raw OCR on the six selected audit pages
+matched 15 of 18 frozen spans, with three accent-only differences preserved for
+review.
+
+The root causes still open are evidence and scope boundaries: selected pages do
+not prove whole-report coverage, the three PDFs are not independently
+authenticated, the 14 onward dependencies are unresolved, OCR correction and
+multilingual/table discovery are not automatic, native reads are not fully
+confined, second-host portability is untested, and no independent qualified
+reader cohort or legal acceptance has been obtained. The next work is therefore
+changed source acquisition, coverage inventory, confinement and independent
+review as listed in `NEXT-PROGRAM.md`; rerunning unchanged R0–R8 would add no
+evidence.
+
 # Prospectus integration campaign: final local handoff
 
 11 October 2026. Implementation predecessor:

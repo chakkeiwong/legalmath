@@ -19,7 +19,7 @@ def structure(graph, admission):
     """Recompute projections from retained package bytes, then bind reviewed edges."""
     fields(admission, {"version", "graph_sha256", "documents", "governing", "review"},
            {"version", "graph_sha256", "documents", "governing", "review"})
-    if admission["version"] != "prospectus-layout.v1" or admission["graph_sha256"] != digest(graph):
+    if admission["version"] not in {"prospectus-layout.v1", "prospectus-layout.v2"} or admission["graph_sha256"] != digest(graph):
         raise ValueError("Layout source graph changed")
     review(admission["review"])
     from .layout_adapter import project_layout
@@ -31,6 +31,18 @@ def structure(graph, admission):
             raise ValueError("Layout document missing")
         projection = project_layout(units, row["docling"], source_sha256=row["source_sha256"])
         projections.append({"document": row["document"], **projection})
+    # Layout margins repeatedly cite the same body. Keep all candidates for
+    # each identity so duplicate-source refusals remain exactly those of bind.
+    # This index exists only during this immutable graph admission.
+    source_units = {}
+    for unit in graph['units']:
+        source_units.setdefault(unit['id'], []).append(unit)
+
+    def bind_source(source):
+        if isinstance(source, dict) and isinstance(source.get('unit'), str):
+            return bind({'units': source_units.get(source['unit'], [])}, source)
+        return bind(graph, source)
+
     ids = set()
     for edge in admission["governing"]:
         fields(edge, {"id", "kind", "from", "to", "questions", "reason"},
@@ -39,19 +51,49 @@ def structure(graph, admission):
                 not edge["to"] or not edge["questions"] or set(edge["questions"]) - {"Q1", "Q2"}):
             raise ValueError("Invalid reviewed governing relationship")
         ids.add(edge["id"])
-        bind(graph, edge["from"])
-        for source in edge["to"]:
-            bind(graph, source)
-    return {"version": "admitted-layout.v1", "input_sha256": digest(admission),
+        bind_source(edge["from"])
+        for target in edge["to"]:
+            source = target
+            if admission['version'] == 'prospectus-layout.v2':
+                fields(target, {'source', 'use'}, {'source', 'use'})
+                bind_source(target['source'])
+                fields(target['use'], {'unit', 'start', 'end'}, {'unit', 'start', 'end'})
+                use = target['use']
+                if (not isinstance(use['unit'], str) or not use['unit'] or
+                        type(use['start']) is not int or type(use['end']) is not int or
+                        not 0 <= use['start'] < use['end'] or
+                        use['end'] - use['start'] != target['source']['end'] - target['source']['start']):
+                    raise ValueError('Invalid selected governing occurrence')
+                source = target['source']
+            bind_source(source)
+    version = 'admitted-layout.v2' if admission['version'] == 'prospectus-layout.v2' else 'admitted-layout.v1'
+    return {"version": version, "input_sha256": digest(admission),
             "projections": projections, "governing": admission["governing"],
             "review": admission["review"], "automatic_legal_scope": False}
 
 
-def governing_dependencies(graph, assembly):
+def governing_dependencies(graph, assembly, *, _lookup=None):
+    if _lookup is not None:
+        _lookup._check(graph, assembly)
+    locate = uses if _lookup is None else _lookup.uses
     result = []
+    # Complete multi-line conditions repeat the same governed occurrences.
+    # Reuse a lookup only within this fixed graph/assembly call; question and
+    # the complete anchor remain part of its identity, including empty uses.
+    mappings_by_source = {}
     for edge in graph.get("layout", {}).get("governing", []):
         for question in edge["questions"]:
-            mappings = [uses(graph, assembly, s, question=question) for s in edge["to"]]
+            mappings = []
+            for target in edge["to"]:
+                explicit = graph.get('layout', {}).get('version') == 'admitted-layout.v2'
+                source = target['source'] if explicit else target
+                key = (question, digest(source))
+                if key not in mappings_by_source:
+                    mappings_by_source[key] = locate(graph, assembly, source, question=question)
+                found = mappings_by_source[key]
+                if explicit:
+                    found = [m for m in found if all(m[k] == target['use'][k] for k in ('unit', 'start', 'end'))]
+                mappings.append(deepcopy(found))
             result.append({"id": "governing:" + edge["id"] + ":" + question,
                 "questions": [question], "status": "RESOLVED" if all(len(m) == 1 for m in mappings) else "UNRESOLVED",
                 "authority": edge["from"], "target_uses": mappings,
@@ -60,6 +102,7 @@ def governing_dependencies(graph, assembly):
 
 
 def dispositions(graph, assembly, admission):
+    from .occurrences import _raw_index, segments
     fields(admission, {"version", "assembly_sha256", "review", "units"},
            {"version", "assembly_sha256", "review", "units"})
     if admission["version"] != "reviewed-dispositions.v1" or admission["assembly_sha256"] != digest(assembly):
@@ -67,7 +110,13 @@ def dispositions(graph, assembly, admission):
     review(admission["review"])
     result = deepcopy(assembly)
     by_id = {u["unit"]: u for u in result["units"]}
+    original_occurrences = {}
+    for original in assembly["units"]:
+        original_occurrences.setdefault(original["unit"], []).append(original)
+    validated_roles, raw_index = set(), None
     seen = set()
+    reading_roles = {"OPERATIVE", "UNKNOWN"}
+    reading_changed = False
     for row in admission["units"]:
         fields(row, {"unit", "text_sha256", "role", "reason", "sources"},
                {"unit", "text_sha256", "role", "reason", "sources"})
@@ -81,16 +130,41 @@ def dispositions(graph, assembly, admission):
             raise ValueError("Reviewed disposition text/evidence changed")
         coverage = set()
         for source in row["sources"]:
-            matches = [m for m in uses(graph, assembly, source, roles=(unit["role"],)) if m["unit"] == unit["unit"]]
+            # The old full search validated all maps of this original role,
+            # even maps unrelated to the named occurrence. Keep that check,
+            # but do it once in this immutable graph/assembly call.
+            bind(graph, source)
+            if unit["role"] not in validated_roles:
+                if raw_index is None:
+                    raw_index = _raw_index(graph)
+                for original in assembly["units"]:
+                    if original["role"] == unit["role"]:
+                        segments(graph, original, _raw=raw_index)
+                validated_roles.add(unit["role"])
+            # Keep every original occurrence of the identity: duplicate named
+            # uses must remain ambiguous, and prior role edits cannot affect it.
+            matches = uses(graph, {"units": original_occurrences[unit["unit"]]},
+                           source, roles=(unit["role"],))
             if len(matches) != 1:
                 raise ValueError("Reviewed source does not map to selected text")
             coverage.update(range(matches[0]["start"], matches[0]["end"]))
         if any(i not in coverage for i, char in enumerate(unit["text"]) if not char.isspace()):
             raise ValueError("Reviewed disposition must cover the complete selected unit")
+        reading_changed |= (unit["role"] in reading_roles) != (row["role"] in reading_roles)
         unit.update(role=row["role"], reason=row["reason"])
     result["unresolved"] = [u["unit"] for u in result["units"] if u["role"] == "UNKNOWN"]
     result["reviewed_dispositions"] = admission
     result["status"] = "PARTIAL" if result["unresolved"] else "COMPLETE_UNDER_SUPPLIED_DISPOSITIONS"
+    # BASF v1 defines this field as its constructed candidate, separately from
+    # the ledger of selected and unreviewed source units. A role-only review
+    # must preserve that candidate even when the two readings happen to agree.
+    if reading_changed and assembly.get("version") != "assembled-contract.v1":
+        prior_reading = "\n".join(u["text"] for u in assembly["units"]
+                                  if u["role"] in reading_roles)
+        if assembly.get("continuous_text") != prior_reading:
+            raise ValueError("Reviewed role change requires a source-bound constructed reading map")
+        result["continuous_text"] = "\n".join(
+            u["text"] for u in result["units"] if u["role"] in reading_roles)
     return result
 
 

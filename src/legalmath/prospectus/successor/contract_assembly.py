@@ -28,10 +28,14 @@ def assemble(graph, specification=None, *, predicate_engine="finite"):
         if op["source_text_sha256"] != units[op["unit"]]["text_sha256"]:
             raise ValueError("Assembly disposition is stale")
         by_unit[op["unit"]] = op
-    assembled, trace, unresolved = [], [], []
+    assembled, trace, unresolved, unavailable = [], [], [], []
     for unit in graph["units"]:
         op = by_unit.get(unit["id"], {"role": "UNKNOWN", "reason": "No disposition supplied"})
         role = op["role"] if unit["visible"] else "EXCLUDED"
+        if not unit["visible"] and op["role"] in {"OPERATIVE", "UNKNOWN"}:
+            unavailable.append({"unit": unit["id"], "document": unit["document"],
+                                "intended_role": op["role"],
+                                "questions": op.get("questions", ["Q1", "Q2"])})
         text = unit["raw"]
         edits = sorted(op.get("edits", []), key=lambda e: e["start"])
         cursor = 0
@@ -74,6 +78,8 @@ def assemble(graph, specification=None, *, predicate_engine="finite"):
         "status": "PARTIAL" if unresolved else "COMPLETE_UNDER_SUPPLIED_DISPOSITIONS",
         "independent_legal_review": False,
         "continuous_text": "\n".join(r["text"] for r in assembled if r["role"] in {"OPERATIVE", "UNKNOWN"})}
+    if unavailable:
+        result["unavailable_sources"] = unavailable
     if specification.get("ast"):
         from .construction_ast import assemble as construct_ast
         return construct_ast(graph, specification["ast"], result, predicate_engine=predicate_engine)

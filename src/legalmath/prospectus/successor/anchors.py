@@ -24,12 +24,24 @@ def bind(graph, source):
         raise ValueError("Invalid source interval")
     if unit["raw"][a:b] != source["quote"]:
         raise ValueError("Source quote changed")
-    return {**source, "page": unit["page"], "bbox": unit.get("bbox")}
+    result = {**source, "page": unit["page"], "bbox": unit.get("bbox")}
+    if unit.get('geometry_issues'):
+        result.update(geometry_issues=unit['geometry_issues'], image_sha256=unit.get('image_sha256'))
+    return result
+
+def _interval_timestamp(value):
+    if not isinstance(value, str):
+        raise ValueError("Interval endpoint requires a timezone-aware timestamp string")
+    return timestamp(value)
+
 
 def in_period(row, effective, known):
-    start, available = timestamp(row["valid_from"]), timestamp(row["known_from"])
-    end = timestamp(row["valid_until"]) if row.get("valid_until") else None
-    withdrawn = timestamp(row["known_until"]) if row.get("known_until") else None
+    start = _interval_timestamp(row["valid_from"])
+    available = _interval_timestamp(row["known_from"])
+    # Only absence or explicit null declares an open end. Malformed falsey
+    # values must not silently extend an authority, fact or amendment interval.
+    end = _interval_timestamp(row["valid_until"]) if row.get("valid_until") is not None else None
+    withdrawn = _interval_timestamp(row["known_until"]) if row.get("known_until") is not None else None
     if end is not None and end <= start or withdrawn is not None and withdrawn <= available:
         raise ValueError("Invalid validity/knowledge interval")
     return (start <= effective and (end is None or effective < end)

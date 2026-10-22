@@ -1,4 +1,5 @@
-"""Lossless page/line inventory. Geometry and order remain reviewable premises."""
+"""Retained page/line evidence; extraction completeness always requires review."""
+import math
 import re
 from pathlib import Path
 import shutil
@@ -10,8 +11,19 @@ REFERENCE = re.compile(r"\b(?:Condition|Section|Clause|Article)\s+(\d+(?:\.\d+)*
 
 
 def pdf_units(path, document):
-    run = subprocess.run(["pdftotext", "-bbox-layout", "-enc", "UTF-8", str(path), "-"],
-                         capture_output=True, timeout=90, check=True)
+    from .sealed_source import current, file_digest
+    runtime = current()
+    receipt = None
+    if runtime is None:
+        run = subprocess.run(["pdftotext", "-bbox-layout", "-enc", "UTF-8", str(path), "-"],
+                             capture_output=True, timeout=90, check=True)
+    else:
+        executable = str(Path(shutil.which('pdftotext')).resolve(strict=True))
+        argv = [executable, "-bbox-layout", "-enc", "UTF-8", str(path), "-"]
+        result = runtime.execute(argv, b'', {executable: file_digest(executable), str(path): document['sha256']},
+                                 max_stream=runtime.native_text_max_stream)
+        run = subprocess.CompletedProcess(argv, result['returncode'], result['stdout'], result['stderr'])
+        receipt = result['receipt']
     raw_xml = run.stdout.decode("utf-8")
     illegal = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
     removed = [{"offset": m.start(), "codepoint": ord(m.group())} for m in illegal.finditer(raw_xml)]
@@ -44,10 +56,11 @@ def pdf_units(path, document):
     return units, len(pages), {"extractor": "pdftotext-bbox-layout",
         "executable_sha256": digest(Path(shutil.which('pdftotext')).resolve().read_bytes()),
         "dependency_assurance": "DECLARED_EXECUTABLE; native libraries not confined; current assessment reruns extraction",
-        "raw_xml_sha256": digest(run.stdout), "xml_illegal_characters": removed, "geometry_review": "PENDING"}
+        "raw_xml_sha256": digest(run.stdout), "xml_illegal_characters": removed, "geometry_review": "PENDING",
+        **({'sealed_execution': receipt, 'dependency_assurance': 'SEALED_EXPLICIT_NATIVE_FILES; kernel/proc/dev trusted; reuse disabled'} if receipt else {})}
 
 
-def retained_ocr_units(document, root, *, data=None):
+def retained_ocr_units(document, root, *, data=None, selected_pages=None, geometry_issues=None):
     """Consume a pinned existing CPU OCR result, retaining raw word geometry.
 
     Reviewed transcriptions are a separate interpretation; raw boxes are never
@@ -61,21 +74,26 @@ def retained_ocr_units(document, root, *, data=None):
         data=read(path)
     else:
         spec={"sha256": digest(data)}
-    if data["source_sha256"]!=document["sha256"] or data["page_count"]!=len(data["pages"]):
+    if data["source_sha256"]!=document["sha256"]:
         raise ValueError("OCR source identity or page count differs")
     count = data["page_count"]
+    expected = list(range(1, count + 1)) if type(count) is int and count > 0 and selected_pages is None else selected_pages
     if (type(count) is not int or count <= 0 or
+            not isinstance(expected, list) or not expected or
+            any(type(p) is not int or not 1 <= p <= count for p in expected) or
+            expected != sorted(set(expected)) or
             any(type(page.get("page")) is not int for page in data["pages"]) or
-            [page["page"] for page in data["pages"]] != list(range(1, count + 1)) or
+            [page["page"] for page in data["pages"]] != expected or
             document.get("page_count", count) != count):
-        raise ValueError("OCR pages must cover the exact ordered source sequence 1..N")
-    language = document.get("scan_profile", {}).get("language", "eng")
+        raise ValueError("OCR pages must cover the exact ordered source sequence or selected original pages")
+    language = document.get("hybrid_profile", document.get("scan_profile", {})).get("language", "eng")
     if data["runtime"].get("dpi")!=300 or data["runtime"].get("language")!=language:
         raise ValueError("Unsupported retained OCR settings; review a new profile")
     units=[]
     for p in data["pages"]:
         groups={}
-        for w in p.get("words",[]):
+        for word_index, w in enumerate(p.get("words",[])):
+            issue = (geometry_issues or {}).get((p['page'], word_index))
             if len(w)!=8 or not all(isinstance(v,(int,float)) for v in w[:4]):
                 raise ValueError("Invalid OCR word geometry")
             # PyMuPDF occasionally emits a sub-pixel negative/overrun at a page
@@ -83,23 +101,31 @@ def retained_ocr_units(document, root, *, data=None):
             # outside the page. Keep the raw extraction hash, but clamp only
             # values within the declared tolerance and record the normalization.
             tolerance = 1e-3
-            if not (-tolerance <= w[0] < w[2] <= 10000 + tolerance and
+            if issue is None and not (-tolerance <= w[0] < w[2] <= 10000 + tolerance and
                     -tolerance <= w[1] < w[3] <= 10000 + tolerance):
                 raise ValueError("Invalid OCR word geometry")
             w = list(w)
-            w[:4] = [min(10000.0, max(0.0, float(v))) for v in w[:4]]
+            if issue is None:
+                w[:4] = [min(10000.0, max(0.0, float(v))) for v in w[:4]]
             if not (w[0] < w[2] and w[1] < w[3]):
                 raise ValueError("Invalid OCR word geometry")
-            groups.setdefault((w[5],w[6]),[]).append(w)
-        for order,((block,line),words) in enumerate(groups.items()):
-            words.sort(key=lambda w:w[7]);raw=" ".join(w[4] for w in words)
-            box=[min(w[0] for w in words),min(w[1] for w in words),max(w[2] for w in words),max(w[3] for w in words)]
+            groups.setdefault((w[5],w[6]),[]).append((w, issue))
+        for order,((block,line),entries) in enumerate(groups.items()):
+            entries.sort(key=lambda pair:pair[0][7])
+            words = [w for w, issue in entries]
+            raw=" ".join(w[4] for w in words)
+            box = (None if any(issue for w, issue in entries) else
+                   [min(w[0] for w in words),min(w[1] for w in words),max(w[2] for w in words),max(w[3] for w in words)])
             unit=TextUnit(f"{document['id']}:p{p['page']}:ocr{order}",document["id"],document["sha256"],
                           p["page"],order,raw,box,f"{document['id']}:p{p['page']}:b{block}",document["language"],
                           "retained-pymupdf-tesseract").json()
             offset=0;unit["words"]=[]
-            for w in words:
-                unit["words"].append({"text":w[4],"start":offset,"end":offset+len(w[4]),"bbox":w[:4]})
+            for w, issue in entries:
+                word = {"text":w[4],"start":offset,"end":offset+len(w[4]),"bbox":None if issue else w[:4]}
+                if issue:
+                    word['geometry_issue'] = issue
+                    unit.setdefault('geometry_issues', []).append({**issue, 'start':offset, 'end':offset+len(w[4])})
+                unit["words"].append(word)
                 offset+=len(w[4])+1
             units.append(unit)
         if not groups:
@@ -116,6 +142,108 @@ def retained_ocr_units(document, root, *, data=None):
                 "geometry_review":"RAW_GEOMETRY; transcription corrections require separate maps"}
 
 
+def hybrid_units(path, document, root):
+    """Keep native occurrences and add a bounded, explicit original-page layer."""
+    from .extraction import scan, scan_profile, verify_hybrid_images
+    from .ocr_geometry import hybrid_word_issue
+    profile, _ = scan_profile(document, root, hybrid=True)
+    native, count, native_meta = pdf_units(path, document)
+    if count != profile['page_count']:
+        raise ValueError('Hybrid original PDF page count differs')
+    retained = document.get('hybrid_ocr')
+    if retained is not None:
+        if not isinstance(retained, dict) or set(retained) != {'path','sha256'}:
+            raise ValueError('Hybrid retained evidence needs exact path and hash')
+        data_path = bound_path(root, retained['path'])
+        if digest(data_path.read_bytes()) != retained['sha256']:
+            raise ValueError('Hybrid OCR extraction changed')
+        data = read(data_path)
+    else:
+        data = scan(document, root, hybrid=True)
+    if (data.get('version') != 'hybrid-ocr.v1' or
+            data.get('source_sha256') != document['sha256'] or
+            type(data.get('page_count')) is not int or data['page_count'] != count or
+            data.get('selected_pages') != profile['pages'] or
+            not isinstance(data.get('pages'), list) or
+            [p.get('page') for p in data['pages']] != profile['pages'] or
+            data.get('runtime', {}).get('language_models') != profile['models']):
+        raise ValueError('Hybrid source, selected pages or model identity differs')
+    geometry_issues = {}
+    for page in data['pages']:
+        image = page.get('image_sha256')
+        if (not isinstance(image, str) or not re.fullmatch('[0-9a-f]{64}', image) or
+                any(type(page.get(k)) is not int or page[k] <= 0 for k in ('image_width', 'image_height')) or
+                any(type(page.get(k)) not in (int, float) or not math.isfinite(page[k]) or
+                    not 0 < page[k] <= 10000 for k in ('width_points', 'height_points'))):
+            raise ValueError('Hybrid page image identity or dimensions missing')
+        if not isinstance(page.get('text'), str) or not isinstance(page.get('words'), list):
+            raise ValueError('Hybrid page text and words required')
+        for index, word in enumerate(page['words']):
+            issue = hybrid_word_issue(word, page, allow_unknown=profile['version'] == 'pymupdf-hybrid.v2')
+            if issue:
+                geometry_issues[page['page'], index] = {**issue, 'word_index':index}
+    image_verification = (
+        verify_hybrid_images(document, root, data) if retained is not None else
+        {'verified_image_pages': profile['pages'], 'verification_mode':'FRESH_WORKER_RENDER'})
+    ocr, _, ocr_meta = retained_ocr_units(document, root, data=data, selected_pages=profile['pages'],
+                                        geometry_issues=geometry_issues)
+    if profile['version'] == 'pymupdf-hybrid.v2':
+        ocr_meta.update(geometry_policy=profile['geometry_policy'], geometry_issues=list(geometry_issues.values()),
+                        geometry_review='Invalid boxes withheld; text/image evidence retained; spatial review required')
+    selected = set(profile['pages'])
+    coverage = [{'page': p, 'status': 'NATIVE_AND_OCR_REQUIRES_REVIEW' if p in selected
+                 else 'NATIVE_ONLY_IMAGE_COVERAGE_UNREVIEWED'} for p in range(1, count+1)]
+    return native + ocr, count, {'extractor': 'native-plus-selected-page-ocr.v1',
+        'native_extraction': native_meta, 'native_units_sha256': digest(native),
+        'ocr_extraction': ocr_meta, 'runtime': data['runtime'],
+        'image_verification': image_verification,
+        'fresh_extraction': retained is None, 'selected_pages': profile['pages'],
+        'scan_pages': [{k:v for k,v in p.items() if k not in {'words','text'}} for p in data['pages']],
+        'page_coverage': coverage, 'text_coverage': 'UNREVIEWED; explicit selection is not whole-document completeness',
+        'duplicate_text_policy': 'NATIVE_AND_OCR_PRESERVED; explicit assembly dispositions required',
+        'geometry_review': 'RAW_GEOMETRY; corrected text requires image-bound maps'}
+
+
+def native_text_gaps(graph):
+    """Describe retained native omissions without guessing blankness or image text."""
+    page_methods = {}
+    for unit in graph['units']:
+        if unit['raw'].strip():
+            page_methods.setdefault((unit['document'], unit['page']), set()).add(unit['method'])
+    return [
+        {'document': unit['document'], 'source_sha256': unit['source_sha256'],
+         'page': unit['page'], 'unit': unit['id'], 'visible': unit.get('visible', False),
+         'status': 'NO_NATIVE_TEXT_REQUIRES_IMAGE_REVIEW',
+         'additional_text_methods': sorted(page_methods.get((unit['document'], unit['page']), ())),
+         'qualification': 'No native text was retained; this does not distinguish a blank page from unread image/vector content. Additional text does not establish complete coverage.'}
+        for unit in graph['units']
+        if unit.get('method') == 'blank-or-unread' and not unit['raw'].strip()
+    ]
+
+
+def _document_times(doc):
+    result = {}
+    for key in ("document_date", "known_from", "valid_from", "valid_until"):
+        value = doc.get(key)
+        if value is None:
+            result[key] = None
+            continue
+        if not isinstance(value, str):
+            raise ValueError("Document " + key + " requires a timezone-aware timestamp string")
+        result[key] = timestamp(value)
+    return result
+
+
+def acquisition_status(doc, root):
+    """Recheck supplied receipt bytes without inferring source authenticity."""
+    if not doc.get("acquisition"):
+        return "NOT_SUPPLIED"
+    receipt = doc["acquisition"]
+    if digest(bound_path(root, receipt["path"]).read_bytes()) != receipt["sha256"]:
+        raise ValueError("Acquisition receipt changed")
+    return "BYTES_BOUND; AUTHENTICITY_REQUIRES_REVIEW"
+
+
 def build(bundle, root):
     units, records, unresolved = [], [], []
     for doc in bundle["documents"]:
@@ -123,31 +251,31 @@ def build(bundle, root):
         if digest(path.read_bytes()) != doc["sha256"]:
             raise ValueError("Source bytes changed: " + doc["id"])
         visible, issues = True, []
-        issued = doc.get("document_date")
-        if not issued:
+        times = _document_times(doc)
+        issued = times["document_date"]
+        if issued is None:
             issues.append("document date not established")
-        elif bundle["purpose"] == "issue_formation" and timestamp(issued) > timestamp(bundle["issue_date"]):
+        elif bundle["purpose"] == "issue_formation" and issued > timestamp(bundle["issue_date"]):
             visible = False
             issues.append("post-issue source excluded from issue formation")
-        if not doc.get("known_from"):
+        if times["known_from"] is None:
             issues.append("knowledge time not established")
-        elif timestamp(doc["known_from"]) > timestamp(bundle["known_at"]):
+        elif times["known_from"] > timestamp(bundle["known_at"]):
             visible = False
             issues.append("source not known at query knowledge time")
-        if doc.get("valid_from") and timestamp(doc["valid_from"]) > timestamp(bundle["effective_at"]):
+        if times["valid_from"] is not None and times["valid_from"] > timestamp(bundle["effective_at"]):
             visible = False
             issues.append("source not yet effective")
-        if doc.get("valid_until") and timestamp(bundle["effective_at"]) >= timestamp(doc["valid_until"]):
+        if times["valid_until"] is not None and timestamp(bundle["effective_at"]) >= times["valid_until"]:
             visible = False
             issues.append("source outside recorded effective interval")
-        receipt_status = "NOT_SUPPLIED"
-        if doc.get("acquisition"):
-            a = doc["acquisition"]
-            receipt = bound_path(root, a["path"])
-            if digest(receipt.read_bytes()) != a["sha256"]:
-                raise ValueError("Acquisition receipt changed")
-            receipt_status = "BYTES_BOUND; AUTHENTICITY_REQUIRES_REVIEW"
-        if doc.get("scan_profile"):
+        receipt_status = acquisition_status(doc, root)
+        if doc.get('hybrid_profile') or doc.get('hybrid_ocr'):
+            if not doc.get('hybrid_profile') or doc.get('scan_profile') or doc.get('ocr') or doc.get('format') == 'text':
+                raise ValueError('Hybrid intake requires one PDF hybrid profile and no competing extraction mode')
+            extracted, count, extraction = hybrid_units(path, doc, root)
+            issues.append('hybrid text coverage not established; selected OCR and native-only pages require review')
+        elif doc.get("scan_profile"):
             if doc.get("ocr"):
                 raise ValueError("Choose current scan intake or retained OCR")
             from .extraction import scan

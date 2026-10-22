@@ -104,7 +104,11 @@ def construct(graph, admission):
               "basis":decisions["long_stub"]["source"],"review":"IMPLEMENTER_SOURCE_IMAGE_REVIEW"} for a,b in malformed]
     applied = [{"rule":"long_stub_malformed","status":"DELETED","start":a,"end":b,
                 "source_defect":"Missing closing bracket in printed source, not repaired by insertion"} for a,b in malformed]
+    reference_period_excluded = decisions["annual_no_stub"]["selected"]
     for name, pattern, selection in deletion_rules:
+        if reference_period_excluded and name in {"short_reference_adjustment", "long_reference_adjustment"}:
+            applied.append({"rule": name, "status": "COVERED_BY_EXCLUDED_REFERENCE_PERIOD"})
+            continue
         matches = [(a,b,d) for a,b,d in pairs if re.search(pattern, " ".join(raw[a:b].split()))]
         if selection and selection not in decisions:
             continue
@@ -118,6 +122,24 @@ def construct(graph, admission):
         edits.append({"start": a, "end": b, "old": raw[a:b], "new": "", "reason": name,
                       "basis": basis, "review": "IMPLEMENTER_PROPOSAL"})
         applied.append({"rule": name, "status": "DELETED", "start": a, "end": b})
+    # The selected annual Actual/Actual option expressly excludes the
+    # reference-period definition and its short/long-coupon adjustments.
+    # Delete the complete printed branch as one source interval.  The nested
+    # adjustment edits above are skipped: overlapping edits would make the
+    # construction ambiguous and could leave a punctuation fragment.
+    if reference_period_excluded:
+        matches = [(a, b) for a, b, _ in pairs
+                   if re.search(r'^\["Bezugsperiode" bezeichnet',
+                                " ".join(raw[a:b].split()))]
+        if len(matches) != 1:
+            raise ValueError("Expected exactly one excluded reference-period branch")
+        a, b = matches[0]
+        edits.append({"start": a, "end": b, "old": raw[a:b], "new": "",
+                      "reason": "Reference-period branch excluded by selected annual Actual/Actual option",
+                      "basis": decisions["annual_no_stub"]["source"],
+                      "review": "IMPLEMENTER_SOURCE_IMAGE_REVIEW"})
+        applied.append({"rule": "reference_period_excluded", "status": "DELETED",
+                        "start": a, "end": b})
     # Selected brackets are syntax around a branch, not contractual characters.
     # Remove only their own delimiters; nested unresolved fields stay explicit.
     resolved_pairs = set()
@@ -126,8 +148,8 @@ def construct(graph, admission):
         ("new_global", r"^\[Die Schuldverschreibungen werden in Form einer New Global", False),
         ("single_rate", r"^\[Die Schuldverschreibungen werden bezogen auf ihren Gesamtnennbetrag verzinst", False),
         ("annual_no_stub", r"^\[die tatsächliche Anzahl von Tagen.*?jeweiligen Zinsperiode", False),
-        # Printed p112 says this definition applies to ALL Actual/Actual options.
-        # The unchecked final-terms reference-period item does not delete it.
+        # This definition applies to other Actual/Actual choices, but the
+        # selected annual no-stub option is the printed exception.
         ("icma", r'^\["Bezugsperiode" bezeichnet', False),
         ("payment_target", r"^\[ein Tag.*?Trans-European", False),
         ("change_of_control", r"^\[\(3\) Kontrollwechsel", False),
@@ -145,6 +167,8 @@ def construct(graph, admission):
     ]
     for selection, pattern, instruction in selected_rules:
         if not decisions[selection]["selected"]:
+            continue
+        if selection == "icma" and reference_period_excluded:
             continue
         matches = [(a,b) for a,b,_ in pairs if re.search(pattern," ".join(raw[a:b].split()))]
         if len(matches) != 1:
@@ -340,6 +364,7 @@ def as_assembly(graph, construction, scalar_admission=None):
     by_unit={s["unit"]:s for s in construction["source_map"]}
     roles={r["unit"]:r["role"] for r in construction["unit_accounting"]}
     units=[]
+    unavailable=[]
     for u in graph["units"]:
         mapping=by_unit.get(u["id"])
         text=u["raw"]
@@ -399,6 +424,9 @@ def as_assembly(graph, construction, scalar_admission=None):
             if not text.strip() and u["raw"].strip():
                 role="EXCLUDED"
         if not u["visible"]:
+            if role in {"OPERATIVE", "UNKNOWN"}:
+                unavailable.append({"unit": u["id"], "document": u["document"],
+                                    "intended_role": role, "questions": ["Q1", "Q2"]})
             role="EXCLUDED"
         units.append({"unit":u["id"],"text":text,"role":role,"questions":["Q1","Q2"],
             "context":u["document"]+":german-option-i" if mapping else u["document"]+":"+u["parent"],
@@ -411,6 +439,8 @@ def as_assembly(graph, construction, scalar_admission=None):
         "units":units,"operations":construction["operations"],"status":"PARTIAL",
         "unresolved":[u["unit"] for u in units if u["role"]=="UNKNOWN"],
         "continuous_text":construction["candidate_text"],"independent_legal_review":False}
+    if unavailable:
+        result["unavailable_sources"] = unavailable
     if scalar_admission is not None:
         result["scalar_admission"] = scalar_admission
     return result

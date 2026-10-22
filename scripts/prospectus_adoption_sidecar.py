@@ -63,6 +63,7 @@ def coupon(data, folder):
             counter = ql.ActualActual(ql.ActualActual.ISMA, schedule)
         else:
             counter = {"ACT_ACT_ISDA": lambda: ql.ActualActual(ql.ActualActual.ISDA),
+                       "THIRTY_360_BOND_BASIS": lambda: ql.Thirty360(ql.Thirty360.BondBasis),
                        "ACT_365_FIXED": ql.Actual365Fixed, "ACT_360": ql.Actual360}[convention]()
         value = counter.yearFraction(day(row["start"]), day(row["end"]))
         rows.append({"id": row["id"], "year_fraction": value})
@@ -73,6 +74,95 @@ def coupon(data, folder):
              for d in data["calendar_dates"]]
     return {"version": ql.__version__, "fractions": rows, "calendar": dates,
             "evaluation_date_used": False, "missing_reference_fallback_used": False}
+
+
+def fixed_phase(data, folder):
+    """Independent package dates/leg; no legalmath or holder/event preprocessing."""
+    from datetime import date, timedelta
+    from fractions import Fraction
+    import QuantLib as ql
+    required = {"version", "request_sha256", "currency", "principal", "annual_rate",
+                "accrual_start", "first_coupon", "fixed_phase_end", "frequency", "eom",
+                "day_count", "adjustment", "calendar", "termination_role", "premise_kind"}
+    if set(data) != required or ql.__version__ != "1.38":
+        raise ValueError("Fixed-phase comparator schema or QuantLib version changed")
+    expected = {"version": "quantlib-fixed-phase.v1", "currency": "DKK",
+                "day_count": "THIRTY_360_BOND_BASIS", "adjustment": "FOLLOWING",
+                "termination_role": "FIXED_PHASE_RESET_BOUNDARY", "premise_kind": "HYPOTHETICAL"}
+    if (any(data[k] != v for k, v in expected.items()) or type(data["frequency"]) is not int
+            or data["frequency"] != 1 or data["eom"] is not False):
+        raise ValueError("Unsupported fixed-phase comparator domain")
+    if (not isinstance(data["request_sha256"], str) or len(data["request_sha256"]) != 64
+            or any(c not in "0123456789abcdef" for c in data["request_sha256"])):
+        raise ValueError("Missing original request identity")
+
+    def day(value):
+        if not isinstance(value, str):
+            raise ValueError("Explicit ISO date required")
+        parsed = date.fromisoformat(value)
+        if parsed.isoformat() != value or not 1902 <= parsed.year <= 2198:
+            raise ValueError("Date outside bounded comparator domain")
+        return parsed
+
+    def qday(value):
+        parsed = day(value)
+        return ql.Date(parsed.day, parsed.month, parsed.year)
+
+    start, first, end = map(day, (data["accrual_start"], data["first_coupon"], data["fixed_phase_end"]))
+    # This optional trial supports a non-EOM annual lattice only. A day-count
+    # bound such as365 would confuse a regular year with a short first period.
+    if (max(start.day, first.day, end.day) > 28 or not start < first < end
+            or not first.replace(year=first.year-1) < start
+            or (first.month, first.day) != (end.month, end.day)
+            or (end-start).days > 50*366):
+        raise ValueError("Expected bounded annual short-first fixed phase")
+    for key in ("principal", "annual_rate"):
+        if not isinstance(data[key], str) or not 1 <= len(data[key]) <= 128:
+            raise ValueError("Explicit rational comparator amount required")
+    principal, rate = Fraction(data["principal"]), Fraction(data["annual_rate"])
+    if not 0 < principal <= 10**12 or not 0 < rate <= 1:
+        raise ValueError("Comparator principal or rate outside bounded domain")
+    cal = data["calendar"]
+    if (not isinstance(cal, dict) or set(cal) != {"edition", "valid_from", "valid_until", "holidays", "weekend", "coverage"}
+            or not isinstance(cal["edition"], str) or not cal["edition"].strip()
+            or cal["coverage"] != "COMPLETE_DECLARED_INTERVAL" or cal["weekend"] != [5, 6]
+            or any(type(d) is not int for d in cal["weekend"])
+            or not isinstance(cal["holidays"], list) or len(cal["holidays"]) > 1000):
+        raise ValueError("Explicit covered Sat/Sun hypothetical calendar required")
+    left, right = day(cal["valid_from"]), day(cal["valid_until"])
+    holidays = [day(d) for d in cal["holidays"]]
+    if (not left <= start < end < right or right-end < timedelta(days=31)
+            or len(set(holidays)) != len(holidays) or any(not left <= d <= right for d in holidays)):
+        raise ValueError("Insufficient or inconsistent hypothetical calendar coverage")
+    calendar = ql.BespokeCalendar(cal["edition"])
+    calendar.addWeekend(ql.Saturday)
+    calendar.addWeekend(ql.Sunday)
+    for holiday in cal["holidays"]:
+        calendar.addHoliday(qday(holiday))
+    # Explicit effective/first dates avoid the evaluation-date fallback. The
+    # terminal date bounds this fixed phase; no Bond/maturity object is created.
+    schedule = ql.Schedule(qday(data["accrual_start"]), qday(data["fixed_phase_end"]),
+        ql.Period(1, ql.Years), ql.NullCalendar(), ql.Unadjusted, ql.Unadjusted,
+        ql.DateGeneration.Forward, False, qday(data["first_coupon"]))
+    counter = ql.Thirty360(ql.Thirty360.BondBasis)
+    leg = ql.FixedRateLeg(schedule, counter, nominals=[float(principal)],
+        couponRates=[float(rate)], paymentAdjustment=ql.Following, paymentCalendar=calendar,
+        paymentLag=0, compounding=ql.Simple)
+    rows = []
+    for i, cashflow in enumerate(leg):
+        item = ql.as_coupon(cashflow)
+        if not left <= day(item.date().ISO()) <= right:
+            raise ValueError("Adjusted payment outside declared calendar coverage")
+        rows.append({"accrual_start": item.accrualStartDate().ISO(),
+                     "accrual_end": item.accrualEndDate().ISO(), "payment_date": item.date().ISO(),
+                     "regular": schedule.isRegular(i+1), "day_fraction": item.accrualPeriod(),
+                     "unrounded_amount": item.amount(), "nominal": item.nominal()})
+    return {"version": ql.__version__, "input": data, "schedule": [d.ISO() for d in schedule],
+            "coupons": rows, "engine_executed": True, "evaluation_date_used": False,
+            "comparison_scope": "UNADJUSTED_SCHEDULE_AND_HYPOTHETICAL_PAYMENT_CALENDAR_AND_UNROUNDED_LEG",
+            "legal_entitlement_evaluated": False, "holder_aggregation_evaluated": False,
+            "event_precedence_evaluated": False, "legal_rounding_evaluated": False,
+            "actual_VP_calendar_established": False, "redemption_inferred": False}
 
 
 def annotation(data, folder):
@@ -135,7 +225,7 @@ def main():
     if Path(sys.executable).absolute() != PYTHON.absolute():
         os.execv(str(PYTHON), [str(PYTHON), "-m", "scripts.prospectus_adoption_sidecar", *sys.argv[1:]])
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("kind", choices=["layout", "coupon", "annotation"])
+    parser.add_argument("kind", choices=["layout", "coupon", "fixed_phase", "annotation"])
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()

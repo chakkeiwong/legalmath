@@ -38,18 +38,45 @@ def business_after(start, count, calendar):
 
 
 def whole_shares(holdings, price, amount_field):
+    """Round a supplied same-registration partition, never beneficial ownership."""
     price = m.amount(price, positive=True)
     groups = defaultdict(Fraction)
-    names = defaultdict(set)
     require(isinstance(holdings, list) and holdings, "Holdings required")
+    require(all(isinstance(h, dict) for h in holdings), "Holding objects required")
+    explicit = any("registration_group_id" in h for h in holdings)
+    names, registrations = {}, {}
+    holders = defaultdict(set)
     for h in holdings:
-        require(isinstance(h.get("legal_holder_id"), str) and h["legal_holder_id"], "Explicit legal holder grouping required")
-        require(isinstance(h.get("registration_name"), str) and h["registration_name"], "Registration display name required")
-        groups[h["legal_holder_id"]] += m.amount(h[amount_field], positive=True)
-        names[h["legal_holder_id"]].add(h["registration_name"])
-    return [{"legal_holder_id": name, "registration_names": sorted(names[name]), "amount": str(value), "shares": (value / price).__floor__(),
-             "fraction_without_cash_compensation": str(value / price - (value / price).__floor__())}
-            for name, value in sorted(groups.items())]
+        require(isinstance(h.get("legal_holder_id"), str) and h["legal_holder_id"].strip(), "Explicit nonblank legal holder grouping required")
+        require(isinstance(h.get("registration_name"), str) and h["registration_name"].strip(), "Nonblank registration display name required")
+        key = h.get("registration_group_id") if explicit else h["legal_holder_id"]
+        require(isinstance(key, str) and key.strip(), "Every holding requires a nonblank registration_group_id")
+        name = h["registration_name"]
+        require(names.setdefault(key, name) == name and registrations.setdefault(name, key) == key,
+                "Ambiguous registration partition; supply consistent explicit registration groups")
+        groups[key] += m.amount(h[amount_field], positive=True)
+        holders[key].add(h["legal_holder_id"])
+    result = []
+    for key, value in sorted(groups.items()):
+        shares = (value / price).__floor__()
+        row = {"amount": str(value), "shares": shares,
+               "fraction_without_cash_compensation": str(value / price - shares)}
+        if explicit:
+            row.update(registration_group_id=key, registration_name=names[key],
+                       legal_holder_ids=sorted(holders[key]))
+        else:
+            row.update(legal_holder_id=key, registration_names=[names[key]])
+        result.append(row)
+    return result
+
+
+def _conversion_entitlements(holdings, price, amount_field):
+    rows = whole_shares(holdings, price, amount_field)
+    if "registration_group_id" in holdings[0]:
+        return {"registration_entitlements": rows,
+                "registration_grouping": "SUPPLIED_SAME_REGISTRATION_PARTITION",
+                "beneficial_holder_allocation": "NOT_ESTABLISHED"}
+    return {"holder_entitlements": rows}
 
 
 def half_up_cent(value):
@@ -124,7 +151,7 @@ def bbva(s):
         components.append(half_up_cent(str(reference)))
     price = max(components)
     return {"path": path, "conversion": True, "conversion_price": str(price),
-            "holder_entitlements": whole_shares(s["holdings"], str(price), "liquidation_preference"),
+            **_conversion_entitlements(s["holdings"], str(price), "liquidation_preference"),
             "distributions": "CANCELLED_UNDER_6_1" if triggered else "SUBJECT_TO_CONDITION_4_AND_6_2",
             "settlement_date": s.get("settlement_date"), "depository_delivery": "NOT_ESTABLISHED",
             "holder_delivery": "NOT_ESTABLISHED", "adjustments": "SUPPLIED_ADJUSTED_FLOOR; RETROACTIVE_ADJUSTMENTS_REQUIRE_SEPARATE_EVIDENCE"}
@@ -132,7 +159,9 @@ def bbva(s):
 
 def seb(s):
     require(s["currency"] == "USD", "SEB profile requires USD principal and floor")
-    triggered = min(m.amount(s["bank_cet1_ratio"]), m.amount(s["group_cet1_ratio"])) < Fraction(41, 800)
+    # Information Memorandum p65: Bank 5.125%, SEB Group 8.00%, each strict.
+    triggered = (m.amount(s["bank_cet1_ratio"]) < Fraction(41, 800)
+                 or m.amount(s["group_cet1_ratio"]) < Fraction(2, 25))
     if not triggered:
         return {"conversion": False, "principal_after_conversion": None}
     rate = m.amount(s["usd_per_sek"], positive=True)
@@ -141,7 +170,7 @@ def seb(s):
         components.append(m.amount(s["reviewed_current_market_price_sek"], positive=True) * rate)
     price = max(components)
     return {"conversion": True, "conversion_price_usd": str(price), "principal_after_conversion": "0",
-            "holder_entitlements": whole_shares(s["holdings"], str(price), "principal"),
+            **_conversion_entitlements(s["holdings"], str(price), "principal"),
             "economic_recovery": None, "economic_recovery_status": "SHARE_RIGHTS_AND_OFFER_PROCEEDS_REQUIRE_VALUATION_AND_DELIVERY_EVIDENCE",
             "interim_delivery": "NOT_ESTABLISHED", "registration": "NOT_ESTABLISHED", "holder_delivery": "NOT_ESTABLISHED",
             "missing_notice_invalidates_conversion": False}

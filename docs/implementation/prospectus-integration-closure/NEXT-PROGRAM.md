@@ -1,3 +1,208 @@
+# Next program after the completed geometry repair, 12 October 2026
+
+`scripts/prospectus_geometry_program.py` has completed focused, actual-consumer,
+matched-consumer and controller stages. All stages are current; its next phase
+is null. R0–R8 also have current engineering PASS receipts, ending at R8/025
+after completion attribution. Read the package's `FINAL.md` and verification.
+The optional intake preserves text with explicit unknown geometry, while the
+strict profile retains its original rejection. No passing phase needs repeating.
+
+The native recognition/PDF comparison and saved writer transition now locate
+the tested overrun in MuPDF grouping/placement. There is no validated native
+patch. Execute the next packages under their own evidence contracts:
+
+1. **Native geometry and layout coverage.** Use the reviewed
+   `docs/plans/prospectus-native-geometry-followup-2026-10-12.md`. First freeze
+   source-bound normal, table, margin, rotation, vertical and bidirectional
+   controls and the two candidate interfaces. Then compare an isolated native
+   group-axis correction and a direct-recognition adapter using actual output
+   and actual consumers. Missing families limit promotion. The known-case
+   writer replay alone cannot validate a native replacement.
+2. **Remaining source consumption.** Continue enlarged image/vector/table
+   review and Portuguese 2008 audit consumption. All three Portuguese annual
+   PDFs are already retained and receipt-verified. Freeze report passages and
+   scope facts before candidate use; retain raw and assisted results separately.
+3. **Source authority and onward dependencies.** Establish edition,
+   authenticity, publication/knowledge dates and the fourteen original onward
+   sources. Conditional source analysis can proceed while facts remain unknown.
+4. **Runtime boundary and portability.** Bind the actual version-suffixed
+   native libraries, enforce the production read boundary, and reproduce the
+   actual consumer on a second host or equivalently isolated runtime.
+5. **Independent legal acceptance.** Prepare an unexposed source packet for
+   qualified first readings and adjudication. Supplied development readings,
+   successful OCR and passing engineering receipts cannot supply this evidence.
+
+After each changed work package, preserve failures and review the actual
+downstream effect, refresh attribution, run only affected controller phases
+and retain the next-action reason. Keep commands short, yield long processes
+after one second and write full output to files. Do not mutate running methods.
+The finite geometry repair is complete; the whole prospectus program remains
+incomplete. Older sections below are historical execution records.
+
+# Completed source-report package, 12 October 2026
+
+The next source-report contract below is now being executed under
+`docs/plans/prospectus-source-report-scope-2026-10-12.md`. Its corrected freeze,
+focused checks and per-case matched consumers are retained in
+`source-report-scope-2026-10-12/`. The prior nine-PASS snapshot is historical for
+the repaired disposition method; new product code requires fresh controller
+validation. All four matched report cases and forty adverse controls now pass;
+the revised attribution preflight passes. The complete ladder now passes all
+nine phases, with 428 R4 checks, and every receipt is current. Session 71659
+finished successfully. Preserve explicit source/date unknowns and the fourteen unresolved
+original dependencies. Supplied readings do not establish independent legal
+acceptance.
+
+The next reproduced blocker is the Portuguese 2009 P1 geometry failure. Read
+`docs/plans/prospectus-ocr-geometry-repair-2026-10-12.md` and
+`bes-original-acquisition/portuguese-2009-reports/RESULT.md`. The source-report
+integration cohort has passed, but a newly tested original produces an invalid
+colon box in the OCR PDF. Use the saved original/image/PDF trace to execute the
+reviewed producer/geometry investigation. No controller run remains active.
+The strict profile must retain its rejection; any new optional geometry mode
+needs explicit evidence and fresh validation. No clipping or token deletion.
+
+Correct source availability first: all three Portuguese 2008/2009/2010 PDFs
+were already retained from 11 October and now pass receipt-hash verification.
+The remaining tasks are appropriate consumption, incorporation/authentication
+and historical-availability evidence, not downloading these same bytes again.
+English/Portuguese page indices differ. See
+`bes-original-acquisition/source-inventory-2026-10-12/RESULT.md`.
+
+# Current execution and next substantive prerequisites, 12 October 2026
+
+The changed-input ladder is settled: all nine engineering phases are current
+and PASS in `reviewed-disposition-text-2026-10-12/final-current-status.json`.
+The first coordinator result remains historically incomplete; R8 required a
+module-invocation repair and then substantive attribution rereview. Preserve
+both failed R8 attempts, R4 attempt-019's seven BASF failures and all intermediate
+repair evidence. Do not repeat passing checks without changed inputs. The
+final focused suite has 23 passes, and the current R4 receipt has 398 passes.
+
+The interrupted eleven-page triage is complete with explicit limits: eight
+earlier enlarged observations, three current structure previews, no additional
+report-body admission, and twenty candidates still outside enlarged review.
+Portuguese 2010 has now been acquired from the exact issuer link and consumed:
+35,998 native units preserved, 178 OCR additions, raw 12/13 frozen spans and
+source-reviewed P1 regions 13/13. See its `RESULT.md`; the raw miss and all
+margin words are retained. This does not execute P2 source-scope interpretation.
+
+The next substantive implementation needs the source-report contract specified
+in `reviewed-disposition-text-2026-10-12/SOURCE-SCOPE-TRACE.md`: exact evidence
+for report identity, subject, assurance level, criteria, conclusion, audience,
+purpose/reliance limits, translation priority and date uncertainty. Freeze
+matched statutory-audit, committee and sustainability cases before implementing
+and evaluating a downstream consumer. An UNKNOWN construction role must not be
+promoted merely to obtain favorable legal answers. A reviewed P1 reading region
+also needs explicit source-preserving selection before P2 can use its order.
+
+Other independent evidence requirements remain: broader image/vector/table
+coverage, the other original-language editions and historical availability,
+fourteen onward sources, native read confinement, second-host portability and
+qualified unexposed readings/adjudication. No new package unsuitability verdict,
+default OCR change, source-completeness or independent legal acceptance follows
+from the local engineering results.
+
+# Earlier source-program checkpoint, 12 October 2026
+
+The 771-page inventory and four-page OCR expansion have executed. Read
+`docs/plans/prospectus-bes-report-review-repair-2026-10-11.md` before continuing.
+The frozen expansion coordinator is historical evidence after its consumer
+comparison failed; do not rerun that failed phase unchanged. Its failure was a
+wrong full-answer-equality criterion, with a newly exposed OCR footer reference
+and one erroneous oracle transcription. The revised consumer permits only
+exactly identified unresolved additions and supplies image-bound corrections.
+
+The revised executable
+`bes-original-acquisition/review_report_coverage.py` has completed preparation
+and actual consumption. Its `coverage-expansion/review-repair-001/progress.json`
+records PASS with no repeat command for this package. The retained result is
+123,263 raw units, 123,032 prior units preserved, nine supplied token maps,
+one footer disposition and all fourteen original dependencies unresolved.
+Read `coverage-expansion/RESULT.md` for the failed predecessor, the separately
+corrected oracle and the difference between raw and assisted span results.
+Continue with these remaining packages under new evidence contracts:
+
+1. **Page and language coverage.** The 41 candidates are a screen, with six
+   prior audit pages, four newly recovered report pages and 31 pages reviewed
+   only at contact-sheet level. Inspect remaining image words and smaller-image
+   or vector-text omissions. Freeze future critical text from enlarged source
+   crops. The pinned `eng+por` and `por+eng` profiles have now passed known-case
+   P1 screens (24/25 versus English 21/25 on new pages; 16/18 versus 15/18 on
+   earlier audit pages, without prior span losses). Both leave two 2008 accents
+   wrong. Freeze a broader mixed-language/layout cohort before optional adoption
+   or any default change. Use dates, numeric codes and complete qualifications
+   as preservation criteria; do not rank by aggregate matching alone. Existing
+   old raw text may change under bilingual OCR, requiring separately reviewed
+   source/admission rebinding, not silent replacement of historical evidence.
+2. **Reading order and source scope.** Keep the 2010 sustainability assurance
+   distinct from the financial opinion. The raw body phrase “nothing has come
+   to our attention” is interrupted by sidebar OCR. All extraction sort variants
+   fail this phrase. The actual P1 consumer now maps two supplied body/sidebar
+   regions through the existing layout adapter, accounts for every word
+   character and recovers all seven page checks. See `reading-order/RESULT.md`.
+   This does not run Docling inference or repair automatic region detection.
+   Next freeze mixed-column, right-margin legal-text, table and rotated-text
+   cases with negative controls before designing a detector. The single reviewed
+   footer header is an occurrence-specific repair, not a generic rule. The
+   consumer still treats the rest of the new unreviewed report occurrences as
+   UNKNOWN; source-bound scope/role review is needed before any promotion.
+3. **Source authority and dates.** Bind issuer, edition, original Portuguese
+   wording, English translation priority, publication and historical knowledge
+   dates for the acquired PDFs. All fourteen onward dependencies remain
+   unresolved, including the three retained annual-report candidates.
+4. **Native execution and portability.** Finish the reviewed native-read
+   confinement and immutable dependency boundary, then repeat the actual
+   consumer on a second host or equivalent isolated runtime. Current local
+   source/image binding does not establish either property.
+5. **Independent substantive acceptance.** Obtain qualified, unexposed first
+   readings and adjudication of the frozen source packet. Retain assisted
+   corrections and package/runtime checks separately from this evidence.
+
+The completed configuration/region executables are
+`compare_language_profiles.py`, `compare_legacy_audit_profiles.py`,
+`probe_p89_reading_order.py` and `integrate_p89_regions.py`, all under
+`bes-original-acquisition/`. Their manifests and result notes replace routine
+repetition; they are verification contexts for the next new evidence package.
+The corrected full service result remains separate from these optional P1
+profile/region consumers. No new default or legal acceptance was admitted.
+
+The complete original inventory and prior attempts remain immutable. Do not
+change bound global gap metadata simply to add a source diagnostic; refresh
+affected controller phases only when their bound product inputs change.
+
+# Next substantive program after current R0–R8, 11 October 2026
+
+The repaired controller has no runnable phase because R0–R8 are current under
+the hybrid product method. The next step must change the evidence or implement
+a reviewed repair; do not rerun unchanged phase receipts.
+
+1. Authenticate the three retained BES annual-report PDFs, bind issuer,
+   edition, publication and knowledge dates, and acquire or disposition the 14
+   onward-source originals. Keep all current question statuses and dependency
+   rows unresolved until reviewed evidence supports promotion.
+2. Build a complete image-page inventory for the three reports, including
+   multilingual and table pages. Add exact image-bound correction maps for
+   every retained mismatch and test supported language/model profiles without
+   treating raw OCR as a legal reading.
+3. Close the native dependency boundary: record the PyMuPDF/Tesseract/Poppler
+   native libraries and launch paths, enforce production confinement, and run
+   the same product consumer on a second host or equivalent isolated runtime.
+4. Obtain qualified independent first readings, adjudication and sign-offs on a
+   frozen unexposed cohort. Keep this acceptance evidence separate from local
+   engineering checks and from supplied corrections.
+5. Extend the source-specific R4/R5 work for remaining meanings, B54 authority,
+   onward references, instrument conventions and entitlement schedules only
+   after their sources are authenticated and admitted.
+6. For each changed package, update its plan and evidence contract, run the
+   focused diagnostic first, then admit a new controller method and refresh the
+   phase ladder. Preserve every failed or partial attempt and state whether the
+   result changed the harness, implementation or evidence boundary.
+
+Current blockers are evidence-dependent rather than a demonstrated fundamental
+package failure. Completion still requires source authenticity, coverage,
+confinement and independent review.
+
 # Post-merge validation prerequisite, 11 October 2026
 
 The Git handoff integrated main's additive package-data update in

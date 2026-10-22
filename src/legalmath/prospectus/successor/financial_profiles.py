@@ -1,7 +1,7 @@
 """Guarded named subcalculations. No full settlement profile is advertised."""
 from calendar import monthrange
 from datetime import date
-from .contracts import QueryResult
+from .contracts import QueryResult, digest
 from .. import closure_mechanisms as kernels
 from .anchors import fields
 
@@ -31,6 +31,7 @@ def validate_scenario(issue, s):
     """Validate even inactive branches: bad inputs must not be hidden by a trigger."""
     common = {"issue_id", "source_sha256", "premise_kind", "currency"}
     numbers, booleans, optional = set(), set(), set()
+    positive = set()
     extra = set()
     if issue == "deutsche-at1-2025":
         if s.get("operation") == "write_down":
@@ -71,6 +72,7 @@ def validate_scenario(issue, s):
             raise ValueError("Unsupported Deutsche operation")
     elif issue == "bbva-at1-series15-2025":
         numbers = {"issuer_determined_cet1_ratio", "adjusted_floor_price", "nominal_share_value"}
+        positive = {"adjusted_floor_price", "nominal_share_value"}
         booleans = {"capital_reduction", "condition_7_7_redemption_override", "listed"}
         extra = {"holdings", "five_eligible_closing_prices"}
         optional = {"valid_timely_opt_out", "settlement_date"}
@@ -85,16 +87,18 @@ def validate_scenario(issue, s):
             date.fromisoformat(s["settlement_date"])
     elif issue == "seb-at1-usd-2024":
         numbers = {"bank_cet1_ratio", "group_cet1_ratio", "usd_per_sek", "adjusted_floor_usd", "quota_value_sek"}
+        positive = {"usd_per_sek", "adjusted_floor_usd", "quota_value_sek"}
         booleans = {"listed"}
         extra = {"holdings"}
         if s.get("listed"):
             numbers.add("reviewed_current_market_price_sek")
+            positive.add("reviewed_current_market_price_sek")
     required = common | numbers | booleans | extra
     fields(s, required | optional, required)
     if s["currency"] != {"deutsche-at1-2025": "EUR", "bbva-at1-series15-2025": "EUR", "seb-at1-usd-2024": "USD"}[issue]:
         raise ValueError("Profile currency mismatch")
     for key in numbers:
-        kernels.m.amount(s[key])
+        kernels.m.amount(s[key], positive=key in positive)
     for key in booleans:
         kernels.boolean(s[key])
     if "holdings" in extra:
@@ -102,9 +106,31 @@ def validate_scenario(issue, s):
         if not isinstance(s["holdings"], list) or not s["holdings"]:
             raise ValueError("Nonempty holdings list required")
         for h in s["holdings"]:
-            fields(h, {"legal_holder_id", "registration_name", "account_id", amount_field},
+            fields(h, {"legal_holder_id", "registration_name", "registration_group_id", "account_id", amount_field},
                    {"legal_holder_id", "registration_name", amount_field})
         kernels.whole_shares(s["holdings"], "1", amount_field)
+
+
+def _named_source_problem(bundle, profile, graph):
+    """Primary P1 evidence must admit the edition used by the named calculation."""
+    if (not isinstance(graph, dict) or graph.get("instrument_id") != bundle["instrument_id"]
+            or graph.get("bundle_sha256") != digest(bundle)):
+        return "Financial source graph differs from the query bundle"
+    documents = [d for d in graph.get("documents", [])
+                 if d.get("id") == profile["document"] and d.get("sha256") == profile["sha256"]]
+    if len(documents) != 1:
+        return "Financial source edition is absent from the source graph"
+    document = documents[0]
+    if document.get("visible") is not True:
+        return "Financial source is unavailable for this query: " + "; ".join(document.get("issues", []))
+    units = [u for u in graph.get("units", []) if u.get("document") == document["id"]]
+    if not units or any(u.get("source_sha256") != profile["sha256"] or u.get("visible") is not True
+                        for u in units):
+        return "Financial source units are missing, unavailable or bound to another edition"
+    pages = {u["page"] for u in units if u.get("raw", "").strip()}
+    if not set(profile["pages"]) <= pages:
+        return "Financial source lacks text on required profile pages"
+    return None
 
 
 def assess(bundle, scenario, graph=None):
@@ -112,7 +138,7 @@ def assess(bundle, scenario, graph=None):
         return QueryResult("Q5", "UNSUPPORTED", unresolved=["No complete named financial scenario supplied"],
                            value={"inventory": INVENTORY}).json()
     issue = bundle["instrument_id"]
-    if isinstance(scenario, dict) and scenario.get("profile") in {'fixed-coupon.v1','fixed-coupon.v2'}:
+    if isinstance(scenario, dict) and scenario.get("profile") in {'fixed-coupon.v1','fixed-coupon.v2','fixed-coupon.v3'}:
         from .fixed_coupon import calculate
         try:
             if scenario.get("issue_id") != issue:
@@ -132,6 +158,12 @@ def assess(bundle, scenario, graph=None):
         raise ValueError("Financial scenario binding mismatch")
     if scenario.get("premise_kind") not in {"HYPOTHETICAL", "SOURCE_DEPENDENT_PROPOSAL"}:
         raise ValueError("Explicit conditional scenario required")
+    # The standalone secondary calculation has no P1. Service primary Q5 always
+    # supplies one; a supplied graph must never be silently bypassed.
+    if graph is not None:
+        problem = _named_source_problem(bundle, profile, graph)
+        if problem:
+            return QueryResult("Q5", "UNSUPPORTED", unresolved=[problem]).json()
     fn = {"deutsche-at1-2025": kernels.deutsche, "bbva-at1-series15-2025": kernels.bbva,
           "seb-at1-usd-2024": kernels.seb}[issue]
     try:

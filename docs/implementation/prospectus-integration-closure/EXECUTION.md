@@ -1,3 +1,169 @@
+# Geometry repair execution completed, 12 October 2026
+
+The reviewed optional geometry program executed focused checks, the actual
+Portuguese 2009 consumer, four matched prior report consumers and the complete
+R0–R8 ladder. It retained its failed first harness call and refreshed the next
+phase between successful stages. The finite controller finished in 3492.46 s;
+the final R4 result contains 428 checks. A separate 69.22 s current-intake
+diagnostic reproduced all four prior complete graphs and sealed P1 products.
+Those existing downstream comparisons did not need repeating.
+
+The bounded native diagnostic used the installed recognition callback with
+matched raster preprocessing, model and library identities. It returned valid
+recognition geometry; a fresh PDF reproduced the bad advance. The official
+writer and saved callback locate the horizontal-to-vertical grouping change.
+The first replay's additional incorrect transition hypothesis stays failed.
+These results narrow attribution without promoting a native replacement.
+
+After a recorded completion audit, attribution revision 003 replaced stale
+live-state wording and next actions. It changed only R8 inputs; R8/025 passes
+and the earlier eight receipts remain current. The final closure refresh and
+package verification preserve this state. No long product suite was repeated
+for documentation. The post-pagination LaTeX proof builds to nine pages; pages
+5–6 were visually inspected, with one expected external-section reference
+unresolved in this isolated build.
+
+Exact commands, hashes, timings and evidence remain in
+`ocr-geometry-repair-2026-10-12/`. The native follow-up plan is reviewed and
+ordered; source/legal/runtime obligations remain visible. Work is uncommitted
+on `feature/prospectus-evidence-master`; main-worktree changes are unrelated.
+
+# Historical source-report execution, 12 October 2026
+
+The previous role-reading repair was verified without rerunning its consumers
+and sealed with 66 package files. A new skeptical plan audit then froze matched
+statutory, committee and English/Portuguese sustainability readings. Freeze-002
+corrects a source distinction found in freeze-001: free-translation status
+alone does not establish translation priority.
+
+New optional P2/P3 admissions now reach the final service. Focused attempt 001
+had an implementation syntax error; attempt 002 passes 103 tests. All four
+real-source matched cases pass with forty adverse controls and unchanged
+contractual questions/dependencies. Their logs, manifests and actual command
+times are retained. The attribution revision preserved its intermediate stale
+controller-hash failure, then passed after G20's additive test selection was
+reviewed. Controller-001 completed all nine phases successfully, with no
+source-code mutation during execution. R4 passed 428 checks, including every
+earlier selected test plus the new report-scope tests, under its existing
+timeout. The runner refreshed the next plan after each completed phase and
+exited zero; all nine receipts are current.
+
+Parallel independent evidence work reconciled three already retained Portuguese
+PDFs, discovered their differing audit pagination and froze eleven Portuguese
+2009 image passages. P1 then rejected one invalid word box from actual OCR.
+The saved generated PDF reproduces the failure with both word-extraction flags;
+the planned Tesseract CLI comparison was unavailable. The official matching
+MuPDF writer source is retained and inspected; the mechanism remains unresolved
+between recognition boxes, line grouping and PDF text placement. No geometry
+bound was weakened. The next reviewed plan records that distinction.
+
+The LaTeX addition builds as an isolated nine-page final proof; changed pages
+4–5 were inspected visually, with page 5 reinspected after adding the geometry
+failure. Main-worktree legal-interpretation changes remain
+unrelated. This work remains uncommitted on `feature/prospectus-evidence-master`.
+
+# Prior resumed execution, 12 October 2026
+
+Plans: `docs/plans/prospectus-bes-review-resumption-2026-10-12.md`,
+`docs/plans/prospectus-reviewed-disposition-text-repair-2026-10-12.md`, and the
+three Portuguese acquisition/OCR/region plans. Each records the comparator,
+evidence contract, skeptical review, dependencies and bounded recovery.
+
+Completed the interrupted visual triage without rerunning OCR. Reproduced and
+repaired stale ordinary reading text, discovered a wrong-checkout test setup,
+and retained the initial broad-repair and BASF compatibility failures. Final
+consumer suite: 23 PASS. Real BES footer replay: PASS. BASF compatibility probe:
+54 PASS. The final controller refresh verifies all R0–R8 current and PASS.
+R4 has 398 passes. R8 first failed because the nested coordinator lacked root
+on its import path, then correctly rejected stale attribution hashes. Both
+attempts remain. The established module dispatcher, substantive review of the
+four affected attribution entries and preflight produced fresh R8/022 PASS.
+
+Acquired the exact issuer-linked Portuguese 2010 original. Kept sandbox DNS
+failure, partial trusted transfer and ETag/range-guarded recovery; verified
+8,125,384 bytes and 256 pages. Native inspection and original images located
+the assurance report at PDF 88–89. Before OCR, froze thirteen image spans.
+Actual P1: 35,998 native units preserved, 178 OCR units added, 12/13 raw matches.
+The supplied body/margin consumer reaches 13/13, with unchanged raw units and
+complete character accounting. No new default or legal answer promotion.
+
+Detailed logs, start records, code snapshots and fresh results stay under
+`reviewed-disposition-text-2026-10-12/` and
+`bes-original-acquisition/portuguese-2010/`. Use saved state to resume; do not
+redispatch a live phase or rewrite sealed failed attempts.
+
+# Earlier language and region continuation, 12 October 2026
+
+Completed the following CPU-only commands under their separately reviewed
+plans, using `.venv/bin/python` from the prospectus worktree and the
+`bes-original-acquisition/` script directory:
+
+- `timeout 600 ... compare_language_profiles.py`: all three profiles complete;
+  English 21/25, both bilingual orders 24/25 through actual P1 products.
+- `timeout 600 ... compare_legacy_audit_profiles.py`: English 15/18, both
+  bilingual orders 16/18; no lost prior frozen span.
+- `timeout 120 ... probe_p89_reading_order.py`: all four extraction sort views
+  remain 6/7; only the supplied body corridor reaches 7/7.
+- `timeout 180 ... integrate_p89_regions.py`: actual P1 layout admission passes
+  in 17.336 seconds, with complete character partition and adverse controls.
+- `timeout 120 ... verify_followups.py`: all ten retained result manifests,
+  raw-field review, current R0–R8 receipts, syntax and diff hygiene pass.
+
+Exact complete commands, environment, hashes and wall times are in the retained
+start records, rather than the abbreviated commands in this note. Results and
+decisions are in `language-profile/RESULT.md` and `reading-order/RESULT.md`.
+The official Portuguese model was fetched to this worktree only; no package or
+global default was changed. All fourteen onward-source dependencies remain
+unresolved. Completed attempts are immutable and no phase is active.
+
+# Continued BES source execution completed locally, 12 October 2026
+
+The 771-page inventory led to four additional report pages. Under
+`prospectus-bes-additional-reports-2026-10-11.md`, the fixed coordinator ran
+freeze, OCR and preflight, then retained a failed consumer comparison with its
+actual full service output. The failure was investigated, not retried unchanged.
+Under `prospectus-bes-report-review-repair-2026-10-11.md`,
+`review_report_coverage.py prepare` passed in 522.254 seconds and
+`review_report_coverage.py consume` passed in 319.887 seconds. Both used
+`timeout 1200 .venv/bin/python`; exact commands and CPU environment are in
+their start records under `bes-original-acquisition/coverage-expansion/`.
+
+The final consumer has 123,263 raw units, preserves 123,032 earlier units,
+consumes nine exact correction maps and one source-reviewed footer disposition,
+and retains all fourteen unresolved onward-source dependencies. The frozen
+prospective oracle, retrospective corrected oracle, raw mismatches, ordered
+assisted reading, negative controls, matched omission and failed attempt are
+all preserved. No R0–R8 phase was rerun: the current status command confirms
+those receipts remain current under the unchanged product method. No local
+consumer process remains active after this package. Detailed results and next
+work are in `coverage-expansion/RESULT.md` and `NEXT-PROGRAM.md`.
+
+# Current hybrid revalidation execution, 11 October 2026
+
+The prior interrupted controller state was traced and refreshed after the
+hybrid source-graph integration. The executed sequence was:
+
+```text
+python3 -m scripts.prospectus_delivery --program closure phase --phase R7
+python3 -m scripts.prospectus_delivery --program closure refresh
+python3 scripts/prospectus_closure_attribution.py
+python3 -m scripts.prospectus_delivery --program closure phase --phase R8
+python3 -m scripts.prospectus_delivery --program closure refresh
+```
+
+R7/016 completed 11 tests with zero failures; R8/019 completed 2 tests with
+zero failures. The final refresh reports R0/022, R1/020, R2/020, R3/018,
+R4/018, R5/016, R6/017, R7/016 and R8/019 as current and artifact-valid. No
+next command is emitted because all implemented phases are current. The
+attribution validator reports 20 gap rows, 9 package rows,
+`NO_WHOLE_PACKAGE_UNSUITABILITY_ESTABLISHED` and `program_complete: false`.
+
+The product method itself passed 9 hybrid controls and 56 compatibility checks;
+the actual three-report consumer passed with 104,996 graph units. These are
+engineering results. Selected OCR coverage, independent source authenticity,
+native dependency confinement, second-host portability, independent legal
+review and the 14 onward-source dependencies remain open.
+
 # Completed original coupon-anchor execution, 10 October 2026
 
 Baseline commit `e814e99ad6db96e9530bdb318a3c630d36c85fdb` was admitted

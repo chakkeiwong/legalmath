@@ -7,7 +7,10 @@ from itertools import product
 def exact(value):
     if isinstance(value, (float, bool)):
         raise ValueError("Exact quantities require an integer, decimal string or rational")
-    return Fraction(value)
+    try:
+        return Fraction(value)
+    except ZeroDivisionError as exc:
+        raise ValueError("Exact quantity requires a nonzero denominator") from exc
 
 
 @dataclass(frozen=True)

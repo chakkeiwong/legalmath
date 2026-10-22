@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import shutil
 import tempfile
-from hypothesis import given, settings, strategies as st
+from hypothesis import example, given, settings, strategies as st
 from scripts.prospectus_closure_fixtures import full_term_fixture
 from legalmath.prospectus.successor import closure_program as c, service
 from legalmath.prospectus.successor.contracts import read, write
@@ -26,12 +26,18 @@ def test_actual_assessment(pytestconfig):
 
 
 @settings(max_examples=5, derandomize=True, deadline=None)
+@example(actions=['source', 'source'])
 @given(st.lists(st.sampled_from(['source','missing','repair','holding','calendar','corrupt']), min_size=2, max_size=4))
 def test_real_executor_sequences_match_clean_recomputation(actions):
     with tempfile.TemporaryDirectory(prefix='closure-controller-check-') as temporary:
         root = Path(temporary)
         shutil.copytree(Path(c.__file__).resolve().parents[2], root/'src/legalmath',
                         ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
+        repository = Path(__file__).resolve().parents[2]
+        for name in ('scripts/prospectus_delivery.py', c.PLAN, 'pyproject.toml'):
+            target = root / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(repository / name, target)
         # A real isolated Git baseline supplies the executor's manifest. No
         # repository under development or external remote is modified.
         subprocess.run(['git','init','-q',str(root)],check=True,capture_output=True)
@@ -49,6 +55,7 @@ def test_real_executor_sequences_match_clean_recomputation(actions):
         old = c.JOBS['R0']
         c.JOBS['R0'] = ('tests/prospectus_successor/probe.py',None)
         try:
+            assert not c.bindings(root, 'R0')['binding_issues']
             for index,action in enumerate(['repair',*actions]):
                 if action=='source':
                     source.write_bytes(original+b'altered')
@@ -70,7 +77,7 @@ def test_real_executor_sequences_match_clean_recomputation(actions):
                 write(root/c.REL/'inputs/R0/recovery.json',{'step':index,'action':action})
                 assert not c.status(root)['phases'][0]['current']
                 result = c.execute(root,'R0')
-                assert result['engineering_checks']=='PASS'
+                assert result['engineering_checks']=='PASS', result
                 actual = read(root/result['directory']/'assessment.json')
                 try:
                     expected = {'questions':service.assess(req,case)['questions']}

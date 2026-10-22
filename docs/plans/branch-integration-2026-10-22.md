@@ -90,3 +90,56 @@ Both worktrees are being edited concurrently. The staged snapshot defines the
 checkpoint boundary. Later working changes remain in place and are not discarded.
 The legal worker and its hashes must remain in the original checkout. The
 separate main integration checkout can be validated without mutable run output.
+
+## Merge validation audit
+
+Checkpoints: main `a093e062a26d6f3ad28110b06cbbbb3c6a639b28`, prospectus
+`76d2dfa8c0cd2bc25b213e49656bca4261c4652a`. Main is checked out for the merge
+at `/tmp/legalmath-main-integration-20261022`; the running legal checkout stays
+on `checkpoint/legal-integration-2026-10-22` at the main checkpoint.
+
+The sole content conflict is `AGENTS.md`. Resolution retains both instruction
+blocks under their separate legal/prospectus headings and the shared continuation
+policy. The automatic `pyproject.toml` merge retains main's dependencies and adds
+the prospectus JSON and compressed JSON package-data patterns.
+
+The merged-checkout check uses the root `.venv-context` interpreter with both
+`PYTHONPATH` and parent imports pointing explicitly to this checkout. It runs the
+common capacity, acquisition, review, timeout, budget and registration controls,
+plus prospectus mechanisms, consumers, coupon, finance, program, synthetic scan
+and repair controls. The real BASF/BES archive checks and the authenticated
+production timeout/receipt checks are not repeated against a partial archive.
+Their premerge evidence remains distinct. CPU devices are intentionally hidden;
+no provider calls or product authority transitions are part of this Git task.
+
+Exact validation entry points (temporary diagnostic helper):
+
+```text
+/home/chakwong/python/legalmath/.venv-context/bin/python /tmp/legalmath-merged-validation.py static
+/home/chakwong/python/legalmath/.venv-context/bin/python /tmp/legalmath-merged-validation.py tests
+```
+
+Audit verdict: PASS for these engineering merge checks. Compare committed parent
+snapshots, not concurrently changing worktrees. A source import from either old
+checkout, a new semantic conflict or an oversized outgoing Git blob vetoes
+publication until investigated. Local archived evidence is not recreated or
+substituted. The pre-existing broader-suite failures remain open and do not
+become passing acceptance evidence merely because the merge checks pass.
+
+## Merge check results
+
+The merged-source suite passed **453 tests in 15.48 seconds**, with the three
+explicitly identified archive-dependent tests deselected. Both legal and
+prospectus modules resolved to the integration checkout. No live calls were
+made. Static checks parsed 1,395 changed Python files, found no merge-conflict
+markers in checked source, verified both added package-data patterns, and found
+no outgoing blob at or above GitHub's 100 MiB file limit among 9,279 outgoing
+blobs. The largest was 40,896,279 bytes. The resolved instructions and package
+configuration pass `git diff --cached --check`.
+
+Results and the exact diagnostic helper are retained in
+`docs/implementation/branch-integration-2026-10-22/`. These checks support the
+requested merge and publication of the checkpoint. They do not clear the five
+premerge broader-suite failures or certify either product complete. Both source
+checkpoints are retained as merge parents; subsequent concurrent edits and local
+archives remain untouched in the original worktrees.
