@@ -25,11 +25,22 @@ def body_lines(basf_graph, construction):
     return deepcopy([u for u in basf_graph["units"] if u["id"] in selected])
 
 
-def test_icma_common_definition_survives_unselected_optional_period(construction):
+def test_annual_no_stub_excludes_complete_reference_period_branch(construction):
     text = construction["candidate_text"]
-    assert '"Bezugsperiode" bezeichnet den Zeitraum ab dem Verzinsungsbeginn' in text
+    # The condition begins at p112:l64 and continues with its express annual
+    # exception at p113:l1–12; final terms p5 select that excepted option.
+    assert '"Bezugsperiode" bezeichnet den Zeitraum ab dem Verzinsungsbeginn' not in text
     assert "Fiktive Zinszahlungstag" not in text and "Fiktiver Zinszahlungstag" not in text
     assert "die tatsächliche Anzahl von Tagen in der jeweiligen Zinsperiode." in " ".join(text.split())
+    excluded = next(o for o in construction["operations"] if o["reason"].startswith("Reference-period branch excluded"))
+    assert excluded["old"].startswith('["Bezugsperiode" bezeichnet')
+    assert excluded["old"].endswith('als Zinszahlungstage].]')
+    assert excluded["new"] == ""
+    assert excluded["source_units"] == [basf.KEY + f":p112:l{i}" for i in range(85,88)] + [
+        basf.KEY + f":p113:l{i}" for i in range(13,19)]
+    # No nested deletion or closing-period residue survives the full branch.
+    assert all(o is excluded or o["end"] <= excluded["start"] or o["start"] >= excluded["end"]
+               for o in construction["operations"])
 
 
 def test_malformed_unselected_coupon_and_source_character_map(construction):

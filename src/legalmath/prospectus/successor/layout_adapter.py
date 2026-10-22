@@ -3,6 +3,14 @@ from .contracts import digest
 import difflib
 
 
+def _unknown_page_geometry(raw_units, page):
+    # A word with no location could belong to any proposed region on the page.
+    # Skipping it would turn unknown coverage into apparently complete text.
+    return any(unit['page'] == page and unit.get('words') and
+               (unit.get('bbox') is None or any(w.get('bbox') is None for w in unit['words']))
+               for unit in raw_units)
+
+
 def map_layout(raw_units, document, *, source_sha256):
     if any(u["source_sha256"] != source_sha256 for u in raw_units):
         raise ValueError("Layout source edition mismatch")
@@ -19,6 +27,10 @@ def map_layout(raw_units, document, *, source_sha256):
             continue
         prov = provenance[0]
         page = prov["page_no"]
+        if _unknown_page_geometry(raw_units, page):
+            failures.append({'item':item.get('self_ref'), 'page':page,
+                'reason':'Unknown word geometry on page; independent image-bound spatial review required'})
+            continue
         box = prov["bbox"]
         left, top, right, bottom = box["l"], box["t"], box["r"], box["b"]
         if box.get("coord_origin") == "BOTTOMLEFT":
@@ -75,6 +87,8 @@ def project_layout(raw_units, document, *, source_sha256):
             if len(prov) != 1:
                 raise ValueError('One-page geometry required for this bounded projection')
             page, box = prov[0]['page_no'], prov[0]['bbox']
+            if _unknown_page_geometry(raw_units, page):
+                raise ValueError('Unknown word geometry on page; independent image-bound spatial review required')
             l,t,r,b = (box[k] for k in ('l','t','r','b'))
             origin = box.get('coord_origin')
             if origin == 'BOTTOMLEFT':

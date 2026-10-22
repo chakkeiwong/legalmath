@@ -10,6 +10,11 @@ def close(nodes, edges, roots):
         if edge["kind"] not in KINDS or edge["from"] not in available:
             raise ValueError("Invalid typed reference edge")
         adjacency[edge["from"]].append(edge)
+    # Back-edge witnesses depend on traversal order. Include clause edges
+    # without IDs and keep conservative cycle evidence reproducible.
+    for outgoing in adjacency.values():
+        outgoing.sort(key=lambda edge: (str(edge['to']), edge['kind'], edge.get('id', ''),
+                                        bool(edge.get('resolved')), bool(edge.get('authority'))))
     reached, unresolved, active = set(), set(), set()
     def visit(key):
         if key in active:
@@ -30,6 +35,6 @@ def close(nodes, edges, roots):
             if edge["to"] is not None:
                 visit(edge["to"])
         active.remove(key)
-    for root in roots:
+    for root in sorted(roots):
         visit(root)
     return {"roots": sorted(roots), "reachable": sorted(reached), "unresolved": sorted(unresolved)}

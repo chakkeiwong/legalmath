@@ -86,7 +86,72 @@ def uses(graph, assembly, source, *, roles=("OPERATIVE",), question=None):
     return result
 
 
-def target(graph, assembly, value):
+class _DependencyLookup:
+    """Private index for one dependency call with immutable source/assembly rows.
+
+    Validate every selected map in each requested scope, including maps with no
+    matching source. Keep positions rather than selected identities so repeated
+    occurrences retain their order and ambiguity. Nothing survives the call.
+    """
+    def __init__(self, graph, assembly):
+        self._sources = graph['units']
+        self._assembly, self._units = assembly, assembly['units']
+        self._raw = None
+        self._segments, self._scopes = {}, {}
+
+    def _check(self, graph, assembly):
+        # Governing admission changes only the layout in a shallow graph copy.
+        if (graph['units'] is not self._sources or assembly is not self._assembly or
+                assembly['units'] is not self._units):
+            raise ValueError('Dependency lookup belongs to another source/assembly context')
+
+    def uses(self, graph, assembly, source, *, roles=('OPERATIVE',), question=None):
+        self._check(graph, assembly)
+        bind(graph, source)
+        if self._raw is None:
+            self._raw = _raw_index(graph)
+        scope = (frozenset(roles), question)
+        if scope not in self._scopes:
+            by_source = {}
+            for position, unit in enumerate(self._units):
+                if unit['role'] not in scope[0] or question and question not in unit['questions']:
+                    continue
+                if position not in self._segments:
+                    self._segments[position] = segments(graph, unit, _raw=self._raw)
+                grouped = {}
+                for piece in self._segments[position]:
+                    raw = piece['source']
+                    key = (raw['unit'], raw['document'], raw['source_sha256'])
+                    grouped.setdefault(key, []).append(piece)
+                for key, pieces in grouped.items():
+                    by_source.setdefault(key, []).append((position, pieces))
+            self._scopes[scope] = by_source
+        key = (source['unit'], source['document'], source['source_sha256'])
+        result = []
+        for position, maps in self._scopes[scope].get(key, []):
+            pieces = []
+            for piece in maps:
+                raw = piece['source']
+                left, right = max(raw['start'], source['start']), min(raw['end'], source['end'])
+                if left < right:
+                    pieces.append((left, right, piece['start'] + left - raw['start']))
+            pieces.sort()
+            cursor, selected = source['start'], []
+            for left, right, output in pieces:
+                if left != cursor or selected and output != selected[-1][1]:
+                    break
+                selected.append((output, output + right - left))
+                cursor = right
+            else:
+                if cursor == source['end'] and selected:
+                    result.append({'unit': self._units[position]['unit'], 'start': selected[0][0],
+                                   'end': selected[-1][1], 'source': source})
+        return result
+
+
+def target(graph, assembly, value, *, _lookup=None):
+    if _lookup is not None:
+        _lookup._check(graph, assembly)
     raw = {u["id"]: u for u in graph["units"]}
     selected = {u["unit"]: u for u in assembly["units"]}
     explicit = None
@@ -103,7 +168,8 @@ def target(graph, assembly, value):
         source, explicit = parts[0]["source"], value
     else:
         raise ValueError("Reference targets must be available operative source units")
-    matches = uses(graph, assembly, source, roles=("OPERATIVE", "UNKNOWN"))
+    locate = uses if _lookup is None else _lookup.uses
+    matches = locate(graph, assembly, source, roles=("OPERATIVE", "UNKNOWN"))
     if explicit is not None:
         matches = [m for m in matches if m["unit"] == explicit]
     if len(matches) != 1:

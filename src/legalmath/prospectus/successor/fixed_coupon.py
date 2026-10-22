@@ -1,5 +1,6 @@
 """Exact conditional coupon slice; contractual conventions are admitted inputs."""
 from calendar import isleap, monthrange
+from copy import deepcopy
 from datetime import date, timedelta
 from fractions import Fraction
 from .anchors import bind, fields
@@ -50,6 +51,12 @@ def year_fraction(start, end, convention, *, references, frequency, eom, coupon_
         return total
     if references:
         raise ValueError("Unexpected reference periods for this convention")
+    if convention == "THIRTY_360_BOND_BASIS":
+        # Named endpoint rule only: no February-end adjustment and no generic
+        # 30/360 alias. A positive calendar interval may have zero counted days.
+        d1 = min(a.day, 30)
+        d2 = 30 if b.day == 31 and d1 == 30 else b.day
+        return Fraction(360 * (b.year-a.year) + 30 * (b.month-a.month) + d2-d1, 360)
     if convention in {"ACT_365_FIXED", "ACT_360"}:
         return Fraction((b-a).days, 365 if convention == "ACT_365_FIXED" else 360)
     if convention == "ACT_ACT_ISDA":
@@ -100,8 +107,11 @@ def adjusted(day, convention, calendar):
 
 
 def rounded(value, quantum, rule):
-    value, quantum = exact(value), exact(quantum)
-    if value < 0 or quantum <= 0 or rule not in {"HALF_UP", "DOWN"}:
+    try:
+        value, quantum = exact(value), exact(quantum)
+    except (TypeError, ValueError, ZeroDivisionError) as exc:
+        raise ValueError("Exact amount and quantum required for rounding") from exc
+    if value < 0 or quantum <= 0 or not isinstance(rule, str) or rule not in {"HALF_UP", "DOWN"}:
         raise ValueError("Nonnegative amount and explicit rounding rule/quantum required")
     scaled = value / quantum
     units = scaled.numerator // scaled.denominator
@@ -115,19 +125,24 @@ def calculate(s, graph):
                 "accrual_start", "accrual_end", "due_date", "payment_date", "day_count", "references",
                 "frequency", "eom", "stub", "adjustment", "calendar", "rounding", "holdings", "events",
                 "event_scope", "evidence"}
-    anchored = s.get('profile') == 'fixed-coupon.v2'
+    initial = s.get('profile') == 'fixed-coupon.v3'
+    anchored = s.get('profile') in {'fixed-coupon.v2', 'fixed-coupon.v3'}
     if anchored:
         required.add('coupon_anchor')
+    if initial:
+        required |= {'note_form', 'calculation_amount', 'fixed_coupon_amount', 'broken_coupon_amount'}
     extra={'calculation_amount','fixed_coupon_amount'}
     fields(s, required | extra, required)
-    if s["profile"] not in {'fixed-coupon.v1','fixed-coupon.v2'} or s["premise_kind"] != "HYPOTHETICAL":
+    if s["profile"] not in {'fixed-coupon.v1','fixed-coupon.v2','fixed-coupon.v3'} or s["premise_kind"] != "HYPOTHETICAL":
         raise ValueError("Only explicitly hypothetical fixed-coupon premises supported")
     if anchored and s['day_count'] != 'ACT_ACT_ICMA':
-        raise ValueError('Fixed coupon v2 requires anchored ACT/ACT ICMA')
+        raise ValueError('Fixed coupon v2/v3 requires anchored ACT/ACT ICMA')
     if not isinstance(s["currency"], str) or len(s["currency"]) != 3 or not s["currency"].isupper():
         raise ValueError("Explicit currency required")
     if s["stub"] not in {"REGULAR", "SHORT_FIRST", "LONG_FIRST", "SHORT_FINAL", "LONG_FINAL"}:
         raise ValueError("Explicit stub classification required")
+    if initial and (s['stub'] not in {'SHORT_FIRST', 'LONG_FIRST'} or s['due_date'] != s['accrual_end']):
+        raise ValueError('Initial broken coupon requires a first stub ending on its due date')
     # Each value is a source-backed interpretation, not a fact inferred by the kernel.
     evidence_fields = (required | (set(s) & extra)) - {"profile", "issue_id", "source_sha256", "premise_kind", "evidence"}
     fields(s["evidence"], evidence_fields, evidence_fields)
@@ -170,13 +185,22 @@ def calculate(s, graph):
     aggregation=s['rounding']['aggregation']
     if aggregation not in {'PER_LEGAL_HOLDER','PER_CALCULATION_AMOUNT'}:
         raise ValueError("Explicit supported aggregation required")
+    # Declared rounding must be valid even when no holder receives a payment.
+    rounded(0, s['rounding']['quantum'], s['rounding']['rule'])
+    if initial:
+        expected_aggregation = {'GLOBAL': 'PER_LEGAL_HOLDER', 'DEFINITIVE': 'PER_CALCULATION_AMOUNT'}
+        if s['note_form'] not in expected_aggregation or aggregation != expected_aggregation[s['note_form']]:
+            raise ValueError('Declared note form disagrees with coupon rounding basis')
     if aggregation=='PER_CALCULATION_AMOUNT':
         if 'calculation_amount' not in s or exact(s['calculation_amount']) <= 0:
             raise ValueError('Positive calculation amount required')
-    elif set(s) & extra:
+    elif not initial and set(s) & extra:
         raise ValueError('Calculation-amount terms require that explicit aggregation')
     per_amount = None
-    if aggregation == 'PER_CALCULATION_AMOUNT':
+    if initial:
+        from .coupon_amounts import initial_amounts
+        per_amount = initial_amounts(s, rate, fraction, rounded)
+    elif aggregation == 'PER_CALCULATION_AMOUNT':
         per_amount = rounded(exact(s['calculation_amount'])*rate*fraction,
                              s['rounding']['quantum'], s['rounding']['rule'])
         if 'fixed_coupon_amount' in s:
@@ -185,9 +209,13 @@ def calculate(s, graph):
             per_amount = exact(s['fixed_coupon_amount'])
     if not isinstance(s["holdings"], list) or not s["holdings"]:
         raise ValueError("Entitled legal holdings required")
+    if initial and s['note_form'] == 'GLOBAL' and len(s['holdings']) != 1:
+        raise ValueError('Initial global coupon requires one explicitly declared aggregate holding')
     holders, accounts = {}, set()
     for row in s["holdings"]:
         fields(row, {"legal_holder_id", "account_id", "principal", "entitled"}, {"legal_holder_id", "account_id", "principal", "entitled"})
+        if any(not isinstance(row[key], str) or not row[key].strip() for key in ("legal_holder_id", "account_id")):
+            raise ValueError("Nonblank string holder and account identifiers required")
         if not row["legal_holder_id"] or not row["account_id"] or row["account_id"] in accounts or type(row["entitled"]) is not bool:
             raise ValueError("Distinct accounts, legal holder and explicit entitlement required")
         accounts.add(row["account_id"])
@@ -208,6 +236,8 @@ def calculate(s, graph):
     events, ids, instants = [], set(), set()
     for row in s["events"]:
         fields(row, {"id", "kind", "at", "order"}, {"id", "kind", "at", "order"})
+        if not isinstance(row["id"], str) or not row["id"].strip():
+            raise ValueError("Nonblank string event identifier required")
         at = timestamp(row["at"])
         if row["kind"] not in kinds or row["id"] in ids or type(row["order"]) is not int or (at, row["order"]) in instants:
             raise ValueError("Unique event identity and explicit equal-time ordering required")
@@ -234,6 +264,19 @@ def calculate(s, graph):
                   "amount": str(payment(principal)),
                   "payment_event": events[positions["payment"]][2]["id"]} for holder, principal in sorted(holders.items())]
     return {**({'profile':s['profile'], 'coupon_anchor':s['coupon_anchor']} if anchored else {}),
+            **({'published_coupon': {'note_form': s['note_form'],
+                'calculation_amount': s['calculation_amount'], 'regular_amount': s['fixed_coupon_amount'],
+                'initial_broken_amount': s['broken_coupon_amount'],
+                'initial_amount_used_for_payment': s['note_form'] == 'DEFINITIVE',
+                'payment_basis': 'ONE_HYPOTHETICAL_GLOBAL_AGGREGATE' if s['note_form'] == 'GLOBAL' else 'PUBLISHED_INITIAL_PER_CALCULATION_AMOUNT',
+                'actual_note_form_established': False}} if initial else {}),
             "day_fraction": str(fraction), "payment_date": payment_date, "transfers": transfers,
-            "events": [e[2] for e in events], "scope": "FIXED_COUPON_ONLY", "actual_event": "NOT_ESTABLISHED",
-            "full_settlement_supported": False, "source_evidence": s["evidence"]}
+            "entitlement_basis": {"kind": "HYPOTHETICAL_DECLARED_FLAGS",
+                "holdings": [dict(row) for row in s["holdings"]],
+                "excluded_accounts": [row["account_id"] for row in s["holdings"] if not row["entitled"]],
+                "event_scope": dict(s["event_scope"]), "rounding_aggregation": aggregation,
+                "legal_entitlement_established": False, "transfer_effects_inferred": False,
+                "note_form_inferred": False},
+            "events": deepcopy([e[2] for e in events]), "scope": "FIXED_COUPON_ONLY", "actual_event": "NOT_ESTABLISHED",
+            "full_settlement_supported": False, "source_evidence": deepcopy(s["evidence"]),
+            "calculation_inputs": deepcopy(s)}

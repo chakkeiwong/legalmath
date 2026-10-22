@@ -1,5 +1,6 @@
 """Isolated closure attempts; valid evidence is distinct from criterion success."""
 from contextlib import contextmanager
+import ast
 from datetime import datetime, timezone
 import fcntl
 import importlib.metadata
@@ -8,6 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tomllib
 import time
 import xml.etree.ElementTree as ET
 from .contracts import digest, read, write
@@ -21,10 +23,10 @@ JOBS = {
     "R0": ("tests/prospectus_successor/test_closure_program.py", None),
     "R1": ("tests/prospectus_successor/test_integration_closure.py", "not solver and not z3"),
     "R2": ("tests/prospectus_successor/test_integration_closure.py", "solver or z3"),
-    "R3": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_correction_images.py tests/prospectus_successor/test_closure_real_scan.py", "layout or poppler or correction or corrected"),
-    "R4": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_references.py tests/prospectus_successor/test_closure_reference_replacement.py tests/prospectus_successor/test_closure_basf.py tests/prospectus_successor/test_closure_basf_notices.py tests/prospectus_successor/test_closure_basf_agent_notices.py tests/prospectus_successor/test_closure_basf_agent_capacity.py tests/prospectus_successor/test_closure_basf_global_exchange.py tests/prospectus_successor/test_closure_basf_global_records.py tests/prospectus_successor/test_closure_basf_amount_holder.py tests/prospectus_successor/test_closure_basf_status_pledge.py", "annotation or authored or disposition or priority or corrected or reference or cross_document or basf"),
-    "R5": ("tests/prospectus_successor/test_closure_finance.py tests/prospectus_successor/test_closure_coupon_anchor.py tests/prospectus_successor/test_closure_consumers.py", "finance or coupon or calculation or published or bearer or schedule or selected_full"),
-    "R6": ("tests/prospectus_successor/test_closure_runtime.py tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_recovery.py", "runtime or current_consume or missing_poppler or real_executor"),
+    "R3": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_correction_images.py tests/prospectus_successor/test_closure_real_scan.py tests/prospectus_successor/test_ocr_geometry.py", "layout or poppler or correction or corrected or geometry"),
+    "R4": ("tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_meaning.py tests/prospectus_successor/test_closure_references.py tests/prospectus_successor/test_closure_reference_replacement.py tests/prospectus_successor/test_closure_basf.py tests/prospectus_successor/test_closure_basf_notices.py tests/prospectus_successor/test_closure_basf_agent_notices.py tests/prospectus_successor/test_closure_basf_agent_capacity.py tests/prospectus_successor/test_closure_basf_global_exchange.py tests/prospectus_successor/test_closure_basf_global_records.py tests/prospectus_successor/test_closure_basf_amount_holder.py tests/prospectus_successor/test_closure_basf_status_pledge.py tests/prospectus_successor/test_report_scope.py tests/prospectus_successor/test_archive_observations.py tests/prospectus_successor/test_governing_interpretation.py tests/prospectus_successor/test_meaning_coverage.py tests/prospectus_successor/test_relation_discovery.py tests/prospectus_successor/test_relation_scope.py", "annotation or authored or disposition or priority or corrected or reference or cross_document or basf or report_scope or archive_observations or governing_interpretation or meaning_coverage or relation_discovery or relation_scope"),
+    "R5": ("tests/prospectus_successor/test_closure_finance.py tests/prospectus_successor/test_closure_coupon_anchor.py tests/prospectus_successor/test_initial_coupon.py tests/prospectus_successor/test_closure_consumers.py", "finance or coupon or calculation or published or bearer or schedule or selected_full"),
+    "R6": ("tests/prospectus_successor/test_closure_runtime.py tests/prospectus_successor/test_closure_consumers.py tests/prospectus_successor/test_closure_recovery.py tests/prospectus_successor/test_native_inputs.py", "runtime or current_consume or missing_poppler or real_executor or native_inputs"),
     "R7": ("tests/prospectus_successor/test_closure_reviews.py", None),
     "R8": ("tests/prospectus_successor/test_closure_attribution.py", None),
 }
@@ -40,6 +42,17 @@ REMAINING = {
     'R8': ['Keep engineering and external acceptance separate; resolve remaining local code work and specified external inputs'],
 }
 PACKAGE_INPUTS = {'R3':['layout','scan','scan_de'], 'R4':['codec'], 'R5':['numeric','compass']}
+BINDING_VERSION = "closure-bindings.v3"
+PHASE_SUPPORT = {
+    "R1": ["tests/prospectus_successor/test_successor.py"],
+    "R2": ["tests/prospectus_successor/test_successor.py"],
+    "R3": ["tests/prospectus_successor/test_successor.py", "scripts/prospectus_closure_fixtures.py"],
+    "R4": ["tests/prospectus_successor/test_successor.py", "scripts/prospectus_closure_fixtures.py"],
+    "R5": ["scripts/prospectus_closure_fixtures.py"],
+    "R6": ["scripts/prospectus_closure_fixtures.py"],
+    "R7": ["scripts/prospectus_closure_fixtures.py"],
+    "R8": ["scripts/prospectus_closure_attribution.py"],
+}
 # Status/pledge continuation: previous R4 2486.211s plus new admission
 # (241.444s), P3 smoke (358.350s), remaining controls and scheduling headroom.
 # The execution plan reviews this finite bound before the longer run.
@@ -63,12 +76,20 @@ def auxiliary_evidence(root, phase):
         # Installed application and separate optional-runtime evidence are distinct.
         if base.name == 'installed':
             profiles = {}
+            invalid = []
             for folder in attempts:
                 if (folder/'result.json').is_file():
-                    record = read(folder/'result.json')
-                    profile = record.get('action') or ('application' if record.get('fresh_assess') else 'optional')
-                    profiles[profile] = folder
-            chosen = list(profiles.values())
+                    try:
+                        record = read(folder/'result.json')
+                        if not isinstance(record, dict):
+                            raise ValueError('Installed result is not a record')
+                        profile = record.get('action') or ('application' if record.get('fresh_assess') else 'optional')
+                        profiles[profile] = folder
+                    except (OSError, ValueError, TypeError):
+                        invalid.append(folder)
+                else:
+                    invalid.append(folder)
+            chosen = sorted(set(profiles.values()) | set(invalid))
         else:
             chosen = attempts[-1:]
         if not chosen:
@@ -77,13 +98,16 @@ def auxiliary_evidence(root, phase):
             try:
                 manifest=read(folder/'manifest.json')
                 result=read(folder/'result.json')
+                if (not isinstance(manifest, dict) or not isinstance(manifest.get('files'), dict)
+                        or not isinstance(result, dict)):
+                    raise ValueError('Auxiliary record has an invalid shape')
                 actual={str(p.relative_to(folder)) for p in folder.rglob('*') if p.is_file() and p.name != 'manifest.json'}
                 if actual != set(manifest['files']) or any(digest((folder/p).read_bytes()) != h for p,h in manifest['files'].items()):
                     raise ValueError('Auxiliary evidence changed')
                 rows.append({'path':str(folder.relative_to(root)), 'status':result['status'],
                              'manifest_sha256':digest((folder/'manifest.json').read_bytes()),
                              'scope':'Retained diagnostic at its recorded method, not current package certification'})
-            except (OSError, ValueError, KeyError, TypeError):
+            except (OSError, ValueError, KeyError, TypeError, AttributeError):
                 rows.append({'path':str(folder.relative_to(root)), 'status':'INVALID'})
     return rows
 
@@ -92,13 +116,167 @@ def command(*args):
     return ["python3", "-m", "scripts.prospectus_delivery", "--program", "closure", *args]
 
 
+def phase_test_paths(root, phase):
+    root = Path(root)
+    paths = [root / value for value in JOBS[phase][0].split()]
+    paths += [root / value for value in PHASE_SUPPORT.get(phase, [])]
+    # Pytest loads these without an explicit import in a selected test module.
+    paths += [root / value for value in ("tests/__init__.py", "tests/conftest.py",
+                                         "tests/prospectus_successor/conftest.py")]
+    if phase == "R4":
+        paths += sorted((root / "scripts").glob("prospectus_closure_basf*.py"))
+    return paths
+
+
+def local_module_index(root):
+    """Index importable project modules for phase-scoped dependency closure."""
+    root = Path(root)
+    index = {}
+    for base, prefix in ((root / "src", ""), (root / "scripts", "scripts"),
+                         (root / "tests/prospectus_successor", "")):
+        if not base.exists():
+            continue
+        for path in base.rglob("*.py"):
+            parts = path.relative_to(base).with_suffix("").parts
+            parts = parts[:-1] if parts[-1] == "__init__" else parts
+            if prefix:
+                module = ".".join((prefix, *parts))
+            elif base == root / "src":
+                module = ".".join(parts)
+            else:
+                module = ".".join(("tests", "prospectus_successor", *parts))
+            index.setdefault(module, path)
+            if base == root / "tests/prospectus_successor" and len(parts) == 1:
+                index.setdefault(parts[0], path)
+    return index
+
+
+def imported_project_files(root, initial):
+    """Return initial files plus their local Python import closure."""
+    root = Path(root)
+    index = local_module_index(root)
+    queue = [Path(path) for path in initial if Path(path).is_file()]
+    seen = set()
+    result = set()
+
+    def include_module(name):
+        # Importing a child also executes each regular package initializer.
+        while name:
+            candidate = index.get(name)
+            if candidate is not None:
+                queue.append(candidate)
+            name = name.rpartition(".")[0]
+
+    while queue:
+        path = queue.pop()
+        if path in seen:
+            continue
+        seen.add(path)
+        result.add(path)
+        if path.suffix != ".py":
+            continue
+        module = next((name for name, candidate in index.items() if candidate == path), "")
+        package = (module if path.name == "__init__.py" else module.rpartition(".")[0])
+        include_module(module)
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (OSError, SyntaxError, UnicodeDecodeError):
+            continue
+        names = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names.extend(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                base = node.module or ""
+                if node.level:
+                    parts = package.split(".") if package else []
+                    base_parts = parts[:len(parts)-node.level+1]
+                    base = ".".join(base_parts + ([base] if base else []))
+                names.append(base)
+                names.extend((base + "." + alias.name).strip(".") for alias in node.names)
+        for name in names:
+            include_module(name)
+    return result
+
+
+def packaging_binding(root):
+    """Bind executable build, project and pytest choices; omit known unrelated data."""
+    path = Path(root) / "pyproject.toml"
+    if not path.is_file():
+        return {"status": "MISSING", "path": "pyproject.toml"}
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        return {"status": "INVALID", "error": type(exc).__name__}
+    try:
+        document = tomllib.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
+        return {"status": "INVALID", "error": type(exc).__name__, "raw_sha256": digest(raw)}
+    tool = document.get("tool", {})
+    project = document.get("project", {})
+    build = document.get("build-system", {})
+    if not all(isinstance(value, dict) for value in (tool, project, build)):
+        return {"status": "INVALID", "error": "SECTION_TYPE", "raw_sha256": digest(raw)}
+    if (any(key in project and not isinstance(project[key], str) for key in
+            ("name", "version", "requires-python")) or
+            any(key in project and (not isinstance(project[key], list) or
+                any(not isinstance(value, str) for value in project[key]))
+                for key in ("dependencies", "dynamic"))):
+        return {"status": "INVALID", "error": "PROJECT_TYPE", "raw_sha256": digest(raw)}
+    setuptools = tool.get("setuptools", {})
+    pytest = tool.get("pytest", {})
+    if not isinstance(setuptools, dict) or not isinstance(pytest, dict):
+        return {"status": "INVALID", "error": "TOOL_TYPE", "raw_sha256": digest(raw)}
+    package_data = setuptools.get("package-data", {})
+    if not isinstance(package_data, dict) or any(
+            not isinstance(name, str) or not isinstance(patterns, list) or
+            any(not isinstance(pattern, str) for pattern in patterns)
+            for name, patterns in package_data.items()):
+        return {"status": "INVALID", "error": "PACKAGE_DATA_TYPE", "raw_sha256": digest(raw)}
+    retained_data = {name: sorted(pattern for pattern in patterns
+                                 if not (name == "legalmath" and pattern.startswith("interpretation/")))
+                     for name, patterns in package_data.items()
+                     if name != "legalmath.interpretation" and not name.startswith("legalmath.interpretation.")}
+    result = {
+        "status": "VALID",
+        "build_system": build,
+        "project": project,
+        "setuptools": {**setuptools, "package-data": retained_data},
+        "pytest": pytest,
+    }
+    try:
+        digest(result)
+    except (ValueError, TypeError):
+        return {"status": "INVALID", "error": "NON_JSON_CONFIGURATION", "raw_sha256": digest(raw)}
+    return result
+
+
+def package_versions():
+    versions = {}
+    for name in ("legalmath", "pytest", "hypothesis", "z3-solver"):
+        try:
+            versions[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            versions[name] = "MISSING"
+    return versions
+
+
 def bindings(root, phase):
     root = Path(root)
+    from .native_inputs import environment_bindings, file_state
+    interpreter = os.environ.get("LEGALMATH_OCR_PYTHON", str(root / ".localresources/prospectus/ocr/bin/python"))
+    try:
+        ocr_runtime = file_state(interpreter)
+    except (OSError, ValueError, RuntimeError) as exc:
+        ocr_runtime = {"path": interpreter, "state": "UNAVAILABLE", "error": type(exc).__name__}
     paths = list((root / "src/legalmath/prospectus/successor").glob("*.py"))
-    paths += [root / p for p in ("scripts/prospectus_delivery.py", "src/legalmath/cli.py", "pyproject.toml", PLAN)]
-    paths += list((root / "tests/prospectus_successor").glob("*.py"))
-    paths += list((root / 'scripts').glob('prospectus_closure_*.py'))
-    paths += [root/'scripts/prospectus_integration_codec.py']
+    paths += list((root / "src/legalmath/prospectus/successor").glob("*.json"))
+    paths += [root / p for p in ("scripts/prospectus_delivery.py", PLAN)]
+    if phase == "R6":
+        paths.append(root / "src/legalmath/cli.py")
+    paths += phase_test_paths(root, phase)
+    if phase == "R4":
+        paths += [root / "scripts/prospectus_integration_codec.py"]
     if phase == 'R3':
         paths += [root/'docs/plans/prospectus-real-scan-2026-10-11.md']
         paths += list((root/REL/'real-scan').glob('*.py'))
@@ -129,15 +307,29 @@ def bindings(root, phase):
     if phase == 'R8':
         paths += [root/REL/'attribution-review.json', root/REL/'gap-status.json']
     paths += list((root / REL / "inputs" / phase).rglob("*"))
-    packages = {name: importlib.metadata.version(name) for name in ("legalmath", "pytest", "hypothesis", "z3-solver")}
-    return {"files": {str(p.relative_to(root)): digest(p.read_bytes()) for p in sorted(set(paths)) if p.is_file()},
+    paths = list(imported_project_files(root, paths))
+    required = ["scripts/prospectus_delivery.py", PLAN, "src/legalmath/prospectus/successor/closure_program.py",
+                *JOBS[phase][0].split()]
+    if phase == "R4":
+        required.append("src/legalmath/prospectus/successor/basf_scope_review.json")
+    if phase == "R6":
+        required.append("src/legalmath/cli.py")
+    packaging = packaging_binding(root)
+    issues = ["Missing required input: " + value for value in required if not (root / value).is_file()]
+    if packaging["status"] != "VALID":
+        issues.append("Invalid prospectus packaging/pytest configuration: " + packaging["status"])
+    return {"binding_version": BINDING_VERSION,
+            "files": {str(p.relative_to(root)): digest(p.read_bytes()) for p in sorted(set(paths)) if p.is_file()},
+            "packaging": packaging, "binding_issues": issues,
             'auxiliary_evidence':auxiliary_evidence(root,phase),
-            "environment": {"python": sys.version, "packages": packages, "mode": "CPU", "CUDA_VISIBLE_DEVICES": "-1",
+            "environment": {"python": sys.version, "packages": package_versions(), "mode": "CPU", "CUDA_VISIBLE_DEVICES": "-1",
+                            "selected_native_environment": environment_bindings(), "ocr_interpreter": ocr_runtime,
                             "checkout_test_source": str(root / "src")}}
 
 
 def preflight(root):
     return {"version": "closure-preflight.v1", "python": sys.executable,
+            "binding_version": BINDING_VERSION, "packaging_binding": packaging_binding(root),
             "cpu_gpu": "CPU; GPU intentionally hidden before imports", "gpu_probed": False,
             "executables": {name: shutil.which(name) for name in ("pdftotext", "pdfinfo", "java")},
             "runtime_paths": {str(p): p.exists() for p in (
@@ -153,6 +345,17 @@ def verified_attempt(root, folder):
         return None
     try:
         receipt = read(path)
+        if (not isinstance(receipt, dict) or
+                not isinstance(receipt.get("outputs"), dict) or
+                not isinstance(receipt.get("parents"), dict) or
+                not isinstance(receipt.get("remaining"), list) or
+                receipt.get("phase") != folder.parent.name or
+                not all(isinstance(receipt.get(key), str) for key in
+                        ("method", "execution", "engineering_checks", "primary_criterion", "consumer_integration")) or
+                "result.json" not in receipt["outputs"] or
+                not all(isinstance(name, str) and isinstance(sha, str)
+                            for name, sha in receipt["outputs"].items())):
+            return None
         body = {k: v for k, v in receipt.items() if k != "sha256"}
         if receipt.get("sha256") != digest(body):
             return None
@@ -163,29 +366,55 @@ def verified_attempt(root, folder):
             if Path(name).name != name or digest((folder / name).read_bytes()) != sha:
                 return None
         return {**receipt, "directory": str(folder.relative_to(root))}
-    except (KeyError, TypeError, ValueError, OSError):
+    except (AttributeError, KeyError, TypeError, ValueError, OSError):
         return None
+
+
+def unchanged_attempt(folder, method, parents):
+    """Return whether a prior attempt has the identical method/parent state."""
+    try:
+        record = read(Path(folder) / "started.json")
+    except (OSError, ValueError, TypeError):
+        return True  # An unidentifiable interrupted attempt needs review.
+    if not isinstance(record, dict):
+        return True
+    if not isinstance(record.get("method"), str) or not isinstance(record.get("parents", {}), dict):
+        return True
+    return record.get("method") == method and record.get("parents", {}) == parents
 
 
 def status(root):
     root = Path(root)
     rows = {}
     for phase, parents in DAG.items():
-        attempts = [verified_attempt(root, p) for p in sorted((root / REL / "phases" / phase).glob("attempt-*"))]
-        valid = [row for row in attempts if row]
-        latest = valid[-1] if valid else None
-        current = bool(latest and latest["method"] == digest(bindings(root, phase)) and all(
+        attempt_paths = sorted((root / REL / "phases" / phase).glob("attempt-*"))
+        latest_path = attempt_paths[-1] if attempt_paths else None
+        latest = verified_attempt(root, latest_path) if latest_path else None
+        invalid_latest = latest_path is not None and latest is None
+        method_inputs = bindings(root, phase)
+        method = digest(method_inputs)
+        parent_receipts = {p: rows[p]["receipt_sha256"] for p in parents}
+        current = bool(latest and not method_inputs["binding_issues"] and
+            latest["method"] == method and all(
             rows[p]["current"] and latest["parents"].get(p) == rows[p]["receipt_sha256"] for p in parents))
-        ready = phase in JOBS and all(rows[p]["current"] and rows[p]["engineering_checks"] == "PASS" for p in parents)
+        retry_blocked = not (current and latest["engineering_checks"] == "PASS") and any(
+            unchanged_attempt(path, method, parent_receipts) for path in attempt_paths)
+        ready = phase in JOBS and not method_inputs["binding_issues"] and all(
+            rows[p]["current"] and rows[p]["engineering_checks"] == "PASS" for p in parents) and not retry_blocked
         rows[phase] = {"phase": phase, "handler_exists": phase in JOBS, "current": current,
-            "artifact_valid": bool(latest), "execution": latest["execution"] if latest else "NOT_EXECUTED",
+            "artifact_valid": bool(latest),
+            "execution": latest["execution"] if latest else ("INVALID_ATTEMPT" if invalid_latest else "NOT_EXECUTED"),
             "engineering_checks": latest["engineering_checks"] if latest else "NOT_CHECKED",
             "primary_criterion": latest["primary_criterion"] if latest else "NOT_CHECKED",
             "consumer_integration": latest["consumer_integration"] if latest else "NOT_CHECKED",
             "external_acceptance": "NOT_ESTABLISHED", "can_dispatch": ready,
+            "binding_issues": method_inputs["binding_issues"],
+            "retry_blocked": retry_blocked,
             "receipt_sha256": latest["sha256"] if latest else None,
-            "directory": latest["directory"] if latest else None,
-            "remaining": latest.get("remaining", []) if latest else ["Implement and validate the phase handler"],
+            "directory": latest["directory"] if latest else (str(latest_path.relative_to(root)) if latest_path else None),
+            "remaining": latest.get("remaining", []) if latest else
+                        (["Newest attempt is invalid or incomplete; record a changed repair before retry"]
+                         if invalid_latest else ["Implement and validate the phase handler"]),
             "command": command("phase", "--phase", phase)}
     return {"version": "closure-status.v1", "phases": list(rows.values()), "automatic_release": False}
 
@@ -208,7 +437,13 @@ def _refresh(root):
         for r in result['phases'] if REMAINING[r['phase']]]
     result['program_complete']=False
     if result['next_command'] is None:
-        result['next_action']='Follow NEXT-PROGRAM.md: expand real source cases, validate native restrictions and obtain independent review; passing partial receipts does not finish these repairs'
+        blocked = [r for r in result['phases'] if r['binding_issues'] or
+                   r['retry_blocked'] or
+                   (r['current'] and r['engineering_checks'] != 'PASS') or
+                   r['execution'] == 'INVALID_ATTEMPT']
+        result['next_action'] = ("Review blocked or invalid phase evidence: " +
+            ", ".join(r['phase'] for r in blocked)) if blocked else (
+            'Follow NEXT-PROGRAM.md: expand real source cases, validate native restrictions and obtain independent review; passing partial receipts does not finish these repairs')
     result["review"] = "Failed criteria require a changed repair; valid partial evidence may feed a reviewed path."
     write(Path(root) / REL / "next-phase.json", result)
     return result
@@ -228,19 +463,23 @@ def execute(root, phase):
         row = next(r for r in before["phases"] if r["phase"] == phase)
         if row["current"] and row["engineering_checks"] == "PASS":
             return {**row, "reused": True}
+        if row["retry_blocked"]:
+            return {**row, "execution": "REPAIR_REQUIRED"}
         if not row["can_dispatch"]:
             return {**row, "execution": "HANDLER_OR_DEPENDENCY_MISSING"}
         method_inputs = bindings(root, phase)
+        if method_inputs["binding_issues"]:
+            raise ValueError("; ".join(method_inputs["binding_issues"]))
         method = digest(method_inputs)
         base = root / REL / "phases" / phase
+        parents = {r["phase"]: r["receipt_sha256"] for r in before["phases"] if r["phase"] in DAG[phase]}
         previous = sorted(base.glob("attempt-*"))
-        identical = [p for p in previous if (p / "started.json").exists() and read(p / "started.json")["method"] == method]
+        identical = [p for p in previous if unchanged_attempt(p, method, parents)]
         if identical:
-            raise ValueError("Unchanged failed/interrupted input requires a recorded repair before retry")
+            raise ValueError("Unchanged failed/interrupted input and parent receipts require a recorded repair before retry")
         folder = base / f"attempt-{len(previous)+1:03d}"
         folder.mkdir(parents=True)
         started = time.monotonic()
-        parents = {r["phase"]: r["receipt_sha256"] for r in before["phases"] if r["phase"] in DAG[phase]}
         test_paths = JOBS[phase][0].split()
         argv = [sys.executable, "-m", "pytest", "-q", *test_paths, "--junitxml=" + str(folder / "tests.xml")]
         if JOBS[phase][1]:

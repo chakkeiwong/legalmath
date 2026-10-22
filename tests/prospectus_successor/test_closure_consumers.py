@@ -123,6 +123,91 @@ def test_reviewed_disposition_promotes_only_bound_selected_text(tmp_path):
 
 
 
+@pytest.mark.parametrize('before,after,was_readable,is_readable', [
+    ('OPERATIVE', 'HEADER', True, False),
+    ('UNKNOWN', 'INSTRUCTION', True, False),
+    ('OPERATIVE', 'EXAMPLE', True, False),
+    ('HEADER', 'OPERATIVE', False, True),
+    ('INSTRUCTION', 'UNKNOWN', False, True),
+])
+def test_reviewed_disposition_updates_service_reading_text(
+        tmp_path, before, after, was_readable, is_readable):
+    heading = 'REVIEWED REPORT HEADING'
+    req = request(tmp_path, [PREFIX, heading])
+    req['assembly']['operations'][0]['order'] = 1
+    req['assembly']['operations'][1].update(role=before, order=0)
+    p1 = service.source_product(req, tmp_path)
+    base = service.construction_product(p1, tmp_path)['payload']['assembly']
+    snapshot = deepcopy(base)
+    raw = p1['payload']['graph']['units'][1]
+    assert (heading in base['continuous_text']) == was_readable
+
+    reviewed = deepcopy(req)
+    reviewed['reviewed_dispositions'] = {
+        'version': 'reviewed-dispositions.v1', 'assembly_sha256': digest(base),
+        'review': REVIEW, 'units': [{
+            'unit': raw['id'], 'role': after,
+            'text_sha256': digest(raw['raw'].encode()),
+            'reason': 'Supplied complete occurrence role',
+            'sources': [occurrences.anchor(raw)],
+        }],
+    }
+    reviewed_p1 = service.source_product(reviewed, tmp_path)
+    actual = service.verify(service.construction_product(reviewed_p1, tmp_path), 'P2')['assembly']
+    direct = deepcopy(req)
+    direct['assembly']['operations'][1]['role'] = after
+    expected = service.construction_product(service.source_product(direct, tmp_path), tmp_path)['payload']['assembly']
+
+    assert (heading in actual['continuous_text']) == is_readable
+    assert actual['continuous_text'] == expected['continuous_text']
+    if is_readable:
+        assert actual['continuous_text'].startswith(heading + '\n')
+    assert actual['unresolved'] == expected['unresolved']
+    assert actual['status'] == expected['status']
+    assert next(u for u in actual['units'] if u['unit'] == raw['id'])['text'] == heading
+    assert reviewed_p1['payload']['graph'] == p1['payload']['graph']
+    assert base == snapshot
+
+
+@pytest.mark.parametrize('version,before,after,rejected,custom', [
+    ('assembled-contract.v1', 'INSTRUCTION', 'OPERATIVE', False, True),
+    ('assembled-contract.v1', 'INSTRUCTION', 'OPERATIVE', False, False),
+    ('assembled-contract.v1', 'UNKNOWN', 'HEADER', False, True),
+    ('assembled-contract.v2', 'UNKNOWN', 'OPERATIVE', False, True),
+    ('assembled-contract.v2', 'UNKNOWN', 'HEADER', True, True),
+    ('assembled-contract.v2', 'INSTRUCTION', 'OPERATIVE', True, True),
+    ('rendered-contract.v2', 'UNKNOWN', 'HEADER', True, True),
+])
+def test_reviewed_disposition_preserves_constructed_candidate_or_rejects_unmapped_change(
+        tmp_path, version, before, after, rejected, custom):
+    from legalmath.prospectus.successor.admissions import dispositions
+    req = request(tmp_path, [PREFIX, 'Separate source qualification.'])
+    graph = service.source_product(req, tmp_path)['payload']['graph']
+    req['assembly']['operations'][1]['role'] = before
+    base = contract_assembly.assemble(graph, req['assembly'])
+    # A constructed candidate deliberately has different membership from the
+    # full source ledger. Version v1 is produced by the BASF constructor.
+    candidate = PREFIX.split('. ', 1)[0] + '.' if custom else PREFIX
+    base.update(version=version, continuous_text=candidate)
+    raw = graph['units'][1]
+    admission = {'version': 'reviewed-dispositions.v1', 'assembly_sha256': digest(base),
+        'review': REVIEW, 'units': [{'unit': raw['id'], 'role': after,
+            'text_sha256': digest(raw['raw'].encode()),
+            'reason': 'Source qualification reviewed separately from the candidate',
+            'sources': [occurrences.anchor(raw)]}]}
+    snapshot = deepcopy(base)
+    if rejected:
+        with pytest.raises(ValueError, match='source-bound constructed reading map'):
+            dispositions(graph, base, admission)
+    else:
+        result = dispositions(graph, base, admission)
+        assert result['continuous_text'] == candidate
+        assert result['units'][1]['role'] == after
+        assert result['units'][1]['text'] == raw['raw']
+        assert result['units'][1]['character_map'] == base['units'][1]['character_map']
+    assert base == snapshot
+
+
 def test_finance_consumes_selected_terms_and_rejects_wrong_rate(tmp_path):
     req = term_fixture(tmp_path)
     answer = service.assess(req, tmp_path)['questions']['Q5']

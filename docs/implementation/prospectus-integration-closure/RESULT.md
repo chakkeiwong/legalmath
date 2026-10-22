@@ -1,3 +1,153 @@
+# Current geometry integration result, 12 October 2026
+
+The optional geometry repair passes actual P1 and final-report consumption on
+the retained Portuguese 2009 original. It preserves 31,256 native units and
+1,311 OCR words, retains the bad raw box and image identity, and records its
+position as unknown. Both layout entry points refuse that page. Strict v1
+rejection is unchanged. Raw spans: 9/11; image-reviewed display corrections:
+11/11. The final source-scope quotations remain raw.
+
+Focused checks: 67 PASS. Four matched prior report consumers and forty adverse
+controls pass with unchanged contractual answers and dependencies. A separate
+current-intake reconstruction gives exact equality for all four complete source
+graphs and P1 products. R0–R8 engineering receipts are current and PASS after
+the full finite ladder and final R8 attribution refresh; R4 has 428 checks.
+
+Matched direct recognition returns a six-pixel in-page colon box and all 1,409
+nonspace characters in the same order. Fresh native PDF generation reproduces
+all 266 retained words and the overrun. Inspected writer grouping and scaling
+explain the observed `21099 Tz` and 506.376-point advance. The native writer has
+not been repaired. The original failed harness attempt and failed extra
+writer-transition hypothesis remain unchanged.
+
+Read `ocr-geometry-repair-2026-10-12/FINAL.md` for the decision table and
+verification. The nine-page isolated LaTeX proof passes; full-monograph
+validation remains outside this package. Substantive criteria remain PARTIAL,
+and independent legal acceptance is NOT_ESTABLISHED. `NEXT-PROGRAM.md` lists
+the concrete remaining source, native, portability and review work.
+
+# Historical report-scope result, 12 October 2026
+
+`source-report-scope-2026-10-12/RESULT.md` records four successful matched actual
+consumers and forty rejected adverse controls. The product now distinguishes
+statutory financial audit, committee concurrence and limited sustainability
+assurance using supplied facts tied to exact P2 reading spans. It preserves
+all selected retained P1 word characters, including margins, and keeps the
+matched Q1–Q6 answers and dependencies unchanged. Focused service/compatibility
+tests pass 103 checks. Controller-001 now passes all nine phases under the new
+source method, including 428 R4 checks. Its current receipt snapshot is retained
+in `source-report-scope-2026-10-12/final-current-status.json`; prior receipts
+remain historical evidence at their recorded methods.
+
+The source inventory now verifies already retained Portuguese 2008/2009/2010
+PDFs, correcting stale unavailable-source notes. A separately tested Portuguese
+2009 original exposes invalid OCR-PDF geometry and is not admitted through P1.
+Its failed worker, incomplete direct-engine diagnostic and official writer-code
+trace remain separate from the four successful integration cases. See
+`bes-original-acquisition/portuguese-2009-reports/RESULT.md` and the reviewed
+geometry repair plan. Fourteen original onward dependencies and independent
+legal acceptance remain unresolved.
+
+# Prior resumed repair and source result, 12 October 2026
+
+The interrupted review is recorded for all eleven leads, with no new report-body
+admission and explicit preview/coverage limits. Code tracing found and repaired
+stale ordinary reading text after supplied role changes. Final focused checks:
+23 consumer tests PASS and a real BES footer replay PASS. The fix preserves the
+different BASF v1 candidate contract; the 54-test compatibility probe passes.
+All R0–R8 engineering receipts are now current and PASS, including 398 R4
+checks. `reviewed-disposition-text-2026-10-12/final-current-status.json` is the
+combined verification. The first coordinator's incomplete result stays intact:
+R8 needed a corrected module invocation and reviewed attribution refresh.
+Retained failures and their attribution are in that package's `RESULT.md`.
+
+The Portuguese 2010 original is downloaded and validated. Its native source
+consumer preserves 35,998 units; selected Portuguese OCR adds 178. Raw P1 matches
+12/13 frozen critical spans, while the supplied two-region reading matches
+13/13 and retains every page-89 word character. The miss was sidebar interruption
+of a correctly recognized negative-assurance sentence. See
+`bes-original-acquisition/portuguese-2010/RESULT.md` for acquisition, source
+identity, limits, negative controls and the conditional bilingual comparison.
+
+Whole-program completion, authenticity/publication-date resolution, automatic
+layout, report-scope interpretation and independent legal acceptance remain
+unestablished. The fourteen original dependencies are not silently resolved.
+
+# Earlier language-profile and region consumers, 12 October 2026
+
+Execution continued through two three-profile source-product comparisons and a
+reviewed-region consumer. Both bilingual orders retained all previously matched
+spans: 24/25 on four new report pages (English 21/25), then 16/18 on six earlier
+audit pages (English 15/18). Two 2008 issuer accents still fail. The current
+English default and full eleven-document legal consumer remain unchanged;
+these optional P1 screens establish known-case viability only. Official pinned
+model bytes, exact gains/losses and decisions are in
+`bes-original-acquisition/language-profile/RESULT.md`.
+
+The remaining p89 assurance phrase was recognized but interrupted by sidebar
+OCR under every tested extraction sort. The existing layout adapter now
+consumes two supplied body/sidebar regions through the actual source-product
+interface. It preserves all raw units and mapped word characters, recovers 7/7
+page checks versus raw 6/7, and rejects altered text, widened regions, overlap
+and stale graph bindings. The Docling model did not run; automatic region
+detection and downstream legal scope remain open. See
+`bes-original-acquisition/reading-order/RESULT.md`.
+
+`bes-original-acquisition/followup-verification-001/` verifies all ten profile/
+diagnostic/product manifests, syntax, raw-field interpretation, diff hygiene
+and current R0–R8 engineering receipts. It also proves the English raw page
+fields reproduced exactly despite an overly broad legacy wrapper-dictionary
+metric; the original attempt is retained with a separate correction note.
+No full-package rejection, automatic release or legal acceptance is established.
+
+# Additional report coverage and reviewed consumer, 12 October 2026
+
+The 11 October source programme has a passing corrected consumer in
+`bes-original-acquisition/coverage-expansion/review-repair-001/consumer/`.
+Four missing report pages contribute 231 raw units; all 123,032 earlier units
+are preserved, producing 123,263. Nine image-bound display maps and one exact
+footer HEADER disposition survive the product. Negative controls reject wrong
+source/page/image identity, invalid preflight status or manifests, stale
+correction quotes, lost prior unresolved issues, unrelated additions and
+promoted answers. Removing the footer disposition reproduces its false legal
+reference; removing the newly selected OCR loses twenty matching body spans.
+
+The first expanded service result is retained with its failed harness check.
+Its wrong full-question-equality criterion has been replaced by exact prior
+evidence preservation and enumerated new unresolved additions. The corrected
+consumer adds 230 UNKNOWN units and one coverage warning per Q1/Q2 while
+preserving all old answer evidence. No question or original dependency is
+promoted. The fourteen onward dependencies remain UNRESOLVED.
+
+One v1 oracle transcription was wrong and has a separately bound v2 correction.
+Prospective raw matching remains 20/25; retrospective raw matching is 21/25.
+Assisted corrections plus ordered original spans account for 25/25. These are
+known-case development checks, not automatic OCR accuracy. See the package's
+`RESULT.md` for exact commands, manifests, decision table and limitations.
+The broader programme remains incomplete; controller R0–R8 are still current.
+
+# Hybrid product and controller revalidation, 11 October 2026
+
+The repaired product method is now executed through the actual source graph and
+closure controller. The primary engineering question was whether selected-page
+OCR could supplement native PDF extraction while preserving source identity,
+original pagination and retained image provenance. The evidence contract used
+exact source/page/model/image bindings and native-unit preservation as hard
+criteria; OCR word totals and test counts were explanatory only.
+
+| Decision | Primary criterion | Veto diagnostics | Evidence and limit | Next action |
+|---|---|---|---|---|
+| Integrate optional hybrid intake | PASS | Wrong source/hash, count, page order, model, geometry and retained-image mutations reject; native units remain unchanged | 9 hybrid controls, 56 compatibility controls and the 3-report product consumer pass; selected coverage is not whole-document coverage | Expand reviewed page inventory and authenticate originals |
+| Revalidate closure controller | PASS for engineering execution | Current method/parent identity, artifact and attribution checks pass; R7/016 has 11 tests and R8/019 has 2 | R0–R8 are current, valid and engineering PASS; primary criteria remain PARTIAL | Admit only a changed substantive repair or source package |
+| Promote OCR/content or legal acceptance | NOT ESTABLISHED | 15/18 raw critical spans match; 3 accent-only mismatches remain and unselected pages are unreviewed | 2008/2009 selected pages and 2010 native extraction feed 104,996 graph units; source authentication and independent review are absent | Keep all 14 onward dependencies and legal questions unresolved |
+
+The product consumer evidence is under
+`bes-original-acquisition/product-consumer-001/`; the frozen OCR and image
+review are under `hybrid-attempt-001/` and `hybrid-review-001/`. The attribution
+review now binds current product code and receipts. No result establishes that
+PyMuPDF, Tesseract or Poppler is fundamentally unsuitable; remaining failures
+are coverage, review, provenance and confinement gaps.
+
 # Completed BES onward-source disposition, 11 October 2026
 
 The BES onward-source phase has been executed and passed after a bounded

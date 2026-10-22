@@ -1,3 +1,301 @@
+# Completed optional OCR geometry repair, 12 October 2026
+
+Resume in `.worktrees/bond-gap-closure`, branch
+`feature/prospectus-evidence-master`, baseline `e8beb52b1`. Work remains
+uncommitted; preserve unrelated main-worktree work. This is prospectus work,
+outside legal mission-control admission. The finite geometry program has
+finished; no controller or consumer job remains active. Read
+`ocr-geometry-repair-2026-10-12/FINAL.md` and its final verification before
+dispatching anything. Do not repeat passing stages without changed inputs.
+
+The optional profile preserves 31,256 native units and all 1,311 OCR words,
+records one unknown colon position and makes both spatial adapters refuse its
+page. The actual Portuguese audit and committee reports reach the final
+consumer. Raw passage matching is 9/11; two image-bound punctuation corrections
+give 11/11 assisted display matches. Final quotations stay raw, with separate
+correction maps. Strict admission still rejects the original invalid geometry.
+Focused checks: 67 PASS. Four matched prior consumers and forty adverse
+controls pass; a separate current-intake replay reproduces all four complete
+source graphs and sealed P1 products exactly.
+
+All nine closure phases pass under current bindings: R0/026, R1/024, R2/024,
+R3/022, R4/022, R5/019, R6/020, R7/019 and R8/025. R4 retains 428 checks.
+R8/025 follows the completion-only attribution revision; R0–R7 were reused.
+The sealed controller's last `progress.json` is a dispatch snapshot; its PASS
+`result.json` is the completion record. The initial harness failure and writer
+replay's failed transition expectation remain preserved.
+
+The producer cause is now located. Matched native recognition returns a valid
+six-pixel colon box; fresh PDF output reproduces the overrun. MuPDF groups
+isolated characters horizontally, then lets a later vertical join change the
+group axis. Its vertical emitter stretches the colon across the group width.
+The saved callback and inspected source reproduce the observed PDF scale and
+advance. The native writer itself has not been patched.
+
+The reviewed next program is
+`docs/plans/prospectus-native-geometry-followup-2026-10-12.md`: freeze broader
+source/layout controls and candidate interfaces before comparing a native
+axis-state fix with a direct-recognition adapter. Portuguese 2008 source
+consumption and wider page review can proceed independently. Authenticity,
+historical availability, fourteen onward dependencies, native confinement,
+second-host portability and qualified independent readings remain open.
+R1–R8 substantive criteria remain PARTIAL; legal acceptance is NOT_ESTABLISHED.
+The isolated nine-page LaTeX proof builds and its changed pages are inspected;
+the full monograph was not validated in this package. Earlier entries below
+are historical snapshots, not instructions to restart completed work.
+
+# Completed source-report integration, 12 October 2026
+
+Continue `docs/plans/prospectus-source-report-scope-2026-10-12.md` and
+`source-report-scope-2026-10-12/EXECUTION.md`. The earlier role-reading repair is
+now integrity-verified and sealed (six manifests, 112 files, nine receipts,
+ten syntax checks). Its all-PASS snapshot below is historical for that method:
+new source-report code changes the current controller bindings.
+
+P2 now accepts separate source-report readings, preserving all nonspace
+characters from the selected retained P1 pages, and P3 binds reviewed scope
+facts to those readings. The final consumer exposes conditional report-use
+findings while preserving contractual questions. Corrected cohort `freeze-002`
+separates translation status from translation priority. Focused attempt 002
+passes 103 checks; attempt 001's syntax failure remains retained. All four
+actual matched consumers pass, with forty adverse controls rejected.
+Controller-001 finished successfully: R0/025, R1/023, R2/023, R3/021,
+R4/021, R5/018, R6/019, R7/018 and R8/023 are all current engineering PASS.
+R4 has 428 passing checks. Session 71659 exited zero; no controller worker
+remains active. Read the package's `FINAL.md`, `verification.json` and
+`final-current-status.json`; do not rerun unchanged successful consumers.
+
+Source-inventory reconciliation found complete Portuguese 2008/2009/2010
+downloads already retained from 11 October. All 21 receipt-listed files match;
+the old and later 2010 PDFs are identical. Lack of local bytes was stale context.
+Content consumption, source authority and historical availability remain
+separate. The Portuguese 2009 statutory report has three PDF pages (174–176),
+not the English version's two; committee pages are 177–178. Eleven image spans
+were frozen before OCR. A new actual P1 consumer rejects one out-of-page colon
+box; its failed worker and bounded geometry probe are retained. Accurate-bbox
+extraction does not fix it, and the CLI comparison could not run because
+standalone Tesseract is absent. The generated OCR PDF already encodes the
+excessive horizontal scale. The controller is finished; next continue the
+reviewed geometry plan using the retained original/producer trace. Do not
+clip or discard the token, and do not rerun the failed probes unchanged.
+
+No new qualified independent reading, historical publication evidence,
+whole-source coverage or legal acceptance has been obtained. Fourteen onward
+dependencies remain unresolved. Worktree: `feature/prospectus-evidence-master`;
+all changes remain uncommitted.
+
+# Resumed review, reading repair and Portuguese source, 12 October 2026
+
+Worktree: `.worktrees/bond-gap-closure`, branch
+`feature/prospectus-evidence-master`; current work is uncommitted. Preserve
+unrelated main-worktree legal-interpretation work.
+
+The interrupted eleven-page visual triage is retained in
+`bes-original-acquisition/page-inventory/visual-disposition-001/`: eight earlier
+enlarged observations and three current structure-level previews. No additional
+report body was identified. Advertising, captions and navigation remain real
+content; twenty other candidates still lack enlarged review. This is not
+771-page completeness.
+
+Code tracing reproduced a stale reading after reviewed occurrence-role changes.
+The final fix in `admissions.dispositions` refreshes ordinary v2 reading text
+and preserves BASF v1's separately constructed candidate. Custom v2 membership
+changes without a reading map reject. All 23 final focused consumer tests and
+the final actual BES footer replay pass. The retained 54-test BASF compatibility
+probe passes. Earlier wrong-checkout validation, overbroad first repair, seven
+R4 failures and intermediate compatibility failures remain documented under
+`reviewed-disposition-text-2026-10-12/`.
+
+All nine engineering receipts are now current and PASS: R0/024, R1/022,
+R2/022, R3/020, R4/020, R5/017, R6/018, R7/017 and R8/022. The final R4
+has 398 passing checks. `final-current-status.json` in the reading-repair
+package records the verified state. The first coordinator completed R0–R7
+but failed R8 because its own import path omitted repository root; the
+established module entry point then exposed four stale attribution bindings.
+Both failed R8 attempts remain retained. The four entries were substantively
+rereviewed, their old review saved, and attribution preflight plus fresh R8
+passed. Do not rerun the unchanged coordinator or ladder.
+
+The issuer-linked Portuguese 2010 PDF is now retained and validates as 256 pages,
+SHA `981fa3f96ed65da0d42f3de9c35797f1dfbd676c6f6c11fbcf394b54adff3058`.
+Its actual P1 preserves 35,998 native units and adds 178 OCR units. Raw Portuguese
+matches 12/13 frozen spans; the source-reviewed body/margin adapter recovers
+13/13 while preserving every word character and rejecting negative controls.
+See `bes-original-acquisition/portuguese-2010/RESULT.md`. No Docling inference,
+automatic region detector, downstream legal classification or OCR default
+change is established. Historical edition/publication dates remain unresolved.
+
+The report-scope trace confirms the next substantive gap: construction roles
+do not encode report subject, assurance level, addressee, reliance limits or
+translation priority. P1 regions are not automatically P2 selected text.
+All fourteen original dependencies and prior full-consumer question statuses
+remain unresolved/partial as recorded. No independent legal acceptance.
+
+Tool handling: use short calls and small summaries; retain reports/images
+locally. This conversation previously exceeded a request-payload limit. Do not
+dump full reports, repeat images or restart saved jobs after a stream error.
+
+# Earlier language and region checkpoint, 12 October 2026
+
+After the four-page consumer repair, continued execution tested two optional
+bilingual profiles through actual source products and applied the existing
+layout adapter to the remaining sidebar-order failure. English baseline raw
+text/words reproduced exactly. Both `eng+por` and `por+eng` gave 24/25 on the
+four new pages versus 21/25 English, then 16/18 on six earlier audit pages
+versus 15/18 English, with no loss among 36 previously matching spans. Two
+2008 opinion accents remain wrong. These are known-case screens, not a new
+default. The official pinned Portuguese model and retrieval provenance are
+retained in `bes-original-acquisition/language-profile/acquisition-001/`.
+
+All extraction sort variants still interleave the 2010 p89 sidebar. A supplied
+body region recovers the missing negative-assurance phrase. The actual P1
+layout consumer now admits two reviewed body/sidebar regions, preserves every
+raw unit and every mapped word character, and passes all seven page checks.
+Changed text, widened body, overlap and stale graph controls reject. This uses
+the existing layout adapter with supplied geometry; the Docling model did not
+run, and automatic region detection is still open.
+
+Read `bes-original-acquisition/language-profile/RESULT.md` and
+`reading-order/RESULT.md`. The language runs are sealed in `attempt-001/` and
+`legacy-audit-001/`; the region diagnostic and consumer are sealed in
+`reading-order/attempt-001/` and `consumer-001/`. The misleading legacy metric
+comparing whole page dictionaries is explicitly reviewed: metadata differs
+even when English raw text/words are identical. Do not overwrite that attempt.
+No current legal consumer, OCR default, product code or R0–R8 bound input was
+changed. No command from these completed packages needs rerunning. The next
+work is the broader frozen source/language/layout cohort and source-specific
+downstream role/scope review described in `NEXT-PROGRAM.md`.
+
+# BES additional-report repair completed locally, 12 October 2026
+
+The reviewed continuation of the 11 October programme passed its actual service
+consumer. Worktree `.worktrees/bond-gap-closure`, branch
+`feature/prospectus-evidence-master`, baseline `e8beb52b1`; changes remain
+uncommitted. Preserve main's unrelated work. Read
+`bes-original-acquisition/coverage-expansion/RESULT.md` and `ROOT-CAUSES.md`.
+
+The consumer retains 123,263 raw source occurrences, preserves all 123,032
+earlier occurrences, adds the four missing report pages, consumes nine
+image-bound display corrections, and excludes the source-reviewed printed
+footer from legal references. All fourteen onward dependencies remain
+UNRESOLVED. Q1/Q2/Q4/Q6 are UNKNOWN, Q3 PARTIAL and Q5 UNSUPPORTED.
+Raw OCR scores 20/25 against the preserved prospective oracle and 21/25
+against the corrected retrospective oracle. Supplied corrections plus the
+explicit ordered source reading account for 25/25; automatic reading order
+remains unrepaired. This is assisted evidence, not independent acceptance.
+
+`coverage-expansion/review-repair-001/prepare/` passed in 522.254 s and its
+`consumer/` passed in 319.887 s. All results, starts and manifests are retained.
+Its `progress.json` records no remaining command for this completed package;
+the whole programme remains incomplete. Do not repeat either passing command
+or the preserved failed raw consumer. The prior raw attempt remains FAIL
+because its harness used the wrong answer-comparison criterion. Its original
+oracle remains unchanged; v2 records the image-checked wording correction.
+
+The current controller still reports R0–R8 current, artifact-valid engineering
+PASS. No product source or bound phase input changed during this continuation.
+`NEXT-PROGRAM.md` now directs broader page/language coverage, automatic reading
+order and source-scope review, authentic originals and historical dates, native
+confinement/portability, and independent legal readings. All work is retained
+locally; no source authenticity, package superiority or delivery completion is
+claimed. Earlier in-progress entries below are historical.
+
+# Additional BES report repair in progress, 11 October 2026
+
+Continue in `.worktrees/bond-gap-closure` on
+`feature/prospectus-evidence-master`, baseline `e8beb52b1`. Preserve the main
+worktree's unrelated legal work. The 771-page inventory nominated 41 pages;
+visual review found four additional substantive image-text omissions: 2009
+Audit Committee PDF 176–177 and 2010 sustainability assurance PDF 88–89.
+`bes-original-acquisition/coverage-expansion/attempt-001/` retains the frozen
+oracle, four-page raw OCR, passing preflight and failed raw-consumer check.
+
+The raw service actually ran and retained 123,263 units, preserving all 123,032
+old units. Its harness then wrongly required unchanged full question objects;
+new unresolved evidence necessarily changed them. The extra unresolved entries
+are the new 231 raw units, a 2010 hybrid-coverage warning and one spurious
+reference from OCR of the printed 176 footer as “§ 176”. Statuses did not
+promote. The prospective oracle scored 20/25, but enlarged image inspection
+also found one oracle transcription error: the source says “unconsolidated
+and consolidated”. Keep the v1 oracle and failed attempt intact.
+
+Reviewed continuation:
+`docs/plans/prospectus-bes-report-review-repair-2026-10-11.md`, executable
+`bes-original-acquisition/review_report_coverage.py`. Its preparation admits
+nine exact image-bound token corrections, records an oracle v2, supplies one
+HEADER disposition for the printed footer, and checks exact allowed
+unresolved-evidence additions. Then execute its actual consumer directly;
+do not stop after preparation. Every phase records a manifest and refreshed
+next decision. Detailed reports are compressed and console output is bounded.
+This record is an in-progress recovery note; consult the newer result/progress
+files before repeating any command.
+
+No product source or bound R0–R8 input changed in this additional source work.
+The prior current phase receipts remain the controller baseline. Legal
+acceptance, independent source authenticity, whole-document coverage, broader
+language profiles, native confinement and second-host portability stay open.
+
+# Hybrid product revalidation and closure refresh, 11 October 2026
+
+Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,
+baseline `e8beb52b1`. The code trace found that the hybrid product method changes
+the phase bindings, so the pre-hybrid R7/R8 receipts could not be reused. The
+current method preserves native PDF units and adds selected original-page OCR;
+`source_graph.py` checks source/page/model identity, `extraction.py` rerenders
+retained pages for image verification, and `ocr_worker.py` keeps the original
+page sequence. The closure controller v3 binds those imports, package data,
+pytest configuration and phase resources, and refuses unchanged failed retries.
+
+The product checks passed: hybrid intake 9 tests, compatibility 56 tests, and
+the BES product consumer passed with 104,996 graph units. It exercised fresh
+2008 selected-page OCR, retained 2009 OCR with rerender verification, and native
+2010 extraction. A wrong original hash was rejected. The selected pages are
+2008 PDF 245–248 and 2009 PDF 174–175; 2010 has no selected OCR pages. The six
+selected pages produced 15/18 raw frozen-span matches; the three mismatches are
+accent-only differences in “Espírito” after image review.
+
+Current receipts are R0/022, R1/020, R2/020, R3/018, R4/018, R5/016, R6/017,
+R7/016 and R8/019. R7/016 passed 11 tests and R8/019 passed 2; all current
+engineering checks pass and every receipt is current under the hybrid method.
+The final refresh has no next phase command because the implemented ladder is
+current. Primary criteria remain PARTIAL and external acceptance remains
+NOT_ESTABLISHED. The 14 onward-source dependencies remain unresolved.
+
+Do not promote these results to whole-document completeness, authenticated
+source identity, automatic legal interpretation, package ranking, native
+library confinement or independent legal acceptance. The next substantive work
+is in `NEXT-PROGRAM.md`; it must introduce changed evidence or a reviewed code
+repair before another phase ladder is admitted. The previous “R4 active” entry
+below is retained as historical context, not live state.
+
+# Controller repair in execution, 11 October 2026
+
+Worktree `.worktrees/bond-gap-closure`, branch `feature/prospectus-evidence-master`,
+baseline `e8beb52b1`. Read
+`docs/plans/prospectus-closure-controller-repair-2026-10-11.md`. The v3 repair
+narrows irrelevant metadata while adding transitive Python imports, package
+initializers, automatic pytest fixtures/configuration and the packaged BASF
+review JSON. It exposes invalid latest attempts, checks parent identities for
+retries, rejects malformed records and returns failure from the dispatcher
+when required auxiliary evidence fails. Focused controller/attribution: 25 pass.
+
+Current v3 receipts: R0/021 (23 checks), R1/019 (17), R2/019 (3), R3/017 (27).
+R4/017 started at `2026-10-11T06:50:36Z` and is active under its 4,500-second
+bound. The session is 27323. Do not edit bound code, tests, source packets or
+the root closure plan while it runs. R4/015 and R4/016 are intentionally
+interrupted diagnostics, preserved without fabricated PASS receipts. V2
+receipts are superseded by v3, not deleted. After R4 passes, execute R5–R8
+sequentially through the fixed closure dispatcher, inspecting the actual
+criterion and refreshed next plan.
+
+Independent source work is proceeding under
+`docs/plans/prospectus-bes-original-acquisition-2026-10-11.md`. Its separate
+directory is not bound by R4. Issuer archive retrieval found Portuguese and
+English 2008–2010 reports; partial transfers, sandbox DNS failures and trusted
+resume records are retained. A candidate PDF is not an authenticated or
+admitted onward source. The fourteen dependency resolutions remain unchanged.
+No main-worktree legal-mission files were edited. Earlier entries are history.
+
 # Post-merge handoff, 11 October 2026
 
 Documentation commit `e6b8be604` and merge commit `927ee73a1` completed the

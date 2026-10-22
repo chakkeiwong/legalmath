@@ -71,7 +71,15 @@ def test_excluded_reference_does_not_poison_other_questions(tmp_path):
 
 def test_distinct_legal_holders_with_identical_names_do_not_merge():
     holdings=[{"legal_holder_id":key,"registration_name":"Same name","principal":"5"} for key in ("a","b")]
-    assert [h["shares"] for h in whole_shares(holdings,"3","principal")]==[1,1]
+    # A display name alone does not establish the supplied registration partition.
+    with pytest.raises(ValueError, match="registration partition"):
+        whole_shares(holdings,"3","principal")
+    explicit=deepcopy(holdings)
+    for h in explicit:
+        h["registration_group_id"]="supplied-same-registration"
+    grouped=whole_shares(explicit,"3","principal")
+    assert len(grouped)==1 and grouped[0]["shares"]==3
+    assert grouped[0]["legal_holder_ids"]==["a","b"]
     holdings[1]["legal_holder_id"]="a"
     assert whole_shares(holdings,"3","principal")[0]["shares"]==3
 

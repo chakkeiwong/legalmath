@@ -5,7 +5,8 @@ from .contracts import QueryResult, digest
 from .predicates import names, decide
 
 EFFECTS = {"principal_loss", "conversion", "repayment", "debt", "coupon",
-           "statutory_loss", "creditor_amendment", "none", "unknown"}
+           "statutory_loss", "creditor_amendment", "none", "unknown", "representative_governance",
+           "basf_note_lifecycle", "basf_meeting_procedure", "basf_payment_terms", "basf_governance_terms"}
 
 
 def paragraphs(assembly):
@@ -116,6 +117,21 @@ def build(assembly, supplied=None):
                 names(n[key])
         if "predicate" in n:
             names(n["predicate"])
+        if n['effect'] == 'representative_governance':
+            from .representative_governance import validate
+            validate(n)
+        if n['effect'] == 'basf_note_lifecycle':
+            from .basf_note_lifecycle import validate
+            validate(n)
+        if n['effect'] == 'basf_meeting_procedure':
+            from .basf_meeting_procedure import validate
+            validate(n)
+        if n['effect'] == 'basf_payment_terms':
+            from .basf_payment_terms import validate
+            validate(n)
+        if n['effect'] == 'basf_governance_terms':
+            from .basf_governance_terms import validate
+            validate(n)
     edges = [{"from": n["id"], "to": target, "kind": key, "resolved": target in ids}
              for n in nodes for key in ("exceptions", "conditions") if isinstance(n[key], list) for target in n[key]]
     from .reference_closure import KINDS

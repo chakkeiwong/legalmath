@@ -1,0 +1,213 @@
+"""Original-source investigation and bounds for conditional H1 incorporation."""
+from datetime import datetime, timezone
+import gzip
+import json
+import os
+from pathlib import Path
+import shutil
+import signal
+import subprocess
+import sys
+import time
+import traceback
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.dont_write_bytecode = True
+sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
+os.environ.update(CUDA_VISIBLE_DEVICES="-1", PYTEST_DISABLE_PLUGIN_AUTOLOAD="1",
+    PIP_NO_INDEX="1", PIP_DISABLE_PIP_VERSION_CHECK="1", PIP_NO_CACHE_DIR="1",
+    PYTHONNOUSERSITE="1", PYTHONPATH="", PYTHONDONTWRITEBYTECODE="1")
+from legalmath.prospectus.execution_authority import Authority, digest, file_hash, read
+from legalmath.prospectus.successor import process_ledger
+from legalmath.prospectus.successor.contracts import digest as product_digest
+from scripts.prospectus_basf_pension_source import files, load, require
+from scripts.prospectus_installed_profile_worker import execution_guard
+
+BASE = ROOT / "docs/implementation/prospectus-execution-authority"
+HERE = BASE / "attempts/source-bes-dep-05/attempt-007"
+ORIGINAL = HERE.parent / "attempt-001"
+PRIOR = HERE.parent / "attempt-006"
+REVIEW = BASE / "reviews/h1-incorporation-scope-163"
+PLAN = "docs/plans/prospectus-h1-incorporation-scope-2026-10-16.md"
+DOCUMENT = "bes-interim-h1-2010"
+STAGES = ("prepare", "render", "baseline", "profile", "compare", "controls-a", "controls-b", "controls-c", "tests",
+    "install-prepare", "build", "install", "installed-positive", "installed-controls-a", "installed-controls-b", "installed-controls-c", "verify", "seal")
+SELECTOR = {"version": "bes-h1-incorporation-scope-supplied.v1", "stages": list(STAGES),
+    "work_seconds": 110, "stage_seconds": 115, "child_seconds": 100, "execution_seconds": 1200,
+    "combined_006_007_seconds": 1800, "combined_006_007_storage_bytes": 700 * 1024**2,
+    "outer_children": 7, "native_renders": 1, "extractions": 0, "ocr_calls": 0,
+    "network_calls": 0, "unchanged_retries": 0, "controls": 24, "control_partition_sizes": [8,8,8]}
+
+
+def save(name, value):
+    path = HERE / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    raw = json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode()
+    with path.open("xb") as stream:
+        stream.write(gzip.compress(raw, mtime=0) if path.suffix == ".gz" else raw + b"\n")
+
+
+def storage():
+    folders = [HERE, PRIOR]
+    for attempt in (HERE, PRIOR):
+        if (attempt / "workspace.json").is_file():
+            folders.append(Path(read(attempt / "workspace.json")["directory"]))
+    return sum(p.stat().st_size for folder in folders for p in folder.rglob("*") if p.is_file())
+
+
+def bindings():
+    a = Authority(ROOT)
+    program, tasks, _ = a.spec()
+    task = tasks["source-bes-dep-05"]
+    require(task.get("h1_incorporation_scope") == SELECTOR, "Unreviewed H1 incorporation scope")
+    admitted = read(HERE / "admission.json")
+    event = next(e for e in reversed(a.events()) if e.get("task") == task["id"])
+    require(event["kind"] == "ADMIT" and event["attempt"] == str(HERE.relative_to(ROOT))
+        and admitted["program_sha256"] == digest(program) and admitted["task_spec"] == task
+        and admitted["binding"] == a.binding(task), "Current unchanged H1 scope admission required")
+    require(not (HERE / "outputs.json").exists(), "Scope evidence already sealed")
+    for name in ("protected-inputs.json", "source-methods.json", "methods.json"):
+        if (HERE / name).is_file():
+            require(all(file_hash(ROOT / p) == h for p, h in read(HERE / name).items()), "Frozen scope evidence/method changed: " + name)
+    return admitted
+
+
+def prepare():
+    history = read(REVIEW / "history.json")
+    require(all(file_hash(ROOT / p) == h for p, h in history["protected"].items()), "Original source/scope evidence changed")
+    save("protected-inputs.json", history["protected"])
+    paths = [Path(__file__), ROOT / PLAN, REVIEW / "REVIEW.md", REVIEW / "history.json",
+        Path(process_ledger.__file__), ROOT / "scripts/prospectus_installed_profile_worker.py"]
+    save("source-methods.json", {str(p.relative_to(ROOT)): file_hash(p) for p in paths})
+    shutil.copyfile(PRIOR / "products.json.gz", HERE / "products.json.gz")
+    products = load(HERE / "products.json.gz")
+    graph = products["P1"]["payload"]["graph"]
+    require(len(graph["units"]) == 33221, "Complete original graph changed")
+    units = [u for u in graph["units"] if (u["document"] == "bes-base-2010" and u["page"] == 37)
+             or (u["document"] == DOCUMENT and u["page"] in (55,59))]
+    require(len(units) == 541, "Original scope occurrence inventory changed")
+    save("source-units.json", units)
+    target = [u for u in graph["units"] if u["document"] == DOCUMENT and 51 <= u["page"] <= 173]
+    inventory = [{"page": page, "occurrences": len(rows), "sha256": product_digest(rows), "units": [u["id"] for u in rows]}
+        for page in range(51,174) if (rows := [u for u in target if u["page"] == page])]
+    require(len(inventory) == 123, "Complete original target page range required")
+    save("target-page-inventory.json", inventory)
+    documents = {d["id"]: d for d in products["P1"]["payload"]["request"]["bundle"]["documents"]}
+    required = {"introducer": documents["bes-base-2010"], "report": documents[DOCUMENT]}
+    for doc in required.values():
+        require(file_hash(ROOT / doc["path"]) == doc["sha256"], "Original scope PDF changed")
+    save("original-sources.json", required)
+    renderer = Path(shutil.which("pdftoppm")).resolve(strict=True)
+    save("renderer.json", {"path": str(renderer), "sha256": file_hash(renderer)})
+    process_ledger.create(HERE / "native-ledger.json", 1, 0, "One original page59 scope render; earlier actions remain historical")
+    process_ledger.create(HERE / "command-ledger.json", 7, 0, "Page59 render, offline build/install and four isolated replays; pip internals excluded")
+    return {"original_graph_occurrences": 33221, "scope_occurrences": 541,
+            "target_pages": 123, "target_occurrences": len(target), "previous_admissions": 6}
+
+
+def child(name, argv):
+    folder = HERE / "commands" / name
+    folder.mkdir(parents=True, exist_ok=False)
+    save("commands/" + name + "/started.json", {"argv": argv, "timeout_seconds": 100,
+        "cpu_gpu": "CPU only; GPU devices intentionally hidden"})
+    tick, result, error = time.monotonic(), None, None
+    with (folder / "stdout").open("xb") as out, (folder / "stderr").open("xb") as err:
+        with execution_guard([argv]) as guard, process_ledger.observe(HERE / "command-ledger.json"):
+            try:
+                result = subprocess.run(argv, stdout=out, stderr=err, timeout=100, env=dict(os.environ))
+            except BaseException as exc:
+                error = {"type": type(exc).__name__, "message": str(exc)}
+            finally:
+                save("commands/" + name + "/result.json", {"returncode": None if result is None else result.returncode,
+                    "error": error, "wall_seconds": time.monotonic() - tick, "process_guard": guard.result()})
+    require(error is None and result is not None and result.returncode == 0 and guard.result() == {"starts": 1, "blocked": 0}, "Scope child failed: " + name)
+
+
+def render():
+    docs, renderer = read(HERE / "original-sources.json"), read(HERE / "renderer.json")
+    doc = docs["report"]
+    require(file_hash(ROOT / doc["path"]) == doc["sha256"] and file_hash(Path(renderer["path"])) == renderer["sha256"], "Source/renderer changed")
+    require(not list(HERE.glob("equity-*.png")), "Scope render already started")
+    with process_ledger.observe(HERE / "native-ledger.json"):
+        child("render", [renderer["path"], "-f", "59", "-l", "59", "-scale-to", "2600", "-png",
+            str(ROOT / doc["path"]), str(HERE / "equity")])
+    def image(path, page):
+        return {"page": page, "path": str(path.relative_to(ROOT)), "sha256": file_hash(path)}
+    source = {key: {"document": d["id"], "path": d["path"], "sha256": d["sha256"]} for key, d in docs.items()}
+    source["introducer"]["images"] = [image(BASE / "attempts/source-bes-dep-01/attempt-001/introducer-p37.png", 37)]
+    source["report"]["images"] = [image(ORIGINAL / "extra-55.png", 55), image(HERE / "equity-059.png", 59)]
+    save("rendered-source.json", source)
+    return {"new_rendered_pages": 1, "reused_original_images": 2, "new_extractions": 0, "new_ocr": 0}
+
+
+def baseline():
+    from legalmath.prospectus import h1_risk_tables
+    cash, risk = read(PRIOR / "cash-flow-profile.json"), read(PRIOR / "profile.json")
+    current = h1_risk_tables.consume(load(HERE / "products.json.gz"), cash, risk, ROOT,
+        expected_cash_flow_profile_sha256=product_digest(cash), expected_profile_sha256=product_digest(risk))
+    require(current == load(PRIOR / "risk-consumer.json.gz"), "Complete retained risk consumer differs")
+    save("cash-flow-profile.json", cash)
+    save("risk-profile.json", risk)
+    save("baseline-consumer.json.gz", current)
+    return {"complete_prior_consumer_equal": True, "complete_original_answer_equal": True}
+
+
+def run(stage, action):
+    with Authority(ROOT).lock():
+        admitted = bindings()
+        index = STAGES.index(stage)
+        started = {p.parent.name for p in (HERE / "stages").glob("*/started.json")}
+        finished = {p.parent.name for p in (HERE / "stages").glob("*/result.json")}
+        require(started == finished == set(STAGES[:index]), "Repeated, skipped or interrupted scope stage")
+        rows = [read(HERE / "stages" / s / "result.json") for s in STAGES[:index]]
+        require(all(r["status"] == "PASS" and r["wall_seconds"] < 115 for r in rows), "Failed scope predecessor")
+        spent = sum(r["wall_seconds"] for r in rows)
+        previous = read(PRIOR / "result.json")["cumulative_seconds"]
+        require(spent < 1200 and previous + spent < 1800 and storage() < 698 * 1024**2, "Combined006/007 allowance exhausted")
+        save("stages/" + stage + "/started.json", {"command": ["timeout", "120", ".venv/bin/python", "-m",
+            "scripts.prospectus_h1_scope_source" if index < 3 else "scripts.prospectus_h1_scope", stage],
+            "at": datetime.now(timezone.utc).isoformat(), "git_commit": admitted["git_commit"], "python": sys.executable,
+            "cpu_gpu": "CPU only; GPU devices intentionally hidden", "random_seeds": "N/A deterministic supplied scope reading",
+            "plan": PLAN, "data_version": str((PRIOR / "outputs.json").relative_to(ROOT)),
+            "result": str((HERE / "RESULT.md").relative_to(ROOT))})
+        tick, details, error = time.monotonic(), None, None
+        def expire(signum, frame):
+            raise TimeoutError("Scope work limit; no unchanged retry")
+        old_handler = signal.signal(signal.SIGALRM, expire)
+        signal.setitimer(signal.ITIMER_REAL, min(110, 1200-spent, 1800-previous-spent))
+        try:
+            details = action()
+            bindings()
+            require(storage() < 698 * 1024**2, "Combined scope/risk storage bound")
+            elapsed = time.monotonic() - tick
+            require(elapsed < 115 and spent + elapsed < 1200 and previous + spent + elapsed < 1800, "Scope recorded time bound")
+        except BaseException as exc:
+            error = {"type": type(exc).__name__, "message": str(exc)}
+            save("stages/" + stage + "/error.json", {"traceback": traceback.format_exc()})
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, old_handler)
+        value = {"stage": stage, "status": "FAIL" if error else "PASS", "error": error, "details": details,
+            "wall_seconds": time.monotonic() - tick, "retained_bytes_including006": storage()}
+        value["cumulative_seconds"] = spent + value["wall_seconds"]
+        value["combined006_007_seconds"] = previous + value["cumulative_seconds"]
+        save("stages/" + stage + "/result.json", value)
+        if error or stage == "seal":
+            save("result.json", {**value, "task": "source-bes-dep-05", "task_complete": False,
+                "whole_program_complete": False, "independent_legal_acceptance": False})
+            save("outputs.json", files(HERE))
+        print(json.dumps({k: value[k] for k in ("stage", "status", "error", "wall_seconds", "cumulative_seconds")}))
+        return int(error is not None)
+
+
+if __name__ == "__main__":
+    require(len(sys.argv) == 2 and sys.argv[1] in STAGES[:3], "Choose scope prepare/render/baseline")
+    stage = sys.argv[1]
+    def guarded():
+        if stage == "render":
+            return render()
+        with execution_guard() as guard:
+            result = globals()[stage]()
+            require(guard.result() == {"starts": 0, "blocked": 0}, "Unexpected source process")
+        return {**result, "process_guard": guard.result()}
+    raise SystemExit(run(stage, guarded))

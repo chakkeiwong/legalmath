@@ -13,7 +13,10 @@ def amount(value, *, positive=False):
         raise ValueError("Exact integer, decimal or rational string required; floats are rejected")
     if not re.fullmatch(r"\d+(?:\.\d+|/\d+)?", str(value)):
         raise ValueError("Unsigned exact amount required")
-    result = Fraction(value)
+    try:
+        result = Fraction(value)
+    except ZeroDivisionError as exc:
+        raise ValueError("Exact amount requires a nonzero denominator") from exc
     if result < 0 or (positive and result <= 0):
         raise ValueError("Amount outside supported domain")
     return result

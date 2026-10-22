@@ -216,3 +216,25 @@ def test_coupon_anchor_selected_path_remains_regular_only(tmp_path):
         service.assess(request,tmp_path)
     with pytest.raises(ValueError,match='no stub'):
         contract_terms.regular_schedule('2023-11-30','2024-08-30','2025-08-30',2,False,'LONG_FIRST',coupon_anchor=ANCHOR)
+
+
+@pytest.mark.parametrize('field,invalid', [('quantum', 0), ('quantum', '1/0'), ('rule', [])])
+@pytest.mark.parametrize('entitled', [True, False])
+@pytest.mark.parametrize('aggregation', ['PER_LEGAL_HOLDER', 'PER_CALCULATION_AMOUNT'])
+def test_coupon_anchor_rounding_domain_before_entitlement(tmp_path, field, invalid, entitled, aggregation):
+    req = anchored_direct_fixture(tmp_path)
+    supplied = req['financial_scenario']
+    supplied['rounding']['aggregation'] = aggregation
+    if aggregation == 'PER_LEGAL_HOLDER':
+        for key in ['calculation_amount', 'fixed_coupon_amount']:
+            supplied.pop(key)
+            supplied['evidence'].pop(key)
+    for row in supplied['holdings']:
+        row['entitled'] = entitled
+    assert service.assess(req, tmp_path)['questions']['Q5']['status'] == 'CONDITIONAL'
+    supplied['rounding'][field] = invalid
+    before = deepcopy(req)
+    answer = service.assess(req, tmp_path)['questions']['Q5']
+    assert answer['status'] == 'UNSUPPORTED'
+    assert 'rounding' in ' '.join(answer['unresolved'])
+    assert req == before

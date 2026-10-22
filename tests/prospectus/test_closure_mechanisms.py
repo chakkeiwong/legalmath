@@ -75,6 +75,9 @@ def test_seb_zero_principal_is_not_zero_recovery():
     assert r["principal_after_conversion"]=="0" and r["economic_recovery"] is None
     assert r["holder_entitlements"][0]["shares"]==3
     s["group_cet1_ratio"]="0.05125"
+    # Original SEB memorandum PDF65: Group threshold is strictly8%, Bank5.125%.
+    assert m.seb(s)["conversion"] is True
+    s["group_cet1_ratio"]="0.08"
     assert m.seb(s)["conversion"] is False
     s.update(bank_cet1_ratio="0.05",listed=False); s.pop("reviewed_current_market_price_sek")
     assert m.seb(s)["conversion_price_usd"]=="2"
