@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="13" time="1.008" timestamp="2026-10-22T01:28:18.092634+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="test_legal_review_wire_receipts" name="test_real_wire_failure_after_canonical_reload_has_all_repair_assignments" time="0.054" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[ledger]" time="0.024" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[response]" time="0.026" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[provider_bytes]" time="0.025" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[request]" time="0.007" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[schema]" time="0.005" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[dispatch]" time="0.010" /><testcase classname="test_legal_review_wire_receipts" name="test_no_transport_or_capacity_resampling[TerminalServiceFailure]" time="0.004" /><testcase classname="test_legal_review_wire_receipts" name="test_no_transport_or_capacity_resampling[E_RESOURCE_LIMIT]" time="0.004" /><testcase classname="test_legal_review_wire_receipts" name="test_no_transport_or_capacity_resampling[E_AUTHORITY]" time="0.005" /><testcase classname="test_legal_review_wire_receipts" name="test_missing_wire_stays_missing" time="0.004" /><testcase classname="test_legal_review_wire_receipts" name="test_existing_decoded_repair_path_not_duplicated" time="0.003" /><testcase classname="test_legal_review_wire_receipts" name="test_reference_dispatch_runs_one_repair_for_every_malformed_assignment" time="0.613"><failure message="legalmath.errors.LegalMathError: Caller does not have the required authority.">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-77/test_reference_dispatch_runs_o0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7ae599995890&gt;
+
+    def test_reference_dispatch_runs_one_repair_for_every_malformed_assignment(tmp_path, monkeypatch):
+        from dataclasses import replace
+        from legalmath.interpretation.assurance.phased import group_review
+        from legalmath.interpretation.assurance.phased.product import PhasedProduct
+        from legalmath.interpretation.search.providers import Completion
+        from tests.assurance.test_bounded_product import Scripted, envelope, limits
+        from legalmath.interpretation.assurance.phased import review_repair
+        name = review_repair.__name__
+        staged_spec = importlib.util.spec_from_file_location(name, '/tmp/legal_review_repair_candidate.py')
+        staged = importlib.util.module_from_spec(staged_spec)
+        staged_spec.loader.exec_module(staged)
+        monkeypatch.setitem(sys.modules, name, staged)
+        monkeypatch.setitem(sys.modules, name.rsplit('.',1)[0]+'.review_receipts', candidate)
+    
+        class WireProvider(Scripted):
+            reference_transport = True
+            live = False
+            def __init__(self):
+                super().__init__()
+                self.allowance = SimpleNamespace(path=tmp_path/'ledger/live-calls.json')
+                self.allowance.path.parent.mkdir(parents=True)
+                self.allowance.path.write_text(json.dumps(dict(maximum=20,calls=[])))
+            def complete(self, request, schema, settings):
+                self.requests.append(deepcopy(request))
+                ids = list(schema['properties']['assignments']['properties'])
+                decision = dict(reason='The conditional statement follows from the delivered source.',
+                    source_gaps=[], assertion_bindings=[], context_needs=[],
+                    review=dict(verdict='ACCEPT', issues=[], support=[dict(span_id='s0')]))
+                value = dict(analyses=[dict(analysis_id='one', decision=decision)],
+                    assignments={identity:dict(analysis_id='one') for identity in ids})
+                if len(self.requests)==1:
+                    value['assignments'] = [dict(id=identity, analysis_id='one') for identity in ids]
+                ledger=json.loads(self.allowance.path.read_text())
+                ledger['calls'].append(dict(request_hash=digest(request)))
+                self.allowance.path.write_text(json.dumps(ledger))
+                slot=len(ledger['calls'])
+                folder=self.allowance.path.parent/'provider-evidence'/f'{slot}-{digest(request)[:16]}'
+                folder.mkdir(parents=True)
+                content={'request.json':canonical(request), 'schema.json':canonical(schema),
+                    'result.json':canonical(value), 'events.jsonl':(
+                        json.dumps(dict(type='item.completed',item=dict(type='agent_message',text=' ')))+'\n'+
+                        json.dumps(dict(type='item.completed',item=dict(type='agent_message',text=json.dumps(value))))+'\n'+
+                        json.dumps(dict(type='turn.completed'))+'\n').encode()}
+                manifest=dict(allowance_slot=slot, request_hash=digest(request), complete_output_present=True, files={})
+                for filename,data in content.items():
+                    (folder/filename).write_bytes(data)
+                    manifest['files'][filename]=dict(bytes=len(data), original_sha256=hashlib.sha256(data).hexdigest(),
+                        retained_sha256=hashlib.sha256(data).hexdigest(),redacted=False)
+                (folder/'manifest.json').write_text(json.dumps(manifest))
+                return Completion(value, dict(allowance_slot=slot, request_hash=digest(request), response_hash=digest(value)))
+    
+        provider = WireProvider()
+&gt;       p=PhasedProduct(tmp_path,tmp_path/'product',provider,envelope(),list,
+            limits=replace(limits(),input_tokens=100000,input_bytes=200000),
+            phase_admit=lambda name,count:dict(name=name,count=count), phase_identity='wire-repair-test',
+            review_repair_profile=staged.PROFILE)
+
+/tmp/test_legal_review_wire_receipts.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/interpretation/assurance/phased/product.py:61: in __init__
+    require(downstream_capacity_profile is not None and self.capacity_manager is not None,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ok = False
+detail = 'Review repair requires selected input and common stage capacity'
+code = 'E_AUTHORITY'
+
+    def require(ok, detail, code="E_INTEGRITY"):
+        if not ok:
+&gt;           raise LegalMathError(code, details=detail)
+E           legalmath.errors.LegalMathError: Caller does not have the required authority.
+
+src/legalmath/interpretation/assurance/bounded_context.py:31: LegalMathError</failure></testcase></testsuite></testsuites>

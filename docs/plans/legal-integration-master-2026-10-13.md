@@ -1,5 +1,30 @@
 # Master program for complete legal-tool integration
 
+Current corrective package, 21 October (Hong Kong): the exact Sol retry
+succeeded at charged slot 3486. The subsequent Gatecoin baseline attempt failed
+locally before another model call: the retained-acquisition validator compared
+old request batches with new batches produced by the capacity output estimator.
+The [bounded repair plan](legal-retained-acquisition-capacity-repair-2026-10-21.md)
+requires the actual product entry to validate all four unchanged acquisitions,
+with adverse controls for lost sources, readers, joint bridges and recovery
+children. It preserves the original complete parent requests and responses.
+
+Adopt only after those checks pass and the settled master is rebound. Record
+this correction as cumulative detour 61, retaining the preceding 60. Gatecoin's
+failed second baseline attempt remains recorded; its local pre-dispatch defect
+permits one explicitly registered third attempt after repair. Other original
+owners use their existing unused attempts. Successful preparation and answer
+evidence remain fixed. Resolve only the reproduced batching veto; independent
+evidence failures remain vetoes. Continue all eligible original branches after
+each result and refresh. The existing 8,100-call ceiling, 24 October 02:19:15 UTC
+deadline and remaining three service replacements do not change. Keep the
+user's five-minute retry interval, including longer explicit server delays.
+
+Complete original answers and source reviews, dated source applicability and
+the six matched tool-effect evaluations remain required. Passing this local
+correction does not close them. The machine register and retained receipts
+determine actual execution status; the entries below are historical.
+
 Current continuation, 20 October (Hong Kong): the user authorized a bounded
 repair and retry, offering a million-token work allowance. The governing
 amendment is [candidate capacity and saved preparation](legal-candidate-capacity-retry-2026-10-20.md).
@@ -1642,3 +1667,94 @@ Service-reservation diagnosis remains distinct from time authorization. After
 each result retain the diagnosis, refresh the frontier and continue independent
 authorized branches. The four questions, 46 obligations, 35 readings and six
 tool-effect evaluations remain the delivery duties.
+
+## Source review repair and bounded continuation, 21 October 2026
+
+The current amendment is
+`docs/plans/legal-review-repair-2026-10-21.md` (R0–R6). It repairs capacity
+selection before packing, typed review validation, one explicit repair of each
+invalid review, per-issue correction dependencies, independent account repairs,
+and source bridges alongside necessary client facts or external authority.
+Successful answers and exact valid review decisions are reused. The first
+new 24-assignment review batch must validate before that format expands.
+
+The same master graph governs execution. Preserve all 3,539 earlier charges,
+61 earlier detours, original attempts and the effective 24 October 02:19:15 UTC
+deadline. Adopt this as one consolidated detour (62), adding only one attempt
+to exhausted eligible owners. The cumulative service reserve becomes 88,
+including all 24 spent replacements; the additional 64 remain inside the
+8,100-call grant. Wait at least five minutes, honor longer server delays,
+retain exact-request/per-request limits, and reconcile uncertain dispatch.
+
+Current funds allow progressive measured execution, not guaranteed worst-case
+matrix completion. Protect original-question, comparison and service reserves
+as specified in the amendment. After every checkpoint retain results, refresh
+the dependency frontier, drain independent local commands and continue ready
+original work. A shared outage defers all affected unstarted owners together
+without consuming attempts; a verified exact service probe restores those
+owners. Acceptance still requires the four answers, 46 obligations, 35 readings
+and six real tool-effect evaluations. Engineering checks never close them.
+
+Use the unchanged narrow entry commands from the repository root:
+
+```text
+.venv-context/bin/python scripts/legal_integration_master.py gap-refresh
+.venv/bin/python scripts/legal_mission_control.py refresh
+.venv/bin/python scripts/legal_mission_control.py check
+.venv/bin/python scripts/legal_mission_control.py status
+.venv/bin/python scripts/legal_mission_control.py admit
+.venv-context/bin/python scripts/legal_integration_master.py verify
+.venv-context/bin/python scripts/legal_integration_master.py live
+```
+
+The live entry performs bounded service recovery and continues the original
+graph. It grants no new calls or time. No broad shell, interpreter, or security
+allowlist changes are required by this amendment.
+
+The live R2 path subsequently exposed two implementation defects: completed
+wire-schema failures were omitted from invalid-review repair, and copying a
+large malformed response into a repair exceeded the unchanged input cap.
+The reviewed correction is retained in
+`artifacts/legal-mission-control/2026-10-21/review-repair/candidate/review.md`.
+It authenticates the complete failed wire receipt, assigns the existing single
+repair per exact assignment, and keeps full diagnostics on disk while sending
+bounded diagnostic references with the complete answer and sources.
+
+The implementation handover occurs only at a verified settled-call boundary.
+Gatecoin retains attempt 4 and every completed dispatch. New phase contracts
+use the corrected binding; predecessor phase contracts remain unchanged.
+The original task graph, acceptance criteria, detour 62, 8,100-call ceiling,
+deadline, protected branch budgets and cumulative service reserve remain.
+After registration and admission, resume the existing reservation, then drain
+independent original questions and tool evaluations. An ordinary review failure
+continues to its declared repair and cannot stop unrelated ready work.
+
+P14's slot 3,591 reproduced an R4 defect: the timeout child was terminated,
+with no completed turn or output file, but a whitespace-only message was
+mistaken for a partial answer. The same amendment now includes
+`artifacts/legal-mission-control/2026-10-21/review-repair/timeout-correction/review.md`.
+Only an authenticated empty-message failure may enter the counted recovery
+path. Substantive partial output, refusals, invalid receipts, unknown dispatch
+and completed output remain vetoes. The shared output predicate is used by
+both ordinary retry and restart recovery. A verified orphan reservation can
+coexist with service requalification under exclusive locks; an active or
+uncertain provider request cannot. Shared deferral yields to recovery instead
+of repeatedly selecting a retained owner.
+
+Preserve the 3,591 charged calls, 27 spent replacement reservations and the
+complete P14 attempt 3 failure. Register exactly one P14 owner continuation
+(maximum four attempts) inside this consolidated correction; no other task
+attempt ceiling, substantive correction count, detour, call budget, service
+reserve or deadline changes. Gatecoin retains attempt 4. Copy authenticated
+settled dispatches to the new binding, excluding only the exact empty-timeout
+dispatch and retaining its original bytes and identity separately. All valid
+and malformed completed reviews remain reusable. Resolve the precisely proved
+false veto with an explicit history entry; do not discard it or other vetoes.
+
+The continuation order is: finish the local correction and its saved-receipt
+regressions, settle and freeze the predecessor, adopt the reviewed bindings,
+run mission admission, perform bounded exact-request service recovery, resume
+the original consumers, and refresh after each checkpoint. Local commands
+remain independent of provider availability. The remaining four answers,
+original obligations/readings, corpus applicability and actual matched tool
+effects retain their existing acceptance requirements.

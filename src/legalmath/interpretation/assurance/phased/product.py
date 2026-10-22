@@ -15,7 +15,12 @@ from .phase import execute
 
 class PhasedProduct(BoundedProduct):
     def __init__(self, *args, phase_admit, phase_identity, downstream_instruction_profile=None,
-                 downstream_capacity_profile=None, retained_preparation=None, **kwargs):
+                 downstream_capacity_profile=None, retained_preparation=None,
+                 review_repair_profile=None, **kwargs):
+        from .review_repair import PROFILE as REVIEW_REPAIR
+        require(review_repair_profile in (None, REVIEW_REPAIR),
+            'Unknown source-review repair profile', 'E_AUTHORITY')
+        self.review_repair_profile = review_repair_profile
         from .downstream_input import CAPACITY_PROFILE
         require(downstream_capacity_profile in (None, CAPACITY_PROFILE),
             'Unknown downstream capacity selection', 'E_AUTHORITY')
@@ -52,6 +57,23 @@ class PhasedProduct(BoundedProduct):
             save_exact(self.directory/'synthesis-resolution-options.json', {
                 'downstream_capacity_profile': downstream_capacity_profile,
                 'pair_search_maximum_frontier': 16})
+        if review_repair_profile:
+            require(downstream_capacity_profile is not None and self.capacity_manager is not None,
+                'Review repair requires selected input and common stage capacity', 'E_AUTHORITY')
+            save_exact(self.directory/'review-repair-options.json', {'profile': review_repair_profile})
+
+    def _request(self, task, *args, **kwargs):
+        value = super()._request(task, *args, **kwargs)
+        if self.review_repair_profile:
+            from .downstream_input import TASKS
+            from .review_repair import TASKS as REPAIRED_TASKS
+            # Select capacity before review_request tries context packing, and
+            # for direct builders. Synthesis retains its explicit escalation.
+            if task in TASKS and task != 'SYNTHESIZE_FINDINGS':
+                value['downstream_capacity_profile'] = self.downstream_capacity_profile
+            if task in REPAIRED_TASKS:
+                value['review_repair_profile'] = self.review_repair_profile
+        return value
 
     def request(self, task, *args, **kwargs):
         value = super().request(task, *args, **kwargs)
@@ -251,6 +273,8 @@ class PhasedProduct(BoundedProduct):
             if review.get('status') != 'VALIDATED' or review['value']['verdict'] != 'UNRESOLVED':
                 continue
             needs = review['value'].get('context_needs', [])
+            if self.review_repair_profile:
+                needs = [n for n in needs if n['kind'] == 'SOURCE_TEXT']
             if not needs or any(n['kind'] != 'SOURCE_TEXT' for n in needs):
                 continue
             item = items[review['value']['considered'][0]]
@@ -280,7 +304,11 @@ class PhasedProduct(BoundedProduct):
         groups = warrant_groups.group(reviews)
         save_exact(self.directory / f'correction-{qid}-warrant-membership.json', groups)
         grouped = [r['review'] for r in groups]
-        assessed, warranted, settled = super().review_warrants(qid, question, answer, grouped, details)
+        if self.review_repair_profile:
+            from .review_repair import review_warrants
+            assessed, warranted, settled = review_warrants(self, qid, question, answer, grouped, details)
+        else:
+            assessed, warranted, settled = super().review_warrants(qid, question, answer, grouped, details)
         expanded = []
         for assessment in assessed:
             for original in groups[assessment['review_index']]['originals']:
@@ -289,6 +317,12 @@ class PhasedProduct(BoundedProduct):
                     'shared_assessment_index': assessment['review_index']})
         save_exact(self.directory / f'correction-{qid}-warrants-expanded.json', expanded)
         return expanded, warranted, settled
+
+    def correct_answer(self, qid, question, answer, reviews, details, dependencies):
+        if self.review_repair_profile:
+            from .review_repair import correct_answer
+            return correct_answer(self, qid, question, answer, reviews, details, dependencies)
+        return super().correct_answer(qid, question, answer, reviews, details, dependencies)
 
     def review_population_identity(self, reviews):
         return {'sha256': digest([digest(r) for r in reviews]),

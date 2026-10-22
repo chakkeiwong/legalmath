@@ -57,6 +57,12 @@ def selected(request):
     require(profile == PROFILE, 'Unknown common capacity profile', 'E_AUTHORITY')
     require(request.get('task') in STAGES, 'Unregistered capacity stage: ' + str(request.get('task')), 'E_AUTHORITY')
     value = STAGES[request['task']]
+    if request.get('review_repair_profile') is not None:
+        from .review_repair import PROFILE as REVIEW_REPAIR, TASKS as REVIEW_TASKS
+        require(request['review_repair_profile'] == REVIEW_REPAIR and request['task'] in REVIEW_TASKS,
+            'Unregistered review repair capacity', 'E_AUTHORITY')
+        if request['task'] == 'AUDIT_SOURCE_DEPENDENCY_ASSIGNMENTS':
+            value = replace(value, output_tokens=32768, output_bytes=262144)
     if request.get('capacity_no_partition') is not None:
         require(request['capacity_no_partition'] is True, 'Invalid capacity partition restriction', 'E_AUTHORITY')
         value = replace(value, adapter='atomic', reason='The caller requires this complete relation to remain atomic.')

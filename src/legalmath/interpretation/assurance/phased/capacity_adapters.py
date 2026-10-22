@@ -59,6 +59,9 @@ def split(product, call):
                 require(value['considered'] == req['required_considered'], 'Changed warrant owner')
                 product.citations(value, req['records'])
                 for row in value['decisions']:
+                    if getattr(product, 'review_repair_profile', None):
+                        require(not row['blocking_source_gaps'] or row['disposition'] == 'UNRESOLVED',
+                            'Issue with necessary missing context cannot be settled')
                     require(row['disposition'] != 'WARRANTED' or row['support'], 'Unsupported warrant')
                     require(row['disposition'] != 'UNWARRANTED' or row['support'] or
                         row['basis'] == 'QUESTION_SCOPE', 'Unsupported discarded criticism')

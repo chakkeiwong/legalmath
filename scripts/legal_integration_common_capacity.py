@@ -140,7 +140,7 @@ def validate_state_history(program, state, root):
 def acquire(question, service):
     from scripts import legal_integration_phased_live as live
     from legalmath.interpretation.assurance.phased.preparation_diagnosis import diagnose
-    folder = WORK/'live'/question/'product'
+    folder = live.common_directory(read(ROOT/PROGRAM), question)
     result = live.product_route(question, None, service, preparation_only=True)
     diagnosis = diagnose(ROOT, ROOT/folder, question, result=result)
     save(ROOT/folder.parent/'diagnosis.json', diagnosis)

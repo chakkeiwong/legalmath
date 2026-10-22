@@ -12,7 +12,7 @@ from .shared_rationale import schema as shared_schema, decisions as shared_decis
 from .phase import execute
 
 
-def schema(ids, *, legal_indexes=None):
+def schema(ids, *, legal_indexes=None, repair_profile=None):
     result = shared_schema(ids)
     need = obj({'kind': {'type': 'string', 'enum': ['SOURCE_TEXT', 'CLIENT_FACT', 'EXTERNAL_AUTHORITY']},
         'reason': TEXT, 'record_ids': array(TEXT),
@@ -29,12 +29,16 @@ def schema(ids, *, legal_indexes=None):
     decision = result['$defs']['Decision']
     decision['properties']['context_needs'] = array(need)
     decision['required'].append('context_needs')
+    if repair_profile is not None:
+        from .review_repair import typed_schema
+        result = typed_schema(result, repair_profile)
     return result
 
 
 def validate(product, qid, value, ids, records):
     from jsonschema import validate as validate_schema
-    validate_schema(value, schema(ids, legal_indexes=product.route.envelope.get('legal_indexes', [])))
+    validate_schema(value, schema(ids, legal_indexes=product.route.envelope.get('legal_indexes', []),
+        repair_profile=getattr(product, 'review_repair_profile', None)))
     plain = deepcopy(value)
     for row in plain['analyses']:
         row['decision'].pop('context_needs')
@@ -100,13 +104,16 @@ def build(product, qid, question, answer, rows):
         'instruction': 'The full answer has independent exact-citation checks. Outside quotations '
             'are not jointly delivered legal context here. If necessary for this assignment, '
             'request the precise context; do not infer support or contradiction from absence.'}
-    return request, schema(ids, legal_indexes=product.route.envelope.get('legal_indexes', []))
+    return request, schema(ids, legal_indexes=product.route.envelope.get('legal_indexes', []),
+        repair_profile=getattr(product, 'review_repair_profile', None))
 
 
-def plan(product, qid, question, answer, dependencies, *, prefix='', maximum_items=16):
+def plan(product, qid, question, answer, dependencies, *, prefix='', maximum_items=16, exclude_ids=()):
+    if getattr(product, 'review_repair_profile', None):
+        maximum_items = 24
     corpus = [r for r in product.route.records.values() if r['kind'] == 'source']
     product.citations({k: v for k, v in answer.items() if k != 'source_gaps'}, corpus)
-    items = assignments(product, qid, dependencies)
+    items = [r for r in assignments(product, qid, dependencies) if r['id'] not in exclude_ids]
     def measure(rows):
         request, response_schema = build(product, qid, question, answer, rows)
         try:
@@ -134,6 +141,10 @@ def plan(product, qid, question, answer, dependencies, *, prefix='', maximum_ite
 
 def run(product, qid, question, answer, dependencies, *, implementation_identity, admit,
         prefix='', maximum_items=16, refresh=lambda _: None):
+    if getattr(product, 'review_repair_profile', None):
+        from .review_repair import grouped_reviews
+        return grouped_reviews(product, qid, question, answer, dependencies,
+            implementation_identity=implementation_identity, admit=admit, prefix=prefix, refresh=refresh)
     calls, membership, blocked, items = plan(product, qid, question, answer, dependencies,
                                             prefix=prefix, maximum_items=maximum_items)
     phase = execute(product, prefix + 'source-dependency-' + qid, calls,

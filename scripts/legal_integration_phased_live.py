@@ -22,6 +22,12 @@ LIVE = WORK / 'live'
 
 
 def active_live(program):
+    if program.get('review_repair'):
+        if program['review_repair'].get('timeout_correction'):
+            return Path(program['review_repair']['timeout_correction']['runtime'])
+        if program['review_repair'].get('receipt_correction'):
+            return Path(program['review_repair']['receipt_correction']['runtime'])
+        return Path(program['review_repair']['work']) / 'live'
     if program.get('common_capacity'):
         return Path(program['common_capacity']['work']) / 'live'
     if program.get('candidate_capacity_retry'):
@@ -342,6 +348,13 @@ def product_route(q,tool,service,*,preparation_only=False,recovery_context=None)
         if not preparation_only:
             options['bounded_capacity_checkpoint'] = program['common_capacity']['arm_checkpoints'].get(q, {}).get(
                 tool or 'baseline', options['bounded_capacity_checkpoint'])
+    if program.get('review_repair'):
+        repaired = program['review_repair']
+        options['bounded_review_repair_profile'] = repaired['review_profile']
+        options['bounded_capacity_checkpoint'] = repaired['checkpoints'][q]
+        if not preparation_only:
+            options['bounded_capacity_checkpoint'] = repaired['arm_checkpoints'].get(q, {}).get(
+                tool or 'baseline', options['bounded_capacity_checkpoint'])
     directory=ROOT/common if preparation_only else ROOT/route_live/'arms'/q/(tool or 'baseline')
     shared=None if preparation_only else ROOT/common/'calls'
     return run_product(ROOT,directory,service,ROOT/'jdk','2026-10-15T00:00:00+08:00',
@@ -406,7 +419,8 @@ def defer_open_service(execution, tid):
     """A known outage is an unmet prerequisite, not an owner attempt."""
     from legalmath.interpretation.assurance.integration_contract import read_evidence
     view = execution.summary()
-    if tid not in view['ready']:
+    if tid not in view['ready'] and not (
+            execution.program.get('review_repair', {}).get('timeout_correction') and tid in view['running']):
         return False  # A reserved owner must follow its existing recovery path.
     binding = read(ROOT / BASE / 'current-binding.json')
     scope = binding.get('phase_service_scope')
@@ -422,11 +436,17 @@ def defer_open_service(execution, tid):
         return False
     # Freeze the observed prerequisite; later service evidence may legitimately
     # evolve, while this non-dispatch decision must remain independently auditable.
-    directory = ROOT / LIVE / 'deferred-service' / tid
+    directory = ROOT / active_live(execution.program) / 'deferred-service' / tid
     save(directory / 'circuit.json', circuit)
-    execution.block_before_dispatch(tid,
-        'Deferred before owner reservation: shared service circuit is open; reviewed requalification required.',
-        [scope, ref(ROOT, directory / 'circuit.json')], shared_scope=['provider-service'])
+    reason = 'Deferred before owner reservation: shared service circuit is open; reviewed requalification required.'
+    evidence = [scope, ref(ROOT, directory / 'circuit.json')]
+    if execution.program.get('review_repair'):
+        affected = [node for node in view['ready'] if node.startswith(('acquire-', 'baseline-', 'tool-', 'compare-'))
+            or node in ('semantic-preflight', 'account-qualification')]
+        if affected:
+            execution.block_before_dispatch_many(affected, reason, evidence, shared_scope=['provider-service'])
+    else:
+        execution.block_before_dispatch(tid, reason, evidence, shared_scope=['provider-service'])
     try:
         execution.sync_mission()
     except __import__('subprocess').TimeoutExpired as exc:
@@ -448,6 +468,8 @@ def drain_answers(execution, campaign, service):
             return
         tid=ready[0]
         if defer_open_service(execution, tid):
+            if execution.program.get('review_repair', {}).get('timeout_correction'):
+                return  # Shared deferral yields to counted recovery; retained owners are not dispatched.
             continue
         if tid.startswith('compare-'):
             q,tool=tid[8:].split('-',1)

@@ -1,0 +1,82 @@
+# Reading record and search limits
+
+Date: 2026-10-22. These notes support the [survey](README.md). They distinguish inspected technical material from bibliographic leads. The machine-readable [manifest](sources.json) records retrieval URLs, times, content types, hashes, retained paths and software versions. Downloaded academic PDFs are retained under `.localresources/hkma-odrl-survey-2026-10-22/papers/`; extracted text and failed retrieval responses remain in `sources/` under that cache directory.
+
+This is a targeted survey of translation into ODRL and its evaluation, with a selected regulatory case. It does not claim a systematic search of every scholarly database, all languages, all repository branches, or all papers citing ODRL. No ResearchAssistant or browser/search connector was available. Primary websites, bibliographic HTTP APIs, GitHub and the W3C community index were used instead. No literature source was judged solely by a search-engine snippet.
+
+## Search record
+
+| Retained request ID | Query | Returned records / API total | Interpretation |
+|---|---|---|---|
+| `crossref-odrl` | Title query: ODRL, rows=40 | 33 / 33 | Compact title-led discovery set. |
+| `crossref-nl` | ODRL natural language, rows=12 | 12 / 6,454,611 | Very broad relevance search; total is not the count of relevant ODRL papers. |
+| `openalex-translation` | ODRL natural language, per-page=30 | 30 / 429 | First relevance-ranked page screened; not all 429 records reviewed. |
+| `openalex-nl` | ODRL language, per-page=25 | 25 / 912 | Supplementary discovery; duplicates not new evidence. |
+| `openalex-hkma` | HKMA ODRL, per-page=10 | 0 / 0 | No match in this query. Does not prove literature absence. |
+| `odrl-regulatory-search` | ODRL regulatory compliance, per-page=15 | 15 / 233 | Regulatory and compliance leads, including work outside the selected scope. |
+| `github-search` | odrl, sorted by updated, per_page=35 | 35 / 228 | Repository discovery; recency is not quality. |
+| `github-nl` | odrl language, per_page=25 | 16 / 16 | Additional translation-related repositories. |
+| `github-aiup` | AIUP repository query | One matching repository | Led to the original profile specification. |
+| `odrl-landscape` | W3C community implementation landscape | Index, not a database count | Used to identify evaluator and validator families. |
+
+The search also followed references from the AMR, critical-reflection, declarative-semantics, normalisation and evaluator papers. General web-search attempts produced challenge pages or irrelevant results; DBLP returned a challenge response. These were not counted as successful searches. Successful HTTP status alone was not treated as full-text retrieval: the old WU PDF URL redirected to a publication page, for example.
+
+Selection prioritised: (1) direct text-to-ODRL methods with inspected methods/evaluation; (2) regulatory profiles and semantic issues affecting the circular; (3) evaluators with original code; and (4) adjacent legal languages needed to explain the architecture. Generic legal-LLM extraction and unrelated access-control languages were not surveyed exhaustively. Candidate publications newer than the survey date were not used. Search results and failed routes are retained so these limitations can be inspected.
+
+## Primary circular
+
+All of Annex 1, Annex 2 and the circular body were read. Official annex PDFs have these SHA-256 values, identical to their archived `docs/papers` counterparts:
+
+- Annex 1: `f83719981d74ed06bb62ccf121bd7204f80a1146ae5040f4c4aab905df510c4a`.
+- Annex 2: `3355fd4a67b8c83ba36dc00f4d48e4ddfdb3c49365b2fc784d6afcf128fbb61b`.
+
+The official circular HTML contains its title, date, substantive body, footnotes and annex links; it is not merely an application shell. It says “Page last updated: 28 Jul 2023.” The retained source identifier is `official-circular`. The local JSON archive has a different representation and hash; no byte-identity claim is made for the body.
+
+Annex 2 FAQ 6 is essential to reading Annex 1 §8.3. It covers continued transactions in an above-threshold designated account with top-ups/deposits restricted, noncash exposure transferred out, and the absence of an expected unwind. Annex 2 FAQ 7 preserves leverage in gross exposure. These qualifications must remain visible together; the pilot should not select one paragraph and silently discard the other.
+
+Annex 1 §13.1(d) states the right to withdraw, §13.2(c)(iii) covers category changes, §13.2(d)(iii) covers threshold changes, and §14.2(d) requires the annual written reminder of these rights. They are not all located in §13.2. Annual review does not by itself justify choosing a 365-day clock.
+
+## Technically inspected translation studies
+
+**L1 — Revel et al., ASAIL 2023; cache `amr2023`.** Eight retained PDF pages including repository cover. Inspected the semantic-representation background, conversion/transduction method, examples, experiment and error discussion. The NL → AMR → RDF → ODRL stages support an inspectable intermediate representation. Experimental scope: around 100 simple sentences, approximately 20% handwritten, the rest grammar-generated, plus ten additional negative cases (clarified against §5.1 during LaTeX integration). Reported modality P/R/F: .780/.640/.703; action: .989/.810/.891. Read as component-extraction scores. The document-preprocessing step is described hypothetically; full-document resolution was not demonstrated. The negation-scope example and stated AMR temporal/quantification limitations motivate explicit legal review. Original code references are `tetras-mars/amrbatch`, `tetras-mars/tenet` on the Tetras Libre GitLab and `BMKEG/amr-ld` on GitHub. Those implementations were not fetched or tested; no claim of a reusable complete translator follows.
+
+**L2 — Mustafa et al., LLM+KG 2024, arXiv 2506.03301; cache `llm4odrl`.** Ten retained pages. Inspected §§2–4, method components and evaluation criteria/Table 1, score calculation and reported results. Twelve use cases (four Agreements, five Offers, three Sets), three models and three methods give 108 configurations. The text describes initially running each use case once. The 91.95 figure is explicitly illustrated as 217/236 checks for Use Case 1 with refinement. Selected criteria mix structural and application-metadata requirements; they are not an independent expert legal-outcome assessment. Code inspection confirms RDFLib/pySHACL validation against repository shapes. The title's publication year and preprint posting year are different; the report preserves both.
+
+**L3 — Zhong, Huang and Du, AAAI 2026; cache `agentodrl`.** Nine retained pages. Inspected workflow, generator enhancements, decomposition/reference rewriting, dataset construction, metrics, experiments and limitations. Seventy seeds expanded to 770 cases (440/220/110), with 2,380 synthetic examples for checkpoint-extraction fine-tuning. The semantic metric uses model-extracted checkpoints and two model jurors; the grammar metric derives from selected SHACL checks. Three repeated runs and averages are reported, but this survey did not identify uncertainty sufficient to rank systems for a new HKMA task. Table 2 does not support assuming the adaptive orchestrator always maximises aggregate semantic score: some fixed workflows score higher. The survey avoids reproducing a questionable extracted aggregate without a separate table audit. A lower validation than training loss is not independently sufficient evidence of generalisation. Code provides useful method components but no inspected HKMA dataset or legal oracle. No live APIs were called.
+
+## Technically inspected semantics and evaluation studies
+
+**L6 — Kebede, Sileno and van Engers (2021); cache `critical2021`.** Fifteen retained pages including repository front matter. Inspected substantive analysis, especially §§3.1–3.2 and discussion of permission-related duties, independent obligations, institutional powers, delegation/revocation, role granularity and lifecycle. This is a conceptual/semantic analysis, not an extraction-accuracy experiment. Its questions remain relevant to this case, while the later semantics papers and current code must be considered separately.
+
+**L8 — Bonatti, Fornara and Harth (OPAL 2025); cache `declarative2025`.** Sixteen pages. Inspected §3 definitions/remarks and §4 examples, including typed denotations, constraint evaluation, rule activation, action matching, duty fulfilment, traces, remedies and policy compliance. Definitions 1–8 and Remarks 1–8 identify the semantic choices used in the report. In particular, §3.6 discusses one fulfilment enabling multiple actions, collective versus individual performance, and activation versus fulfilment constraints; §3.8 addresses policy gaps/scope. Temporal left operands are deferred, as is a distinct semantics for `andSequence`. The authors' proposed definitions are not represented as a normative replacement for the W3C Recommendation, and their theorem-level correctness has not been independently mechanised here.
+
+**L9 — Salas, Pareti and Konstantinidis (2026); cache `normalisation2026`.** Seventeen pages, arXiv v1. Inspected preliminaries and fragment restrictions, normalisation/splitting algorithm, preservation and comparison results in §§3–4 (Theorems 2–7 and associated corollaries), and the paper's complexity/evaluation statements. The analysis excludes duties attached to permissions, remedies and consequences. Theorem 6 leaves standalone obligations unchanged, because splitting one obligation into multiple required rules can strengthen it. The normal form can grow exponentially in attributes. The paper supplies a prototype but leaves empirical performance evaluation outside scope. Treat these as author results under the chosen semantics, not as a proof about all ODRL or arbitrary Catala translations. The associated OVAL repository includes normalisation/comparison code, but that subcomponent was not benchmarked or comprehensively audited.
+
+**L10 — Salas et al. (2026); cache `groundedevaluator2026`.** Seventeen pages. Inspected the semantic setup, §§4.1–4.2 decision problems and theorem, §5 algorithm/state design, and §6 experiment/results. Offline validity is over a set of events; online processing preserves state between batches. Access decisions are related to adding a canonical prospective event, with restrictions on the theorem's rule types. The algorithm records matched events and outstanding requirements. Synthetic workloads and a SolidLab/FORCE suite comparison are the empirical evidence. Reported agreement is 54/68 after collapsing “not enough information” into false; this is not independent legal correctness. Runtime differences are confounded by different reasoning/features and were not locally reproduced. July paper capabilities and the October checkout differ; current API defaults and numeric behavior were inspected directly.
+
+**L11 — Cimmino, Cano-Benito and García-Castro (2024 preprint); cache `odre2024`.** Twenty-one pages. Inspected framework stages, interpolation/translation/evaluation algorithm, implementation/extension design, limitations and experimental section. Runtime operands/actions explain why descriptive policy terms require executable bindings. The 24 demonstration/unit cases per implementation cover comparison, time, extensions and interpolation. The paper expressly tests synchronous enforcement, with temporal monitoring future work in that version. Static code findings in the inspected Python implementation limit the recommendation further; they are documented separately and were not represented as executed failures.
+
+## Standards and adjacent formalisms
+
+**S2 — ODRL 2.2 Information Model.** Inspected core model, permission/prohibition/duty/obligation relationships, conflict treatment and profile requirements, particularly §§2.6 and 3. The model's `odrl:duty` and `odrl:obligation` relationships carry different meaning. §3.2 requires a processor that does not recognise a profile to stop processing. §3.3 permits additional vocabulary and rule classes subject to its requirements; such extensions are not automatically understood by existing engines. The survey does not treat every third-party SHACL constraint as a W3C requirement.
+
+**S3 — Community semantics and landscape.** Read the evaluator purpose, distinction between access requests and monitoring, and implementation listings. The current semantics page says its interpretation is subordinate to the model/vocabulary. It is community work, not a new W3C Recommendation. Third-party tool listings are discovery evidence only.
+
+**S4 — OASIS LegalRuleML 1.0 (2021).** Full specification retained; focused inspection of functional requirements and defeasibility in §§4.1–4.2. Source correspondence, alternative interpretations, constitutive/prescriptive rules, authority/time and defeasibility motivate the internal interpretation record. This was not a full conformance audit or a choice of LegalRuleML execution engine.
+
+**L7 — AIUP.** Profile specification and original repository README retained as `aiup-profile`/`aiup-readme`. Read purpose, scope, competency questions, class/action vocabulary and conditions concerning oversight/reporting. The specification expressly limits its scope and labels itself a draft. This is evidence of regulatory profile design, not of automatically translating the EU AI Act or complete compliance. The profile links CC-BY-4.0; no general code-licence conclusion was drawn. The associated paper was not technically inspected.
+
+**L14 — eFLINT (2020).** Existing local PDF and text retained in `.localresources/literature-v2/`. Focused reading of §§3–4: typed facts, actor/recipient actions, creation/termination, duties and violations, trace semantics, independent action/duty compliance, and prototype uses. This supports the comparison of language roles. No software adoption, speed comparison or full eFLINT implementation claim is made. A newer 2025 stable-model paper exists locally but is not used as evidence for a new implementation recommendation in this survey.
+
+**L15 — Catala (2021).** Existing `docs/papers` PDF and extracted `docs/implementation/prospectus-root-cause-2026-10-06/literature/catala.txt` retained. Inspected computational scope, default/exception semantics and especially §4.5/Figures 11–12 on compilation correctness. The proof is about translation between formal calculi, with a particular simulation result and type preservation. It does not prove English-to-Catala interpretation or ODRL equivalence. Repository adapters/verification code were inspected; this survey did not audit a fresh upstream compiler revision or rerun its proof development. The recommendation uses existing local calculations and conditional checks, not an assumption that the whole current compiler is certified by the 2021 paper.
+
+## Unavailable originals and unreviewed leads
+
+- **L4, Cabrio et al. (2014):** historical method and reported dataset are known through L1. Bibliographic searches did not yield an inspected original. No independent quantitative conclusion is based on it.
+- **L5, De Vos et al. (2019):** official metadata and later technical papers establish its regulatory-policy/ASP relevance. WU's attachment returned 403; one old path returned 404; the corrected old path redirected to the publication page, whose attachment again returned 403. That branch was stopped. No detailed profile, proof or evaluation recommendation is based on an abstract alone.
+- **L12, Slabbinck et al. (ESWC 2025):** publisher abstract/references obtained; Ghent access timed out and two author-hosted guesses were unavailable. Code was inspected, paper-level technical claims were withheld.
+- **L13, FORCE (2025):** publication metadata found, linked PDF timed out. Findings concern the pinned software, not an uninspected paper evaluation.
+- DPV was a contextual vocabulary lead; the attempted versioned page was a small redirect page. No substantive DPV capability claim is based on that response.
+- ODRL-PAP, ODRL Manager, MOSAICrOWN, DALICC and AMR tool implementations are discovery leads. They were not run or comprehensively licence/source audited here.
+
+These gaps limit claims about particular works. They do not invalidate the inspected direct-translation papers, standards, circular sources or code findings. The survey's recommendation remains provisional until the proposed HKMA scenarios are implemented and independently reviewed.

@@ -146,6 +146,14 @@ def validate_program(program, root):
         verify(root, reference)
     tasks = {t['id']: t for t in program['tasks']}
     require(len(tasks) == len(program['tasks']) and tasks, 'Duplicate or empty task graph')
+    if program.get('review_repair'):
+        from scripts.legal_review_repair import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('retained_acquisition_repair'):
+        from scripts.legal_retained_acquisition_repair import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
     if program.get('time_continuation'):
         from scripts.legal_integration_time_continuation import validate_revision
         reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
@@ -452,7 +460,13 @@ class Execution:
                 'tasks': {tid: {'status': 'PENDING', 'attempts': []} for tid in self.tasks}, 'events': []}
             require(state['program_hash'] == digest(self.program), 'Program changed; reviewed migration required')
             require(set(state['tasks']) == set(self.tasks), 'State task set changed')
-            if self.program.get('time_continuation'):
+            if self.program.get('review_repair'):
+                from scripts.legal_review_repair import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('retained_acquisition_repair'):
+                from scripts.legal_retained_acquisition_repair import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('time_continuation'):
                 from scripts.legal_integration_time_continuation import validate_state_history
                 validate_state_history(self.program, state, self.root)
             elif self.program.get('common_capacity'):
@@ -569,6 +583,8 @@ class Execution:
         refresh = self.program.get('synthesis_resolution', refresh)
         refresh = self.program.get('candidate_capacity_retry', refresh)
         refresh = self.program.get('common_capacity', refresh)
+        refresh = self.program.get('retained_acquisition_repair', refresh)
+        refresh = self.program.get('review_repair', refresh)
         historical = read(safe(self.root, refresh['prior_state']['path']))['tasks'] if refresh else {}
         def verify_dependencies(value):
             if isinstance(value, dict):
@@ -723,6 +739,25 @@ class Execution:
             self.event(state, tid, 'PREREQUISITE_BLOCKED', reason=reason, evidence=evidence,
                        attempt_consumed=False, shared_scope=list(shared_scope))
         return self.summary()
+
+    def block_before_dispatch_many(self, tids, reason, evidence, *, shared_scope=()):
+        """One durable prerequisite observation for independent ready owners."""
+        require(tids and len(tids) == len(set(tids)) and set(tids) <= set(self.tasks)
+            and reason and evidence, 'Unsubstantiated prerequisite blocks')
+        for item in evidence:
+            verify(self.root, item)
+        with self.locked() as state:
+            classes = self.classify(state)
+            require(all(classes[tid]['status'] == 'READY' for tid in tids),
+                'Only ready unstarted work can be blocked')
+            for tid in tids:
+                saved = state['tasks'][tid]
+                saved.update(status='BLOCKED', reason=reason, dispatch_status='NOT_DISPATCHED',
+                    prerequisite_evidence=evidence)
+                saved.pop('result', None)
+                self.event(state, tid, 'PREREQUISITE_BLOCKED', reason=reason, evidence=evidence,
+                    attempt_consumed=False, shared_scope=list(shared_scope))
+        return list(tids)
 
     def record_continuation_veto(self, code, reason, evidence, scope):
         """Persist an authority/integrity stop for its exact consumers."""

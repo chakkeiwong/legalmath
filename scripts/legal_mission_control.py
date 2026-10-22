@@ -1055,6 +1055,38 @@ def validate(mission, tools, root=ROOT):
             require(any(r['id'] == 'integration-master-time-continuation-2026-10-21'
                 and time_continuation['review'] in r['result_evidence'] for r in history), 'Missing time continuation history')
             verify_refs(root, time_continuation)
+        retained_repair = master.get('retained_acquisition_repair')
+        if retained_repair:
+            require(retained_repair.get('profile') == 'integration-retained-acquisition-repair.v1'
+                and retained_repair.get('prior_detours') == detours == 60
+                and retained_repair.get('additional_consolidated_revision') == 1
+                and retained_repair.get('additional_task_attempts') == 1
+                and retained_repair.get('live_calls_added') == 0
+                and retained_repair.get('additional_transport_replacements') == 0
+                and retained_repair.get('attempts_reset') is False
+                and retained_repair.get('service_scope_reset') is False
+                and program.get('retained_acquisition_repair') == retained_repair,
+                'Unreviewed retained acquisition repair')
+            require(any(r['id'] == 'integration-master-retained-acquisition-repair-2026-10-21'
+                and retained_repair['review'] in r['result_evidence'] for r in history),
+                'Missing retained acquisition repair history')
+            verify_refs(root, retained_repair)
+            detours += 1
+        review_repair = master.get('review_repair')
+        if review_repair:
+            require(review_repair.get('profile') == 'integration-source-review-repair.v1'
+                and review_repair.get('prior_detours') == detours == 61
+                and review_repair.get('additional_consolidated_revision') == 1
+                and review_repair.get('live_calls_added') == 0
+                and review_repair.get('additional_transport_replacements') == 64
+                and review_repair.get('attempts_reset') is False
+                and review_repair.get('service_scope_reset') is False
+                and program.get('review_repair') == review_repair, 'Unreviewed source-review repair')
+            require(any(r['id'] == 'integration-master-review-repair-2026-10-21'
+                and review_repair['review'] in r['result_evidence'] for r in history),
+                'Missing source-review repair history')
+            verify_refs(root, review_repair)
+            detours += 1
     else:
         master_state = None
     require(mission["current_task"] in tasks, "No current substantive task")

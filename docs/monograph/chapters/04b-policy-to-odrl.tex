@@ -1,0 +1,421 @@
+\section{From policy documents to ODRL: what must survive translation}
+\label{sec:odrl-review}
+
+The next proposed output of LegalMath is a machine-readable policy in the
+Open Digital Rights Language, ODRL. The immediate case is the joint
+SFC--HKMA circular of 28 July 2023, reference 23EC35, on the Streamlined
+Approach for sophisticated professional investors (SPIs). The useful question
+is whether an intermediary may apply particular streamlined procedures to a
+client and transaction, and which duties remain. It is not simply whether a
+trade is allowed. This difference determines what the translation must express
+\citep{sfcspi,sfcspiannex1,sfcspiannex2}.
+
+Consider a designated account whose gross exposure has risen above the client's
+streamlining threshold. A sentence-level translator might read the threshold
+rule and produce a prohibition on every further transaction. Annex~2 FAQ~6
+expressly permits the account to continue operating and executing transactions
+while top-ups and deposits are restricted. It does not expect the intermediary
+to reduce or unwind exposure for this purpose. An ordinary suitability route
+also remains relevant. The missing distinction is the kind of action and the
+monitoring arrangement, not a different spelling of the threshold
+\citep[FAQ~6]{sfcspiannex2}.
+
+This review therefore recommends \emph{ODRL as the first new deliverable},
+produced from a reviewed interpretation linked to the source. Selected Catala
+calculations should accompany it. Requiring a complete Catala program first
+would postpone the desired policy representation without resolving its
+normative questions. Treating ODRL as the only representation of the circular
+would instead risk losing meanings that the selected ODRL profile cannot
+execute. The implementation proposal below develops a shared interpretation
+with explicit projections into these different languages.
+
+\subsection{Scope and strength of the evidence}
+
+The review was completed on 22 October 2026. It combines the circular body,
+both annexes, direct text-to-ODRL research, work on regulatory profiles and
+formal semantics, and static inspection of selected software. The official
+annex PDFs match the repository's archived copies byte for byte. This fixes a
+historical translation case; a current operational application would still
+need the relevant source editions, amendments and incorporated provisions.
+The Code of Conduct, Professional Investor Rules and referenced FAQs must
+remain named dependencies rather than silently assumed complete
+\citep{hkmaodrlsurvey2026}.
+
+Searches used Crossref, OpenAlex, GitHub, the W3C ODRL community's implementation
+landscape, and references from the inspected papers. The recorded
+``HKMA ODRL'' query returned no results, and no direct HKMA translation study
+was found in the inspected material. This is a targeted survey, not proof
+that no such work exists. Eight newly retained papers received technical
+reading of the relevant method, semantics and evaluation; existing Catala
+and eFLINT papers supplied focused comparisons. Nine public code checkouts
+were pinned. Unavailable originals and documentation-only findings remain
+identified in the accompanying reading record. No generation experiment or
+third-party software benchmark was run \citep{hkmaodrlsurvey2026}.
+
+The important evaluation question is whether a translation preserves the
+decision and duty distinctions in the circular. A graph can be valid RDF,
+conform to a set of shapes, and still prohibit the transactions that FAQ~6
+allows. Conversely, a disagreement between evaluators can reflect different
+declared semantics rather than a malformed graph. The following discussion
+keeps these questions separate so that published scores are not asked to
+answer a question their experiments did not test.
+
+\subsection{ODRL's basic model and the need for a profile}
+
+ODRL is a W3C model for expressing permissions, prohibitions and duties
+concerning identifiable resources. An action says what may, may not, or must
+be done; a party identifies a participant; an asset identifies the resource
+to which the action applies. Constraints restrict when a rule applies.
+The same policy can be serialized as JSON-LD, a JSON representation that
+maps names to identifiers in an RDF graph. RDF supplies the linked statements;
+it does not infer the legal meaning of ``sophisticated investor''
+\citep[secs.~2--3]{odrlmodel2018}.
+
+The distinction between two ODRL relationships is particularly important.
+A duty attached to a permission through \texttt{odrl:duty} is a prerequisite
+for that permission. A duty connected directly to a policy through
+\texttt{odrl:obligation} is an independent obligation. Prior written consent
+and a later annual review should therefore not be represented as an
+undifferentiated list of actions that must all have happened before the first
+transaction. The circular and the chosen event interpretation must determine
+which performance is needed, by whom and at what time
+\citep[secs.~2.6.1, 2.6.4--2.6.5]{odrlmodel2018}.
+
+A \emph{profile} defines additional vocabulary and semantics for a particular
+application. The proposed HKMA profile would name applying the Streamlined
+Approach, reviewing continued qualification, providing a requested explanation,
+and the observations used to establish their conditions. ODRL requires a
+processor to understand a declared profile and stop when it does not recognise
+it. A new identifier in a JSON file is consequently not enough: the evaluator
+needs an implementation of that term's meaning. A profile extends the core;
+it is not permission to reverse the meaning of an existing ODRL relationship
+\citep[sec.~3]{odrlmodel2018}.
+
+For this case, the resource can be the identified service or procedure instance
+to which streamlined treatment applies. The intermediary is the party exercising
+that permission; the client and account remain separately identified. Regulatory
+source authority should be recorded explicitly in provenance. It should not
+be inferred merely by putting the regulator into an \texttt{assigner} field,
+which would hide a substantive mapping choice. A general regulatory rule set
+can use \texttt{odrl:Set}; a particular agreement with a client is a different
+record. These are proposed domain choices to specify and test, rather than
+universal mappings supplied by ODRL.
+
+\subsection{The circular contains calculations, dispensations and legal changes}
+
+The financial limb illustrates the calculational part. Let $P$ be the
+qualifying portfolio value and $N$ the qualifying net assets excluding the
+primary residence, both expressed in Hong Kong dollars at the declared
+assessment date. After the ownership, aggregation and currency questions have
+been resolved, the financial condition is
+\begin{equation}
+\label{eq:odrl-financial-limb}
+ F(P,N)=(P\geq 40{,}000{,}000)\ \lor\ (N\geq 80{,}000{,}000).
+\end{equation}
+Equality satisfies either threshold. A portfolio of HK\$40 million therefore
+passes this limb even when the net-asset alternative does not. The disjunction
+does not establish SPI status: professional-investor status, knowledge or
+experience and investment objectives are additional conditions. Joint holdings,
+written allocations, liabilities and qualifying investment-holding corporations
+require their own source-based treatment
+\citep[paras.~1--5]{sfcspiannex1}.
+
+Knowledge or experience can be established through the specified degree or
+postgraduate diploma, a professional qualification in finance, at least one
+year of relevant professional work in the financial sector, or at least five
+transactions within the past three years in the same product category.
+Reliance on trading experience therefore needs category identity and a calendar
+reference date. A representative's expertise is not automatically the client's
+expertise, although transactions through a representative or joint account may
+contribute to the client's trading history. Unknown objectives cannot establish
+that the client is nonconservative
+\citep[paras.~4.1, 5.1 and 7.3]{sfcspiannex1}
+\citep[FAQ~2]{sfcspiannex2}.
+
+The procedure relaxations introduce a different kind of statement. Paragraphs
+10 and 11 say that specified procedures are ``not required'' under the
+applicable conditions. This is a dispensation from a requirement; it is not
+a prohibition on performing that procedure. Nor is it a blanket exemption
+from suitability obligations. The explanation relaxation has exceptions for
+requests and material queries, and solicited or recommended transactions differ
+from unsolicited complex-product transactions. A translation must preserve the
+scope of the relieved duty and the duties that survive
+\citep[paras.~10--11]{sfcspiannex1}.
+
+Client choices also change what applies. Prior written agreement and the
+specified explanation precede use of the approach. Paragraph~13.1(d) provides
+for withdrawal; paragraphs~13.2(c)(iii) and 13.2(d)(iii) concern changes to
+categories and thresholds; paragraph~14 requires annual review and reminders.
+An old consent event cannot authorize indefinitely after withdrawal. Equally,
+``annually'' does not choose a 365-day arithmetic convention. The selected
+calendar and effective-time interpretation must be visible
+\citep[paras.~13--14]{sfcspiannex1}.
+
+Finally, the financial evidence requirement must not be strengthened
+accidentally. FAQ~1 permits reliance on disclosed information after reasonable
+know-your-client efforts in the stated circumstances; inconsistencies need
+clarification. Recordkeeping and universally demanding documentary proof are
+different requirements. These qualitative assessments need evidence and a
+declared interpretation. Inventing a numeric cutoff for ``reasonably satisfied''
+would make a program easier to run by changing its subject
+\citep[FAQ~1]{sfcspiannex2}.
+
+\subsection{What direct text-to-ODRL research demonstrates}
+
+\citet{revelodrl2023} offer an inspectable translation route: a sentence is
+parsed into Abstract Meaning Representation (AMR), converted into RDF, and
+transduced into ODRL. AMR makes linguistic relationships explicit before
+the policy representation is selected. This is a useful baseline for separating
+linguistic analysis from policy construction. It does not remove the need to
+resolve definitions, references and the legal effect of exceptions.
+
+Their experiment contains approximately 100 simple deontic sentences, about
+20\% handcrafted and the remainder generated from a grammar, plus ten
+negative examples. Modality extraction has reported precision 0.780, recall
+0.640 and F-score 0.703; action extraction has precision 0.989, recall 0.810
+and F-score 0.891. These are component scores rather than whole-policy legal
+accuracy. Document preprocessing and definition resolution are described as
+hypothetical extensions. The error discussion includes the scope of negation:
+permission not to reproduce is different from lack of permission to reproduce.
+That problem is directly relevant to the circular's ``not required'' language
+\citep[method, experiments and error discussion]{revelodrl2023}.
+
+\citet{mustafaodrl2024} take an ontology-guided language-model approach. They
+provide ODRL concepts, curated explanations and examples, then refine generated
+policies. Twelve cultural-dataspace use cases, three models and three methods
+give 108 configurations; the paper describes initially running each use case
+once. Its prominent 91.95\% figure is 217 of 236 selected checks for one use
+case with refinement. It is not the probability that a complete legal policy
+was interpreted correctly. The method supports a small generation baseline,
+especially because it makes the allowed vocabulary explicit
+\citep[secs.~2--4 and Table~1]{mustafaodrl2024}.
+
+The associated LLM4ODRL code parses policies and checks SHACL shapes. SHACL
+expresses conditions on an RDF graph: for example, whether a particular kind
+of node has the required properties. Some repository shapes require creator,
+description, title and issue date. Those can be useful application requirements,
+but should not all be attributed to the W3C core standard. No repository-level
+licence was found in the inspected checkout, so the method can inform a baseline
+without assuming permission to copy its code \citep{hkmaodrlsoftware2026}.
+
+\citet{agentodrl2026} add an orchestrator, reference rewriting, decomposition,
+ontology-guided generation and SHACL-guided correction. Seventy seed cases are
+expanded with a model into 770 cases: 440 simple, 220 with parallel relationships
+and 110 with sequential dependencies. The semantic evaluation uses checkpoints
+extracted by a model and judgments from two language models; the grammar score
+uses selected shape violations. These measurements are useful for the authors'
+generation experiment. They are not an independently established legal
+interpretation of a circular and its annexes.
+
+AgentODRL also gives a reason to keep the first experiment simple. Fixed
+preprocessing workflows achieve higher aggregate semantic scores than the
+adaptive orchestrator in parts of the reported comparison. The evidence does
+not justify assuming that more orchestration improves this task. Compare a
+direct ontology-guided proposal with explicit reference handling before adopting
+the full system. Its Apache-licensed code is reusable, but the inspected
+correction loop can retain a final candidate after exhausting its correction
+budget without establishing success. The local result must preserve that failure
+status. Reference rewriting must also retain the passages that supplied each
+condition and exception \citep{agentodrl2026,hkmaodrlsoftware2026}.
+
+There is earlier NLP work on RDF licence generation by Cabrio, Aprosio and
+Villata, discussed in the AMR paper. Its original technical text was not
+obtained in this survey, so it is a historical lead rather than separately
+verified performance evidence. Likewise, De Vos, Kirrane, Padget and Satoh's
+2019 \emph{ODRL Policy Modelling and Compliance Checking} is a directly
+relevant lead on regulatory profiles and answer-set-program compliance,
+including GDPR. The publication record and later references were located,
+but the original attachment remained unavailable. Detailed claims about its
+encoding or adoption would require that text
+\citep{revelodrl2023,hkmaodrlsurvey2026}.
+
+\subsection{Legal meaning and formal semantics constrain the translation}
+
+\citet{criticalodrl2021} explain why a legal relationship can exceed a simple
+usage permission. Duties, institutional powers, delegation, revocation and
+policy lifecycle require distinctions that are easily hidden by a single
+allow/deny result. For this circular, withdrawing consent changes the
+arrangement; a dispensation changes which procedure is required; and the
+regulator, intermediary and client occupy different roles. The critique
+identifies modelling questions. Later semantics work must be considered
+alongside it rather than assuming ODRL has remained unchanged.
+
+The inspected AIUP profile supplies a practical example of regulatory
+specialisation. It defines vocabulary for intended and precluded AI uses,
+oversight and reporting, while expressly limiting its coverage of the EU AI
+Act. Its draft specification, rather than the associated research paper, was
+the source inspected here. Its relevance is the discipline of declaring exact
+domain terms and supported questions. A corresponding HKMA profile should
+state which duties and changes it can represent, rather than call every
+operation \texttt{odrl:use} \citep{aiupprofile2024}.
+
+\citet{bonattiodrl2025} develop declarative semantics for rule activation,
+action matching, duties and compliance over traces. A trace records relevant
+events and their order. This makes an otherwise hidden question explicit:
+does one performance of a duty permit one subsequent action or many? A consent
+to a continuing arrangement and an explanation in response to a particular
+request require different answers. Their discussion also distinguishes
+constraints on activation from conditions of fulfilment, considers policy gaps,
+and identifies unresolved features such as temporal operands and a separate
+meaning for \texttt{andSequence}. These are proposed semantic choices, not
+a new W3C Recommendation
+\citep[sec.~3, especially 3.6--3.8]{bonattiodrl2025}.
+
+\citet{odrlnormalisation2026} show how a restricted policy fragment can be
+normalised and compared under declared semantics. Their algorithms partition
+numerical and symbolic conditions into matching regions and establish
+preservation results. This suggests future checks for overlapping threshold
+conditions or an unintended change between exports. The fragment excludes
+attached duties, remedies and consequences; standalone obligations remain
+unchanged in the policy-preservation result. Splitting one obligation into
+several required obligations can change its meaning. The normal form can grow
+exponentially in the number of attributes, and empirical performance evaluation
+is left for future work. This is a basis for restricted comparison, not a
+generic equivalence procedure for the whole circular
+\citep[secs.~3--4, especially Theorem~6]{odrlnormalisation2026}.
+
+LegalRuleML and eFLINT help identify what the internal interpretation should
+retain even when the initial export is narrower. LegalRuleML addresses source
+correspondence, context, defeasibility, authority and alternative readings.
+The original eFLINT work separates action compliance from duty compliance
+and represents events that create or terminate normative relationships.
+Thus a transaction decision and an outstanding review duty can be reported
+separately. These ideas support the internal design; this proposal does not
+make a new LegalRuleML serializer or eFLINT runtime a prerequisite
+\citep{legalruleml2021,eflint2020}.
+
+\subsection{Evaluation software: what to reuse and what to test first}
+
+\citet{oval2026} formalise access decisions and offline and streaming monitoring,
+and present the OVAL implementation. Its algorithm processes events while
+tracking rule matches and outstanding requirements. That is closer to the
+circular's combination of procedure eligibility and continuing duties than
+syntax validation alone. The reported evaluation uses synthetic workloads and
+comparison with the SolidLab/FORCE cases. Agreement is 54 of 68 cases after
+mapping the comparison system's ``not enough information'' to false. Different
+reasoning and duty interpretations account for disagreements. Runtime results
+on these workloads therefore cannot establish greater legal correctness
+\citep[secs.~4--6]{oval2026}.
+
+The pinned October OVAL code is a reasonable first candidate for a bounded
+trial. Its access API defaults to accepting unfulfilled duties on a promise of
+future fulfilment; another setting requires prior performance. The default
+must not decide whether written consent can be obtained after the transaction.
+Missing values can become false or remain null depending on configuration;
+\texttt{andSequence} is implemented as conjunction rather than temporal
+sequence; event counting is not a category-specific rolling three-year
+history. Numeric comparisons attempt floating-point conversion, even where
+older feature documentation describes lexical comparison. Explicit units,
+some temporal operands and other constructs are unsupported. The proposal
+therefore supplies exact calculations and a declared event adapter, with
+unsupported terms reported before evaluation \citep{hkmaodrlsoftware2026}.
+
+FORCE offers a useful testing pattern: a policy, request, state of the world
+and expected compliance report. Its current documentation describes limitations
+on duties, while code includes duty-reporting structures and rules. Reporting
+a duty and enforcing it as a prerequisite to permission are distinct
+capabilities. A helper also connects policy-level duties through
+\texttt{odrl:duty}, where the W3C model uses \texttt{odrl:obligation}.
+These are concrete compatibility checks for the intended input route, not
+evidence that every FORCE evaluation fails. The reported 67/68
+activation-similarity result is not a local result or a measure of fulfilled
+legal duties. The associated 2025 papers were located bibliographically but
+not obtained in full, so the recommendation rests on inspected code and
+documentation \citep{hkmaodrlsoftware2026}.
+
+ODRE addresses the connection between descriptive policy terms and executable
+values. \citet{odre2024} use runtime interpolation and operand/action adapters,
+with Python and Java implementations and 24 demonstration tests per
+implementation. Their tested enforcement is synchronous; temporal monitoring
+is future work in that version. The Python checkout presents additional static
+concerns: the rule traversal discards whether a rule was reached through
+permission, prohibition or obligation, and the constraint query appears to
+look directly on a rule where its own sample uses a nested constraint node.
+An empty constraint result is then accepted. These findings were not executed
+as failures, but they are sufficient to withhold selection as the first general
+normative evaluator pending focused reproduction
+\citep{odre2024,hkmaodrlsoftware2026}.
+
+Eclipse Dataspace Components provides registered evaluation functions,
+execution scopes and JSON-LD policy transformation. These are useful later
+if the product needs dataspace negotiation or transfer services. They do not
+extract a circular's norms or define SPI qualification. pySHACL is the smaller
+immediate dependency for graph validation; its shapes must be reviewed and
+must actually target the intended policy nodes. The public ODRL-shape
+repository is a source of ideas, but no repository-level licence was found
+in the inspected checkout \citep{hkmaodrlsoftware2026}.
+
+\begin{table}[htbp]
+\centering
+\caption{Selection for a first trial, based on static inspection rather than a benchmark ranking.}
+\label{tab:odrl-software-choices}
+\begingroup
+\footnotesize
+\renewcommand{\arraystretch}{1.08}
+\begin{tabularx}{\textwidth}{P{27mm}YY}
+\toprule
+Component & Proposed use & Condition before reliance\\
+\midrule
+\href{https://github.com/keman-ruc/wanle-Agentodrl}{AgentODRL} & Generation and reference-handling ideas & Preserve source maps and failed correction status.\\
+\href{https://github.com/Daham-Mustaf/LLM4ODRL}{LLM4ODRL} & Simple ontology-guided methodological baseline & Resolve licence before copying code; review shape assumptions.\\
+\href{https://github.com/RDFLib/pySHACL}{pySHACL} & Structural and profile checks & Review shapes, targeting and negative cases.\\
+\href{https://github.com/DIPS-Tools/ODRL-Engine}{OVAL} & First evaluator trial & Pin duty/default semantics; supply exact facts and explicit time handling.\\
+\href{https://github.com/odrl-force/ODRL-Evaluator}{FORCE} & Scenario/report design and second evaluator & Establish duty and policy-obligation behavior on the chosen route.\\
+\href{https://github.com/ODRE-Framework/odre-python}{ODRE} & Operand-adapter design reference & Reproduce and resolve the inspected traversal concerns.\\
+\href{https://github.com/eclipse-edc/Connector}{EDC} & Later deployment integration & Supply the domain semantics; justify the larger integration cost.\\
+\bottomrule
+\end{tabularx}
+\endgroup
+\end{table}
+
+The inspected AgentODRL, pySHACL documentation, ODRE and EDC declare Apache-2.0
+licensing; OVAL and FORCE use MIT. The table links to the public repositories.
+The proposed first OVAL trial is pinned to \texttt{b2838782b7ce}; the maintained
+AgentODRL checkout is \texttt{d55ed231ba7d}, FORCE is \texttt{194894a04588},
+and ODRE Python is \texttt{1a2cb06004f0}. All nine full checkout commits and inspected-file
+hashes are retained in the survey manifest. These snapshots fix what was
+examined, not a promise about a later release. No software is ranked as
+production ready on this evidence \citep{hkmaodrlsoftware2026}.
+
+\subsection{Choosing the relationship with Catala}
+
+Catala is valuable where the circular gives computations with defaults and
+exceptions. Equation~\ref{eq:odrl-financial-limb}, explicit allocation rules
+and category histories are candidates once their premises are fixed. The
+Catala paper's compilation result concerns translation between formal calculi.
+It does not prove that a natural-language source was interpreted correctly
+or that another language has the same semantics
+\citep[secs.~4.2--4.5]{catala2021}.
+
+Translating the document into Catala first gives early executable calculations
+and uses existing tooling. It is attractive for a predominantly computational
+source or an already reviewed Catala model. Here, however, a calculation need
+not retain the distinction between a dispensation, a legal power to withdraw,
+and an outstanding duty. Reconstructing that information later for ODRL can
+lose meaning. Catala-first is therefore an unnecessary prerequisite for this
+circular.
+
+ODRL-first followed by Catala delivers the desired interchange representation
+early and makes parties, actions and duties visible. But any meaning omitted
+from ODRL is also missing from the subsequent calculation. Agreement between
+the two generated outputs mainly tests that translation step. Fully separate
+document-to-ODRL and document-to-Catala processes provide more independence,
+but duplicate interpretation work and permit sources, terminology and
+assumptions to drift. They are useful experimental comparators on a small
+fragment, rather than the preferred everyday authoring process.
+
+The recommended design retains a richer reviewed interpretation and exports
+ODRL while invoking Catala for selected calculations. Independent scenario
+specifications challenge both. This separates four questions: whether the
+graph conforms to its profile, whether the evaluator implements the chosen
+semantics, whether the two computations agree on a declared domain, and
+whether the interpretation is supported by the circular. Catala can help
+answer the third and expose defects relevant to the second. It does not
+establish the first or fourth by itself.
+
+The practical consequence is to begin with source coverage and the FAQ~6,
+consent and explanation counterexamples. The initial feature should produce a
+reviewable policy and an explicit account of what it cannot express. A generic
+ODRL-to-Catala compiler is not required to obtain that result.
+Section~\ref{sec:odrl-proposal} specifies the records, modules and checks
+needed to make this recommendation concrete.

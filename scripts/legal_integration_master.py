@@ -501,7 +501,13 @@ def main():
     parser.add_argument("task", nargs="?")
     args = parser.parse_args()
     require((args.action == "worker") == bool(args.task), "Only worker accepts a registered task")
-    if args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('time_continuation'):
+    if args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('review_repair'):
+        from scripts.legal_review_repair import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('retained_acquisition_repair'):
+        from scripts.legal_retained_acquisition_repair import verification
+        result = verification()
+    elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('time_continuation'):
         from scripts.legal_integration_time_continuation import verification
         result = verification()
     elif args.action == "verify" and (ROOT / PROGRAM).exists() and read(ROOT / PROGRAM).get('common_capacity'):
@@ -562,7 +568,11 @@ def main():
         from scripts.legal_integration_remaining import verify_repairs
         result = verify_repairs()
     elif args.action == "gap-refresh":
-        if (ROOT / Path('artifacts/legal-mission-control/2026-10-20/common-capacity-interface/local-result.json')).exists():
+        if (ROOT / Path('artifacts/legal-mission-control/2026-10-21/review-repair/local-result.json')).exists():
+            from scripts.legal_review_repair import register
+        elif (ROOT / Path('artifacts/legal-mission-control/2026-10-21/retained-acquisition-repair/local-result.json')).exists():
+            from scripts.legal_retained_acquisition_repair import register
+        elif (ROOT / Path('artifacts/legal-mission-control/2026-10-20/common-capacity-interface/local-result.json')).exists():
             from scripts.legal_integration_common_capacity import register
         elif (ROOT / Path('artifacts/legal-mission-control/2026-10-20/candidate-capacity-retry/local-result.json')).exists():
             from scripts.legal_integration_candidate_retry import register
@@ -598,10 +608,23 @@ def main():
     elif args.action in ("live", "approve-and-run"):
         from scripts.legal_integration_campaign import live, approve
         if args.action == "approve-and-run": approve()
+        if read(ROOT / PROGRAM).get('review_repair'):
+            from scripts.legal_review_repair import worker as live
+        elif read(ROOT / PROGRAM).get('retained_acquisition_repair'):
+            from scripts.legal_retained_acquisition_repair import live
         result = live()
     else:
         result = MasterExecution(ROOT, PROGRAM, STATE).run()
-        if read(ROOT / PROGRAM).get('common_capacity'):
+        if read(ROOT / PROGRAM).get('review_repair'):
+            from scripts.legal_review_repair import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('retained_acquisition_repair'):
+            from scripts.legal_retained_acquisition_repair import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('time_continuation'):
+            from scripts.legal_integration_time_continuation import verification
+            verification()
+        elif read(ROOT / PROGRAM).get('common_capacity'):
             from scripts.legal_integration_common_capacity import verification
             verification()
         elif read(ROOT / PROGRAM).get('candidate_capacity_retry'):

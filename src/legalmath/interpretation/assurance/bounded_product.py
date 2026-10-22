@@ -1192,7 +1192,21 @@ class BoundedProduct:
 
     def correct_answer(self, qid, question, answer, reviews, details, dependencies):
         from .phased.evidence_store import save_exact
+        independent = bool(getattr(self, 'review_repair_profile', None))
         valid_reviews = [r for r in reviews if r.get('status') == 'VALIDATED']
+        if independent:
+            # Invalid siblings remain in reviews and must still be repaired or
+            # superseded by fresh valid reviews; they cannot authorize changes.
+            from .phased.review_repair import validate_verdict
+            valid_reviews = []
+            for row in reviews:
+                if row.get('status') != 'VALIDATED':
+                    continue
+                try:
+                    validate_verdict(row['value'])
+                except LegalMathError:
+                    continue
+                valid_reviews.append(row)
         eligible = (any(r['value']['verdict'] == 'REJECT' and r['value']['support'] and r['value']['issues']
                 for r in valid_reviews) and all(r['value']['verdict'] != 'REJECT' or
                 (r['value']['support'] and r['value']['issues']) for r in valid_reviews))
@@ -1205,9 +1219,17 @@ class BoundedProduct:
                     'maximum_corrections': 1, 'source_identity': self.route.input_hash}
         save_exact(self.directory / ('correction-' + qid + '-original.json'), retained)
         try:
-            assessments, warranted, settled = self.review_warrants(qid, question, answer, reviews, details)
+            assessments, warranted, settled = self.review_warrants(qid, question, answer,
+                valid_reviews if independent else reviews, details)
+            if independent:
+                # Grouping uses filtered indices. Keep the original population
+                # address as well, so quarantined siblings cannot shift evidence.
+                original_indices = [i for i, row in enumerate(reviews)
+                    if any(row is candidate for candidate in valid_reviews)]
+                for assessment in assessments:
+                    assessment['original_review_index'] = original_indices[assessment['review_index']]
             retained['review_warrants'] = assessments
-            if not settled:
+            if not settled and (not independent or not warranted):
                 retained['status'] = 'WARRANT_UNRESOLVED'
                 return answer, reviews, retained
             corrected_details = deepcopy(details)
@@ -1225,14 +1247,22 @@ class BoundedProduct:
                         'or exception and distinguish the actual question from other unknown facts. '
                         'Keep supported alternatives and qualifications. An already-correct final '
                         'answer does not repair an incomplete account. Do not invent a legal rule.'}
-                corrected = self.note(f'correction-{qid}-requirement-{i}',
-                    'CORRECT_REVIEWED_REQUIREMENT', question, self.source_records(material),
-                    material, [detail['id']], partition=False)
+                try:
+                    corrected = self.note(f'correction-{qid}-requirement-{i}',
+                        'CORRECT_REVIEWED_REQUIREMENT', question, self.source_records(material),
+                        material, [detail['id']], partition=False)
+                except Exception as exc:
+                    if not independent:
+                        raise
+                    corrected = self.failure(exc)
                 account_corrections.append({'id': detail['id'],
                     'original_result_hash': digest(detail['result']), 'result': corrected})
-                require(corrected['status'] == 'VALIDATED',
-                        'Required account correction failed', 'E_DEPENDENCY')
-                corrected_details[i] = {**deepcopy(detail), 'result': corrected}
+                if corrected['status'] == 'VALIDATED':
+                    corrected_details[i] = {**deepcopy(detail), 'result': corrected}
+                elif not independent:
+                    require(False, 'Required account correction failed', 'E_DEPENDENCY')
+                if independent:
+                    save(self.directory / ('correction-' + qid + '-accounts.json'), account_corrections)
             retained['corrected_requirement_details'] = corrected_details
             save(self.directory / ('correction-' + qid + '-accounts.json'), account_corrections)
             material = {'original': answer['value'],
@@ -1248,7 +1278,16 @@ class BoundedProduct:
                         'State the exact scope of any conditional conclusion in the conclusion itself.'}
             if account_corrections:
                 material['corrected_requirement_accounts'] = [
-                    {'id': row['id'], 'value': row['result']['value']} for row in account_corrections]
+                    {'id': row['id'], 'value': row['result']['value']} for row in account_corrections
+                    if row['result']['status'] == 'VALIDATED']
+            if independent:
+                material['unresolved_review_warrants'] = [r for r in assessments
+                    if r['result']['status'] != 'VALIDATED' or any(d['disposition'] == 'UNRESOLVED'
+                        for d in r['result']['value']['decisions'])]
+                material['retained_source_gaps'] = [gap for r in assessments if r['result']['status'] == 'VALIDATED'
+                    for gap in r['result']['value']['source_gaps']]
+                material['failed_account_corrections'] = [r for r in account_corrections
+                    if r['result']['status'] != 'VALIDATED']
             # No valid objection authorizes changing a correct answer. Every
             # required fresh review still runs under the explicit question scope.
             candidate = (self.note('correction-' + qid, 'CORRECT_REVIEWED_ANSWER', question,
@@ -1259,6 +1298,15 @@ class BoundedProduct:
                 return answer, reviews, retained
             fresh = self.audit_answer(qid, question, candidate['value'], corrected_details, prefix='corrected-')
             fresh += self.audit_dependencies(qid, question, candidate['value'], dependencies, prefix='corrected-')
+            if independent:
+                if material['unresolved_review_warrants']:
+                    fresh.append({'status': 'FAILED', 'error': 'E_DEPENDENCY',
+                        'reason': 'Independent corrections completed; some issue warrants remain unresolved',
+                        'assessments': material['unresolved_review_warrants']})
+                if material['failed_account_corrections']:
+                    fresh.append({'status': 'FAILED', 'error': 'E_DEPENDENCY',
+                        'reason': 'Independent corrections completed; some requirement repairs failed',
+                        'corrections': material['failed_account_corrections']})
             retained.update(status='REVIEWED', candidate_reviews=fresh)
             return candidate, fresh, retained
         except Exception as exc:

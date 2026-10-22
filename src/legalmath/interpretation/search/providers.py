@@ -28,9 +28,47 @@ class TerminatedCallTimeout(TerminalServiceFailure):
     """The local child is dead and retained evidence proves no complete output."""
 
 
-def transient_service_details(events, *, output_present, allow_terminal_499=False):
+def retry_output_present(events, *, allow_blank_messages=False):
+    """Fail closed on output or ambiguous events; blank final text is no answer."""
+    for event in events:
+        if not isinstance(event, dict) or not isinstance(event.get('type'), str):
+            return True
+        if event['type'] == 'turn.completed':
+            return True
+        if allow_blank_messages and event['type'] not in {
+                'thread.started', 'turn.started', 'turn.failed', 'error',
+                'item.started', 'item.updated', 'item.completed'}:
+            return True
+        if 'item' not in event:
+            if allow_blank_messages and event['type'].startswith('item.'):
+                return True
+            continue
+        item = event['item']
+        if not isinstance(item, dict) or not isinstance(item.get('type'), str):
+            return True
+        if item['type'] == 'agent_message':
+            if not (allow_blank_messages and set(event) <= {'type', 'item'}
+                    and event['type'] in ('item.started', 'item.updated', 'item.completed')
+                    and set(item) <= {'id', 'type', 'text'} and isinstance(item.get('text'), str)
+                    and not item['text'].strip()):
+                return True
+        elif allow_blank_messages and item['type'] not in ('reasoning', 'error'):
+            return True
+        elif allow_blank_messages and item['type'] == 'error':
+            # The CLI can emit this nonterminal metadata warning before a turn.
+            # All other embedded errors require explicit diagnosis.
+            message = item.get('message')
+            if not (isinstance(message, str) and re.fullmatch(
+                    r'Model metadata for `[^`]+` not found\. Defaulting to fallback metadata; '
+                    r'this can degrade performance and cause issues\.', message)):
+                return True
+    return False
+
+
+def transient_service_details(events, *, output_present, allow_terminal_499=False, allow_terminal_timeout=False):
     """Use explicit terminal service messages; never infer retry from model text."""
-    if output_present or any(e.get('type') == 'turn.completed' for e in events):
+    if (output_present or (allow_terminal_timeout and retry_output_present(events, allow_blank_messages=True))
+            or any(e.get('type') == 'turn.completed' for e in events)):
         return None
     messages = [str(e.get('message', '')) for e in events if e.get('type') == 'error']
     messages += [str(e.get('error', {}).get('message', '')) for e in events
@@ -40,10 +78,14 @@ def transient_service_details(events, *, output_present, allow_terminal_499=Fals
     if any(re.search(r'invalid_request|blocked by our safety systems|cannot (?:assist|comply)|can.t (?:assist|comply)', m, re.I)
            for m in messages):
         return None
+    if allow_terminal_timeout and messages and all(m.strip().lower() == 'request timed out' for m in messages):
+        if any(e.get('type') == 'turn.failed' for e in events) and not retry_output_present(
+                events, allow_blank_messages=True):
+            return {'message': 'request timed out', 'retry_after_seconds': None, 'unparsed_retry_after': False}
     cancellation = any(re.search(r'\b499\b', m) for m in messages)
     if cancellation and (not allow_terminal_499
             or not any(e.get('type') == 'turn.failed' for e in events)
-            or any(e.get('item', {}).get('type') == 'agent_message' for e in events)):
+            or retry_output_present(events, allow_blank_messages=allow_terminal_timeout)):
         return None
     selected = []
     for message in messages:
@@ -57,6 +99,8 @@ def transient_service_details(events, *, output_present, allow_terminal_499=Fals
                 ('temporarily overloaded', 'try again in', 'retry after', 'retry-after')))
             or ('429' in lower and 'too many requests' in lower))
         if not transient:
+            if allow_terminal_timeout:
+                return None
             continue
         selected.append(message)
     if not selected:
@@ -81,10 +125,10 @@ def transient_service_details(events, *, output_present, allow_terminal_499=Fals
             'unparsed_retry_after': unparsed}
 
 
-def terminal_service_error(events, *, output_present, allow_terminal_499=False):
+def terminal_service_error(events, *, output_present, allow_terminal_499=False, allow_terminal_timeout=False):
     """Classify only an ended, no-output transport failure, not model content."""
     details = transient_service_details(events, output_present=output_present,
-        allow_terminal_499=allow_terminal_499)
+        allow_terminal_499=allow_terminal_499, allow_terminal_timeout=allow_terminal_timeout)
     return details['message'] if details else None
 
 
@@ -256,7 +300,8 @@ class CodexProvider:
                 diagnostic=logs[1].read_text()[-2000:]
                 diagnostic=re.sub(r'(?i)(bearer\s+|(?:api[_-]?key|token)\s*[=:]\s*)[^\s,\"]+',r'\1[REDACTED]',diagnostic)
                 terminal = terminal_service_error(events, output_present=output.exists(),
-                    allow_terminal_499=getattr(self, 'retry_terminal_499', False))
+                    allow_terminal_499=getattr(self, 'retry_terminal_499', False),
+                    allow_terminal_timeout=getattr(self, 'retry_terminal_timeout', False))
                 if terminal is not None and proc.returncode is not None:
                     raise TerminalServiceFailure(terminal[:2000], allowance_slot=issued,
                                                  request_hash=digest(request))

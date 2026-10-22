@@ -30,6 +30,9 @@ def decisions(product,value,ids,records):
     require(used==set(table),'Missing or unassigned rationale')
     for decision in table.values():
         product.citations(decision,records)
+        if getattr(product, 'review_repair_profile', None):
+            from .review_repair import validate_verdict
+            validate_verdict(decision)
         require(decision['verdict']!='ACCEPT' or (decision['support'] and
             not decision['issues'] and not decision['source_gaps']),
             'Accepted rationale lacks support or retains defects')

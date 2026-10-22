@@ -9,6 +9,7 @@ from scripts.legal_mission_execution import Refused
 class Deferred:
     def __init__(self, error):
         self.error, self.events, self.blocked, self.state = error, [], [], {}
+        self.program = {}
     def summary(self): return {'ready': ['acquire-p10', 'acquire-evidence']}
     def block_before_dispatch(self, tid, *args, **kwargs): self.blocked.append(tid)
     def sync_mission(self): raise self.error

@@ -47,6 +47,9 @@ def review(product,qid,question,answer,item,initial,needs,*,prefix='',admit=None
     retained={'profile':'explicit-dependency-context-review.v1','original_review':deepcopy(initial),
         'item':deepcopy(item),'answer_hash':digest(answer),'needs':deepcopy(needs),
         'maximum_bridge_calls':1,'classification':'CONTEXT_CONTINUATION_NOT_ANSWER_RESAMPLING'}
+    remaining = [n for n in initial['value'].get('context_needs', []) if n['kind'] != 'SOURCE_TEXT']
+    if getattr(product, 'review_repair_profile', None):
+        retained['remaining_context_needs'] = deepcopy(remaining)
     try:
         records,retrieval=select_context(product,qid,item,needs)
         payload={'answer':answer,'item':item,'original_review':initial['value'],'needs':needs,
@@ -63,6 +66,11 @@ def review(product,qid,question,answer,item,initial,needs,*,prefix='',admit=None
         def check(value):
             require(value['considered']==[item['id']],'Lost bridge assignment')
             product.citations(value,records)
+            if getattr(product, 'review_repair_profile', None):
+                from .review_repair import validate_verdict
+                validate_verdict(value)
+                require(not remaining or value['verdict'] != 'ACCEPT',
+                    'Source bridge cannot discharge an absent fact or external authority')
             require(value['verdict']!='ACCEPT' or (value['support'] and not value['issues'] and
                 not value['source_gaps']),'Unsupported bridge acceptance')
         if admit is None:
@@ -74,6 +82,8 @@ def review(product,qid,question,answer,item,initial,needs,*,prefix='',admit=None
             result=(outcome['results'][0]['result'] if outcome['results'] else outcome['resource_refusal'])
         retained.update(result=result,delivered_ids=[r['id'] for r in records],
             retrieval=retrieval,measurement=measurement)
+        if result['status'] == 'VALIDATED' and getattr(product, 'review_repair_profile', None):
+            result['value']['context_needs'] = deepcopy(remaining)
     except Exception as exc:
         retained['result']=product.failure(exc)
     from legalmath.interpretation.assurance.monitor import save

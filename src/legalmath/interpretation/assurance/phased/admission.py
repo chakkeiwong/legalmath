@@ -19,6 +19,8 @@ def admit(root, base, live, name, logical_calls, *, owner):
     from ..time_authority import effective_deadline
     deadline = effective_deadline(root, root / base, grant=grant, binding=binding)
     ledger = json.loads((root / base / 'live-calls.json').read_text())
+    from .branch_budget import check as check_budget
+    check_budget(root, binding, ledger, owner, logical_calls)
     policy = binding['service_recovery_policy']
     maximum = logical_calls + min(policy['maximum_replacements'],
                                    logical_calls * policy['per_request_replacements'])
@@ -37,7 +39,7 @@ def admit(root, base, live, name, logical_calls, *, owner):
         bound = maximum * policy['timeout_seconds'] + replacements * (
             max(max(policy['backoff_seconds']), policy.get('maximum_retry_after_seconds', 0))
             + policy.get('jitter_seconds', 0)) + 305
-        if policy['profile'] == 'counted-service-recovery.v5':
+        if policy['profile'] in ('counted-service-recovery.v5', 'counted-service-recovery.v6'):
             # Hourly outages are contingencies, not required work. Each actual
             # wait and retry separately checks the unchanged global deadline.
             bound = logical_calls * policy['timeout_seconds'] + 305

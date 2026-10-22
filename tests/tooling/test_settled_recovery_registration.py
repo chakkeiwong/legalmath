@@ -72,7 +72,7 @@ def test_product_route_uses_exact_successor_not_stale_synthesis(monkeypatch,tmp_
         'lossless_account_repair':{'retained':True},'account_instruction_repair':{'retained':True},
         'settled_recovery':{'work':'recovery','recoveries':{q:pointer},
         'live_directories':{q:'new-live'},'common_directories':{q:'new-common'}}}
-    monkeypatch.setattr(live,'configure',lambda:SimpleNamespace(ENVELOPE='envelope'))
+    monkeypatch.setattr(live,'configure',lambda:SimpleNamespace(ENVELOPE='envelope',effective_deadline=lambda:'unchanged'))
     def read(path):
         if path==live.ROOT/live.PROGRAM:return program
         if str(path).endswith('live-grant.json'):return {'deadline_utc':'unchanged'}

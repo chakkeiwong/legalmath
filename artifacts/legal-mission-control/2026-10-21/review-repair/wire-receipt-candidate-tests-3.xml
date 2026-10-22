@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="13" time="1.140" timestamp="2026-10-22T01:27:52.548127+08:00" hostname="DESKTOP-O4SCJCJ"><testcase classname="test_legal_review_wire_receipts" name="test_real_wire_failure_after_canonical_reload_has_all_repair_assignments" time="0.063" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[ledger]" time="0.026" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[response]" time="0.031" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[provider_bytes]" time="0.028" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[request]" time="0.007" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[schema]" time="0.005" /><testcase classname="test_legal_review_wire_receipts" name="test_changed_evidence_refused[dispatch]" time="0.012" /><testcase classname="test_legal_review_wire_receipts" name="test_no_transport_or_capacity_resampling[TerminalServiceFailure]" time="0.005" /><testcase classname="test_legal_review_wire_receipts" name="test_no_transport_or_capacity_resampling[E_RESOURCE_LIMIT]" time="0.005" /><testcase classname="test_legal_review_wire_receipts" name="test_no_transport_or_capacity_resampling[E_AUTHORITY]" time="0.005" /><testcase classname="test_legal_review_wire_receipts" name="test_missing_wire_stays_missing" time="0.005" /><testcase classname="test_legal_review_wire_receipts" name="test_existing_decoded_repair_path_not_duplicated" time="0.004" /><testcase classname="test_legal_review_wire_receipts" name="test_reference_dispatch_runs_one_repair_for_every_malformed_assignment" time="0.629"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings&#10;max_input_bytes&#10;  Input should be less than or equal to 200000 [type=less_than_equal, input_value=1000000, input_type=int]&#10;    For further information visit https://errors.pydantic.dev/2.12/v/less_than_equal">tmp_path = PosixPath('/tmp/pytest-of-chakwong/pytest-76/test_reference_dispatch_runs_o0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x74b3273732d0&gt;
+
+    def test_reference_dispatch_runs_one_repair_for_every_malformed_assignment(tmp_path, monkeypatch):
+        from dataclasses import replace
+        from legalmath.interpretation.assurance.phased import group_review
+        from legalmath.interpretation.assurance.phased.product import PhasedProduct
+        from legalmath.interpretation.search.providers import Completion
+        from tests.assurance.test_bounded_product import Scripted, envelope, limits
+        from legalmath.interpretation.assurance.phased import review_repair
+        name = review_repair.__name__
+        staged_spec = importlib.util.spec_from_file_location(name, '/tmp/legal_review_repair_candidate.py')
+        staged = importlib.util.module_from_spec(staged_spec)
+        staged_spec.loader.exec_module(staged)
+        monkeypatch.setitem(sys.modules, name, staged)
+        monkeypatch.setitem(sys.modules, name.rsplit('.',1)[0]+'.review_receipts', candidate)
+    
+        class WireProvider(Scripted):
+            reference_transport = True
+            live = False
+            def __init__(self):
+                super().__init__()
+                self.allowance = SimpleNamespace(path=tmp_path/'ledger/live-calls.json')
+                self.allowance.path.parent.mkdir(parents=True)
+                self.allowance.path.write_text(json.dumps(dict(maximum=20,calls=[])))
+            def complete(self, request, schema, settings):
+                self.requests.append(deepcopy(request))
+                ids = list(schema['properties']['assignments']['properties'])
+                decision = dict(reason='The conditional statement follows from the delivered source.',
+                    source_gaps=[], assertion_bindings=[], context_needs=[],
+                    review=dict(verdict='ACCEPT', issues=[], support=[dict(span_id='s0')]))
+                value = dict(analyses=[dict(analysis_id='one', decision=decision)],
+                    assignments={identity:dict(analysis_id='one') for identity in ids})
+                if len(self.requests)==1:
+                    value['assignments'] = [dict(id=identity, analysis_id='one') for identity in ids]
+                ledger=json.loads(self.allowance.path.read_text())
+                ledger['calls'].append(dict(request_hash=digest(request)))
+                self.allowance.path.write_text(json.dumps(ledger))
+                slot=len(ledger['calls'])
+                folder=self.allowance.path.parent/'provider-evidence'/f'{slot}-{digest(request)[:16]}'
+                folder.mkdir(parents=True)
+                content={'request.json':canonical(request), 'schema.json':canonical(schema),
+                    'result.json':canonical(value), 'events.jsonl':(
+                        json.dumps(dict(type='item.completed',item=dict(type='agent_message',text=' ')))+'\n'+
+                        json.dumps(dict(type='item.completed',item=dict(type='agent_message',text=json.dumps(value))))+'\n'+
+                        json.dumps(dict(type='turn.completed'))+'\n').encode()}
+                manifest=dict(allowance_slot=slot, request_hash=digest(request), complete_output_present=True, files={})
+                for filename,data in content.items():
+                    (folder/filename).write_bytes(data)
+                    manifest['files'][filename]=dict(bytes=len(data), original_sha256=hashlib.sha256(data).hexdigest(),
+                        retained_sha256=hashlib.sha256(data).hexdigest(),redacted=False)
+                (folder/'manifest.json').write_text(json.dumps(manifest))
+                return Completion(value, dict(allowance_slot=slot, request_hash=digest(request), response_hash=digest(value)))
+    
+        provider = WireProvider()
+&gt;       p=PhasedProduct(tmp_path,tmp_path/'product',provider,envelope(),list,
+            limits=replace(limits(),input_tokens=100000,input_bytes=1000000),
+            phase_admit=lambda name,count:dict(name=name,count=count), phase_identity='wire-repair-test',
+            review_repair_profile=staged.PROFILE)
+
+/tmp/test_legal_review_wire_receipts.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/legalmath/interpretation/assurance/phased/product.py:28: in __init__
+    super().__init__(*args, **kwargs)
+src/legalmath/interpretation/assurance/bounded_product.py:418: in __init__
+    self.dispatch = BoundDispatch(provider, self.directory / "calls", self.route,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;legalmath.interpretation.assurance.bounded_product.BoundDispatch object at 0x74b2d77fafd0&gt;
+provider = &lt;test_legal_review_wire_receipts.test_reference_dispatch_runs_one_repair_for_every_malformed_assignment.&lt;locals&gt;.WireProvider object at 0x74b327373810&gt;
+directory = PosixPath('/tmp/pytest-of-chakwong/pytest-76/test_reference_dispatch_runs_o0/product/calls')
+route = &lt;legalmath.interpretation.assurance.bounded_context.ContextRoute object at 0x74b3271e9390&gt;
+
+    def __init__(self, provider, directory, route, *, maximum_calls=512, shared_prefix=None):
+        self.provider, self.route = provider, route
+        self.directory = Path(directory)
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.maximum_calls = maximum_calls
+        self.shared_prefix = Path(shared_prefix) if shared_prefix is not None else None
+        self.retained_initial = None
+        self.capacity_manager = None
+&gt;       self.settings = Settings(timeout_seconds=300, max_input_bytes=route.limits.input_bytes,
+                                 max_output_bytes=route.limits.output_bytes)
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E       max_input_bytes
+E         Input should be less than or equal to 200000 [type=less_than_equal, input_value=1000000, input_type=int]
+E           For further information visit https://errors.pydantic.dev/2.12/v/less_than_equal
+
+src/legalmath/interpretation/assurance/bounded_product.py:112: ValidationError</failure></testcase></testsuite></testsuites>
