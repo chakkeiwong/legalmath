@@ -1,5 +1,47 @@
 # Master program for complete legal-tool integration
 
+Current continuation, 24 October: the user extended execution by 72 hours. The
+[reviewed continuation](legal-integration-window-continuation-2026-10-24.md) ends
+27 October at 05:15:09 UTC (13:15:09 Hong Kong). Preserve 4,872 charged calls,
+195 charged service replacements, the 8,100/288 ceilings and all prior results.
+Resume 50 unsent P14 context requests and unfinished warrant/correction stages
+from exact checkpoints, retaining 186 invalid responses. Record P14 continuation
+as attempt 6 without changing attempts 1–5. Resume Gatecoin and independent
+ready original-tool work irrespective of P14's legal outcome. The registry,
+registration receipt and current worker status establish actual deployment.
+Historical entries below retain their original counts and deadlines.
+
+Current amendment, 23 October (Hong Kong): the
+[P14 deployment and decision plan](p14-deployment-and-decisions-2026-10-23.md)
+governs one consolidated repair and continuation. The user authorized 200 more
+service-recovery replacements. Preserve the 88 previous replacements, 4,027
+charged calls, 8,100-call ceiling, deadline 2026-10-24T02:19:15Z, five-minute
+retry interval, 24 replacements per exact request, and every prior attempt.
+The successor recovery ceiling is 288; it adds no global calls. The machine
+register records whether this amendment has actually been deployed.
+
+Reuse all 1,699 validated P14 decisions and explicitly continue the 52 failed
+individual reviews with the repaired response-key correspondence. The
+[decision follow-up](p14-decision-followup-2026-10-23.md) accounts for all 672
+UNRESOLVED and 25 REJECT decisions, preserving their historical labels and exact
+assignments. Query retrieval filters to question scope before ranking; exact
+mapping-only requests receive implementation correspondence. One specifically
+reviewed request for retained Handbook provisions receives those provisions.
+Every other missing fact or authority remains explicit unless a sourced review
+shows it unnecessary to the answer's actual conditional claim.
+
+Assess adverse issues independently before the large context queue, correct only
+supported defects, and review the corrected answer under the existing criteria.
+An invalid live format canary withholds its dependent queue; it does not cancel
+independent warrants, local work or eligible original owners. Reconcile Gatecoin's
+saved owner against process identities and journals before continuation. Refresh
+after each checkpoint. The four original questions, 46 obligations, 35 readings,
+dated applicability and matched tool-effect evaluations remain required.
+Passing local tests or preparing requests is not legal acceptance.
+
+The entries below retain historical findings and limits; they are not current
+status reports.
+
 Current corrective package, 21 October (Hong Kong): the exact Sol retry
 succeeded at charged slot 3486. The subsequent Gatecoin baseline attempt failed
 locally before another model call: the retained-acquisition validator compared
@@ -1758,3 +1800,57 @@ the original consumers, and refresh after each checkpoint. Local commands
 remain independent of provider availability. The remaining four answers,
 original obligations/readings, corpus applicability and actual matched tool
 effects retain their existing acceptance requirements.
+
+## October 24 service-inheritance correction
+
+Attempt 6 stopped before its first new dispatch because the time amendment omitted
+the explicit service-predecessor link. The reviewed correction is in
+`docs/plans/legal-window-service-inheritance-correction-2026-10-24.md`.
+Retain all six attempts and 4,872 calls; one corrected continuation is attempt 7.
+No call/replacement ceiling or deadline changes. Reuse exact checkpoints and
+preserve invalid responses. Gatecoin and other ready owners remain independent.
+
+Gatecoin owners that the old worker finalized with this same pre-dispatch defect
+retain those failed outcomes and receive one corrected continuation each. The
+corrected supervisor stops further live dispatch on a shared authority veto;
+ordinary branch failures still permit independent work.
+
+## October 26 baseline/corpus local deployment
+
+The service-inheritance run ended at 04:42 Hong Kong on October 26 without
+completing integration. The hardened baseline/corpus repair is governed by
+docs/plans/legal-baseline-corpus-local-deployment-2026-10-26.md. This is one
+zero-call local deployment; all spent attempts, 6,471 calls, 288 service
+replacements, the open circuit and the existing deadline remain. Repaired
+profiles use a fresh runtime identity. Live activation remains held pending
+finite reviewed authority and checkpoint migration. P14/Gatecoin judgments
+and missing corpus evidence remain open; local tests do not settle them.
+
+## October 26 repaired continuation and 500 additional retries
+
+The user grants 500 additional service retries. The reviewed continuation in
+docs/plans/legal-repaired-baselines-retry-continuation-2026-10-26.md increases
+only the replacement ceiling, from 288 to 788, within the unchanged 8,100 calls
+and October 27 05:15:09 UTC deadline. It preserves all prior charges and the
+protected original-question budgets. P14 and Gatecoin receive one repaired
+continuation each; the paused BM25 owner retains its current attempt. Successful
+answers and corrections are fixed. Failed reviews retry only under authenticated
+checkpoints; genuine unresolved legal findings remain open. Corpus qualification
+requires actual evidence, and unrelated original questions continue independently.
+
+
+## Product closure amendment, 26 October 2026
+
+Execute docs/plans/legal-product-closure-2026-10-26.md under the existing task graph. Preserve all prior attempts, calls, reservations and the deadline. Conditional-answer issue dispositions must bind every old objection to the actual answer version. Independent corpus source reviews can complete with documented limitations; final qualification still requires every original answer and adverse controls. Use the tested equivalent Unicode validation predicate; full integrity checks remain. After each package retain its evidence, refresh the ready set, continue independent work, and report exact remaining blockers. No local test closes the legal mission.
+
+
+### Closure follow-through, 26 October 2026
+
+Execute product-closure/followthrough/review.md within the same amendment. Check exact answer attribution, reuse authenticated original warrants before fresh current-answer reviews, and permit only identical answer-path enum order changes. Resolve the reproduced schema veto and permit one P14 recovery reservation (8 to 9), retaining all prior attempts. Calls, service limits, deadline and protected budgets stay unchanged. The P14 assurance supplement remains review-ready only. Retain results, refresh the frontier and continue independent work.
+
+
+### Runtime completion and current legal review, 27 October 2026
+
+Continue the existing closure amendment using its reviewed runtime-deployment plan. Ready independent acquisitions take priority at task boundaries; after a typed same-branch zero-spendable-call refusal, retain all outstanding reviews and yield. Retain exact requests, phase identity, checkpoints, reservations, attempt history, protected funds and deadline. This is a runtime-only deployment; semantic source-context/account candidates remain staged. P14 is exhausted at 9/9 and receives no new attempt or diverted allocation.
+
+The latest local conditional-review manifest accounts for 299 of 528 intervening issue occurrences, leaving 229 pending. All 916 unresolved and eight failed predecessor reviews remain. These dispositions are not fresh legal acceptance. The UT 6.8 reference concerns the member register; Appendix extraction differences need exact materiality review. Remaining source/applicability review, complete account/answer review, four whole-answer use assessments and 24 matched effects still govern master completion. Preserve results, refresh the ready set after each checkpoint, and continue independent authorized work.

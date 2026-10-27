@@ -19,10 +19,22 @@ from legalmath.interpretation.assurance.phased.evidence_store import load_exact,
 from legalmath.interpretation.assurance.phased.admission import admit
 
 LIVE = WORK / 'live'
+FAIRNESS_PROFILE = 'independent-acquisition-before-answer-drain.v1'
+FAIRNESS_FIELD = 'acquisition_fairness_profile'
 
 
 def active_live(program):
+    if program.get('repaired_retry_continuation'):
+        return Path(program['repaired_retry_continuation']['runtime'])
+    if program.get('baseline_corpus_repair'):
+        return Path(program['baseline_corpus_repair']['runtime'])
+    if program.get('window_continuation'):
+        return Path(program['window_continuation'].get('service_inheritance',program['window_continuation'])['runtime'])
     if program.get('review_repair'):
+        if program['review_repair'].get('optional_quote_validation'):
+            return Path(program['review_repair']['optional_quote_validation']['runtime'])
+        if program['review_repair'].get('deployment'):
+            return Path(program['review_repair']['deployment']['runtime'])
         if program['review_repair'].get('timeout_correction'):
             return Path(program['review_repair']['timeout_correction']['runtime'])
         if program['review_repair'].get('receipt_correction'):
@@ -351,10 +363,37 @@ def product_route(q,tool,service,*,preparation_only=False,recovery_context=None)
     if program.get('review_repair'):
         repaired = program['review_repair']
         options['bounded_review_repair_profile'] = repaired['review_profile']
+        options['bounded_review_assignment_profile'] = repaired.get('review_assignment_profile')
+        options['bounded_service_prerequisite_profile'] = repaired.get('service_prerequisite_profile')
         options['bounded_capacity_checkpoint'] = repaired['checkpoints'][q]
         if not preparation_only:
             options['bounded_capacity_checkpoint'] = repaired['arm_checkpoints'].get(q, {}).get(
                 tool or 'baseline', options['bounded_capacity_checkpoint'])
+            if repaired.get('deployment'):
+                options['bounded_capacity_checkpoint'] = repaired['deployment']['arm_checkpoints'].get(q, {}).get(
+                    tool or 'baseline', options['bounded_capacity_checkpoint'])
+            if repaired.get('optional_quote_validation'):
+                options['bounded_capacity_checkpoint'] = repaired['optional_quote_validation']['arm_checkpoints'].get(q, {}).get(
+                    tool or 'baseline', options['bounded_capacity_checkpoint'])
+    if program.get('window_continuation') and not preparation_only:
+        options['bounded_capacity_checkpoint'] = program['window_continuation']['arm_checkpoints'].get(q, {}).get(
+            tool or 'baseline', options['bounded_capacity_checkpoint'])
+    if program.get('repaired_retry_continuation') and not preparation_only:
+        options['bounded_capacity_checkpoint'] = program['repaired_retry_continuation']['arm_checkpoints'].get(q, {}).get(
+            tool or 'baseline', options['bounded_capacity_checkpoint'])
+    if program.get('baseline_corpus_repair') and not preparation_only:
+        repair = program['baseline_corpus_repair']
+        require(repair.get('profile') == 'reviewed-baseline-corpus-repair.v1',
+            'Unknown baseline/corpus repair selection')
+        options.update(bounded_context_reference_profile=repair['context_reference_profile'],
+            bounded_warrant_reference_profile=repair['warrant_reference_profile'],
+            bounded_correction_input_profile=repair['correction_input_profile'])
+    if program.get('product_closure') and not preparation_only:
+        options['bounded_capacity_checkpoint']=program['product_closure'].get('arm_checkpoints',{}).get(q,{}).get(
+            tool or 'baseline',options.get('bounded_capacity_checkpoint'))
+    runtime = program.get('product_closure', {}).get('runtime', {})
+    if runtime:
+        options['bounded_review_budget_yield_profile'] = runtime['review_budget_yield_profile']
     directory=ROOT/common if preparation_only else ROOT/route_live/'arms'/q/(tool or 'baseline')
     shared=None if preparation_only else ROOT/common/'calls'
     return run_product(ROOT,directory,service,ROOT/'jdk','2026-10-15T00:00:00+08:00',
@@ -367,7 +406,8 @@ def product_route(q,tool,service,*,preparation_only=False,recovery_context=None)
         bounded_phase='prepare' if preparation_only else 'answer',bounded_execution='phased',
         bounded_acquisition_ref=ref(ROOT,LIVE/'acquisition/investigation.json'),
         bounded_phase_admit=admission,
-        bounded_phase_identity=ref(ROOT,BASE/'current-binding.json')['sha256'],**options)
+        bounded_phase_identity=program.get('product_closure',{}).get('phase_identity',
+            ref(ROOT,BASE/'current-binding.json')['sha256']),**options)
 
 
 def acquire(q,service):
@@ -459,10 +499,17 @@ def defer_open_service(execution, tid):
     return True
 
 
-def drain_answers(execution, campaign, service):
+def drain_answers(execution, campaign, service, *, maximum_nodes=None, yield_to_acquisitions=False):
     """Run ready consumers without waiting for another question's acquisition."""
+    require(maximum_nodes is None or (type(maximum_nodes) is int and maximum_nodes > 0),
+        'Invalid answer scheduling bound')
+    completed = 0
     while True:
         view=execution.summary()
+        if yield_to_acquisitions and any(t.startswith('acquire-') for t in view['ready']):
+            return
+        if maximum_nodes is not None and completed >= maximum_nodes:
+            return
         ready=[t for t in view['ready']+view['running'] if t.startswith(('baseline-','tool-','compare-'))]
         if not ready:
             return
@@ -484,7 +531,10 @@ def drain_answers(execution, campaign, service):
             else:
                 q,tool=tid[5:].split('-',1)
             action=lambda q=q,tool=tool:answer(q,tool,service)
-        campaign.complete_node(execution,tid,action)
+        outcome = campaign.complete_node(execution,tid,action)
+        completed += 1
+        if isinstance(outcome, dict) and outcome.get('service_deferred'):
+            return  # Existing owner retained; yield to checked service recovery.
 
 
 def live():
@@ -511,6 +561,8 @@ def live():
         # New grouped-review failure does not cancel source-only preparation.
         order=QUESTIONS
         current_program=read(ROOT/PROGRAM)
+        fairness = current_program.get(FAIRNESS_FIELD)
+        require(fairness in (None, FAIRNESS_PROFILE), 'Unknown acquisition fairness profile')
         account_revision=(current_program.get('repair_execution') or current_program.get('complete_account_capacity_repair') or current_program.get('account_reconstruction_repair') or current_program.get('account_instruction_repair')
             or current_program.get('lossless_account_repair') or current_program.get('account_capacity_repair'))
         if account_revision:
@@ -524,6 +576,9 @@ def live():
             if tid in view['ready']+view['running'] and not defer_open_service(execution, tid):
                 campaign.complete_node(execution,tid,lambda q=q:acquire(q,service))
             if current_program.get('settled_recovery'):
-                drain_answers(execution, campaign, service)
+                if fairness is not None:
+                    drain_answers(execution,campaign,service,maximum_nodes=1,yield_to_acquisitions=True)
+                else:
+                    drain_answers(execution, campaign, service)
         drain_answers(execution, campaign, service)
         return execution.summary()

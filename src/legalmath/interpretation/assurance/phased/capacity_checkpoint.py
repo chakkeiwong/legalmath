@@ -14,6 +14,28 @@ from . import capacity_policy as policy
 
 PROFILE = 'common-capacity-checkpoint.v1'
 
+def same_schema(previous, current, request):
+    """Allow only answer-path enum order after canonical answer round-trip."""
+    if previous == current:
+        return True
+    if request.get('task') != 'AUDIT_EXPLICIT_DEPENDENCY_CONTEXT':
+        return False
+    path=('properties','need_dispositions','items','properties','answer_evidence','properties','path','enum')
+    left,right=deepcopy(previous),deepcopy(current)
+    try:
+        for key in path[:-1]:
+            left=left[key];right=right[key]
+        a,b=left[path[-1]],right[path[-1]]
+    except (KeyError,TypeError):
+        return False
+    if not (isinstance(a,list) and isinstance(b,list) and all(isinstance(x,str) for x in a+b)
+        and len(a)==len(set(a)) and len(b)==len(set(b)) and set(a)==set(b)):
+        return False
+    normalized=deepcopy(previous);field=normalized
+    for key in path[:-1]:field=field[key]
+    field[path[-1]]=b
+    return normalized==current
+
 
 def retained(product, call):
     pointer = product.capacity_checkpoint
@@ -29,14 +51,16 @@ def retained(product, call):
     for key in keys:
         candidate = checkpoint['calls'][key]
         request = read_evidence(candidate['request'], product.root)
-        if policy.annotate(request) != wanted:
+        from .retry_checkpoint import equivalent
+        if not equivalent(request, wanted, checkpoint, candidate, product.root):
             # Answer reuse is mandatory. Changed review populations may create
             # new decisions, but cannot silently buy a new successful answer.
             require(key != call['key'] or wanted['task'] != 'ANSWER_ORIGINAL_QUESTION',
                 'Capacity reuse changed substantive answer request', 'E_INTEGRITY')
             continue
         schema = read_evidence(candidate['schema'], product.root)
-        require(schema == call['schema'], 'Capacity reuse changed substantive schema', 'E_INTEGRITY')
+        require(same_schema(schema,call['schema'],wanted),
+            'Capacity reuse changed substantive schema', 'E_INTEGRITY')
         row, original_key = candidate, key
         break
     if row is None:
@@ -45,9 +69,13 @@ def retained(product, call):
     require(not prior.get('continuation_veto'), 'Retained capacity continuation veto: '+str(prior.get('reason')), 'E_AUTHORITY')
     if row.get('dispatch'):
         journal = read_evidence(row['dispatch'], product.root)
-        recorded = journal['calls'][original_key]
+        recorded = journal['calls'][row.get('dispatch_key', original_key)]
         require(journal['input_hash'] == product.route.input_hash and recorded['status'] != 'RESERVED'
             and recorded['result_hash'] == digest(prior), 'Unsettled or changed predecessor call', 'E_INTEGRITY')
+    if row['mode'] == 'REVIEWED_FAILURE_RETRY':
+        from .retry_checkpoint import retryable
+        retryable(checkpoint, row, request, prior, product.root)
+        return None
     if row['mode'] == 'RETAINED_FAILURE':
         require(prior['status'] == 'FAILED', 'Cannot import a success as a failure', 'E_INTEGRITY')
         return deepcopy(prior)
@@ -86,7 +114,7 @@ def retained(product, call):
         from ..bounded_references import resolve
         value = resolve(wire_value, prepared, maximum_bytes=product.route.limits.decoded_output_bytes)
     policy.measure_output(value, policy.annotate(call['request']), product.route.limits, product.route.encode, expanded=True)
-    validate(value, schema)
+    validate(value, call['schema'])
     call['validate'](value)
     return dict(status='VALIDATED', value=value, request_hash=digest(policy.annotate(call['request'])),
         provenance=dict(capacity_checkpoint=pointer, original_key=original_key, original_result=row['result'], mode=row['mode'],

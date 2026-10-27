@@ -63,6 +63,13 @@ class CapacityManager:
             try:
                 result = self.run(call, leaf, implementation_identity=implementation_identity)
             except LegalMathError as exc:
+                from .service_prerequisite import ServiceDeferred, record
+                if isinstance(exc, ServiceDeferred):
+                    pause = dict(phase=name, results=results, execution_complete=False,
+                        service_prerequisite=record(exc))
+                    save(directory / 'service-prerequisite.json', pause)
+                    refresh(pause)
+                    raise
                 result = product.failure(exc)  # Authority/integrity errors are re-raised.
             results.append({'key': call['key'], 'result': result})
             refresh(dict(phase=name, last_call=results[-1], execution_complete=False))
@@ -221,8 +228,15 @@ class CapacityManager:
                             reason=str(getattr(exc, 'details', None) or exc), stage='ASSEMBLED_VALIDATION'))
                     return finish(product.failure(exc))
 
-            result = imported if imported is not None else node(call, 0)
+            from .service_prerequisite import ServiceDeferred, record
+            try:
+                result = imported if imported is not None else node(call, 0)
+            except ServiceDeferred as exc:
+                state.update(status='DEFERRED_SERVICE', service_prerequisite=record(exc))
+                save(path, state)
+                raise
             save_exact(directory / 'result.json', result)
+            state.pop('service_prerequisite', None)
             state.update(status='SETTLED', result_hash=digest(result))
             save(path, state)
             return result

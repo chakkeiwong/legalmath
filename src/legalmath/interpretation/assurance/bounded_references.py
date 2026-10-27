@@ -5,6 +5,7 @@ retains the original response contract. Requirement observations have their own
 schema and cannot be expanded into legal-source quotations.
 """
 from copy import deepcopy
+import json
 
 from jsonschema import validate, Draft202012Validator
 
@@ -16,6 +17,11 @@ PROTOCOL = 'bounded-source-references.v5'
 
 
 def prepare(request, schema):
+    if request.get('review_assignment_profile') is not None or request.get('context_disposition_profile') is not None:
+        # Optional repair bindings must survive canonical JSON persistence.
+        # Hash aliases depend on traversal order, which otherwise changes on
+        # reload. This only orders object keys; lists, values and text stay exact.
+        request = json.loads(canonical(request))
     selected_protocol = request.get("response_reference_profile")
     require(selected_protocol in (None, "bounded-indexed-assertions.v2"), "Unknown response-reference profile")
     protocol = selected_protocol or PROTOCOL
@@ -127,6 +133,12 @@ def prepare(request, schema):
     def wire_shape(shape, field=None):
         if not isinstance(shape, dict): return deepcopy(shape)
         properties = shape.get('properties', {})
+        if request.get('review_assignment_profile') is not None or request.get('context_disposition_profile') is not None:
+            # JSON persistence sorts object keys. Recover the declared field
+            # order from the schema, not transient Python insertion order.
+            order = list(shape.get('required', []))
+            properties = {k: properties[k] for k in order if k in properties} | {
+                k: v for k, v in properties.items() if k not in order}
         if selected_protocol and set(properties) == {"path", "index_hash", "citation"}:
             result = {"type":"object","additionalProperties":False,"properties":{
                 "path":deepcopy(properties["path"]),"assertion_id":{"type":"string",
@@ -301,6 +313,13 @@ def prepare(request, schema):
     from .phased.downstream_instructions import apply as downstream_instructions
     from .phased.downstream_edits import apply as downstream_edits
     result = downstream_edits(downstream_instructions(downstream_input(account_instructions(apply(prepared)))))
+    from .phased.review_contract import apply as review_contract
+    result = review_contract(result)
+    from .phased.context_references import apply as context_references
+    result = context_references(result)
+    from .phased.warrant_references import apply as warrant_references
+    from .phased.correction_input import apply as correction_input
+    result = correction_input(warrant_references(result))
     if request.get('capacity_profile') is not None:
         from .phased.capacity_policy import annotate
         result['request'] = annotate(result['request'])
@@ -319,6 +338,13 @@ def resolve(value, prepared, *, maximum_bytes):
     remaining = maximum_bytes
     def walk(node, shape, field=None):
         nonlocal remaining
+        from .phased.context_references import enabled, answer_evidence
+        from .phased.warrant_references import enabled as warrant_enabled
+        if (enabled(prepared['original_request']) or warrant_enabled(prepared['original_request'])) and field == 'answer_evidence':
+            result = answer_evidence(node, prepared['original_request'])
+            remaining -= len(canonical(result))
+            require(remaining >= 0, 'Answer selection exceeds output bound', 'E_RESOURCE_LIMIT')
+            return result
         if field == 'considered' and isinstance(node, dict):
             required = prepared['original_request'].get('required_considered', [])
             require(len(node) == len(required), 'Wrong considered-slot population')
@@ -377,6 +403,9 @@ def resolve(value, prepared, *, maximum_bytes):
             return prepared['aliases'].get(node, node)
         return node
     result = walk(value, prepared['original_schema'])
+    from .phased.context_references import enabled, restore_needs
+    if enabled(prepared['original_request']):
+        result = restore_needs(result, prepared['original_request'])
     require(len(canonical(result)) <= maximum_bytes, 'Expanded output exceeds byte limit', 'E_RESOURCE_LIMIT')
     validate(result, prepared['original_schema'])
     return result

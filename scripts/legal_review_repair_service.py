@@ -17,7 +17,7 @@ from legalmath.canonical import digest
 from legalmath.interpretation.search import providers
 from legalmath.interpretation.search.models import Settings
 from legalmath.interpretation.assurance.phased.admission import admit
-from legalmath.interpretation.assurance.bounded_provider import SERVICE_REVIEW_REPAIR_POLICY
+from legalmath.interpretation.assurance.bounded_provider import review_service_policy
 
 
 def terminal_receipt(root, base, slot, request_hash, *, allow_terminal_499=False):
@@ -64,6 +64,18 @@ def restore_deferred(execution, response):
             if event.get('action') == 'PREREQUISITE_BLOCKED':
                 latest[event['task_id']] = event
         for tid, row in state['tasks'].items():
+            if row.get('service_checkpoint') and not row.get('service_resume'):
+                from scripts.legal_review_service_checkpoint import checked
+                checked(execution.root, tid, row)
+                proof = read(execution.root / response['path'])
+                require(proof.get('legal_acceptance') is False and proof.get('substituted_into_product') is False
+                    and proof.get('provenance', {}).get('response_hash') == digest(proof.get('value')),
+                    'Paused owner needs saved service response evidence')
+                row['service_resume'] = response
+                execution.event(state, tid, 'SERVICE_CHECKPOINT_READY', evidence=[response],
+                    attempt=len(row['attempts']), new_attempt=False)
+                restored.append(tid)
+                continue
             if row.get('dispatch_status') != 'NOT_DISPATCHED' or row['status'] != 'BLOCKED':
                 continue
             event = latest.get(tid, {})
@@ -102,14 +114,74 @@ def reconcile_completed_probe(execution, folder, circuit, scope):
         evidence=ref(execution.root, path), legal_acceptance=False)
 
 
+def probe_settings(service,request):
+    from legalmath.interpretation.assurance.phased.downstream_input import input_byte_limit
+    from legalmath.interpretation.assurance.phased.capacity_policy import output_bytes
+    # Match the ordinary BoundDispatch contract, including reviewed larger output.
+    return Settings(timeout_seconds=300).model_copy(update={
+        'max_input_bytes':input_byte_limit(request,service.limits),
+        'max_output_bytes':output_bytes(request,service.limits)})
+
+
+def resume_undispatched_probe(service,folder,circuit,binding):
+    """Caller owns supervisor/service locks. Never repeat a reserved call."""
+    scheduled,started=read(folder/'scheduled.json'),read(folder/'started.json')
+    charge=scheduled['charge'];slot=charge['failed_slot']
+    require(not circuit['open'] and circuit.get('half_open_reserved') is False
+        and circuit.get('half_open_request_hash')==charge['request_hash']
+        and circuit.get('half_open_schema_hash')==charge['schema_hash']
+        and started['stage']==charge['stage'],
+        'Scheduled probe is not safely undispatched')
+    verify(ROOT,started['ledger_before']);verify(ROOT,scheduled['original_failure'])
+    require(read(ROOT/BASE/'live-calls.json')==read(ROOT/started['ledger_before']['path']),
+        'Probe may have dispatched; retain and diagnose')
+    from scripts.legal_mission_execution import process_alive
+    repair=binding['repaired_retry_continuation']['probe_capacity_repair']
+    require(charge['stage']==repair['prior_stage'] and not process_alive(charge['worker']),
+        'Original probe worker is active or stage changed')
+    verify(ROOT,repair['prior_stage']);verify(ROOT,repair['prior_binding'])
+    verify(ROOT,repair['prior_calls'])
+    require(ref(ROOT,BASE/'live-calls.json')['sha256']==repair['prior_calls']['sha256'],
+        'Charged probe cannot be adopted')
+    stage_pointer=read(ROOT/BASE/'current-stage.json');verify(ROOT,stage_pointer)
+    previous=read(ROOT/repair['prior_stage']['path'])
+    current=read(ROOT/stage_pointer['path'])
+    require(previous['binding_hash']==digest(read(ROOT/repair['prior_binding']['path']))
+        and stage_pointer['path']==repair['successor_stage_path']
+        and current=={**previous,'binding_hash':digest(binding)},
+        'Probe stage adoption changed capacity or authority')
+    ledger=read(ROOT/Path(binding['phase_service_scope']['path']).parent/'service-recovery.json')
+    require(charge in ledger['charges'],'Lost scheduled probe reservation')
+    request,schema,_,manifest=terminal_receipt(ROOT,BASE,slot,charge['request_hash'],
+        allow_terminal_499=bool(binding.get('terminal_cancellation_recovery')))
+    require(ref(ROOT,manifest)==scheduled['original_failure'] and digest(schema)==charge['schema_hash'],
+        'Changed scheduled probe payload')
+    settings=probe_settings(service,request)
+    save(folder/'resumed-before-dispatch.json',dict(at_utc=datetime.now(timezone.utc).isoformat(),
+        stage=stage_pointer,prior_stage=charge['stage'],ledger_before=started['ledger_before'],settings=settings.model_dump(),
+        reason='Retained scheduled request never reserved a provider call; correct capacity selection'))
+    response=service._complete(request,schema,settings)
+    save(folder/'response.json',dict(value=response.value,provenance=response.provenance,
+        failed_slot=slot,service_scope=binding['phase_service_scope'],
+        legal_acceptance=False,substituted_into_product=False))
+    execution=MasterExecution(ROOT,PROGRAM,STATE)
+    restored=restore_deferred(execution,ref(ROOT,folder/'response.json'));execution.sync_mission()
+    return dict(required=True,recovered=True,restored=restored,evidence=ref(ROOT,folder/'response.json'),legal_acceptance=False)
+
+
 def recover():
     from scripts import legal_integration_phased_live as live
     from scripts.legal_integration_campaign import provider
     program = read(ROOT/PROGRAM)
     require(program.get(KEY), 'Source-review repair is not registered')
+    deployment = program[KEY].get('deployment')
+    successor = program.get('repaired_retry_continuation')
+    service_work = Path(successor['work']) if successor else (Path(deployment['runtime']).parent if deployment else WORK)
+    service_policy = successor['service_policy'] if successor else program[KEY]['service_policy']
     binding = read(ROOT/BASE/'current-binding.json')
     require(binding['program'] == ref(ROOT, PROGRAM) and binding['execution_review'] == program[KEY]['review']
-        and binding['service_recovery_policy'] == SERVICE_REVIEW_REPAIR_POLICY,
+        and review_service_policy(binding['service_recovery_policy'])
+        and binding['service_recovery_policy'] == service_policy,
         'Wrong repair recovery authority')
     verify(ROOT, binding['phase_service_scope'])
     service_dir = ROOT/Path(binding['phase_service_scope']['path']).parent
@@ -128,6 +200,11 @@ def recover():
             require(not running, 'A product owner is active; do not probe beside it')
         circuit = read(service_dir/'service-circuit.json')
         require(circuit['stage_hash'] == binding['phase_service_scope']['sha256'], 'Wrong recovery circuit')
+        if not circuit['open'] and circuit.get('half_open_request_hash'):
+            require(successor and successor.get('probe_capacity_repair'),
+                'Unreviewed half-open probe continuation')
+            slot=circuit['failed_slots'][-1]
+            return resume_undispatched_probe(provider(),ROOT/service_work/'service-resumption'/str(slot),circuit,binding)
         if not circuit['open']:
             require(not circuit.get('half_open_request_hash'),
                 'Half-open probe needs reconciliation before unrelated dispatch')
@@ -135,7 +212,7 @@ def recover():
             # owners blocked. The latest failed slot identifies this probe.
             if circuit.get('failed_slots'):
                 latest = circuit['failed_slots'][-1]
-                candidates = sorted((ROOT/WORK/'service-resumption').glob('*/response.json'),
+                candidates = sorted((ROOT/service_work/'service-resumption').glob('*/response.json'),
                     key=lambda p: int(p.parent.name), reverse=True)
                 for path in candidates:
                     folder = path.parent
@@ -145,7 +222,7 @@ def recover():
                         if result['restored']:
                             execution.sync_mission()
                         return result
-                for started in (ROOT/WORK/'service-resumption').glob('*/started.json'):
+                for started in (ROOT/service_work/'service-resumption').glob('*/started.json'):
                     require((started.parent/'response.json').exists()
                         or (started.parent/'ended-failure.json').exists(),
                         'Ended probe lacks a reconciled response; inspect retained provider receipt')
@@ -157,17 +234,17 @@ def recover():
         request_hash = ledger['calls'][slot-1]['request_hash']
         request, schema, failure, manifest = terminal_receipt(ROOT, BASE, slot, request_hash,
             allow_terminal_499=bool(binding.get('terminal_cancellation_recovery')))
-        folder = ROOT/WORK/'service-resumption'/str(slot)
+        folder = ROOT/service_work/'service-resumption'/str(slot)
         require(not (folder/'started.json').exists() or (folder/'response.json').exists()
             or (folder/'ended-failure.json').exists(),
             'Previous probe may have dispatched; reconcile before redispatch')
         service = provider()
         service.check()
-        stage = admit(ROOT, BASE, WORK/'service-live', 'exact-ended-'+str(slot), 1,
+        stage = admit(ROOT, BASE, service_work/'service-live', 'exact-ended-'+str(slot), 1,
             owner='service-requalification')
         allowance = service.allowance
         allowance.expected, allowance.expected_schema = request_hash, digest(schema)
-        require(allowance.service_recovery_policy() == SERVICE_REVIEW_REPAIR_POLICY, 'Changed recovery policy')
+        require(allowance.service_recovery_policy() == binding['service_recovery_policy'], 'Changed recovery policy')
         charges = read(service_dir/'service-recovery.json')['charges']
         existing = next((r for r in charges if r['failed_slot'] == slot), None)
         if existing is None:
@@ -185,7 +262,7 @@ def recover():
         try:
             # The ordinary provider owns its finite retries. Its worker lock
             # is held here; do not reacquire it recursively in complete().
-            response = service._complete(request, schema, Settings(timeout_seconds=300))
+            response = service._complete(request, schema, probe_settings(service,request))
             save(folder/'response.json', dict(value=response.value, provenance=response.provenance,
                 failed_slot=slot, service_scope=binding['phase_service_scope'],
                 legal_acceptance=False, substituted_into_product=False))

@@ -1,0 +1,1714 @@
+--- a/src/legalmath/interpretation/assurance/phased/retry_checkpoint.py
++++ b/src/legalmath/interpretation/assurance/phased/retry_checkpoint.py
+@@ -108,6 +108,26 @@
+         return None
+     valid = [r for r in held['original_reviews'] if r.get('status') == 'VALIDATED']
+     candidate = deepcopy(held['candidate'])
++    from .reviewed_answer_version import select
++    version = select(product,qid,question,answer['value'],held,dependencies)
++    if version is not None:
++        adverse = version['provenance']['unresolved_predecessor_adverse_reviews']
++        if adverse:
++            save_exact(product.directory/('local-version-preflight-'+qid+'-'+digest(version['value'])[:16]+'.json'),
++                dict(status='BLOCKED', error='E_DEPENDENCY', provider_calls=0,
++                    reason='Intervening adverse reviews require explicit version-bound disposition',
++                    version=version['provenance']['version'],
++                    predecessor_reviews=version['provenance']['predecessor_reviews'],
++                    reviews=adverse, legal_acceptance=False))
++            require(False, 'Intervening adverse reviews require explicit version-bound disposition',
++                'E_DEPENDENCY')
++        held['provider_fixed_candidate'] = deepcopy(candidate)
++        held['local_answer_version'] = deepcopy(version['provenance'])
++        if 'reviewed_requirement_details' in version:
++            held['provider_fixed_requirement_details'] = deepcopy(held['corrected_requirement_details'])
++            held['corrected_requirement_details'] = version.pop('reviewed_requirement_details')
++        candidate = version
++        held['candidate'] = deepcopy(candidate)
+     from . import current_issue_disposition
+     checkpoint = getattr(product,'capacity_checkpoint',None)
+     outer = read_evidence(checkpoint,product.root) if checkpoint is not None else {}
+@@ -123,8 +143,14 @@
+     else:
+         assessments, _, _ = product.review_warrants(qid,question,answer,valid,details)
+         disposition = None
+-    reviews = product.audit_answer(qid,question,candidate['value'],held['corrected_requirement_details'],prefix='corrected-')
+-    reviews += product.audit_dependencies(qid,question,candidate['value'],dependencies,prefix='corrected-')
++    from .reviewed_source_context import scope
++    with scope(product,qid,question,answer['value'],candidate['value'],
++            held['corrected_requirement_details'],valid,assessments,disposition) as context:
++        prefix = ('corrected-reviewed-source-'+context['identity'][:16]+'-' if context else 'corrected-')
++        reviews = product.audit_answer(qid,question,candidate['value'],held['corrected_requirement_details'],prefix=prefix)
++        reviews += product.audit_dependencies(qid,question,candidate['value'],dependencies,prefix=prefix)
++        if context:
++            held['supplemental_review_context']=deepcopy(context['manifest'])
+     unresolved = [r for r in assessments if r['result']['status'] != 'VALIDATED'
+         or any(d['disposition']=='UNRESOLVED' for d in r['result']['value']['decisions'])]
+     if disposition is not None:
+@@ -133,7 +159,9 @@
+     if unresolved:
+         reviews.append(dict(status='FAILED',error='E_DEPENDENCY',
+             reason='Fixed corrected answer retained; original issue warrants remain unresolved',assessments=unresolved))
+-    held.update(status='REVIEWED_FIXED_CANDIDATE', review_warrants=assessments, candidate_reviews=reviews,
++    held.update(status='REVIEWED_LOCAL_CANDIDATE' if version is not None else 'REVIEWED_FIXED_CANDIDATE',
++        review_warrants=assessments, candidate_reviews=reviews,
+         new_answer_calls=0, legal_acceptance=False)
+-    save_exact(product.directory/('fixed-correction-'+qid+'.json'),held)
++    suffix = '-reviewed-source-'+context['identity'][:16] if context else ''
++    save_exact(product.directory/('fixed-correction-'+qid+suffix+'.json'),held)
+     return candidate,reviews,held
+--- a/src/legalmath/interpretation/assurance/phased/context_disposition.py
++++ b/src/legalmath/interpretation/assurance/phased/context_disposition.py
+@@ -206,7 +206,9 @@
+             'request. Preserve it as STILL_REQUIRED unless its conditional-answer disposition is '
+             'specifically justified. No retrieval hit or prior label establishes legal truth. '
+             'All assertion paths are relative to this response. No automatic further review follows.')
+-    request = product._request('AUDIT_EXPLICIT_DEPENDENCY_CONTEXT', question, list(records.values()),
++    from .reviewed_source_context import add
++    delivered, payload = add(product, qid, answer, list(records.values()), payload)
++    request = product._request('AUDIT_EXPLICIT_DEPENDENCY_CONTEXT', question, delivered,
+         payload=payload, expected=[item['id']])
+     request['context_disposition_profile'] = PROFILE
+     request['answer_pointer_profile']='answer-relative-string-pointer.v1'
+--- a/src/legalmath/interpretation/assurance/phased/group_review.py
++++ b/src/legalmath/interpretation/assurance/phased/group_review.py
+@@ -88,6 +88,9 @@
+             'answer\'s actual claims: return UNRESOLVED and identify that necessary context. '
+             'Use assertion paths relative to each decision. Keep all rationales and assignments within '
+             'the unchanged output limit; do not merge distinct issues to save space.'}
++    assigned_records = records
++    from .reviewed_source_context import add
++    records, payload = add(product, qid, answer, records, payload)
+     projected, receipts = project_provider_events(payload)
+     for sha, events in receipts.items():
+         path = product.directory / 'provenance' / (sha + '.jsonl')
+@@ -99,7 +102,7 @@
+     request = product._request('AUDIT_SOURCE_DEPENDENCY_ASSIGNMENTS', question, records,
+                                payload=projected, expected=ids)
+     cited = product.source_records(payload)
+-    request['review_scope'] = {'assigned_source_ids': [r['id'] for r in records],
++    request['review_scope'] = {'assigned_source_ids': [r['id'] for r in assigned_records],
+         'cited_source_ids_outside_window': [r['id'] for r in cited if r not in records],
+         'instruction': 'The full answer has independent exact-citation checks. Outside quotations '
+             'are not jointly delivered legal context here. If necessary for this assignment, '
+@@ -123,7 +126,12 @@
+             if exc.code != 'E_RESOURCE_LIMIT':
+                 raise
+             return None
+-    groups, blocked = pack_items(items, measure, maximum_items=maximum_items)
++    from . import review_planning, reviewed_source_context
++    context = getattr(product, reviewed_source_context.ATTRIBUTE, None)
++    profile = context['manifest'].get(review_planning.FIELD) if context else None
++    require(profile in (None, review_planning.PROFILE), 'Unknown review packing profile', 'E_AUTHORITY')
++    pack = review_planning.pack if profile is not None else pack_items
++    groups, blocked = pack(items, measure, maximum_items=maximum_items)
+     calls, membership = [], {}
+     for group in groups:
+         rows = group['members']
+--- a/src/legalmath/interpretation/assurance/phased/product.py
++++ b/src/legalmath/interpretation/assurance/phased/product.py
+@@ -348,8 +348,10 @@
+             material = {'answer': answer, 'requirement': self.route.records[detail['id']],
+                         'detailed_account': detail['result']['value']}
+             try:
++                from .reviewed_source_context import add
++                records, material = add(self, qid, answer, self.source_records(material), material)
+                 outcome = self.note(prefix + f'audit-requirement-{qid}-{i}',
+-                    'AUDIT_ANSWER_AND_DETAILED_ACCOUNT', question, self.source_records(material),
++                    'AUDIT_ANSWER_AND_DETAILED_ACCOUNT', question, records,
+                     material, [detail['id']], audit=True)
+             except Exception as exc:
+                 outcome = self.failure(exc)
+--- /dev/null
++++ b/src/legalmath/interpretation/assurance/phased/reviewed_source_context.py
+@@ -0,0 +1,127 @@
++"""Opt-in delivery of authenticated supplemental sources to fresh reviews.
++
++This supplies context, never a verdict. The new context identity must select
++fresh request keys and cannot reuse acceptance from a different source window.
++"""
++from contextlib import contextmanager
++from copy import deepcopy
++
++from legalmath.canonical import digest
++from ..bounded_context import require
++from ..integration_contract import read_evidence
++
++PROFILE = 'answer-bound-reviewed-source-context.v1'
++FIELD = 'reviewed_source_context_profile'
++ATTRIBUTE = '_active_reviewed_source_context'
++
++
++@contextmanager
++def scope(product, qid, question, original, answer, details, reviews, assessments, disposition):
++    checkpoint = getattr(product, 'capacity_checkpoint', None)
++    outer = read_evidence(checkpoint, product.root) if checkpoint is not None else {}
++    selected = outer.get(FIELD)
++    if selected is None:
++        yield None
++        return
++    require(selected == PROFILE, 'Unknown supplemental source profile', 'E_AUTHORITY')
++    pointer = outer.get('current_answer_issue_dispositions', {}).get(qid)
++    require(pointer is not None and disposition is not None
++        and disposition.get('review') == pointer,
++        'Supplemental context lacks its authenticated current-answer review', 'E_INTEGRITY')
++    value = read_evidence(pointer, product.root)
++    from .current_issue_disposition import validate
++    checked = validate(product, qid, question, original, answer, details, reviews, assessments, value)
++    require(disposition == {**checked, 'review': pointer},
++        'Changed supplemental context disposition', 'E_INTEGRITY')
++    claims, records = [], {}
++    cited = product.source_records(answer)
++    for record in cited:
++        require(qid in product.acquisition_questions(record),
++            'Answer-cited source is outside this question', 'E_INTEGRITY')
++        records[record['id']] = deepcopy(record)
++    for row in value['dispositions']:
++        if row['disposition'] != 'SUPPORTED_BY_REVIEWED_SOURCE':
++            continue
++        ids = list(dict.fromkeys(q['record_id'] for q in row['support']))
++        for rid in ids:
++            record = product.route.records.get(rid)
++            require(record and record['kind'] == 'source'
++                and qid in product.acquisition_questions(record),
++                'Supplemental source is outside this question', 'E_INTEGRITY')
++            records[rid] = deepcopy(record)
++        claims.append(dict(answer_evidence=deepcopy(row['answer_evidence']), source_record_ids=ids))
++    require(claims, 'No authenticated supplemental source context', 'E_INTEGRITY')
++    manifest = dict(profile=PROFILE, question_id=qid, answer_hash=digest(answer),
++        reviewed_evidence=deepcopy(pointer), claims=claims,
++        answer_cited_source_ids=[record['id'] for record in cited],
++        source_record_hashes={rid: digest(record) for rid, record in records.items()},
++        instruction='These are additional exact source records for fresh assessment of the unchanged '
++            'answer. The claim mapping identifies the proposition to assess; it does not establish '
++            'entailment, legal applicability, current law or a verdict. Preserve material contrary '
++            'evidence, unresolved needs and conditional premises. Earlier review dispositions are '
++            'not legal authority and do not determine this review.')
++    from . import review_planning, review_target
++    local_accounts = any(row.get('result', {}).get('provenance', {}).get('origin')
++        == 'LOCAL_REVIEWED_ACCOUNT_DRAFT' for row in details)
++    if local_accounts:
++        account_sources = product.source_records(details)
++        for record in account_sources:
++            require(qid in product.acquisition_questions(record),
++                'Account source is outside this question', 'E_INTEGRITY')
++            records[record['id']] = deepcopy(record)
++        manifest['requirement_details_hash'] = digest(details)
++        manifest['account_cited_source_ids'] = [r['id'] for r in account_sources]
++        manifest['source_record_hashes'] = {rid:digest(record) for rid,record in records.items()}
++    for module in (review_planning, review_target):
++        selected = outer.get(module.FIELD)
++        require(selected in (None, module.PROFILE), 'Unknown scoped review profile', 'E_AUTHORITY')
++        if selected is not None:
++            manifest[module.FIELD] = selected
++    if outer.get(review_target.FIELD) is not None:
++        manifest['verdict_target_instruction'] = review_target.GUIDANCE
++    from . import reviewed_source_comparison
++    comparison = outer.get(reviewed_source_comparison.FIELD, {}).get(qid)
++    required_comparison = value.get('required_source_comparison')
++    if required_comparison is not None:
++        require(comparison == required_comparison,
++            'Reviewed disposition requires its exact source comparison', 'E_INTEGRITY')
++    if comparison is not None:
++        manifest['source_comparison'] = reviewed_source_comparison.load(
++            product, qid, question, answer, details, comparison)
++        for rid in manifest['source_comparison']['source_record_hashes']:
++            records[rid] = deepcopy(product.route.records[rid])
++        manifest['source_record_hashes'] = {rid:digest(record) for rid,record in records.items()}
++    context = dict(identity=digest(manifest), manifest=manifest, records=records)
++    missing = object()
++    previous = getattr(product, ATTRIBUTE, missing)
++    require(previous is missing or previous is None,
++        'Nested supplemental source context', 'E_INTEGRITY')
++    setattr(product, ATTRIBUTE, context)
++    try:
++        yield context
++    finally:
++        if previous is missing:
++            delattr(product, ATTRIBUTE)
++        else:
++            setattr(product, ATTRIBUTE, previous)
++
++
++def add(product, qid, answer, records, payload):
++    context = getattr(product, ATTRIBUTE, None)
++    if context is None:
++        return records, payload
++    manifest = context['manifest']
++    require(manifest['question_id'] == qid and manifest['answer_hash'] == digest(answer),
++        'Stale or foreign supplemental source consumer', 'E_INTEGRITY')
++    table = {r['id']: r for r in records}
++    require(len(table) == len(records), 'Duplicate review source identity', 'E_INTEGRITY')
++    for rid, record in context['records'].items():
++        require(product.route.records.get(rid) == record
++            and digest(record) == manifest['source_record_hashes'][rid],
++            'Changed supplemental source bytes', 'E_INTEGRITY')
++        require(rid not in table or table[rid] == record,
++            'Conflicting supplemental source delivery', 'E_INTEGRITY')
++        table[rid] = deepcopy(record)
++    require('supplemental_review_context' not in payload,
++        'Duplicate supplemental context manifest', 'E_INTEGRITY')
++    return list(table.values()), {**payload, 'supplemental_review_context': deepcopy(manifest)}
+--- /dev/null
++++ b/src/legalmath/interpretation/assurance/phased/reviewed_answer_version.py
+@@ -0,0 +1,115 @@
++"""Explicit local candidate selection after authenticated provider history.
++
++This validates provenance and representation only. Fresh complete review remains
++mandatory and retains its adverse veto; no provider response is manufactured.
++"""
++from copy import deepcopy
++
++from jsonschema import validate as schema_validate
++
++from legalmath.canonical import digest
++from ..bounded_context import require
++from ..bounded_product import NOTE
++from ..integration_contract import read_evidence
++from . import current_issue_disposition, reviewed_source_context
++from . import reviewed_field_changes, intervening_issue_disposition
++
++PROFILE = 'reviewed-append-and-support-answer-version.v1'
++FIELD = 'reviewed_answer_versions'
++
++
++def select(product, qid, question, original, held, dependencies):
++    checkpoint = getattr(product, 'capacity_checkpoint', None)
++    outer = read_evidence(checkpoint, product.root) if checkpoint is not None else {}
++    pointer = outer.get(FIELD, {}).get(qid)
++    if pointer is None:
++        return None
++    value = read_evidence(pointer, product.root)
++    fixed = held['candidate']['value']
++    require(value.get('profile') in (PROFILE, reviewed_field_changes.PROFILE),
++        'Unknown local answer version profile', 'E_INTEGRITY')
++    expected = dict(profile=value['profile'], question_id=qid, question_hash=digest(question),
++        input_hash=product.route.input_hash, original_answer_hash=digest(original),
++        fixed_answer_hash=digest(fixed),
++        requirement_details_hash=digest(held['corrected_requirement_details']),
++        dependency_population_hash=digest(dependencies))
++    require(all(value.get(k) == v for k, v in expected.items()),
++        'Stale or foreign local answer version', 'E_INTEGRITY')
++    require(value.get('origin') == 'LOCAL_REVIEWED_CANDIDATE'
++        and value.get('legal_acceptance') is False
++        and isinstance(value.get('reviewer'), str) and value['reviewer'].strip()
++        and read_evidence(value['review_note'], product.root, json_value=False).strip(),
++        'Missing local candidate review and provenance', 'E_INTEGRITY')
++    candidate = read_evidence(value['candidate'], product.root)
++    schema_validate(candidate, NOTE)
++    require(set(candidate) == set(fixed)
++        and candidate['conclusion'].startswith(fixed['conclusion'])
++        and len(candidate['conclusion']) > len(fixed['conclusion']),
++        'Local version changed the retained conclusion or shape', 'E_INTEGRITY')
++    if value['profile'] == PROFILE:
++        mutable = {'conclusion', 'support', 'assertion_bindings'}
++        require(all(candidate[k] == fixed[k] for k in fixed if k not in mutable),
++            'Local version changed original alternatives, conditions or gaps', 'E_INTEGRITY')
++    require(all(candidate[k][:len(fixed[k])] == fixed[k]
++        for k in ('support', 'assertion_bindings')),
++        'Local version removed or changed original source support', 'E_INTEGRITY')
++    # Source-gap declarations describe the candidate's reviewed delivery, not
++    # every source anywhere in the route. Retain that exact delivery and add
++    # the new candidate's cited records; never invent a broader comparator.
++    fixed_request = read_evidence(outer['calls']['correction-'+qid]['request'], product.root)
++    records = {r['id']: r for r in fixed_request['records']}
++    records.update({r['id']: r for r in product.source_records(candidate)})
++    require(all(product.route.records.get(rid) == row
++        and row['kind'] == 'source' and qid in product.acquisition_questions(row)
++        for rid, row in records.items()), 'Changed local candidate source delivery', 'E_INTEGRITY')
++    product.citations(candidate, list(records.values()))
++    field_review = (reviewed_field_changes.validate(product, qid, fixed, candidate, value,
++        list(records.values())) if value['profile'] == reviewed_field_changes.PROFILE else None)
++    mapping = outer.get('current_answer_issue_dispositions', {}).get(qid)
++    require(value.get('issue_mapping') == mapping and mapping is not None
++        and outer.get(reviewed_source_context.FIELD) == reviewed_source_context.PROFILE,
++        'Local version lacks exact mapping or complete-source review profile', 'E_INTEGRITY')
++    reviews = [r for r in held['original_reviews'] if r.get('status') == 'VALIDATED']
++    details = held['corrected_requirement_details']
++    account_review = None
++    if value.get('reviewed_account_versions') is not None:
++        from . import reviewed_account_version
++        details, account_review = reviewed_account_version.select(product, qid, question,
++            candidate, details, value['reviewed_account_versions'])
++    checked = current_issue_disposition.validate(product, qid, question, original,
++        candidate, details, reviews,
++        held['review_warrants'], read_evidence(mapping, product.root))
++    require(checked['complete'], 'Local version retains unresolved original objections', 'E_DEPENDENCY')
++    # A newer failed review of the fixed answer is not part of the original
++    # issue census. Retain its adverse findings explicitly until a separately
++    # reviewed disposition exists; a fresh general review cannot erase them.
++    predecessor = read_evidence(value['predecessor_reviews'], product.root)['answers'][qid]
++    require(predecessor['answer']['value'] == fixed and predecessor['reviews'],
++        'Local version lacks the exact predecessor review population', 'E_INTEGRITY')
++    adverse = [dict(review_index=i, review_hash=digest(row),
++        considered=deepcopy(row['value']['considered']), issues=deepcopy(row['value']['issues']))
++        for i, row in enumerate(predecessor['reviews'])
++        if row.get('status') == 'VALIDATED' and row['value']['verdict'] == 'REJECT']
++    intervening = None
++    if value.get('intervening_issue_dispositions') is not None:
++        intervening = intervening_issue_disposition.validate(product, qid, question, candidate,
++            predecessor, value['intervening_issue_dispositions'], list(records.values()))
++        pending_indexes = {row['review_index'] for row in intervening['pending']}
++        adverse = [row for row in adverse if row['review_index'] in pending_indexes]
++    result = dict(status='VALIDATED', value=deepcopy(candidate), provenance=dict(
++        origin='LOCAL_REVIEWED_CANDIDATE', version=pointer,
++        predecessor_candidate_hash=digest(held['candidate']),
++        predecessor_reviews=value['predecessor_reviews'],
++        predecessor_review_identity=intervening_issue_disposition.review_identity(predecessor),
++        predecessor_unresolved_review_count=sum(row.get('status') == 'VALIDATED'
++            and row['value']['verdict'] == 'UNRESOLVED' for row in predecessor['reviews']),
++        predecessor_failed_review_count=sum(row.get('status') != 'VALIDATED'
++            for row in predecessor['reviews']),
++        reviewed_field_changes=field_review,
++        intervening_issue_disposition=intervening,
++        unresolved_predecessor_adverse_reviews=adverse,
++        new_provider_calls=0, semantic_acceptance=False, fresh_complete_review_required=True))
++    if account_review is not None:
++        result['reviewed_requirement_details'] = details
++        result['provenance']['reviewed_accounts'] = account_review
++    return result
+--- /dev/null
++++ b/src/legalmath/interpretation/assurance/phased/review_planning.py
+@@ -0,0 +1,29 @@
++"""Opt-in measured batch-first partition; never waive capacity or a member."""
++from copy import deepcopy
++from legalmath.canonical import digest
++from ..bounded_context import require
++
++PROFILE = 'measured-batch-first-review-grouping.v1'
++FIELD = 'bounded_review_grouping_profile'
++
++
++def pack(items, measure, *, maximum_items):
++    require(type(maximum_items) is int and maximum_items > 0, 'Invalid item bound')
++    require(len({row['id'] for row in items}) == len(items), 'Duplicate input identity')
++    groups, blocked = [], []
++    def visit(rows):
++        receipt = measure(rows)
++        if receipt is not None:
++            groups.append(dict(members=deepcopy(rows), measurement=receipt))
++        elif len(rows) == 1:
++            blocked.append(deepcopy(rows[0]))
++        else:
++            midpoint = len(rows) // 2
++            visit(rows[:midpoint])
++            visit(rows[midpoint:])
++    for start in range(0, len(items), maximum_items):
++        visit(items[start:start+maximum_items])
++    actual = [row for group in groups for row in group['members']] + blocked
++    require(len(actual) == len(items) and {r['id']:digest(r) for r in actual} ==
++        {r['id']:digest(r) for r in items}, 'Packing changed or lost an item')
++    return groups, blocked
+--- /dev/null
++++ b/src/legalmath/interpretation/assurance/phased/review_target.py
+@@ -0,0 +1,18 @@
++"""An explicit assessment target; historical decisions stay unchanged."""
++PROFILE = 'answer-as-written-review-target.v1'
++FIELD = 'answer_review_target_profile'
++GUIDANCE = (
++    'The verdict target is the answer AS WRITTEN, evaluated in relation to the assigned '
++    'source or dependency. It is not a vote on whether the dependency proposal should be '
++    'adopted or whether this individual source independently proves the whole answer. '
++    'A title, date or other metadata may be irrelevant to an operative conclusion; explain '
++    'that relationship. An unnecessary dependency is not itself an answer defect. '
++    'ACCEPT only when delivered evidence establishes that the answer handles this assignment '
++    'correctly, including supported irrelevance or an explicit warranted condition. '
++    'REJECT requires a specific supported defect in the answer: identify its exact claim '
++    'or material omission and explain the contradiction, unsupported inference or lost '
++    'condition. If necessary evidence is missing to judge the answer, use UNRESOLVED and '
++    'identify what is needed. An irrelevant proposal or a source-absence allegation never '
++    'automatically entails ACCEPT. Preserve contrary evidence, necessary client facts, '
++    'material uncertainty and every assignment. Prior verdicts do not determine this review.'
++)
+--- /dev/null
++++ b/tests/assurance/test_reviewed_source_context.py
+@@ -0,0 +1,162 @@
++from copy import deepcopy
++
++import pytest
++
++from legalmath.canonical import digest
++from legalmath.errors import LegalMathError
++from legalmath.interpretation.assurance.phased import (
++    context_disposition, current_issue_disposition, group_review,
++    retry_checkpoint, reviewed_source_context as supplement,
++)
++from legalmath.interpretation.assurance.phased.source_review import assignments
++from tests.assurance.test_baseline_corpus_repairs import put
++from tests.assurance.test_bounded_product import envelope
++from tests.assurance.test_source_review_repair import product, decision
++
++
++def setup(root, *, enabled=True, damage=None, cite_origin=False):
++    p = product(root)
++    p.current_dependencies = []
++    q = envelope()['original_questions'][0]
++    original = {'conclusion': 'Original assertion'}
++    answer = {'conclusion': 'The source supports this conditional distinction.',
++              'support': [], 'source_gaps': [], 'assertion_bindings': []}
++    sources = [r for r in p.route.records.values() if r['kind'] == 'source']
++    source = sources[-1]
++    if cite_origin:
++        answer['support']=[dict(record_id=sources[0]['id'],quote=sources[0]['text'],locator='')]
++    reviews = [dict(status='VALIDATED', value=dict(verdict='REJECT',
++        issues=['The attributed source is absent from the answer citations.'], considered=['d1']))]
++    assessments = [dict(review_index=0, original_review_hash=digest(reviews[0]),
++        result=dict(status='VALIDATED', value=dict(decisions=[dict(issue_id='issue-0', disposition='UNRESOLVED')])))]
++    population = current_issue_disposition.census(reviews, assessments)
++    value = dict(profile=current_issue_disposition.PROFILE, question_id='p14',
++        question_hash=digest(q), input_hash=p.route.input_hash,
++        original_answer_hash=digest(original), current_answer_hash=digest(answer),
++        requirement_details_hash=digest([]), issue_population_hash=digest([
++            {k:r[k] for k in ('id','review_index','review_hash','issue')} for r in population]),
++        reviewer='Fixture reviewer', review_note=put(root,'review.md','Scoped fixture review.'),
++        reviewed_evidence=[put(root,'source-review.json',{'fixture':True})],
++        dispositions=[dict(id='0:issue-0',disposition='SUPPORTED_BY_REVIEWED_SOURCE',
++            reason='Supplemental source supplied for a fresh assessment.',blocking_source_gaps=[],
++            support=[dict(record_id=source['id'],quote=source['text'],locator='')],
++            answer_evidence=dict(path='/conclusion',quote=answer['conclusion']))])
++    if damage == 'false_quote': value['dispositions'][0]['support'][0]['quote'] = 'Invented quotation'
++    if damage == 'missing_source': value['dispositions'][0]['support'][0]['record_id'] = 'missing'
++    if damage == 'stale_answer': value['current_answer_hash'] = '0'*64
++    if damage == 'wrong_question': value['question_id'] = 'gatecoin'
++    if damage == 'bad_claim': value['dispositions'][0]['answer_evidence']['path'] = '/absent'
++    pointer = put(root,'disposition.json',value)
++    outer = {'current_answer_issue_dispositions':{'p14':pointer}}
++    if enabled: outer[supplement.FIELD] = supplement.PROFILE
++    p.capacity_checkpoint = put(root,'checkpoint.json',outer)
++    checked = current_issue_disposition.apply(p,'p14',q,original,answer,[],reviews,assessments)
++    args = (p,'p14',q,original,answer,[],reviews,assessments,checked)
++    return args, sources
++
++
++def test_actual_group_and_context_builders_receive_missing_source(tmp_path):
++    args, sources = setup(tmp_path)
++    p, q, answer = args[0], args[2], args[4]
++    item = next(r for r in assignments(p,'p14',[]) if r['origin_id']==sources[0]['id'])
++    initial = dict(status='VALIDATED',value={**decision(sources[0],'UNRESOLVED'),
++        'considered':[item['id']],'context_needs':[dict(kind='CLIENT_FACT',record_ids=[],
++            locators=[],query='',reason='Actual request unknown.')]})
++    baseline,_ = group_review.build(p,'p14',q,answer,[item])
++    before,_,_,_,_ = context_disposition.prepare(p,'p14',q,answer,item,initial,prefix='corrected-')
++    assert sources[-1] not in baseline['records'] and sources[-1] not in before['records']
++    with supplement.scope(*args) as active:
++        request,_ = group_review.build(p,'p14',q,answer,[item])
++        context,_,rows,_,failures = context_disposition.prepare(p,'p14',q,answer,item,initial,prefix='corrected-fresh-')
++        for value in [request,context]:
++            assert sources[-1] in value['records']
++            assert value['payload']['answer']==answer
++            manifest=value['payload']['supplemental_review_context']
++            assert manifest['answer_hash']==digest(answer)
++            assert 'verdict' not in manifest and 'disposition' not in manifest
++        assert request['required_considered']==baseline['required_considered']
++        assert request['review_scope']['assigned_source_ids']==[sources[0]['id']]
++        assert rows[0]['route']=='CLIENT_FACT' and not failures
++        assert active['identity']
++    assert not hasattr(p,supplement.ATTRIBUTE)
++    assert group_review.build(p,'p14',q,answer,[item])[0]==baseline
++
++
++def test_initial_group_includes_answer_cited_text_without_waiting_for_a_bridge(tmp_path):
++    args,sources=setup(tmp_path,cite_origin=True)
++    p,q,answer=args[0],args[2],args[4]
++    item=next(r for r in assignments(p,'p14',[]) if r['origin_id']==sources[-1]['id'])
++    baseline,_=group_review.build(p,'p14',q,answer,[item])
++    assert sources[0] not in baseline['records']
++    with supplement.scope(*args):
++        request,_=group_review.build(p,'p14',q,answer,[item])
++    assert sources[0] in request['records']
++    assert request['required_considered']==baseline['required_considered']
++    assert request['review_scope']['assigned_source_ids']==[sources[-1]['id']]
++
++
++def test_actual_detailed_account_consumer_receives_supplement(tmp_path,monkeypatch):
++    args,sources=setup(tmp_path);p,q,answer=args[0],args[2],args[4]
++    requirement=next(r for r in p.route.records.values() if r['kind']=='obligation')
++    monkeypatch.setattr(group_review,'run',lambda *a,**k:[])
++    observed=[]
++    def note(key,task,question,records,material,expected,**kw):
++        observed.append(dict(records=records,material=material,key=key))
++        return {'status':'VALIDATED','value':{'verdict':'UNRESOLVED'}}
++    p.note=note
++    with supplement.scope(*args):
++        result=p.audit_answer('p14',q,answer,[{'id':requirement['id'],
++            'result':{'value':{'conclusion':'Account remains conditional.'}}}],prefix='fresh-context-')
++    assert sources[-1] in observed[0]['records']
++    assert observed[0]['material']['supplemental_review_context']['answer_hash']==digest(answer)
++    assert result[0]['value']['verdict']=='UNRESOLVED'
++
++
++@pytest.mark.parametrize('damage',['false_quote','missing_source','stale_answer','wrong_question','bad_claim'])
++def test_invalid_support_never_reaches_fresh_review(tmp_path,damage):
++    with pytest.raises(LegalMathError):setup(tmp_path,damage=damage)
++
++
++@pytest.mark.parametrize('damage',['answer','question','source','conflict'])
++def test_scoped_context_cannot_leak_or_change(tmp_path,damage):
++    args,sources=setup(tmp_path);p,answer=args[0],deepcopy(args[4])
++    with pytest.raises(LegalMathError):
++        with supplement.scope(*args):
++            qid='gatecoin' if damage=='question' else 'p14'
++            if damage=='answer':answer['conclusion']='Unconditional replacement'
++            if damage=='source':p.route.records[sources[-1]['id']]={**sources[-1],'text':'Changed'}
++            records=[{**sources[-1],'text':'Conflicting'}] if damage=='conflict' else []
++            supplement.add(p,qid,answer,records,{'answer':answer})
++    assert not hasattr(p,supplement.ATTRIBUTE)
++
++
++def test_opt_in_preserves_legacy_request_bytes(tmp_path):
++    args,_=setup(tmp_path,enabled=False)
++    p,answer=args[0],args[4];payload={'answer':answer}
++    with supplement.scope(*args) as active:
++        records,actual=supplement.add(p,'p14',answer,[],payload)
++        assert active is None and records==[] and actual is payload
++
++
++def test_resume_uses_fresh_keys_preserves_old_result_and_adverse_verdict(tmp_path,monkeypatch):
++    args,_=setup(tmp_path);p,q,old,answer=args[0],args[2],args[3],args[4]
++    reviews,assessments=args[6],args[7]
++    held=dict(original_reviews=reviews,candidate={'status':'VALIDATED','value':answer},
++        corrected_requirement_details=[],review_warrants=assessments)
++    monkeypatch.setattr(retry_checkpoint,'fixed_correction',lambda *a:deepcopy(held))
++    old_path=p.directory/'fixed-correction-p14.json'
++    old_path.write_text('Historical failed review retained.')
++    keys=[]
++    def fresh(*a,**kw):
++        keys.append(kw['prefix'])
++        assert getattr(p,supplement.ATTRIBUTE)['manifest']['answer_hash']==digest(answer)
++        return [{'status':'VALIDATED','value':{'verdict':'REJECT'}}]
++    p.audit_answer=fresh;p.audit_dependencies=lambda *a,**k:[]
++    p.review_warrants=lambda *a:pytest.fail('Duplicate historical warrants')
++    _,actual,record=retry_checkpoint.resume_correction(p,'p14',q,{'value':old},[],[])
++    assert keys[0].startswith('corrected-reviewed-source-')
++    assert actual[0]['value']['verdict']=='REJECT'
++    assert record['supplemental_review_context']['answer_hash']==digest(answer)
++    assert old_path.read_text()=='Historical failed review retained.'
++    assert len(list(p.directory.glob('fixed-correction-p14-reviewed-source-*.json')))==1
++    assert not hasattr(p,supplement.ATTRIBUTE) and not record['legal_acceptance']
+--- /dev/null
++++ b/tests/assurance/test_reviewed_answer_version.py
+@@ -0,0 +1,150 @@
++from copy import deepcopy
++
++import pytest
++
++from legalmath.canonical import digest
++from legalmath.errors import LegalMathError
++from legalmath.interpretation.assurance.integration_contract import read_evidence
++from legalmath.interpretation.assurance.phased import (
++    reviewed_answer_version as version, reviewed_source_context, retry_checkpoint,
++)
++from tests.assurance.test_baseline_corpus_repairs import put
++from tests.assurance.test_reviewed_source_context import setup as source_setup
++
++
++def setup(root):
++    args, sources = source_setup(root)
++    p, q, old, fixed = args[0], args[2], args[3], deepcopy(args[4])
++    fixed.update(contrary=[], assumptions=['Actual request unknown.'],
++        unresolved=['No client facts supplied.'], alternatives=[dict(condition='If a request exists',
++            consequence='Consider the duty.')], considered=['test'])
++    answer = deepcopy(fixed)
++    answer['conclusion'] += ' This additional explanation preserves that condition.'
++    outer = read_evidence(p.capacity_checkpoint, root)
++    mapping = read_evidence(outer['current_answer_issue_dispositions']['p14'], root)
++    mapping['current_answer_hash'] = digest(answer)
++    pointer = put(root, 'version-mapping.json', mapping)
++    outer['current_answer_issue_dispositions']['p14'] = pointer
++    held = dict(candidate=dict(status='VALIDATED', value=fixed,
++        provenance={'origin':'HISTORICAL_PROVIDER_RESPONSE'}), original_reviews=args[6],
++        review_warrants=args[7], corrected_requirement_details=[])
++    spec = dict(profile=version.PROFILE, question_id='p14', question_hash=digest(q),
++        input_hash=p.route.input_hash, original_answer_hash=digest(old), fixed_answer_hash=digest(fixed),
++        requirement_details_hash=digest([]), dependency_population_hash=digest([]),
++        origin='LOCAL_REVIEWED_CANDIDATE', legal_acceptance=False, reviewer='Fixture review',
++        review_note=put(root,'version-review.md','Reviewed fixture only.'),
++        candidate=put(root,'version-answer.json',answer), issue_mapping=pointer,
++        predecessor_reviews=put(root,'predecessor.json',{'answers':{'p14':{
++            'answer':held['candidate'],'reviews':held['original_reviews']}}}))
++    outer['calls']={'correction-p14':{'request':put(root,'fixed-request.json',{'records':[]})}}
++    outer[version.FIELD] = {'p14': put(root,'version.json',spec)}
++    p.capacity_checkpoint = put(root,'version-checkpoint.json',outer)
++    return p, q, old, held, answer, spec, outer
++
++
++def test_opt_in_selection_has_explicit_local_origin_without_provider_call(tmp_path):
++    p,q,old,held,answer,_,_=setup(tmp_path)
++    before=deepcopy(held)
++    candidate=version.select(p,'p14',q,old,held,[])
++    assert candidate['value']==answer
++    assert candidate['provenance']['origin']=='LOCAL_REVIEWED_CANDIDATE'
++    assert candidate['provenance']['semantic_acceptance'] is False
++    assert candidate['provenance']['fresh_complete_review_required'] is True
++    assert held==before and not p.provider.requests
++
++
++def test_disabled_version_keeps_existing_candidate_path(tmp_path):
++    p,q,old,held,_,_,outer=setup(tmp_path)
++    outer.pop(version.FIELD)
++    p.capacity_checkpoint=put(tmp_path,'disabled.json',outer)
++    assert version.select(p,'p14',q,old,held,[]) is None
++
++
++@pytest.mark.parametrize('field',['profile','question_id','question_hash','input_hash',
++    'original_answer_hash','fixed_answer_hash','requirement_details_hash','dependency_population_hash',
++    'origin','legal_acceptance','reviewer','issue_mapping'])
++def test_stale_or_unreviewed_version_is_rejected(tmp_path,field):
++    p,q,old,held,_,spec,outer=setup(tmp_path)
++    spec[field]='wrong' if field!='reviewer' else ''
++    outer[version.FIELD]['p14']=put(tmp_path,'bad-version.json',spec)
++    p.capacity_checkpoint=put(tmp_path,'bad-checkpoint.json',outer)
++    with pytest.raises(LegalMathError):version.select(p,'p14',q,old,held,[])
++    assert not p.provider.requests
++
++
++@pytest.mark.parametrize('field',['conclusion','alternatives','source_gaps','unresolved','assumptions'])
++def test_changed_original_claim_or_condition_is_rejected(tmp_path,field):
++    p,q,old,held,answer,spec,outer=setup(tmp_path)
++    if field=='conclusion':answer[field]='Unconditional replacement.'
++    elif field=='source_gaps':answer[field]=[dict(index_hash='foreign',locator='P1',status='NOT_VERIFIED_IN_DELIVERED_RECORDS')]
++    else:answer[field]=[]
++    spec['candidate']=put(tmp_path,'changed-answer.json',answer)
++    outer[version.FIELD]['p14']=put(tmp_path,'changed-version.json',spec)
++    p.capacity_checkpoint=put(tmp_path,'changed-checkpoint.json',outer)
++    with pytest.raises(Exception):version.select(p,'p14',q,old,held,[])
++    assert not p.provider.requests
++
++
++def test_missing_source_profile_and_incomplete_issues_are_rejected(tmp_path):
++    p,q,old,held,_,_,outer=setup(tmp_path)
++    outer.pop(reviewed_source_context.FIELD)
++    p.capacity_checkpoint=put(tmp_path,'missing-profile.json',outer)
++    with pytest.raises(LegalMathError):version.select(p,'p14',q,old,held,[])
++    p,q,old,held,_,spec,outer=setup(tmp_path/'other')
++    mapping=read_evidence(spec['issue_mapping'],p.root)
++    mapping['dispositions']=[]
++    pointer=put(p.root,'incomplete.json',mapping)
++    spec['issue_mapping']=pointer
++    outer['current_answer_issue_dispositions']['p14']=pointer
++    outer[version.FIELD]['p14']=put(p.root,'incomplete-version.json',spec)
++    p.capacity_checkpoint=put(p.root,'incomplete-checkpoint.json',outer)
++    with pytest.raises(LegalMathError):version.select(p,'p14',q,old,held,[])
++
++
++def test_actual_resume_preserves_provider_history_and_fresh_rejection(tmp_path,monkeypatch):
++    p,q,old,held,answer,spec,outer=setup(tmp_path)
++    spec['predecessor_reviews']=put(tmp_path,'accepted-predecessor.json',{'answers':{'p14':{
++        'answer':held['candidate'],'reviews':[dict(status='VALIDATED',value=dict(verdict='ACCEPT'))]}}})
++    outer[version.FIELD]['p14']=put(tmp_path,'no-adverse-version.json',spec)
++    p.capacity_checkpoint=put(tmp_path,'no-adverse-checkpoint.json',outer)
++    predecessor=deepcopy(held)
++    monkeypatch.setattr(retry_checkpoint,'fixed_correction',lambda *a:deepcopy(held))
++    historical=p.directory/'fixed-correction-p14.json'
++    historical.write_text('Exact retained historical bytes.')
++    prefixes=[]
++    def fresh(qid,question,value,details,**kw):
++        assert value==answer
++        assert getattr(p,reviewed_source_context.ATTRIBUTE)['manifest']['answer_hash']==digest(answer)
++        prefixes.append(kw['prefix'])
++        return [dict(status='VALIDATED',value=dict(verdict='REJECT',issues=['New material concern']))]
++    p.audit_answer=fresh
++    p.audit_dependencies=lambda *a,**k:[]
++    p.review_warrants=lambda *a:pytest.fail('Historical assessments repeated')
++    candidate,reviews,result=retry_checkpoint.resume_correction(p,'p14',q,dict(value=old),[],[])
++    assert candidate['value']==answer
++    assert result['status']=='REVIEWED_LOCAL_CANDIDATE'
++    assert result['provider_fixed_candidate']==predecessor['candidate']
++    assert result['local_answer_version']['origin']=='LOCAL_REVIEWED_CANDIDATE'
++    assert reviews[0]['value']['verdict']=='REJECT' and not result['legal_acceptance']
++    assert len(reviews)==1
++    assert prefixes[0].startswith('corrected-reviewed-source-')
++    assert historical.read_text()=='Exact retained historical bytes.'
++    assert held==predecessor and not p.provider.requests
++
++
++def test_intervening_adverse_reviews_block_before_any_new_review(tmp_path,monkeypatch):
++    p,q,old,held,answer,_,_=setup(tmp_path)
++    monkeypatch.setattr(retry_checkpoint,'fixed_correction',lambda *a:deepcopy(held))
++    p.audit_answer=lambda *a,**k:pytest.fail('Spent review budget before objection disposition')
++    p.audit_dependencies=p.audit_answer
++    p.review_warrants=p.audit_answer
++    with pytest.raises(LegalMathError) as exc:
++        retry_checkpoint.resume_correction(p,'p14',q,dict(value=old),[],[])
++    assert exc.value.code=='E_DEPENDENCY'
++    paths=list(p.directory.glob('local-version-preflight-*.json'))
++    assert len(paths)==1
++    import json
++    receipt=json.loads(paths[0].read_text())
++    assert receipt['provider_calls']==0 and not receipt['legal_acceptance']
++    assert len(receipt['reviews'])==1 and not p.provider.requests
++    assert receipt['reviews'][0]['issues']==held['original_reviews'][0]['value']['issues']
+--- /dev/null
++++ b/tests/assurance/test_review_planning.py
+@@ -0,0 +1,62 @@
++from copy import deepcopy
++import pytest
++from legalmath.errors import LegalMathError
++from legalmath.interpretation.assurance.phased import review_planning
++
++
++def items(n):
++    return [dict(id=str(i), payload={'unchanged': i}) for i in range(n)]
++
++
++def test_full_population_needs_one_measurement_per_fitting_block():
++    population = items(1751)
++    before = deepcopy(population)
++    calls = []
++    def measure(rows):
++        calls.append([r['id'] for r in rows])
++        return dict(exact_ids=calls[-1])
++    groups, blocked = review_planning.pack(population, measure, maximum_items=24)
++    assert len(calls) == len(groups) == 73 and not blocked
++    assert [r for g in groups for r in g['members']] == before == population
++    assert all(g['measurement']['exact_ids'] == [r['id'] for r in g['members']] for g in groups)
++
++
++def test_split_keeps_oversized_singleton_and_every_other_member():
++    population = items(10)
++    calls = []
++    def measure(rows):
++        calls.append(tuple(r['id'] for r in rows))
++        return None if len(rows)>3 or any(r['id']=='4' for r in rows) else {'fits': True}
++    groups, blocked = review_planning.pack(population, measure, maximum_items=8)
++    assert blocked == [population[4]]
++    assert [r for g in groups for r in g['members']] == population[:4] + population[5:]
++    assert all(tuple(r['id'] for r in g['members']) in calls for g in groups)
++
++
++def test_nonmonotonic_measurements_do_not_infer_singleton_failure():
++    population = items(4)
++    calls = []
++    def measure(rows):
++        calls.append(len(rows))
++        return {'fits': True} if len(rows)==4 else None
++    groups, blocked = review_planning.pack(population, measure, maximum_items=4)
++    assert calls == [4] and len(groups)==1 and not blocked
++
++
++def test_unexpected_measurement_error_is_not_a_capacity_refusal():
++    def measure(rows):
++        raise RuntimeError('Broken measurement')
++    with pytest.raises(RuntimeError):
++        review_planning.pack(items(3), measure, maximum_items=3)
++
++
++@pytest.mark.parametrize('size',[0,-1,True])
++def test_invalid_group_bound_rejected(size):
++    with pytest.raises(LegalMathError):
++        review_planning.pack(items(1), lambda rows:{}, maximum_items=size)
++
++
++def test_duplicate_population_and_empty_population():
++    with pytest.raises(LegalMathError):
++        review_planning.pack(items(1)*2,lambda rows:{},maximum_items=2)
++    assert review_planning.pack([],lambda rows:pytest.fail('No empty call'),maximum_items=2)==([],[])
+--- /dev/null
++++ b/tests/assurance/test_review_target.py
+@@ -0,0 +1,56 @@
++from legalmath.canonical import digest
++from legalmath.interpretation.assurance.integration_contract import read_evidence
++from legalmath.interpretation.assurance.phased import (
++    group_review, review_planning, review_target, reviewed_source_context as supplement,
++)
++from legalmath.interpretation.assurance.phased.source_review import assignments
++from tests.assurance.test_baseline_corpus_repairs import put
++from tests.assurance.test_reviewed_source_context import setup
++
++
++def enable(root,args):
++    product=args[0]
++    outer=read_evidence(product.capacity_checkpoint,root)
++    outer[review_target.FIELD]=review_target.PROFILE
++    outer[review_planning.FIELD]=review_planning.PROFILE
++    product.capacity_checkpoint=put(root,'target-checkpoint.json',outer)
++
++
++def test_new_target_changes_identity_and_reaches_provider_wire(tmp_path):
++    args,_=setup(tmp_path)
++    p,q,answer=args[0],args[2],args[4]
++    rows=assignments(p,'p14',[])[:1]
++    with supplement.scope(*args) as context:
++        old=context['identity']
++        baseline,shape=group_review.build(p,'p14',q,answer,rows)
++    enable(tmp_path,args)
++    with supplement.scope(*args) as context:
++        request,actual_shape=group_review.build(p,'p14',q,answer,rows)
++        assert context['identity']!=old
++        assert request['required_considered']==baseline['required_considered']
++        assert actual_shape==shape and digest(request)!=digest(baseline)
++        prepared=p.prepare_calls([dict(key='test',request=request,schema=shape,validate=lambda x:x)])[0]
++        manifest=prepared['request']['payload']['supplemental_review_context']
++        assert manifest['verdict_target_instruction']==review_target.GUIDANCE
++        assert manifest[review_target.FIELD]==review_target.PROFILE
++        assert manifest[review_planning.FIELD]==review_planning.PROFILE
++        assert 'not itself an answer defect' in manifest['verdict_target_instruction']
++        assert 'specific supported defect' in manifest['verdict_target_instruction']
++    assert not p.provider.requests and not hasattr(p,supplement.ATTRIBUTE)
++
++
++def test_actual_group_planner_selects_scoped_batch_first_path(tmp_path,monkeypatch):
++    args,_=setup(tmp_path)
++    p,q,answer=args[0],args[2],args[4]
++    enable(tmp_path,args)
++    observed=[]
++    actual=review_planning.pack
++    def check(items,measure,**kwargs):
++        observed.append([r['id'] for r in items])
++        return actual(items,measure,**kwargs)
++    monkeypatch.setattr(review_planning,'pack',check)
++    with supplement.scope(*args):
++        calls,membership,blocked,items=group_review.plan(p,'p14',q,answer,[],prefix='fresh-')
++    assert observed==[[r['id'] for r in items]] and not blocked
++    assert sum(map(len,membership.values()))==len(items)
++    assert not p.provider.requests
+--- /dev/null
++++ b/src/legalmath/interpretation/assurance/phased/reviewed_field_changes.py
+@@ -0,0 +1,77 @@
++"""Explicit reviewed field changes; representation checks do not prove entailment."""
++from legalmath.canonical import digest
++from ..bounded_context import require
++from ..integration_contract import read_evidence
++from ..legal_locators import normalized
++from .context_disposition import answer_quote
++
++PROFILE = 'reviewed-field-change-answer-version.v1'
++MUTABLE = {'conclusion', 'support', 'assertion_bindings', 'alternatives', 'source_gaps', 'unresolved'}
++
++
++def validate(product, qid, fixed, candidate, spec, records):
++    value = read_evidence(spec['field_changes'], product.root)
++    expected = dict(profile=PROFILE, question_id=qid, input_hash=product.route.input_hash,
++                    before_hash=digest(fixed), after_hash=digest(candidate))
++    require(all(value.get(k) == v for k, v in expected.items()),
++            'Stale reviewed field changes', 'E_INTEGRITY')
++    require(value.get('legal_acceptance') is False
++            and isinstance(value.get('reviewer'), str) and value['reviewer'].strip()
++            and read_evidence(value['review_note'], product.root, json_value=False).strip(),
++            'Missing field-change review', 'E_INTEGRITY')
++    changed = {k for k in fixed if fixed[k] != candidate[k]}
++    require(set(fixed) == set(candidate) and changed and changed <= MUTABLE,
++            'Unreviewed protected field change', 'E_INTEGRITY')
++    require(candidate['conclusion'].startswith(fixed['conclusion']),
++            'Original conclusion not retained', 'E_INTEGRITY')
++    for field in ('support', 'assertion_bindings'):
++        require(candidate[field][:len(fixed[field])] == fixed[field],
++                'Original source support not retained', 'E_INTEGRITY')
++    require(len(candidate['alternatives']) >= len(fixed['alternatives'])
++            and all(a['condition'] == b['condition']
++                    for a, b in zip(fixed['alternatives'], candidate['alternatives'])),
++            'Original rival condition removed or changed', 'E_INTEGRITY')
++    require(len(candidate['unresolved']) >= len(fixed['unresolved']),
++            'Uncertainty entry removed without retained treatment', 'E_INTEGRITY')
++    rows = value.get('changes', [])
++    require(len(rows) == len(changed) and {r['field'] for r in rows} == changed,
++            'Missing or duplicate changed-field review', 'E_INTEGRITY')
++    for row in rows:
++        field = row['field']
++        require(row.get('before_hash') == digest(fixed[field])
++                and row.get('after_hash') == digest(candidate[field])
++                and isinstance(row.get('reason'), str) and row['reason'].strip()
++                and row.get('support') and row.get('blocking_source_gaps') == [],
++                'Incomplete changed-field evidence', 'E_INTEGRITY')
++        answer_quote(candidate, **row['answer_evidence'])
++        product.citations(dict(support=row['support'], source_gaps=[], assertion_bindings=[]), records)
++    # Gap removal is about this exact delivery. A citation elsewhere in the
++    # corpus, a title, or a partial paragraph cannot prove full delivery.
++    before = {digest(g): g for g in fixed['source_gaps']}
++    after = {digest(g): g for g in candidate['source_gaps']}
++    require(len(before) == len(fixed['source_gaps']) and len(after) == len(candidate['source_gaps'])
++            and set(after) <= set(before), 'Unreviewed new or duplicate source gap', 'E_INTEGRITY')
++    removed = set(before) - set(after)
++    proofs = value.get('resolved_source_gaps', [])
++    require(len(proofs) == len(removed) and {digest(p['gap']) for p in proofs} == removed,
++            'Missing or duplicate source-gap coverage proof', 'E_INTEGRITY')
++    by_id = {r['id']: r for r in records}
++    indexes = {i['index_hash']: i for i in product.route.envelope.get('legal_indexes', [])}
++    for proof in proofs:
++        gap = proof['gap']; index = indexes.get(gap['index_hash'])
++        require(index is not None and proof.get('support'), 'Unknown gap source index', 'E_INTEGRITY')
++        legal = [r for r in index['records'] if r['locator'] == gap['locator']]
++        require(len(legal) == 1, 'Missing exact numbered record', 'E_INTEGRITY')
++        product.citations(dict(support=proof['support'], source_gaps=[], assertion_bindings=[]), records)
++        parts = []
++        for citation in proof['support']:
++            record = by_id.get(citation['record_id'])
++            require(record is not None and record.get('unit_id') in index['units']
++                    and citation.get('locator') == gap['locator'],
++                    'Foreign source-gap proof', 'E_INTEGRITY')
++            parts.append(citation['quote'])
++        require(normalized(' '.join(parts)) == normalized(legal[0]['text']),
++                'Incomplete numbered source coverage', 'E_INTEGRITY')
++    return dict(profile=PROFILE, changes=spec['field_changes'], fields=sorted(changed),
++                reconciled_gaps=len(removed), semantic_acceptance=False)
++
+--- /dev/null
++++ b/src/legalmath/interpretation/assurance/phased/intervening_issue_disposition.py
+@@ -0,0 +1,78 @@
++"""Preserve and explicitly review every intervening adverse occurrence."""
++from copy import deepcopy
++from legalmath.canonical import digest
++from ..bounded_context import require
++from ..integration_contract import read_evidence
++from .context_disposition import answer_quote
++from .current_issue_disposition import SETTLED
++
++PROFILE = 'intervening-answer-issue-disposition.v1'
++
++
++def review_identity(predecessor):
++    # The complete review set can exceed the canonical single-object bound.
++    # Authenticate every ordered review separately, then bind their exact hashes.
++    return digest(dict(answer_hash=digest(predecessor['answer']),
++                       review_hashes=[digest(r) for r in predecessor['reviews']]))
++
++
++def census(predecessor):
++    rows = []
++    for i, review in enumerate(predecessor['reviews']):
++        if review.get('status') != 'VALIDATED' or review['value']['verdict'] != 'REJECT':
++            continue
++        require(review['value'].get('issues'), 'Adverse predecessor has no issue', 'E_INTEGRITY')
++        for j, issue in enumerate(review['value']['issues']):
++            rows.append(dict(id=str(i)+':issue-'+str(j), review_index=i,
++                             review_hash=digest(review), issue=issue))
++    return rows
++
++
++def validate(product, qid, question, candidate, predecessor, pointer, records):
++    value = read_evidence(pointer, product.root)
++    population = census(predecessor)
++    expected = dict(profile=PROFILE, question_id=qid, question_hash=digest(question),
++                    input_hash=product.route.input_hash, candidate_hash=digest(candidate),
++                    predecessor_review_identity=review_identity(predecessor), issue_population_hash=digest(population))
++    require(all(value.get(k) == v for k, v in expected.items()),
++            'Stale intervening issue disposition', 'E_INTEGRITY')
++    require(value.get('legal_acceptance') is False
++            and isinstance(value.get('reviewer'), str) and value['reviewer'].strip()
++            and read_evidence(value['review_note'], product.root, json_value=False).strip(),
++            'Missing intervening issue review', 'E_INTEGRITY')
++    for evidence in value.get('reviewed_evidence', []):
++        read_evidence(evidence, product.root, json_value=False)
++    rows = value.get('dispositions', [])
++    by_id = {r['id']: r for r in population}
++    require(len(rows) == len(population) and {r['id'] for r in rows} == set(by_id),
++            'Missing or duplicate intervening issue', 'E_INTEGRITY')
++    pending = []
++    for row in rows:
++        require(all(row.get(k) == v for k, v in by_id[row['id']].items()),
++                'Changed intervening issue identity', 'E_INTEGRITY')
++        require(row.get('disposition') in SETTLED | {'STILL_REQUIRED'}
++                and isinstance(row.get('reason'), str) and row['reason'].strip(),
++                'Missing substantive intervening decision', 'E_INTEGRITY')
++        if row['disposition'] == 'STILL_REQUIRED':
++            pending.append(deepcopy(row)); continue
++        require(row.get('support') and row.get('blocking_source_gaps') == [],
++                'Necessary evidence cannot be waived', 'E_INTEGRITY')
++        product.citations(dict(support=row['support'], source_gaps=[], assertion_bindings=[]), records)
++        answer_quote(candidate, **row['answer_evidence'])
++        if row['disposition'] == 'SUPPORTED_BY_REVIEWED_SOURCE':
++            require(value.get('reviewed_evidence'), 'Missing supplemental review', 'E_INTEGRITY')
++        if row['disposition'] == 'CONDITIONALLY_ADDRESSED':
++            require(isinstance(row.get('necessary_premises'), list) and row['necessary_premises'],
++                    'Conditional disposition omits premises', 'E_INTEGRITY')
++            for premise in row['necessary_premises']:
++                require(isinstance(premise.get('description'), str) and premise['description'].strip(),
++                        'Missing premise description', 'E_INTEGRITY')
++                answer_quote(candidate, **premise['answer_evidence'])
++    unresolved = [i for i, r in enumerate(predecessor['reviews'])
++                  if r.get('status') == 'VALIDATED' and r['value']['verdict'] == 'UNRESOLVED']
++    failed = [i for i, r in enumerate(predecessor['reviews']) if r.get('status') != 'VALIDATED']
++    return dict(profile=PROFILE, manifest=pointer, issue_count=len(population), pending=pending,
++                complete=not pending, predecessor_unresolved_indexes=unresolved,
++                predecessor_failed_indexes=failed, fresh_complete_review_required=True,
++                legal_acceptance=False)
++
+--- /dev/null
++++ b/tests/assurance/test_reviewed_field_changes.py
+@@ -0,0 +1,172 @@
++from copy import deepcopy
++import pytest
++from legalmath.canonical import MAX_BYTES, digest
++from legalmath.errors import BoundaryError
++from legalmath.errors import LegalMathError
++from legalmath.interpretation.assurance.integration_contract import read_evidence
++from legalmath.interpretation.assurance.phased import (
++    reviewed_answer_version as version, reviewed_field_changes as fields,
++    intervening_issue_disposition as intervening, retry_checkpoint,
++)
++from tests.assurance.test_reviewed_answer_version import setup
++from tests.assurance.test_baseline_corpus_repairs import put
++
++
++def field_setup(root):
++    p,q,old,held,answer,spec,outer=setup(root)
++    fixed=held['candidate']['value']
++    answer['alternatives'][0]['consequence']='Only the condition stated permits this inference.'
++    answer['alternatives'].append(dict(condition='A supported rival applies',consequence='Retain uncertainty.'))
++    answer['unresolved'][0]='Actual applicability remains unknown.'
++    mapping=read_evidence(spec['issue_mapping'],root)
++    mapping['current_answer_hash']=digest(answer)
++    pointer=put(root,'field-mapping.json',mapping)
++    spec.update(profile=fields.PROFILE,issue_mapping=pointer,candidate=put(root,'field-answer.json',answer))
++    outer['current_answer_issue_dispositions']['p14']=pointer
++    support=mapping['dispositions'][0]['support']
++    # Make supplemental evidence part of this exact candidate delivery.
++    answer['support'].extend(c for c in support if c not in answer['support'])
++    mapping['current_answer_hash']=digest(answer)
++    pointer=put(root,'field-mapping-final.json',mapping)
++    spec.update(issue_mapping=pointer,candidate=put(root,'field-answer-final.json',answer))
++    outer['current_answer_issue_dispositions']['p14']=pointer
++    manifest=dict(profile=fields.PROFILE,question_id='p14',input_hash=p.route.input_hash,
++        before_hash=digest(fixed),after_hash=digest(answer),legal_acceptance=False,
++        reviewer='Fixture editorial review',review_note=spec['review_note'],resolved_source_gaps=[],
++        changes=[dict(field=k,before_hash=digest(fixed[k]),after_hash=digest(answer[k]),
++            reason='Explicit fixture change; no legal conclusion.',support=support,blocking_source_gaps=[],
++            answer_evidence=dict(path='/conclusion',quote=answer['conclusion']))
++            for k in fixed if fixed[k]!=answer[k]])
++    spec['field_changes']=put(root,'field-manifest.json',manifest)
++    outer[version.FIELD]['p14']=put(root,'field-version.json',spec)
++    p.capacity_checkpoint=put(root,'field-checkpoint.json',outer)
++    return p,q,old,held,answer,spec,outer,manifest
++
++
++def test_actual_selector_accepts_explicit_field_changes_without_acceptance(tmp_path):
++    p,q,old,held,answer,_,_,_=field_setup(tmp_path)
++    result=version.select(p,'p14',q,old,held,[])
++    assert result['value']==answer and result['provenance']['reviewed_field_changes']['fields']
++    assert not result['provenance']['semantic_acceptance'] and not p.provider.requests
++    assert result['provenance']['unresolved_predecessor_adverse_reviews']
++
++
++@pytest.mark.parametrize('damage',['wrong_before','wrong_after','missing_change','duplicate_change',
++    'false_answer_quote','false_source_quote','missing_source','missing_reason','necessary_gap','unknown_profile'])
++def test_field_manifest_adverse_controls(tmp_path,damage):
++    p,q,old,held,answer,spec,outer,m=field_setup(tmp_path)
++    if damage=='wrong_before':m['before_hash']='0'*64
++    elif damage=='wrong_after':m['after_hash']='0'*64
++    elif damage=='missing_change':m['changes'].pop()
++    elif damage=='duplicate_change':m['changes'].append(deepcopy(m['changes'][0]))
++    elif damage=='false_answer_quote':m['changes'][0]['answer_evidence']['quote']='Invented claim'
++    elif damage=='false_source_quote':m['changes'][0]['support'][0]['quote']='Invented law'
++    elif damage=='missing_source':m['changes'][0]['support'][0]['record_id']='missing'
++    elif damage=='missing_reason':m['changes'][0]['reason']=''
++    elif damage=='necessary_gap':m['changes'][0]['blocking_source_gaps']=['required']
++    elif damage=='unknown_profile':spec['profile']='unknown'
++    spec['field_changes']=put(tmp_path,'bad-fields.json',m)
++    outer[version.FIELD]['p14']=put(tmp_path,'bad-field-version.json',spec)
++    p.capacity_checkpoint=put(tmp_path,'bad-field-checkpoint.json',outer)
++    with pytest.raises(Exception):version.select(p,'p14',q,old,held,[])
++    assert not p.provider.requests
++
++
++def issue_setup(root, *, pending=False):
++    p,q,old,held,answer,spec,outer,m=field_setup(root)
++    predecessor=read_evidence(spec['predecessor_reviews'],root)['answers']['p14']
++    # Two equal texts are still separate original occurrences; retain failed and
++    # unresolved reviews in the complete predecessor population.
++    predecessor['reviews'][0]['value']['issues']*=2
++    predecessor['reviews'] += [dict(status='VALIDATED',value=dict(verdict='UNRESOLVED',issues=[])),
++                              dict(status='FAILED',error='E_CAPACITY')]
++    population=intervening.census(predecessor)
++    support=m['changes'][0]['support']
++    manifest=dict(profile=intervening.PROFILE,question_id='p14',question_hash=digest(q),
++        input_hash=p.route.input_hash,candidate_hash=digest(answer),predecessor_review_identity=intervening.review_identity(predecessor),
++        issue_population_hash=digest(population),reviewer='Fixture issue review',review_note=spec['review_note'],
++        reviewed_evidence=[spec['review_note']],legal_acceptance=False,
++        dispositions=[dict(**row,disposition='STILL_REQUIRED' if pending else 'CONDITIONALLY_ADDRESSED',
++            reason='Fixture condition retained; no acceptance.',blocking_source_gaps=[],support=support,
++            answer_evidence=dict(path='/conclusion',quote=answer['conclusion']),
++            necessary_premises=[dict(description='Actual applicability unknown.',
++                answer_evidence=dict(path='/unresolved/0',quote=answer['unresolved'][0]))]) for row in population])
++    spec['predecessor_reviews']=put(root,'intervening-predecessor.json',{'answers':{'p14':predecessor}})
++    spec['intervening_issue_dispositions']=put(root,'intervening-manifest.json',manifest)
++    outer[version.FIELD]['p14']=put(root,'intervening-version.json',spec)
++    p.capacity_checkpoint=put(root,'intervening-checkpoint.json',outer)
++    return p,q,old,held,answer,spec,outer,manifest
++
++
++def test_explicit_issues_preserve_duplicate_occurrences_and_other_failures(tmp_path):
++    p,q,old,held,answer,_,_,_=issue_setup(tmp_path)
++    r=version.select(p,'p14',q,old,held,[])
++    v=r['provenance'];assert not v['unresolved_predecessor_adverse_reviews']
++    assert v['intervening_issue_disposition']['issue_count']==2
++    assert v['predecessor_unresolved_review_count']==1 and v['predecessor_failed_review_count']==1
++    assert v['fresh_complete_review_required'] and not v['semantic_acceptance']
++    assert not p.provider.requests
++
++
++def test_review_identity_binds_order_and_every_review_beyond_single_object_limit():
++    reviews = [dict(status='VALIDATED',value=dict(verdict='UNRESOLVED',
++        reason=str(i)+'x'*(MAX_BYTES // 1000 + 1))) for i in range(1000)]
++    predecessor = dict(answer={'value':{'conclusion':'Fixed'}},reviews=reviews)
++    with pytest.raises(BoundaryError) as exc: digest(predecessor)
++    assert exc.value.code == 'E_RESOURCE_LIMIT'
++    before = intervening.review_identity(predecessor)
++    predecessor['reviews'][500]['value']['reason'] += 'changed'
++    assert intervening.review_identity(predecessor) != before
++    changed = intervening.review_identity(predecessor)
++    predecessor['reviews'][0],predecessor['reviews'][1]=predecessor['reviews'][1],predecessor['reviews'][0]
++    assert intervening.review_identity(predecessor) != changed
++
++
++@pytest.mark.parametrize('damage',['missing_issue','duplicate_issue','wrong_review_hash','wrong_issue_text',
++    'wrong_candidate','wrong_predecessor','wrong_population','false_answer_quote','false_source_quote',
++    'missing_premise','false_premise','missing_reason','blocking_gap','legal_acceptance'])
++def test_intervening_issue_adverse_controls(tmp_path,damage):
++    p,q,old,held,answer,spec,outer,m=issue_setup(tmp_path)
++    if damage=='missing_issue':m['dispositions'].pop()
++    elif damage=='duplicate_issue':m['dispositions'][1]=deepcopy(m['dispositions'][0])
++    elif damage=='wrong_review_hash':m['dispositions'][0]['review_hash']='0'*64
++    elif damage=='wrong_issue_text':m['dispositions'][0]['issue']='Different concern'
++    elif damage=='wrong_candidate':m['candidate_hash']='0'*64
++    elif damage=='wrong_predecessor':m['predecessor_review_identity']='0'*64
++    elif damage=='wrong_population':m['issue_population_hash']='0'*64
++    elif damage=='false_answer_quote':m['dispositions'][0]['answer_evidence']['quote']='Invented conclusion'
++    elif damage=='false_source_quote':m['dispositions'][0]['support'][0]['quote']='Invented law'
++    elif damage=='missing_premise':m['dispositions'][0]['necessary_premises']=[]
++    elif damage=='false_premise':m['dispositions'][0]['necessary_premises'][0]['answer_evidence']['quote']='Invented condition'
++    elif damage=='missing_reason':m['dispositions'][0]['reason']=''
++    elif damage=='blocking_gap':m['dispositions'][0]['blocking_source_gaps']=['still required']
++    elif damage=='legal_acceptance':m['legal_acceptance']=True
++    spec['intervening_issue_dispositions']=put(tmp_path,'bad-intervening.json',m)
++    outer[version.FIELD]['p14']=put(tmp_path,'bad-intervening-version.json',spec)
++    p.capacity_checkpoint=put(tmp_path,'bad-intervening-checkpoint.json',outer)
++    with pytest.raises(Exception):version.select(p,'p14',q,old,held,[])
++    assert not p.provider.requests
++
++
++def test_pending_intervening_issue_refuses_before_fresh_calls(tmp_path,monkeypatch):
++    p,q,old,held,answer,_,_,_=issue_setup(tmp_path,pending=True)
++    monkeypatch.setattr(retry_checkpoint,'fixed_correction',lambda *a:deepcopy(held))
++    p.audit_answer=lambda *a,**k:pytest.fail('Spent before required issue review')
++    p.audit_dependencies=p.audit_answer
++    with pytest.raises(LegalMathError):retry_checkpoint.resume_correction(p,'p14',q,dict(value=old),[],[])
++    assert not p.provider.requests
++
++
++def test_actual_resume_keeps_fresh_reject_and_unresolved_after_manifest(tmp_path,monkeypatch):
++    p,q,old,held,answer,_,_,_=issue_setup(tmp_path)
++    monkeypatch.setattr(retry_checkpoint,'fixed_correction',lambda *a:deepcopy(held))
++    p.audit_answer=lambda *a,**k:[dict(status='VALIDATED',value=dict(verdict='REJECT',issues=['Fresh material concern']))]
++    p.audit_dependencies=lambda *a,**k:[dict(status='VALIDATED',value=dict(verdict='UNRESOLVED',issues=[]))]
++    p.review_warrants=lambda *a:pytest.fail('Repeated authenticated history')
++    candidate,reviews,result=retry_checkpoint.resume_correction(p,'p14',q,dict(value=old),[],[])
++    assert candidate['value']==answer
++    assert [r['value']['verdict'] for r in reviews]==['REJECT','UNRESOLVED']
++    assert result['provider_fixed_candidate']==held['candidate']
++    assert result['local_answer_version']['predecessor_failed_review_count']==1
++    assert not result['legal_acceptance'] and not p.provider.requests
++
+--- /dev/null
++++ b/src/legalmath/interpretation/assurance/phased/reviewed_account_version.py
+@@ -0,0 +1,121 @@
++"""Explicit local detailed-account versions; never semantic acceptance."""
++from copy import deepcopy
++from jsonschema import validate as schema_validate
++from legalmath.canonical import digest
++from ..bounded_context import require
++from ..bounded_product import NOTE
++from ..integration_contract import read_evidence
++from ..legal_locators import normalized
++from .context_disposition import answer_quote
++
++PROFILE = 'reviewed-detailed-account-version.v1'
++
++
++def premises(requirement):
++    value = requirement['value']
++    return [dict(kind='fact', key=k, value=v) for k, v in sorted(value.get('facts', {}).items())] + [
++        dict(kind='missing_premise', key=p['id'], value=p) for p in value.get('missing_premises', [])]
++
++
++def gap_proofs(product, before, after, proofs, records):
++    original = {digest(g):g for g in before['source_gaps']}
++    current = {digest(g):g for g in after['source_gaps']}
++    require(len(original)==len(before['source_gaps']) and len(current)==len(after['source_gaps'])
++        and set(current)<=set(original), 'Unreviewed account source-gap change', 'E_INTEGRITY')
++    removed = set(original)-set(current)
++    require(len(proofs)==len(removed) and {digest(p['gap']) for p in proofs}==removed,
++        'Missing or duplicate account gap proof', 'E_INTEGRITY')
++    by_id = {r['id']:r for r in records}
++    indexes = {i['index_hash']:i for i in product.route.envelope.get('legal_indexes', [])}
++    for proof in proofs:
++        gap=proof['gap'];index=indexes.get(gap['index_hash'])
++        require(index is not None and proof.get('support'), 'Unknown account gap source', 'E_INTEGRITY')
++        numbered=[r for r in index['records'] if r['locator']==gap['locator']]
++        require(len(numbered)==1, 'Missing account numbered text', 'E_INTEGRITY')
++        product.citations(dict(support=proof['support'],source_gaps=[],assertion_bindings=[]),records)
++        parts=[]
++        for citation in proof['support']:
++            record=by_id.get(citation['record_id'])
++            require(record is not None and record.get('unit_id') in index['units']
++                and citation.get('locator')==gap['locator'], 'Foreign account gap proof', 'E_INTEGRITY')
++            parts.append(citation['quote'])
++        require(normalized(' '.join(parts))==normalized(numbered[0]['text']),
++            'Incomplete account numbered-text coverage', 'E_INTEGRITY')
++
++
++def select(product, qid, question, answer, details, pointer):
++    manifest=read_evidence(pointer,product.root)
++    expected=dict(profile=PROFILE,question_id=qid,question_hash=digest(question),
++        input_hash=product.route.input_hash,answer_hash=digest(answer),before_details_hash=digest(details))
++    require(all(manifest.get(k)==v for k,v in expected.items()), 'Stale detailed-account version', 'E_INTEGRITY')
++    require(manifest.get('legal_acceptance') is False and manifest.get('origin')=='LOCAL_REVIEWED_ACCOUNT_DRAFT'
++        and isinstance(manifest.get('reviewer'),str) and manifest['reviewer'].strip()
++        and read_evidence(manifest['review_note'],product.root,json_value=False).strip(),
++        'Missing detailed-account version review', 'E_INTEGRITY')
++    candidates=read_evidence(manifest['candidates'],product.root)
++    ids=[d['id'] for d in details]
++    require(len(set(ids))==len(ids) and [d['id'] for d in candidates]==ids
++        and all(set(d)=={'id','value'} for d in candidates)
++        and manifest.get('candidate_values_hash')==digest(candidates),
++        'Missing, reordered or changed account population', 'E_INTEGRITY')
++    changed={old['id'] for old,new in zip(details,candidates) if old['result']['value']!=new['value']}
++    rows=manifest.get('accounts',[])
++    require(changed and len(rows)==len(changed) and {r['id'] for r in rows}==changed,
++        'Missing or duplicate account change review', 'E_INTEGRITY')
++    reviews={r['id']:r for r in rows};result=deepcopy(details)
++    for old,new,out in zip(details,candidates,result):
++        if old['id'] not in changed:continue
++        before=old['result']['value'];after=new['value'];review=reviews[old['id']]
++        requirement=product.route.records.get(old['id'])
++        require(requirement is not None and requirement['kind'] in ('case','obligation','reading')
++            and qid in product.requirement_questions(requirement), 'Foreign account requirement', 'E_INTEGRITY')
++        require(review.get('before_hash')==digest(before) and review.get('after_hash')==digest(after)
++            and review.get('requirement_hash')==digest(requirement), 'Changed account or requirement', 'E_INTEGRITY')
++        schema_validate(after,NOTE)
++        require(set(after)==set(before) and all(after[k]==before[k] for k in ('considered','contrary'))
++            and all(after[k][:len(before[k])]==before[k] for k in ('support','assertion_bindings')),
++            'Lost account identity or original evidence', 'E_INTEGRITY')
++        records=read_evidence(review['delivery'],product.root)['records']
++        require(len({r['id'] for r in records})==len(records) and all(
++            product.route.records.get(r['id'])==r and r['kind']=='source'
++            and qid in product.acquisition_questions(r) for r in records),
++            'Changed or foreign account source delivery', 'E_INTEGRITY')
++        product.citations(after,records)
++        fields={k for k in before if before[k]!=after[k]}
++        edits=review.get('changes',[])
++        require(len(edits)==len(fields) and {e['field'] for e in edits}==fields,
++            'Missing account field review', 'E_INTEGRITY')
++        for edit in edits:
++            field=edit['field']
++            require(edit.get('before_hash')==digest(before[field]) and edit.get('after_hash')==digest(after[field])
++                and isinstance(edit.get('reason'),str) and edit['reason'].strip()
++                and edit.get('support') and edit.get('blocking_source_gaps')==[],
++                'Incomplete account field evidence', 'E_INTEGRITY')
++            answer_quote(after,**edit['answer_evidence'])
++            product.citations(dict(support=edit['support'],source_gaps=[],assertion_bindings=[]),records)
++        for field in ('assumptions','unresolved','alternatives'):
++            mappings=review.get('retained_treatment',{}).get(field,[])
++            require(len(mappings)==len(before[field]) and {r['index'] for r in mappings}==set(range(len(before[field]))),
++                'Missing original premise, uncertainty or rival treatment', 'E_INTEGRITY')
++            for row in mappings:
++                require(row.get('before_hash')==digest(before[field][row['index']])
++                    and row.get('disposition') in ('RETAINED','SOURCE_CORRECTED')
++                    and isinstance(row.get('reason'),str) and row['reason'].strip(),
++                    'Unreviewed original account treatment', 'E_INTEGRITY')
++                evidence=row.get('answer_evidence',[])
++                require(isinstance(evidence,list) and evidence, 'Missing account treatment quotation', 'E_INTEGRITY')
++                for quote in evidence:answer_quote(after,**quote)
++                if row['disposition']=='RETAINED':
++                    require(before[field][row['index']] in after[field], 'Account claimed retained but changed', 'E_INTEGRITY')
++        expected_premises=premises(requirement);actual=review.get('premises',[])
++        require(len(actual)==len(expected_premises) and [{k:r[k] for k in ('kind','key','value')} for r in actual]==expected_premises,
++            'Changed stipulated account facts or missing premises', 'E_INTEGRITY')
++        for row in actual:answer_quote(after,**row['answer_evidence'])
++        gap_proofs(product,before,after,review.get('resolved_source_gaps',[]),records)
++        out['result']=dict(status='VALIDATED',value=deepcopy(after),provenance=dict(
++            origin='LOCAL_REVIEWED_ACCOUNT_DRAFT',version=pointer,
++            predecessor_result_hash=digest(old['result']),requirement_hash=digest(requirement),
++            semantic_acceptance=False,fresh_complete_review_required=True))
++    return result,dict(profile=PROFILE,version=pointer,original_details_hash=digest(details),
++        reviewed_details_hash=digest(result),changed_accounts=[i for i in ids if i in changed],
++        semantic_acceptance=False,fresh_complete_review_required=True)
+--- /dev/null
++++ b/tests/assurance/test_reviewed_account_version.py
+@@ -0,0 +1,142 @@
++from copy import deepcopy
++import pytest
++from legalmath.canonical import digest
++from legalmath.errors import LegalMathError
++from legalmath.interpretation.assurance.integration_contract import read_evidence
++from legalmath.interpretation.assurance.phased import (reviewed_account_version as accounts,
++    reviewed_answer_version as version, reviewed_source_context, retry_checkpoint)
++from tests.assurance.test_reviewed_answer_version import setup as version_setup
++from tests.assurance.test_baseline_corpus_repairs import put
++
++
++def setup(root, stale_mapping=False):
++    p,q,old,held,answer,spec,outer=version_setup(root)
++    requirement=next(r for r in p.route.records.values() if r['kind']=='obligation')
++    requirement['value']['facts']={'request':'unknown'}
++    before=deepcopy(held['candidate']['value']);before['considered']=[requirement['id']]
++    before['assumptions']=['The request is unknown.']
++    before['conclusion']='Conditional account; request unknown.'
++    before['support']=[];before['assertion_bindings']=[]
++    after=deepcopy(before);after['conclusion']+=' Supplied text permits conditional analysis.'
++    source=next(r for r in p.route.records.values() if r['kind']=='source')
++    support=[dict(record_id=source['id'],quote=source['text'],locator='')]
++    after['support']=support
++    held['corrected_requirement_details']=[dict(id=requirement['id'],result=dict(status='VALIDATED',value=before))]
++    candidates=[dict(id=requirement['id'],value=after)]
++    def quotes(value):
++        return [dict(path='/conclusion',quote=after['conclusion'])]
++    row=dict(id=requirement['id'],before_hash=digest(before),after_hash=digest(after),
++        requirement_hash=digest(requirement),delivery=put(root,'account-delivery.json',dict(records=[source])),
++        changes=[dict(field=k,before_hash=digest(before[k]),after_hash=digest(after[k]),reason='Fixture source-backed clarification',
++            support=support,blocking_source_gaps=[],answer_evidence=quotes(after)[0]) for k in before if before[k]!=after[k]],
++        retained_treatment={k:[dict(index=i,before_hash=digest(v),disposition='RETAINED',
++            reason='Exact fixture condition retained.',answer_evidence=quotes(v)) for i,v in enumerate(before[k])]
++            for k in ('assumptions','unresolved','alternatives')},
++        premises=[dict(**r,answer_evidence=dict(path='/assumptions/0',quote=after['assumptions'][0])) for r in accounts.premises(requirement)],
++        resolved_source_gaps=[])
++    manifest=dict(profile=accounts.PROFILE,question_id='p14',question_hash=digest(q),input_hash=p.route.input_hash,
++        answer_hash=digest(answer),before_details_hash=digest(held['corrected_requirement_details']),
++        origin='LOCAL_REVIEWED_ACCOUNT_DRAFT',legal_acceptance=False,reviewer='Fixture review',
++        review_note=put(root,'account-review.md','Explicit fixture; not legal acceptance.'),
++        candidates=put(root,'account-candidates.json',candidates),candidate_values_hash=digest(candidates),accounts=[row])
++    pointer=put(root,'account-manifest.json',manifest)
++    details,provenance=accounts.select(p,'p14',q,answer,held['corrected_requirement_details'],pointer)
++    spec['requirement_details_hash']=digest(held['corrected_requirement_details'])
++    spec['reviewed_account_versions']=pointer
++    mapping=read_evidence(spec['issue_mapping'],root)
++    mapping['requirement_details_hash']=digest(held['corrected_requirement_details'] if stale_mapping else details)
++    spec['issue_mapping']=put(root,'account-rebound-issue-map.json',mapping)
++    outer['current_answer_issue_dispositions']['p14']=spec['issue_mapping']
++    spec['predecessor_reviews']=put(root,'account-predecessor.json',{'answers':{'p14':{
++        'answer':held['candidate'],'reviews':[dict(status='VALIDATED',value=dict(verdict='ACCEPT'))]}}})
++    outer[version.FIELD]['p14']=put(root,'account-answer-version.json',spec)
++    p.capacity_checkpoint=put(root,'account-checkpoint.json',outer)
++    return p,q,old,held,answer,spec,outer,manifest,details,candidates
++
++
++def test_account_selection_retains_provider_and_exact_facts(tmp_path):
++    p,q,old,held,answer,spec,outer,m,details,candidates=setup(tmp_path)
++    original=deepcopy(held)
++    selected=version.select(p,'p14',q,old,held,[])
++    assert selected['reviewed_requirement_details']==details
++    assert selected['provenance']['reviewed_accounts']['fresh_complete_review_required']
++    assert details[0]['result']['provenance']['origin']=='LOCAL_REVIEWED_ACCOUNT_DRAFT'
++    assert details[0]['result']['value']['assumptions']==held['corrected_requirement_details'][0]['result']['value']['assumptions']
++    assert held==original and not p.provider.requests
++
++
++@pytest.mark.parametrize('damage',['wrong_fact','wrong_requirement','missing_account','duplicate_account',
++    'reordered_account','wrong_candidate_hash','missing_field','false_quote','false_support',
++    'lost_rival','lost_uncertainty','missing_premise','false_premise','changed_premise_value',
++    'changed_before','changed_answer','changed_delivery','unexpected_gap_proof','acceptance'])
++def test_account_adverse_controls_before_spend(tmp_path,damage):
++    p,q,old,held,answer,spec,outer,m,details,candidates=setup(tmp_path)
++    row=m['accounts'][0]
++    if damage=='wrong_fact':p.route.records[row['id']]['value']['facts']['request']=False
++    elif damage=='wrong_requirement':row['requirement_hash']='0'*64
++    elif damage=='missing_account':m['accounts']=[]
++    elif damage=='duplicate_account':m['accounts'].append(deepcopy(row))
++    elif damage=='reordered_account':candidates[0]['id']='different'
++    elif damage=='wrong_candidate_hash':m['candidate_values_hash']='0'*64
++    elif damage=='missing_field':row['changes'].pop()
++    elif damage=='false_quote':row['changes'][0]['answer_evidence']['quote']='Invented account'
++    elif damage=='false_support':row['changes'][0]['support'][0]['quote']='Invented source'
++    elif damage=='lost_rival':row['retained_treatment']['alternatives']=[]
++    elif damage=='lost_uncertainty':row['retained_treatment']['unresolved']=[]
++    elif damage=='missing_premise':row['premises']=[]
++    elif damage=='false_premise':row['premises'][0]['answer_evidence']['quote']='A request definitely exists.'
++    elif damage=='changed_premise_value':row['premises'][0]['value']=False
++    elif damage=='changed_before':row['before_hash']='0'*64
++    elif damage=='changed_answer':m['answer_hash']='0'*64
++    elif damage=='changed_delivery':row['delivery']=put(tmp_path,'bad-delivery.json',dict(records=[]))
++    elif damage=='unexpected_gap_proof':row['resolved_source_gaps']=[dict(gap={'unexpected':True},support=[])]
++    elif damage=='acceptance':m['legal_acceptance']=True
++    m['candidates']=put(tmp_path,'bad-candidates.json',candidates)
++    pointer=put(tmp_path,'bad-account-manifest.json',m)
++    with pytest.raises(LegalMathError):accounts.select(p,'p14',q,answer,held['corrected_requirement_details'],pointer)
++    assert not p.provider.requests
++
++
++def test_stale_issue_mapping_refuses_actual_resume_before_review(tmp_path,monkeypatch):
++    p,q,old,held,answer,*_=setup(tmp_path,stale_mapping=True)
++    monkeypatch.setattr(retry_checkpoint,'fixed_correction',lambda *a:deepcopy(held))
++    p.audit_answer=lambda *a,**k:pytest.fail('Stale account mapping spent a call')
++    p.audit_dependencies=p.audit_answer
++    with pytest.raises(LegalMathError):retry_checkpoint.resume_correction(p,'p14',q,dict(value=old),[],[])
++    assert not p.provider.requests
++
++
++def test_resume_reviews_new_accounts_and_preserves_adverse_outcomes(tmp_path,monkeypatch):
++    p,q,old,held,answer,spec,outer,m,details,_=setup(tmp_path)
++    original=deepcopy(held);monkeypatch.setattr(retry_checkpoint,'fixed_correction',lambda *a:deepcopy(held))
++    observed=[]
++    def fresh(qid,question,value,actual_details,**kw):
++        assert value==answer and actual_details==details
++        context=getattr(p,reviewed_source_context.ATTRIBUTE)
++        assert context['manifest']['requirement_details_hash']==digest(details)
++        assert context['manifest']['account_cited_source_ids']
++        observed.append(context['identity'])
++        return [dict(status='VALIDATED',value=dict(verdict='REJECT',issues=['New account concern']))]
++    p.audit_answer=fresh
++    p.audit_dependencies=lambda *a,**k:[dict(status='VALIDATED',value=dict(verdict='UNRESOLVED'))]
++    p.review_warrants=lambda *a:pytest.fail('Repeated historical warrants')
++    candidate,reviews,result=retry_checkpoint.resume_correction(p,'p14',q,dict(value=old),[],[])
++    assert [r['value']['verdict'] for r in reviews]==['REJECT','UNRESOLVED']
++    assert result['provider_fixed_requirement_details']==original['corrected_requirement_details']
++    assert result['corrected_requirement_details']==details
++    assert held==original and not result['legal_acceptance'] and not p.provider.requests
++    assert 'reviewed_requirement_details' not in candidate
++
++
++def test_changed_accounts_change_context_identity_for_same_answer(tmp_path):
++    p,q,old,held,answer,spec,outer,m,details,_=setup(tmp_path)
++    from legalmath.interpretation.assurance.phased import current_issue_disposition as disposition
++    def context_identity(current):
++        checked=disposition.apply(p,'p14',q,old,answer,current,held['original_reviews'],held['review_warrants'])
++        with reviewed_source_context.scope(p,'p14',q,old,answer,current,held['original_reviews'],held['review_warrants'],checked) as context:return context['identity']
++    before=context_identity(details)
++    changed=deepcopy(details);changed[0]['result']['value']['conclusion']+=' Further conditional detail.'
++    mapping=read_evidence(spec['issue_mapping'],tmp_path);mapping['requirement_details_hash']=digest(changed)
++    outer['current_answer_issue_dispositions']['p14']=put(tmp_path,'changed-detail-map.json',mapping)
++    p.capacity_checkpoint=put(tmp_path,'changed-detail-checkpoint.json',outer)
++    assert context_identity(changed)!=before
+--- a/src/legalmath/interpretation/assurance/phased/context_references.py
++++ b/src/legalmath/interpretation/assurance/phased/context_references.py
+@@ -113,6 +113,12 @@
+     )
+     result['request']['response_reference_instructions'] += ' ' + guidance
+     result['request']['context_reference_instructions'] = guidance
++    comparison = request.get('payload', {}).get('supplemental_review_context', {}).get('source_comparison')
++    if comparison is not None:
++        from .reviewed_source_comparison import PROFILE as COMPARISON_PROFILE, factor_answer_fields
++        require(comparison.get('profile') == COMPARISON_PROFILE,
++            'Unknown source comparison wire profile', 'E_AUTHORITY')
++        result['schema'] = factor_answer_fields(result['schema'])
+     return result
+ 
+ 
+--- /dev/null
++++ b/src/legalmath/interpretation/assurance/phased/reviewed_source_comparison.py
+@@ -0,0 +1,83 @@
++"""Authenticated source-comparison text for fresh review; never an acceptance."""
++from copy import deepcopy
++from legalmath.canonical import digest
++from ..bounded_context import require
++from ..integration_contract import read_evidence
++
++PROFILE = 'answer-bound-source-comparison.v1'
++FIELD = 'reviewed_source_comparisons'
++MAX_TEXT_BYTES = 65536
++
++
++def factor_answer_fields(schema):
++    original = deepcopy(schema)
++    result = deepcopy(schema)
++    variants = result['properties']['need_dispositions']['items']['anyOf']
++    if len(variants) < 2:
++        return result
++    common = variants[0]['properties']['answer_evidence']
++    require(all(v['properties']['answer_evidence'] == common for v in variants),
++        'Cannot factor unequal answer-field schemas', 'E_INTEGRITY')
++    name = 'ReviewedSourceComparisonAnswerEvidence'
++    definitions = result.setdefault('$defs', {})
++    require(name not in definitions, 'Conflicting comparison schema definition', 'E_INTEGRITY')
++    definitions[name] = deepcopy(common)
++    for variant in variants:
++        variant['properties']['answer_evidence'] = {'$ref': '#/$defs/' + name}
++    # A mechanical expansion must recover every original constraint exactly.
++    expanded = deepcopy(result)
++    for variant in expanded['properties']['need_dispositions']['items']['anyOf']:
++        variant['properties']['answer_evidence'] = deepcopy(expanded['$defs'][name])
++    del expanded['$defs'][name]
++    if '$defs' not in original and not expanded['$defs']:
++        del expanded['$defs']
++    require(expanded == original, 'Schema factoring changed acceptance language', 'E_INTEGRITY')
++    return result
++
++
++def load(product, qid, question, answer, details, pointer):
++    value = read_evidence(pointer, product.root)
++    expected = dict(profile=PROFILE, question_id=qid, question_hash=digest(question),
++        input_hash=product.route.input_hash, answer_hash=digest(answer),
++        requirement_details_hash=digest(details), legal_acceptance=False)
++    require(all(value.get(k) == v for k, v in expected.items()),
++        'Stale or foreign source comparison', 'E_INTEGRITY')
++    require(isinstance(value.get('reviewer'), str) and value['reviewer'].strip(),
++        'Missing source comparison reviewer', 'E_INTEGRITY')
++    hashes = value.get('source_record_hashes')
++    require(isinstance(hashes, dict) and hashes, 'Missing compared sources', 'E_INTEGRITY')
++    for rid, sha in hashes.items():
++        source = product.route.records.get(rid)
++        require(source and source['kind'] == 'source' and qid in product.acquisition_questions(source)
++            and digest(source) == sha, 'Changed comparison source', 'E_INTEGRITY')
++    sources = value.get('source_files', [])
++    require(sources, 'Missing comparison source provenance', 'E_INTEGRITY')
++    for ref in sources:
++        read_evidence(ref, product.root, json_value=False)
++    attachments = value.get('documents')
++    require(isinstance(attachments, list) and attachments,
++        'Missing source comparison content', 'E_INTEGRITY')
++    documents, size, seen = [], 0, set()
++    for attachment in attachments:
++        require(set(attachment) == {'title', 'evidence'} and isinstance(attachment['title'], str)
++            and attachment['title'].strip(), 'Malformed comparison attachment', 'E_INTEGRITY')
++        ref = attachment['evidence']
++        require(ref['path'] not in seen, 'Duplicate comparison attachment', 'E_INTEGRITY')
++        seen.add(ref['path'])
++        data = read_evidence(ref, product.root, json_value=False)
++        size += len(data)
++        require(size <= MAX_TEXT_BYTES, 'Source comparison exceeds text capacity', 'E_RESOURCE_LIMIT')
++        text = data.decode('utf-8')
++        require(text.strip(), 'Empty source comparison', 'E_INTEGRITY')
++        documents.append(dict(title=attachment['title'], evidence=deepcopy(ref), text=text))
++    require(isinstance(value.get('limitations'), list) and value['limitations']
++        and all(isinstance(s, str) and s.strip() for s in value['limitations']),
++        'Missing source comparison limitations', 'E_INTEGRITY')
++    return dict(**expected, manifest=deepcopy(pointer), reviewer=value['reviewer'],
++        source_record_hashes=deepcopy(hashes), source_files=deepcopy(sources),
++        documents=documents, limitations=deepcopy(value['limitations']),
++        instruction='These are retained extraction alternatives and an explicit local materiality '
++        'assessment to evaluate critically. They are review evidence, not legal authority or a verdict. '
++        'Check the claimed effect against jointly delivered source text. Preserve contrary evidence, '
++        'unresolved conditions and factual needs. File hashes authenticate provenance only; binary '
++        'pages listed here have not been newly viewed by this review provider.')
+--- /dev/null
++++ b/tests/assurance/test_reviewed_source_comparison.py
+@@ -0,0 +1,142 @@
++from copy import deepcopy
++import pytest
++from legalmath.canonical import digest
++from legalmath.errors import LegalMathError
++from legalmath.interpretation.assurance.phased import (reviewed_source_context as supplement,
++    reviewed_source_comparison as comparison, group_review, context_disposition)
++from legalmath.interpretation.assurance.phased.source_review import assignments
++from tests.assurance.test_reviewed_source_context import setup
++from tests.assurance.test_baseline_corpus_repairs import put
++from tests.assurance.test_source_review_repair import decision
++
++
++def configured(root, damage=None):
++    args, sources = setup(root)
++    p, q, answer = args[0], args[2], args[4]
++    document = put(root, 'alternatives.txt', 'Exact alternatives: address segmentation. Operative language unchanged in inspected passages.')
++    source_file = put(root, 'source.bin', 'Retained binary source fixture')
++    value = dict(profile=comparison.PROFILE, question_id='p14', question_hash=digest(q),
++        input_hash=p.route.input_hash, answer_hash=digest(answer), requirement_details_hash=digest([]),
++        reviewer='Fixture source reviewer', legal_acceptance=False,
++        source_record_hashes={sources[-1]['id']:digest(sources[-1])}, source_files=[source_file],
++        documents=[dict(title='Comparison', evidence=document)],
++        limitations=['No blanket source qualification; no legal acceptance.'])
++    if damage in ('answer_hash', 'question_hash', 'input_hash', 'requirement_details_hash'):
++        value[damage] = '0'*64
++    if damage == 'source': value['source_record_hashes'][sources[-1]['id']] = '0'*64
++    if damage == 'acceptance': value['legal_acceptance'] = True
++    if damage == 'empty': value['documents'] = []
++    if damage == 'oversize':
++        value['documents'][0]['evidence'] = put(root, 'large.txt', 'x'*(comparison.MAX_TEXT_BYTES+1))
++    pointer = put(root, 'comparison.json', value)
++    from legalmath.interpretation.assurance.integration_contract import read_evidence
++    outer = read_evidence(p.capacity_checkpoint, root)
++    outer[comparison.FIELD] = {'p14':pointer}
++    p.capacity_checkpoint = put(root, 'comparison-checkpoint.json', outer)
++    if damage == 'changed_document': (root/'alternatives.txt').write_text('Changed')
++    if damage == 'changed_binary': (root/'source.bin').write_text('Changed')
++    return args, sources, document
++
++
++def test_group_context_and_account_receive_comparison(tmp_path, monkeypatch):
++    args, sources, document = configured(tmp_path)
++    p, q, answer = args[0], args[2], args[4]
++    item = next(r for r in assignments(p,'p14',[]) if r['origin_id']==sources[0]['id'])
++    initial = dict(status='VALIDATED',value={**decision(sources[0],'UNRESOLVED'),
++        'considered':[item['id']],'context_needs':[dict(kind='CLIENT_FACT',record_ids=[],
++            locators=[],query='',reason='Actual request unknown.')]})
++    expected = (tmp_path/'alternatives.txt').read_text()
++    baseline = group_review.build(p,'p14',q,answer,[item])[0]
++    observed = []
++    monkeypatch.setattr(group_review,'run',lambda *a,**k:[])
++    p.note = lambda key,task,question,records,material,expected,**kw: observed.append(material) or {'status':'VALIDATED','value':{'verdict':'UNRESOLVED'}}
++    with supplement.scope(*args) as active:
++        request = group_review.build(p,'p14',q,answer,[item])[0]
++        context = context_disposition.prepare(p,'p14',q,answer,item,initial,prefix='comparison-')[0]
++        requirement=next(r for r in p.route.records.values() if r['kind']=='obligation')
++        result=p.audit_answer('p14',q,answer,[{'id':requirement['id'],
++            'result':{'value':{'conclusion':'Account remains conditional.'}}}],prefix='fresh-')
++        for payload in [request['payload'],context['payload'],*observed]:
++            attachment=payload['supplemental_review_context']['source_comparison']
++            assert attachment['documents'][0]['text']==expected
++            assert attachment['documents'][0]['evidence']==document
++            assert attachment['legal_acceptance'] is False
++        assert request['required_considered']==baseline['required_considered']
++        assert request['review_scope']['assigned_source_ids']==baseline['review_scope']['assigned_source_ids']
++        assert result[0]['value']['verdict']=='UNRESOLVED'
++        old_identity=active['identity']
++    assert not hasattr(p,supplement.ATTRIBUTE)
++    # Same source records but a changed reviewed comparison must get a fresh identity.
++    from legalmath.interpretation.assurance.integration_contract import read_evidence
++    outer=read_evidence(p.capacity_checkpoint,tmp_path)
++    manifest=read_evidence(outer[comparison.FIELD]['p14'],tmp_path)
++    manifest['documents'][0]['evidence']=put(tmp_path,'second.txt','A changed comparison remains provisional.')
++    outer[comparison.FIELD]['p14']=put(tmp_path,'second-comparison.json',manifest)
++    p.capacity_checkpoint=put(tmp_path,'second-checkpoint.json',outer)
++    with supplement.scope(*args) as active:assert active['identity']!=old_identity
++
++
++@pytest.mark.parametrize('damage',['answer_hash','question_hash','input_hash','requirement_details_hash',
++    'source','acceptance','empty','oversize','changed_document','changed_binary'])
++def test_comparison_refuses_bad_identity_or_content(tmp_path,damage):
++    args,_,_=configured(tmp_path,damage)
++    with pytest.raises(LegalMathError):
++        with supplement.scope(*args):pytest.fail('Invalid comparison reached consumer')
++    assert not hasattr(args[0],supplement.ATTRIBUTE)
++
++
++def test_compared_source_is_delivered_even_without_an_answer_citation(tmp_path):
++    args,sources,_=configured(tmp_path)
++    p=args[0]
++    from legalmath.interpretation.assurance.integration_contract import read_evidence
++    outer=read_evidence(p.capacity_checkpoint,tmp_path)
++    manifest=read_evidence(outer[comparison.FIELD]['p14'],tmp_path)
++    manifest['source_record_hashes']={sources[0]['id']:digest(sources[0])}
++    outer[comparison.FIELD]['p14']=put(tmp_path,'uncited-comparison.json',manifest)
++    p.capacity_checkpoint=put(tmp_path,'uncited-checkpoint.json',outer)
++    with supplement.scope(*args) as active:
++        assert active['records'][sources[0]['id']]==sources[0]
++        records,payload=supplement.add(p,'p14',args[4],[],{'answer':args[4]})
++        assert sources[0] in records
++
++
++@pytest.mark.parametrize('damage',[None,'missing','unknown','duplicate'])
++def test_schema_factoring_preserves_constraints(damage):
++    from jsonschema import Draft202012Validator
++    evidence={'type':'object','additionalProperties':False,'properties':{'answer_field':{'type':'string','enum':['','/conclusion','/unresolved/0']}},'required':['answer_field']}
++    variants=[{'type':'object','additionalProperties':False,'properties':{'need_id':{'type':'string','enum':[str(i)]},'answer_evidence':deepcopy(evidence)},'required':['need_id','answer_evidence']} for i in range(3)]
++    schema={'type':'object','properties':{'need_dispositions':{'type':'array','items':{'anyOf':variants}}},'required':['need_dispositions']}
++    result=comparison.factor_answer_fields(schema)
++    value={'need_dispositions':[{'need_id':'0','answer_evidence':{'answer_field':'/conclusion'}}]}
++    if damage=='missing':value['need_dispositions'][0]['answer_evidence']={}
++    if damage=='unknown':value['need_dispositions'][0]['answer_evidence']['answer_field']='/invented'
++    if damage=='duplicate':value['need_dispositions'][0]['answer_evidence']['extra']='x'
++    assert Draft202012Validator(schema).is_valid(value)==Draft202012Validator(result).is_valid(value)
++    assert Draft202012Validator(result).is_valid(value)==(damage is None)
++
++
++def test_unequal_schema_cannot_be_factored():
++    shape={'properties':{'need_dispositions':{'items':{'anyOf':[{'properties':{'answer_evidence':{'enum':['a']}}},{'properties':{'answer_evidence':{'enum':['b']}}}]}}}}
++    with pytest.raises(LegalMathError):comparison.factor_answer_fields(shape)
++
++
++@pytest.mark.parametrize('damage',[None,'missing','different'])
++def test_required_comparison_cannot_be_omitted(tmp_path,damage):
++    args,sources,_=configured(tmp_path)
++    p,q,original,answer=args[0],args[2],args[3],args[4]
++    from legalmath.interpretation.assurance.integration_contract import read_evidence
++    from legalmath.interpretation.assurance.phased import current_issue_disposition
++    outer=read_evidence(p.capacity_checkpoint,tmp_path)
++    mapping=read_evidence(outer['current_answer_issue_dispositions']['p14'],tmp_path)
++    mapping['required_source_comparison']=deepcopy(outer[comparison.FIELD]['p14'])
++    outer['current_answer_issue_dispositions']['p14']=put(tmp_path,'required-mapping.json',mapping)
++    if damage=='missing':del outer[comparison.FIELD]
++    if damage=='different':outer[comparison.FIELD]['p14']=put(tmp_path,'wrong-comparison.json',{})
++    p.capacity_checkpoint=put(tmp_path,'required-checkpoint.json',outer)
++    checked=current_issue_disposition.apply(p,'p14',q,original,answer,[],args[6],args[7])
++    actual=(*args[:-1],checked)
++    if damage:
++        with pytest.raises(LegalMathError):
++            with supplement.scope(*actual):pytest.fail('Required comparison omitted')
++    else:
++        with supplement.scope(*actual) as active:assert active['manifest']['source_comparison']

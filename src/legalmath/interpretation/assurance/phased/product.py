@@ -16,11 +16,22 @@ from .phase import execute
 class PhasedProduct(BoundedProduct):
     def __init__(self, *args, phase_admit, phase_identity, downstream_instruction_profile=None,
                  downstream_capacity_profile=None, retained_preparation=None,
-                 review_repair_profile=None, **kwargs):
+                 review_repair_profile=None, review_assignment_profile=None,
+                 review_budget_yield_profile=None, **kwargs):
+        from .review_budget_yield import PROFILE as BUDGET_YIELD
+        require(review_budget_yield_profile in (None, BUDGET_YIELD),
+            'Unknown runtime budget-yield profile', 'E_AUTHORITY')
+        self.review_budget_yield_profile = review_budget_yield_profile
         from .review_repair import PROFILE as REVIEW_REPAIR
         require(review_repair_profile in (None, REVIEW_REPAIR),
             'Unknown source-review repair profile', 'E_AUTHORITY')
         self.review_repair_profile = review_repair_profile
+        from .review_contract import PROFILE as REVIEW_ASSIGNMENTS
+        require(review_assignment_profile in (None, REVIEW_ASSIGNMENTS),
+            'Unknown review assignment profile', 'E_AUTHORITY')
+        require(review_assignment_profile is None or review_repair_profile is not None,
+            'Explicit review assignments require typed review repair', 'E_AUTHORITY')
+        self.review_assignment_profile = review_assignment_profile
         from .downstream_input import CAPACITY_PROFILE
         require(downstream_capacity_profile in (None, CAPACITY_PROFILE),
             'Unknown downstream capacity selection', 'E_AUTHORITY')
@@ -61,6 +72,11 @@ class PhasedProduct(BoundedProduct):
             require(downstream_capacity_profile is not None and self.capacity_manager is not None,
                 'Review repair requires selected input and common stage capacity', 'E_AUTHORITY')
             save_exact(self.directory/'review-repair-options.json', {'profile': review_repair_profile})
+        if review_assignment_profile is not None:
+            save_exact(self.directory/'review-assignment-options.json', {'profile': review_assignment_profile})
+        else:
+            require(not (self.directory/'review-assignment-options.json').exists(),
+                'Cannot deselect review assignment profile on resume', 'E_AUTHORITY')
 
     def _request(self, task, *args, **kwargs):
         value = super()._request(task, *args, **kwargs)
@@ -73,6 +89,10 @@ class PhasedProduct(BoundedProduct):
                 value['downstream_capacity_profile'] = self.downstream_capacity_profile
             if task in REPAIRED_TASKS:
                 value['review_repair_profile'] = self.review_repair_profile
+        if self.review_assignment_profile is not None:
+            from .review_contract import FIELD, TASK
+            if task == TASK:
+                value[FIELD] = self.review_assignment_profile
         return value
 
     def request(self, task, *args, **kwargs):
@@ -264,28 +284,67 @@ class PhasedProduct(BoundedProduct):
         return super().answer(investigation, backend, preparation_only=preparation_only)
 
     def audit_answer(self, qid, question, answer, details, *, prefix=''):
+        if not prefix:
+            from .retry_checkpoint import fixed_correction
+            fixed = fixed_correction(self, qid, question, answer, details)
+            if fixed is not None:
+                return deepcopy(fixed['original_reviews'])
         # Source and dependency decisions have one complete population.
         # audit_dependencies returns no second copy of those same decisions.
         reviews = group_review.run(self, qid, question, answer, self.current_dependencies,
             implementation_identity=self.phase_identity, admit=self.phase_admit, prefix=prefix)
         items = {r['id']: r for r in assignments(self, qid, self.current_dependencies)}
+        if self.review_assignment_profile and not prefix and self.maximum_corrections:
+            # Existing adverse issues are independent of the source bridges.
+            # Assess them first; stable content keys reuse these exact warrants
+            # when correction assembles all results after context continuation.
+            early = self.review_warrants(qid, question, {'status':'VALIDATED','value':answer}, reviews, details)
+            save_exact(self.directory/('early-warrants-'+qid+'.json'),
+                {'assessed':early[0], 'warranted':early[1], 'settled':early[2], 'legal_acceptance':False})
+        from . import review_budget_yield
+        yield_selected = review_budget_yield.enabled(self)
+        budget_refusal = None
+        deferred_context = []
+        context_qualified = None
         for index, review in enumerate(reviews):
             if review.get('status') != 'VALIDATED' or review['value']['verdict'] != 'UNRESOLVED':
                 continue
+            if budget_refusal is not None:
+                identity = review['value']['considered'][0]
+                deferred_context.append(identity)
+                reviews[index] = {**review, 'context_continuation_deferred':
+                    'Branch call allocation exhausted; exact original verdict and needs retained.',
+                    'budget_deferral_profile': review_budget_yield.PROFILE}
+                continue
             needs = review['value'].get('context_needs', [])
-            if self.review_repair_profile:
+            if self.review_assignment_profile:
+                pass  # Explicit continuation accounts for every need, including untyped reasons.
+            elif self.review_repair_profile:
                 needs = [n for n in needs if n['kind'] == 'SOURCE_TEXT']
-            if not needs or any(n['kind'] != 'SOURCE_TEXT' for n in needs):
+            if not self.review_assignment_profile and (not needs or any(n['kind'] != 'SOURCE_TEXT' for n in needs)):
+                continue
+            if self.review_assignment_profile and context_qualified is False:
+                reviews[index] = {**review, 'context_continuation_deferred':
+                    'First actual disposition contract did not validate; no dependent bulk dispatch.'}
                 continue
             item = items[review['value']['considered'][0]]
             bridge = context_bridge.review(self, qid, question, answer, item, review, needs,
                                           prefix=prefix, admit=self.phase_admit)
+            if self.review_assignment_profile and context_qualified is None:
+                context_qualified = bridge['result']['status'] == 'VALIDATED'
             # Failed bridge cannot erase its original unresolved decision.
             if bridge['result']['status'] == 'VALIDATED':
                 reviews[index] = {**bridge['result'], 'context_continuation': bridge}
             else:
                 reviews[index] = {**review, 'context_continuation': bridge}
+            if yield_selected and review_budget_yield.exhausted(bridge['result'], qid):
+                budget_refusal = deepcopy(bridge['result'])
+        deferred_details = []
         for i, detail in enumerate(details):
+            if budget_refusal is not None:
+                reviews.append(review_budget_yield.deferred(detail['id'], budget_refusal))
+                deferred_details.append(detail['id'])
+                continue
             material = {'answer': answer, 'requirement': self.route.records[detail['id']],
                         'detailed_account': detail['result']['value']}
             try:
@@ -295,6 +354,16 @@ class PhasedProduct(BoundedProduct):
             except Exception as exc:
                 outcome = self.failure(exc)
             reviews.append(outcome)
+            if yield_selected and review_budget_yield.exhausted(outcome, qid):
+                budget_refusal = deepcopy(outcome)
+        if budget_refusal is not None:
+            save_exact(self.directory/(prefix+'review-budget-deferral-'+qid+'.json'),
+                dict(profile=review_budget_yield.PROFILE, question_id=qid, answer_hash=digest(answer),
+                    refusal=budget_refusal, deferred_context_ids=deferred_context,
+                    deferred_detailed_account_ids=deferred_details,
+                    attempted_deferred_items=0, legal_acceptance=False,
+                    instruction='Retain every required decision. Later execution needs fresh '
+                        'admission; this receipt grants no attempt or call allowance.'))
         return reviews
 
     def audit_dependencies(self, *args, **kwargs):
@@ -319,6 +388,10 @@ class PhasedProduct(BoundedProduct):
         return expanded, warranted, settled
 
     def correct_answer(self, qid, question, answer, reviews, details, dependencies):
+        from .retry_checkpoint import resume_correction
+        resumed = resume_correction(self, qid, question, answer, details, dependencies)
+        if resumed is not None:
+            return resumed
         if self.review_repair_profile:
             from .review_repair import correct_answer
             return correct_answer(self, qid, question, answer, reviews, details, dependencies)

@@ -101,8 +101,15 @@ def project_provider_events(value):
 
 class BoundDispatch:
     """One journal per product; completed requests can resume, uncertain ones cannot."""
-    def __init__(self, provider, directory, route, *, maximum_calls=512, shared_prefix=None):
+    def __init__(self, provider, directory, route, *, maximum_calls=512, shared_prefix=None,
+                 service_prerequisite_profile=None):
         self.provider, self.route = provider, route
+        from .phased.service_prerequisite import PROFILE as SERVICE_PREREQUISITE
+        require(service_prerequisite_profile in (None, SERVICE_PREREQUISITE),
+            'Unknown service prerequisite profile', 'E_AUTHORITY')
+        require(service_prerequisite_profile is None or callable(getattr(provider, 'check_service', None)),
+            'Provider lacks service prerequisite check', 'E_AUTHORITY')
+        self.service_prerequisite_profile = service_prerequisite_profile
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.maximum_calls = maximum_calls
@@ -257,6 +264,15 @@ class BoundDispatch:
                 require(getattr(self.provider, "bounded_authorized", False),
                         "Bounded product requires the reviewed persistent provider", "E_AUTHORITY")
                 self.provider.check()
+            if self.service_prerequisite_profile is not None:
+                # Exact retained/shared results were checked above. Do not create
+                # a new logical reservation for a known unavailable service.
+                wire_request, wire_schema = request, schema
+                if getattr(self.provider, 'reference_transport', False):
+                    from .bounded_references import prepare
+                    wire = prepare(request, schema)
+                    wire_request, wire_schema = wire['request'], wire['schema']
+                self.provider.check_service(wire_request, wire_schema)
             directory.mkdir(exist_ok=False)
             save(directory / "request.json", request)
             save(directory / "schema.json", schema)
@@ -345,7 +361,19 @@ class BoundedProduct:
                  requirement_account_recovery=None, requirement_account_input_profile=None,
                  requirement_account_instruction_profile=None, requirement_account_capacity_profile=None,
                  requirement_account_output_profile=None, downstream_input_profile=None, common_capacity_profile=None,
-                 capacity_checkpoint=None):
+                 capacity_checkpoint=None, service_prerequisite_profile=None, context_reference_profile=None,
+                 warrant_reference_profile=None, correction_input_profile=None):
+        from .phased.warrant_references import PROFILE as WARRANT_REFERENCE_PROFILE
+        from .phased.correction_input import PROFILE as CORRECTION_INPUT_PROFILE
+        require(warrant_reference_profile in (None, WARRANT_REFERENCE_PROFILE) and
+            correction_input_profile in (None, CORRECTION_INPUT_PROFILE),
+            'Unknown optional correction profile', 'E_AUTHORITY')
+        self.warrant_reference_profile = warrant_reference_profile
+        self.correction_input_profile = correction_input_profile
+        from .phased.context_references import PROFILE as CONTEXT_REFERENCE_PROFILE
+        require(context_reference_profile in (None, CONTEXT_REFERENCE_PROFILE),
+            'Unknown context reference profile', 'E_AUTHORITY')
+        self.context_reference_profile = context_reference_profile
         from .phased.capacity_policy import PROFILE as CAPACITY_PROFILE
         require(common_capacity_profile in (None, CAPACITY_PROFILE), 'Unknown common capacity selection', 'E_AUTHORITY')
         self.common_capacity_profile = common_capacity_profile
@@ -416,7 +444,8 @@ class BoundedProduct:
         if shared_prefix is not None:
             require(Path(shared_prefix).resolve().is_relative_to(self.root), "Shared checkpoint outside worktree")
         self.dispatch = BoundDispatch(provider, self.directory / "calls", self.route,
-                                      maximum_calls=maximum_calls, shared_prefix=shared_prefix)
+                                      maximum_calls=maximum_calls, shared_prefix=shared_prefix,
+                                      service_prerequisite_profile=service_prerequisite_profile)
         self.capacity_manager = None
         if common_capacity_profile is not None:
             from .phased.capacity import CapacityManager
@@ -457,6 +486,14 @@ class BoundedProduct:
             identity["requirement_account_profile"] = self.requirement_account_profile
         if common_capacity_profile is not None:
             identity['common_capacity_profile'] = common_capacity_profile
+        if service_prerequisite_profile is not None:
+            identity['service_prerequisite_profile'] = service_prerequisite_profile
+        if context_reference_profile is not None:
+            identity['context_reference_profile'] = context_reference_profile
+        if warrant_reference_profile is not None:
+            identity['warrant_reference_profile'] = warrant_reference_profile
+        if correction_input_profile is not None:
+            identity['correction_input_profile'] = correction_input_profile
         if capacity_checkpoint is not None:
             identity['capacity_checkpoint'] = capacity_checkpoint
         if requirement_account_output_profile is not None:
@@ -569,7 +606,10 @@ class BoundedProduct:
                 path.write_bytes(events.encode('utf-8'))
         if task.startswith('AUDIT_') or task == 'REVIEW_CROSS_QUESTION_DEPENDENCIES':
             return self.review_request(task, question, records, projected, expected)
-        return self._request(task, question, records, payload=projected, expected=expected)
+        request = self._request(task, question, records, payload=projected, expected=expected)
+        if task == 'CORRECT_REVIEWED_ANSWER' and self.correction_input_profile:
+            request['correction_input_profile'] = self.correction_input_profile
+        return request
 
     def review_request(self, task, question, records, payload, expected):
         """Assign scope before dispatch and add cited context only when it fits."""
@@ -775,6 +815,9 @@ class BoundedProduct:
         # Shared integrity, unknown dispatch and authority failures are not
         # ordinary model-response failures. Their consumers must stop.
         self.route.check()
+        from .phased.service_prerequisite import ServiceDeferred
+        if isinstance(exc, ServiceDeferred):
+            raise exc
         if isinstance(exc, LegalMathError) and exc.code in ('E_AUTHORITY', 'E_INTEGRITY'):
             raise exc
         return {'status': 'FAILED', 'error': getattr(exc, 'code', type(exc).__name__),
@@ -1299,6 +1342,12 @@ class BoundedProduct:
             fresh = self.audit_answer(qid, question, candidate['value'], corrected_details, prefix='corrected-')
             fresh += self.audit_dependencies(qid, question, candidate['value'], dependencies, prefix='corrected-')
             if independent:
+                from .phased import current_issue_disposition
+                disposition=current_issue_disposition.apply(self,qid,question,answer['value'],
+                    candidate['value'],corrected_details,valid_reviews,assessments)
+                if disposition is not None:
+                    retained['current_answer_issue_disposition']=disposition
+                    material['unresolved_review_warrants']=disposition['pending']
                 if material['unresolved_review_warrants']:
                     fresh.append({'status': 'FAILED', 'error': 'E_DEPENDENCY',
                         'reason': 'Independent corrections completed; some issue warrants remain unresolved',

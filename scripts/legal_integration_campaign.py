@@ -236,12 +236,22 @@ def complete_node(execution, tid, function):
         row = state['tasks'][tid]
         resuming = row['status'] == 'RUNNING'
         if resuming:
-            require(row.get('master_live') and not process_alive(row.get('live_supervisor')),
+            released = False
+            if row.get('service_checkpoint'):
+                from scripts.legal_review_service_checkpoint import checked
+                from scripts.legal_mission_execution import verify
+                checked(execution.root, tid, row)
+                require(row.get('service_resume'), 'Paused provider owner needs authenticated service recovery')
+                verify(execution.root, row['service_resume'])
+                released = row.get('live_supervisor') == process_identity(__import__('os').getpid())
+            require(row.get('master_live') and (released or not process_alive(row.get('live_supervisor'))),
                     'Live node still has an owner or lacks a resumable reservation')
             number = len(row['attempts'])
     if not resuming: number = execution.start(tid)
     with execution.locked() as state:
         state['tasks'][tid].update(master_live=True, live_supervisor=process_identity(__import__('os').getpid()))
+        state['tasks'][tid].pop('service_checkpoint', None)
+        state['tasks'][tid].pop('service_resume', None)
         save(execution.state_path, state)
     directory = ROOT / BASE / tid / ('attempt-' + str(number))
     directory.mkdir(parents=True, exist_ok=True)
@@ -251,6 +261,10 @@ def complete_node(execution, tid, function):
         status = value.pop('_node_status', 'SUCCEEDED')
         conclusion = value.pop('_conclusion', tid + ' execution evidence retained; acceptance remains scoped.')
     except Exception as exc:
+        from legalmath.interpretation.assurance.phased.service_prerequisite import ServiceDeferred
+        if isinstance(exc, ServiceDeferred):
+            from scripts.legal_review_service_checkpoint import pause
+            return pause(execution, tid, directory, exc)
         status = 'FAILED'
         value = {'error': getattr(exc, 'code', type(exc).__name__),
                  'reason': str(getattr(exc, 'details', None) or exc)}

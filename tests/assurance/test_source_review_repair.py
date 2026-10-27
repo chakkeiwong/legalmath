@@ -13,12 +13,12 @@ from tests.assurance.test_bounded_product import Scripted, envelope, limits
 from tests.assurance.test_requirement_correction import setup_product, AccountDefect
 
 
-def product(tmp_path, provider=None):
+def product(tmp_path, provider=None, **kwargs):
     return PhasedProduct(tmp_path, tmp_path/'p', provider or Scripted(), envelope(), list,
         limits=replace(limits(), input_tokens=12000), maximum_corrections=1,
         phase_admit=lambda name, count: {'name': name, 'count': count}, phase_identity='repair-test',
         downstream_input_profile=INPUT, downstream_capacity_profile=CAPACITY_PROFILE,
-        common_capacity_profile=capacity_policy.PROFILE, review_repair_profile=review_repair.PROFILE)
+        common_capacity_profile=capacity_policy.PROFILE, review_repair_profile=review_repair.PROFILE, **kwargs)
 
 
 def decision(source, verdict='ACCEPT'):

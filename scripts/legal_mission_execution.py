@@ -146,6 +146,22 @@ def validate_program(program, root):
         verify(root, reference)
     tasks = {t['id']: t for t in program['tasks']}
     require(len(tasks) == len(program['tasks']) and tasks, 'Duplicate or empty task graph')
+    if program.get('product_closure'):
+        from scripts.legal_product_closure import validate
+        reviewed = validate(program, root, program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('repaired_retry_continuation'):
+        from scripts.legal_repaired_retry_continuation import validate
+        reviewed = validate(program, root, program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('baseline_corpus_repair'):
+        from scripts.legal_baseline_corpus_deployment import validate
+        reviewed = validate(program, root, program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
+    if program.get('window_continuation'):
+        from scripts.legal_window_continuation import validate_revision
+        reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
+        return validate_task_graph(program, root, reviewed=reviewed, ceiling_limit=41)
     if program.get('review_repair'):
         from scripts.legal_review_repair import validate_revision
         reviewed = validate_revision(program, root, plan_reference=program['protected_evidence'][-1])
@@ -460,7 +476,19 @@ class Execution:
                 'tasks': {tid: {'status': 'PENDING', 'attempts': []} for tid in self.tasks}, 'events': []}
             require(state['program_hash'] == digest(self.program), 'Program changed; reviewed migration required')
             require(set(state['tasks']) == set(self.tasks), 'State task set changed')
-            if self.program.get('review_repair'):
+            if self.program.get('product_closure'):
+                from scripts.legal_product_closure import validate_history
+                validate_history(self.program, state, self.root)
+            elif self.program.get('repaired_retry_continuation'):
+                from scripts.legal_repaired_retry_continuation import validate_history
+                validate_history(self.program, state, self.root)
+            elif self.program.get('baseline_corpus_repair'):
+                from scripts.legal_baseline_corpus_deployment import validate_history
+                validate_history(self.program, state, self.root)
+            elif self.program.get('window_continuation'):
+                from scripts.legal_window_continuation import validate_state_history
+                validate_state_history(self.program, state, self.root)
+            elif self.program.get('review_repair'):
                 from scripts.legal_review_repair import validate_state_history
                 validate_state_history(self.program, state, self.root)
             elif self.program.get('retained_acquisition_repair'):
@@ -600,6 +628,10 @@ class Execution:
             task, saved = self.tasks[tid], state['tasks'][tid]
             deps = {dep: classify(dep) for dep in task['_dependencies']}
             status = saved['status']; reason = saved.get('reason', '')
+            if saved.get('service_checkpoint') and not saved.get('service_resume'):
+                from scripts.legal_review_service_checkpoint import checked
+                checked(self.root, tid, saved)
+                status, reason = 'WAITING', 'Provider service prerequisite; current attempt checkpoint retained'
             try:
                 for reference in task.get('inputs', []):
                     verify(self.root, reference)
@@ -688,11 +720,15 @@ class Execution:
             classes = self.classify(state)
             ready = sorted((t for t, row in classes.items() if row['status'] == 'READY'),
                            key=lambda t: (self.tasks[t]['priority'], t))
-            running = [t for t, row in state['tasks'].items() if row['status'] == 'RUNNING']
+            running = [t for t, row in state['tasks'].items() if row['status'] == 'RUNNING'
+                and (not row.get('service_checkpoint') or row.get('service_resume'))]
+            paused = [t for t, row in state['tasks'].items() if row.get('service_checkpoint')
+                and not row.get('service_resume')]
             recovered = {task['when_failed']: tid for tid, task in self.tasks.items()
                          if task.get('when_failed') and classes[tid]['status'] == 'SUCCEEDED'}
             blocked = {t: row['reason'] for t, row in classes.items()
                        if row['status'] in TERMINAL - {'SUCCEEDED', 'INACTIVE'} and t not in recovered}
+            blocked.update({t: classes[t]['reason'] for t in paused})
             complete = all(row['status'] in {'SUCCEEDED', 'INACTIVE'} or t in recovered for t, row in classes.items())
             expired = datetime.now(timezone.utc) >= datetime.fromisoformat(self.program['deadline_utc'])
             sync_pending=bool(state.get('mission_sync_error'))

@@ -1,11 +1,13 @@
 """canonical_v1: exact, deliberately narrower than arbitrary JSON."""
 import hashlib
 import json
+import re
 
 from .errors import BoundaryError
 
 LIMIT = 9007199254740991
 MAX_BYTES = 20 * 1024 * 1024
+_SURROGATE = re.compile("[\ud800-\udfff]")
 
 
 def _check(value, depth=0):
@@ -17,7 +19,7 @@ def _check(value, depth=0):
         if abs(value) > LIMIT:
             raise BoundaryError("E_SCHEMA")
     elif type(value) is str:
-        if any(0xD800 <= ord(c) <= 0xDFFF for c in value):
+        if _SURROGATE.search(value) is not None:
             raise BoundaryError("E_SCHEMA")
     elif type(value) is list:
         for item in value:
