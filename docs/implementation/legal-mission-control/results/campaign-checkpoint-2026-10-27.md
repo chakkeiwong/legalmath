@@ -78,10 +78,67 @@ downloaded repositories as directories and does not claim complete content
 hashing for those directories. Selected new compact records total approximately
 1.55 MB before including source/doc updates and the inventory.
 
-Git completion and the post-merge frontier will be appended after verification.
+Checkpoint `8d41e5bf8` was merged into main as `8da5e66de`. Fetch and
+merge of origin/main found no further remote changes; a normal push succeeded
+and `git ls-remote` verified the exact main hash. The working branch then
+fast-forwarded to main. The post-merge reconciliations below form a small
+follow-up commit under the same authorized Git procedure.
 
 The safe handover final refresh passed at 05:14:29 UTC on 27 October.
-The checkpoint contains 285 files, about 68.1 MB including existing tracked
+The checkpoint contains 287 files, about 68.1 MB including existing tracked
 state and the 18.8 MB inventory. Bulk payloads remain local. Two whitespace
 findings occur in a frozen patch and retained review note; their original bytes
 are preserved rather than invalidating their evidence hashes.
+
+## Post-merge result and remaining closure
+
+The first merged regression exposed five stale ODRL planning baseline hashes:
+445 tests passed and one failed. The exact prior programme and five sources
+are archived and the inspected merged baseline is registered. No ODRL task,
+attempt, implementation authority or acceptance criterion changed. Repeating
+the same suite passed **446 tests in 18.28 seconds** (19.48 seconds process wall
+time). The original failure remains retained.
+
+The legal provider's repository-wide binding included pyproject.toml and 22
+prospectus modules changed by main. A locked, reviewed transaction retained
+their exact prior bytes and the predecessor binding, then registered the merged
+identities. Programme, task state, 7,342 charges, limits and product phase
+identity remained unchanged. The original stage remains immutable. The ordinary
+provider integrity check reached the expected authority refusal: insufficient
+approved time for one complete call. The service-scope predecessor chain also
+validates. This is a verified merged checkpoint with **zero new live calls**.
+
+The worker completed its final refresh at 05:14:29 UTC and is absent. The live
+deadline expired at 05:15:09 UTC on 27 October 2026. All four recorded RUNNING
+reservations are retained for verified resumption, not replaced with fresh
+attempts. The current frontier reports `DEADLINE_REACHED`, so dependency-ready
+tool arms cannot be dispatched under the expired grant.
+
+Exact reconstruction of the evidence baseline finds 1,837 review occurrences:
+485 ACCEPT, 89 REJECT, 1,175 UNRESOLVED and 88 FAILED. The failures divide into
+86 unattempted reviews deferred by branch funding exhaustion, one invalid
+numbered assertion binding, and one transport timeout. The correction candidate
+was refused before dispatch because it would consume protected calls belonging
+to other owners. Counts are occurrences, not independent defects. The retained
+reviewers also identify confirmation/request scope, stale missing-source entries
+and an undelivered judgment analogy; these objections require source review
+before revision and do not become checked legal findings by aggregation.
+
+| Decision | Primary criterion | Veto status | Main uncertainty | Next justified action | Unsupported conclusion |
+| --- | --- | --- | --- | --- | --- |
+| Accept merged engineering checkpoint | 446 tests and current/historical identities pass | No unresolved merge integrity failure | Tests cover changed areas, not all product behavior | Commit/push compact reconciliation records | Full legal integration is complete |
+| Hold live continuation | Current global window expired | True live-dispatch veto | Future required calls depend on actual review populations | Obtain explicit time authority; preserve all charges and reservations | Unused calls extend time automatically |
+| Keep evidence answer unaccepted | Required reviews and correction incomplete | Branch funding exhausted; substantive objections retained | Source adjudication and fresh complete review remain | Review objections; obtain bounded branch allocation/attempt authority | 88 FAILED means 88 legal errors |
+| Keep v7 staged | Local tests and actual request construction pass | Fresh acceptance absent; P14 9/9 and no allocation | New provider schema behavior untested | Safe registered deployment plus explicitly funded fresh review | Local dispositions rewrite old verdicts |
+
+All authorized local handover and diagnosis work is retained. Live closure needs
+renewed time authority, explicit P14 attempt/allocation authority, and a reviewed
+evidence allocation. P10 and Gatecoin can resume their own retained work when
+the global window is valid; they need not wait for P14 or evidence acceptance.
+Each comparison requires only its own accepted baseline/candidate and qualified
+sources. No remaining defect is shown impossible by these observations.
+
+The exact mission `check` passes with mission OPEN. Its `status` reports
+`DEADLINE_REACHED`; `admit` refuses because the task is not ready. The local
+documentation and Git reconciliation complete the user's explicit handover
+request. They do not bypass that refusal or admit new substantive execution.
