@@ -84,3 +84,31 @@ conditional analysis; they do not justify compliance findings.
 After each checkpoint retain the actual result, update mission history/next-task
 reason and refresh. A clean Git checkpoint is a moment in time: renewed execution
 may legitimately produce new tracked evidence, which must be disclosed.
+
+## Execution checkpoint — 27 October 2026
+
+A–E completed at initial merge `8da5e66de`: checkpoint `8d41e5bf8`,
+normal main push verified, then main merged back into the working branch.
+The post-merge check reproduced five stale ODRL planning hashes; exact old
+bytes were archived and the reviewed baseline repaired. The repeated suite
+passed all 446 tests. The 23 changed legal bindings were separately reconciled
+without changing calls, attempts, programme, task state or product phase identity.
+This compact follow-up is committed and synchronized by the same B–E sequence.
+
+F1 local work is complete: retained evidence reviews have a precise failure
+classification, the semantic patch still applies, and ordinary provider binding
+verification reaches the expired-deadline refusal. F2 remains blocked by the
+global live window, which expired at 05:15:09 UTC / 13:15:09 Hong Kong on
+27 October. This is a continuation veto for live calls, not legal rejection or
+an instruction to consume another owner's reserve. The safe worker handover
+completed its refresh and no successor was launched.
+
+When time authority is renewed, resume the four existing owner reservations
+after process/phase verification. Advance P10, Gatecoin and their independent
+tool arms under their own allocations. Evidence/P14 need explicit allocation
+and attempt decisions before additional dispatch. Retain all 24 comparisons;
+run each only after its own accepted pair exists. The corpus applicability
+decision and six tool-effect dispositions remain required for final closure.
+Each failure triggers its declared bounded repair and refresh; it does not block
+unrelated eligible owners. No new graph, limit reset or implicit paid grant was
+created by this checkpoint.

@@ -1,5 +1,21 @@
 # Policy-to-ODRL program handover
 
+## Merged baseline checkpoint — 27 October 2026
+
+The authorized main integration changed five of the original 28 baseline files.
+The first merged suite correctly failed one stale-binding check. The exact
+premerge programme and five source versions remain under
+`history/premerge-2026-10-27/`; [the merge review](merge-review-2026-10-27.md)
+explains each change. Current `program.json` binds the merged sources and their
+retained predecessors. All 22 tasks, zero attempts, planning-only authority and
+acceptance obligations remain unchanged. The repeated merged suite passed
+446 tests, including the ODRL planning checks. See
+`../legal-mission-control/checkpoint-2026-10-27/postmerge-verification.json`.
+The older verification and handover below remain historical; this reconciliation
+does not implement or execute the ODRL programme.
+
+## Original planning handover
+
 22 October 2026. The user requested a master program to implement the ODRL
 proposal and a thorough review. That planning task is complete. The ODRL feature
 has not been implemented or executed by this task.

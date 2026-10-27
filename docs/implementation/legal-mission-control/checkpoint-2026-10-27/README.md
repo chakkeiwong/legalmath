@@ -18,3 +18,10 @@ To recover an execution on another machine, restore the exact excluded bytes
 from a separate local backup into the recorded relative paths and verify their
 hashes. A fresh Git clone alone is insufficient to replay historical campaigns.
 No source or evidence has been deleted or substituted to achieve cleanliness.
+
+The small post-merge follow-up retains prior bound source versions, the exact
+premerge binding, current pointer, review summaries and regression receipts.
+Its failed-test log and XML retain two trailing-whitespace lines emitted by
+pytest; these are immutable diagnostic bytes, not source-formatting changes.
+The original large-payload inventory is a dated checkpoint, not a continuously
+updated promise that later local diagnostics appear in that inventory.

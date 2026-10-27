@@ -12,10 +12,10 @@ retained history and must not be mistaken for the current frontier.
 The sole supervisor PID 683177/start 40916867 received a reviewed, safe
 between-phase interrupt on 27 October at 05:09:59 UTC for the user-authorized
 Git integration. There were no reserved provider dispatches, and 7,342 of
-8,100 calls were charged. Await its final refresh receipt and verify the
-process identity before any successor. Preserve all RUNNING reservations.
-The global live window ends at 05:15:09 UTC / 13:15:09 Hong Kong today;
-unused calls do not extend that window. Do not restart after expiry without
+8,100 calls were charged. Its final refresh passed at 05:14:29 UTC and the
+process is absent. Preserve all RUNNING reservations.
+The global live window expired at 05:15:09 UTC / 13:15:09 Hong Kong on
+27 October 2026; unused calls do not extend that window. Do not restart without
 specific authority. P14 remains exhausted at 9/9; evidence's first baseline
 ended FAILED with its actual answer retained and review open.
 
@@ -39,6 +39,24 @@ A Git clone alone is not a complete backup of the campaign. Main is integrated
 in its existing `/tmp/legalmath-main-integration-20261022` worktree; preserve the
 23 premerge source snapshots when revalidating source bindings. Git outcomes
 and post-merge closure status are recorded in the checkpoint summary.
+
+The first checkpoint is `8d41e5bf8`; merge `8da5e66de` reached origin/main
+and was merged back to this branch. The merge changed five ODRL planning
+bindings and 23 repository-wide legal bindings. Both were reviewed and
+reconciled with exact old bytes retained. The repaired merged suite passes
+446 tests. The ordinary provider check validates sources and rejects only
+the expired deadline; zero calls were added. See
+`checkpoint-2026-10-27/postmerge-verification.json`. The staged v7 patch still
+applies; installation and fresh acceptance remain separate prerequisites.
+
+The retained evidence baseline has 1,837 review occurrences: 485 ACCEPT,
+89 REJECT, 1,175 UNRESOLVED and 88 FAILED. Of those 88, **86 were never
+attempted after branch funding was exhausted**, one response failed assertion
+binding, and one timed out. They are not 88 demonstrated legal errors. Its
+correction was refused before dispatch to protect other branches' allocations.
+`checkpoint-2026-10-27/evidence-diagnosis.json` preserves this classification
+and sample reviewer objections, which still require source adjudication.
+The frontier is `DEADLINE_REACHED`, not complete. No live worker was restarted.
 
 ## Earlier execution history
 
