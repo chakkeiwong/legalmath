@@ -120,6 +120,10 @@ def repair_diagnostic(invalid, *, product=None, key=None, identity=None):
 
 def grouped_reviews(product, qid, question, answer, dependencies, *, implementation_identity,
                     admit, prefix='', refresh=lambda _: None):
+    from .review_checkpoint import resume
+    continued = resume(product, qid, question, answer, dependencies, prefix=prefix, refresh=refresh)
+    if continued is not None:
+        return continued
     from . import group_review
     from .phase import execute
     from .evidence_store import save_exact
@@ -175,6 +179,11 @@ def grouped_reviews(product, qid, question, answer, dependencies, *, implementat
                 'Malformed review result changed', 'E_INTEGRITY')
             raw = json.loads(raw_path.read_text())['value']
             measure_output(raw, annotate(call['request']), product.route.limits, product.route.encode, expanded=True)
+        if raw is None and result['status'] == 'FAILED':
+            from .retry_checkpoint import retained_raw
+            from .capacity_policy import annotate
+            prepared = product.prepare_calls([call])[0]
+            raw = retained_raw(product,key,result,annotate(prepared['request']),prepared['schema'])
         valid, invalid = split_result(product, qid, result, ids, call['request'], raw)
         if raw is None and result.get('status') == 'FAILED':
             from .review_receipts import invalid_wire_reviews
@@ -263,11 +272,14 @@ def retained_groups(product, qid, question, answer, dependencies, *, prefix=''):
         require(rows == [table[i] for i in ids], 'Retained assignment content changed', 'E_INTEGRITY')
         rebuilt, current_schema = group_review.build(product, qid, question, answer, rows)
         selected = product.review_repair_profile
+        assignment_profile = getattr(product, 'review_assignment_profile', None)
         try:
             product.review_repair_profile = None
+            product.review_assignment_profile = None
             legacy, legacy_schema = group_review.build(product, qid, question, answer, rows)
         finally:
             product.review_repair_profile = selected
+            product.review_assignment_profile = assignment_profile
         if product.downstream_instruction_profile is not None:
             rebuilt = downstream_instructions.annotate(rebuilt)
             legacy = downstream_instructions.annotate(legacy)
@@ -287,12 +299,75 @@ def retained_groups(product, qid, question, answer, dependencies, *, prefix=''):
     return calls, results
 
 
-def warrant_schema():
+def warrant_schema(answer=None):
     result = deepcopy(WARRANT)
     row = result['properties']['decisions']['items']
     row['properties']['blocking_source_gaps'] = deepcopy(result['properties']['source_gaps'])
     row['required'].append('blocking_source_gaps')
+    if answer is not None:
+        from .context_disposition import answer_paths
+        row['properties']['correction_target']={'type':'string',
+            'enum':['ANSWER_DEFECT','DEPENDENCY_ONLY','UNDETERMINED']}
+        row['properties']['answer_evidence']={'type':'object','additionalProperties':False,
+            'properties':{'path':{'type':'string','enum':['',*answer_paths(answer)]},
+                'quote':{'type':'string'}},'required':['path','quote']}
+        row['required']+=['correction_target','answer_evidence']
     return result
+
+
+def warrant_followup(product):
+    from ..integration_contract import read_evidence
+    if product.capacity_checkpoint is None:
+        return None
+    outer=read_evidence(product.capacity_checkpoint,product.root)
+    pointer=outer.get('warrant_target_followup')
+    if not pointer:
+        return None
+    value=read_evidence(pointer,product.root)
+    require(value['profile']=='reviewed-warrant-target-followup.v1',
+        'Unknown warrant target review','E_INTEGRITY')
+    return value
+
+
+def correction_issues(product, key, answer, review, result, *, explicit_target=False):
+    from ..integration_contract import read_evidence
+    followup=warrant_followup(product)
+    excluded=set()
+    if followup and key in followup['exclusions']:
+        rule=followup['exclusions'][key]
+        original=read_evidence(rule['result'],product.root)
+        require(rule['answer_hash']==digest(answer) and rule['review_hash']==digest(review)
+            and original['value']==result['value'] and rule['value_hash']==digest(result['value']),
+            'Changed reviewed non-answer warrant','E_INTEGRITY')
+        excluded=set(rule['issue_ids'])
+        require(excluded <= {row['issue_id'] for row in result['value']['decisions']},
+            'Reviewed exclusion lost its exact issue','E_INTEGRITY')
+    ids={row['issue_id'] for row in result['value']['decisions']
+        if row['disposition']=='WARRANTED' and row['issue_id'] not in excluded
+        and (not explicit_target or row['correction_target']=='ANSWER_DEFECT')}
+    return ids,excluded
+
+
+def validate_warrant(product, result, issues, identity, records, answer, *, explicit_target):
+    rows = result['decisions']
+    require(result['considered'] == [identity] and len(rows) == len(issues)
+        and {r['issue_id'] for r in rows} == {r['id'] for r in issues}, 'Incomplete review-warrant decisions')
+    product.citations(result, records)
+    for row in rows:
+        if explicit_target:
+            from .context_disposition import answer_quote
+            require(row['disposition']!='WARRANTED' or row['correction_target']=='ANSWER_DEFECT',
+                'Dependency-only objection cannot authorize answer correction')
+            if row['disposition']=='WARRANTED':
+                answer_quote(answer,row['answer_evidence']['path'],row['answer_evidence']['quote'])
+            require(row['correction_target']!='UNDETERMINED' or row['disposition']=='UNRESOLVED',
+                'Unknown criticism target cannot be settled')
+        product.citations({'source_gaps': row['blocking_source_gaps']}, records)
+        require(not row['blocking_source_gaps'] or row['disposition'] == 'UNRESOLVED',
+            'Issue with necessary missing evidence cannot be settled')
+        require(row['disposition'] != 'WARRANTED' or row['support'], 'Unsupported correction warrant')
+        require(row['disposition'] != 'UNWARRANTED' or row['support'] or row['basis'] == 'QUESTION_SCOPE',
+            'Discarded criticism lacks source or question-scope reasoning')
 
 
 def review_warrants(product, qid, question, answer, reviews, details):
@@ -310,32 +385,58 @@ def review_warrants(product, qid, question, answer, reviews, details):
                 'this particular issue in its blocking_source_gaps. Any such gap requires UNRESOLVED. '
                 'Keep unrelated missing authority in the overall source_gaps without using it to stop '
                 'independent supported corrections. A quotation alone does not prove the inference.'}
+        identity = f'review-{i}'
+        key = f'warrant-{qid}-{i}'
+        if getattr(product, 'review_assignment_profile', None):
+            from .source_review import assignments
+            targets = {r['id']: r for r in assignments(product, qid, product.current_dependencies)}
+            payload['assigned_review_targets'] = [deepcopy(targets[rid])
+                for rid in value['considered'] if rid in targets]
+            payload['assignment'] += (
+                ' The original response-key mapping was ambiguous: inspect the actual assigned_review_targets. '
+                'A reason may discuss a different dependency from the one it was attached to. '
+                'Do not infer necessity or acceptance from that label or mismatched rationale. '
+                'A criticism of an unnecessary proposed dependency is not automatically a defect in '
+                'the answer. Assess every issue against the unchanged answer and exact delivered text; '
+                'retain any uncertainty about scope. These are issue warrants, not new acceptance '
+                'verdicts for the original assignments.')
+            identity = 'review-'+digest(value)[:24]
+            key = f'warrant-{qid}-'+digest([answer['value'], value, payload['assigned_review_targets']])[:24]
+        followup=warrant_followup(product)
+        retained_key=bool(followup and key in followup['retained_warrant_keys'])
+        explicit_target=bool(followup and not retained_key)
+        if explicit_target:
+            payload['assignment'] += (
+                ' Distinguish the object of criticism explicitly. WARRANTED authorizes correcting '
+                'an actual ANSWER_DEFECT only and requires answer_evidence with an exact answer-relative '
+                'JSON Pointer and quotation. A valid objection to an unnecessary dependency is '
+                'DEPENDENCY_ONLY and UNWARRANTED as an answer criticism. If the target cannot be '
+                'established, use UNDETERMINED and UNRESOLVED. Do not demand an answer to a different '
+                'question merely because a source record discusses that subject.')
         request = product.request('ASSESS_REVIEW_WARRANT', question, product.source_records(payload),
-            payload=payload, expected=[f'review-{i}'])
-        def check(result, issues=issues, i=i, records=request['records']):
-            rows = result['decisions']
-            require(result['considered'] == [f'review-{i}'] and len(rows) == len(issues)
-                and {r['issue_id'] for r in rows} == {r['id'] for r in issues}, 'Incomplete review-warrant decisions')
-            product.citations(result, records)
-            for row in rows:
-                # Issue-specific gaps have the same locator and delivery
-                # contract as overall gaps. They are evaluated separately so
-                # an unrelated overall gap does not veto an independent issue.
-                product.citations({'source_gaps': row['blocking_source_gaps']}, records)
-                require(not row['blocking_source_gaps'] or row['disposition'] == 'UNRESOLVED',
-                    'Issue with necessary missing evidence cannot be settled')
-                require(row['disposition'] != 'WARRANTED' or row['support'], 'Unsupported correction warrant')
-                require(row['disposition'] != 'UNWARRANTED' or row['support'] or row['basis'] == 'QUESTION_SCOPE',
-                    'Discarded criticism lacks source or question-scope reasoning')
+            payload=payload, expected=[identity])
+        shape=warrant_schema(answer['value'] if explicit_target else None)
+        if explicit_target and getattr(product, 'warrant_reference_profile', None):
+            from .warrant_references import FIELD
+            request[FIELD] = product.warrant_reference_profile
+        def check(result, issues=issues, identity=identity, records=request['records'], explicit_target=explicit_target):
+            validate_warrant(product,result,issues,identity,records,answer['value'],
+                explicit_target=explicit_target)
         try:
-            result = product.dispatch.call(f'warrant-{qid}-{i}', request, warrant_schema(), check)
+            result = product.dispatch.call(key, request, shape, check)
         except Exception as exc:
             result = product.failure(exc)
         assessed.append({'review_index': i, 'original_review_hash': digest(review), 'result': result})
         if result['status'] == 'VALIDATED':
-            ids = {r['issue_id'] for r in result['value']['decisions'] if r['disposition'] == 'WARRANTED'}
+            ids,excluded=correction_issues(product,key,answer['value'],value,result,explicit_target=explicit_target)
+            assessed[-1]['not_answer_corrections']=sorted(excluded)
             if ids:
-                warranted.append({**deepcopy(value), 'issues': [r['text'] for r in issues if r['id'] in ids]})
+                supported={**deepcopy(value), 'issues': [r['text'] for r in issues if r['id'] in ids]}
+                if followup:
+                    supported.update(issue_assessments=[deepcopy(r) for r in result['value']['decisions'] if r['issue_id'] in ids],
+                        correction_scope='Correct only supported defects in the actual answer; retain the full '
+                            'warrant reasons and limits. A dependency objection alone does not justify an answer change.')
+                warranted.append(supported)
     save(product.directory/f'correction-{qid}-warrants.json', assessed)
     settled = bool(assessed) and all(r['result']['status'] == 'VALIDATED' and all(
         d['disposition'] != 'UNRESOLVED' for d in r['result']['value']['decisions']) for r in assessed)

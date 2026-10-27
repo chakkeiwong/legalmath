@@ -56,7 +56,13 @@ def run_product(root, directory, provider, jdk, at, *, sources, questions,
                 bounded_retained_preparation=None,
                 bounded_common_capacity_profile=None,
                 bounded_review_repair_profile=None,
+                bounded_review_assignment_profile=None,
+                bounded_review_budget_yield_profile=None,
+                bounded_service_prerequisite_profile=None,
                 bounded_capacity_checkpoint=None,
+                bounded_context_reference_profile=None,
+                bounded_warrant_reference_profile=None,
+                bounded_correction_input_profile=None,
                 **investigation_options):
     root = Path(root).resolve(); directory = Path(directory).resolve()
     if not directory.is_relative_to(root):
@@ -84,11 +90,14 @@ def run_product(root, directory, provider, jdk, at, *, sources, questions,
                 'downstream_instruction_profile': bounded_downstream_instruction_profile,
                 'downstream_capacity_profile': bounded_downstream_capacity_profile,
                 'review_repair_profile': bounded_review_repair_profile,
+                'review_assignment_profile': bounded_review_assignment_profile,
+                'review_budget_yield_profile': bounded_review_budget_yield_profile,
                 'retained_preparation': bounded_retained_preparation}
         elif (bounded_acquisition_ref is not None or bounded_phase_admit is not None or
                 bounded_phase_identity is not None or bounded_downstream_instruction_profile is not None
                 or bounded_downstream_capacity_profile is not None or bounded_retained_preparation is not None
-                or bounded_review_repair_profile is not None):
+                or bounded_review_repair_profile is not None or bounded_review_assignment_profile is not None
+                or bounded_review_budget_yield_profile is not None):
             raise LegalMathError('E_SCHEMA', details='Phase options require explicit phased execution')
         session = session_type(root, directory, provider, bounded_envelope, bounded_encode,
             limits=bounded_limits, maximum_calls=required['maximum_calls'], selected_tools=selected_tools,
@@ -102,6 +111,10 @@ def run_product(root, directory, provider, jdk, at, *, sources, questions,
             requirement_account_output_profile=bounded_requirement_account_output_profile,
             downstream_input_profile=bounded_downstream_input_profile,
             common_capacity_profile=bounded_common_capacity_profile,
+            service_prerequisite_profile=bounded_service_prerequisite_profile,
+            context_reference_profile=bounded_context_reference_profile,
+            warrant_reference_profile=bounded_warrant_reference_profile,
+            correction_input_profile=bounded_correction_input_profile,
             capacity_checkpoint=bounded_capacity_checkpoint, **phase_options)
         if bounded_execution == 'phased':
             session.install_dispatch_admission()

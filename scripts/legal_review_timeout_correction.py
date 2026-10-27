@@ -57,7 +57,18 @@ def exact_failure(root):
 
 def verify_orphans(root, state, runtime):
     from scripts.legal_mission_execution import process_alive
-    running = [r for r in state['tasks'].values() if r['status'] == 'RUNNING']
+    from scripts.legal_review_service_checkpoint import checked
+    from scripts.legal_mission_execution import process_identity
+    running = []
+    for tid, row in state['tasks'].items():
+        if row['status'] != 'RUNNING':
+            continue
+        if row.get('service_checkpoint'):
+            checked(root, tid, row)
+            require(row.get('live_supervisor') == process_identity(os.getpid()) or
+                not process_alive(row.get('live_supervisor')), 'Paused checkpoint has a different active owner')
+        else:
+            running.append(row)
     require(all(r.get('master_live') and r.get('live_supervisor')
         and not process_alive(r['live_supervisor']) for r in running),
         'A retained product reservation still has a live or unknown owner')

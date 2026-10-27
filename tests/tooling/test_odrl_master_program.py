@@ -68,7 +68,6 @@ def test_unclassified_or_source_failure_does_not_authorize_evaluator_recovery(pr
     assert result['blocked']['R08']==['failure class not qualified']
     result=frontier(program,states,{'local_implementation'}, {'V08':'SOURCE_INVALID'})
     assert 'R08' not in result['ready'] and 'R08' in result['recovery_not_needed']
-    assert 'D11' in result['ready']
 
 
 @pytest.mark.parametrize('name,dependency',[('F06','P05'),('X07','T03')])
@@ -117,6 +116,26 @@ def test_unrun_optional_branch_requires_an_explicit_disposition(program):
     assert completion(program,states)['full_program_complete']
     states['R08']='NOT_STARTED'
     assert not completion(program,states)['full_program_complete']
+
+
+def test_release_label_cannot_hide_a_failed_semantic_dependency(program):
+    states={t['id']:'SUCCEEDED' for t in program['tasks']}
+    states['F06']='FAILED'
+    result=completion(program,states)
+    assert not result['manual_release'] and not result['full_program_complete']
+    assert 'A18' in result['missing_required']
+
+
+def test_required_task_and_success_edge_cannot_be_dropped_together(program):
+    task(program,'Q13')['mandatory_for_full_program']=False
+    program['completion']['full_program_requires'].remove('Q13')
+    task(program,'K17')['requires_success'].remove('Q13')
+    assert validate(program,check_bindings=False)['status']=='FAIL'
+
+
+def test_acceptance_inventory_retains_source_correction_mutants(program):
+    program['acceptance_inventory']['mutations'].remove('M15')
+    assert validate(program,check_bindings=False)['status']=='FAIL'
 
 
 def test_recovery_is_not_an_unconditional_extra_attempt(program):

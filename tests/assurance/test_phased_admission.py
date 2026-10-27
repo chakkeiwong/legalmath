@@ -62,3 +62,25 @@ def test_sibling_phase_cannot_reset_open_shared_circuit(tmp_path):
     with pytest.raises(LegalMathError):
         allowance.reserve(allowance.expected)
     assert not json.loads(allowance.path.read_text())['calls']
+
+
+@pytest.mark.parametrize('version', ['v6','v7'])
+def test_reviewed_successor_preserves_progressive_window_admission(tmp_path, version):
+    from legalmath.interpretation.assurance.bounded_provider import (
+        SERVICE_REVIEW_REPAIR_POLICY, SERVICE_REVIEW_DEPLOYMENT_POLICY)
+    base,live,allowance=setup(tmp_path)
+    grant=json.loads((tmp_path/base/'live-grant.json').read_text())
+    grant['deadline_utc']=(datetime.now(timezone.utc)+timedelta(hours=1)).isoformat()
+    save(tmp_path/base/'live-grant.json',grant)
+    binding=json.loads((tmp_path/base/'current-binding.json').read_text())
+    binding['service_recovery_policy']=(SERVICE_REVIEW_REPAIR_POLICY if version=='v6'
+        else SERVICE_REVIEW_DEPLOYMENT_POLICY)
+    save(tmp_path/base/'current-binding.json',binding)
+    pointer=admit(tmp_path,base,live,'one-exact-recovery',1,owner='service-requalification')
+    stage=json.loads((tmp_path/pointer['path']).read_text())
+    assert stage['logical_calls']==1 and stage['maximum_calls']==25
+    assert stage['deadline_utc']==grant['deadline_utc']
+    assert not json.loads(allowance.path.read_text())['calls']
+    with pytest.raises(LegalMathError) as caught:
+        admit(tmp_path,base,live,'too-long',12,owner='p14')
+    assert caught.value.details=='Phase exceeds original global window'

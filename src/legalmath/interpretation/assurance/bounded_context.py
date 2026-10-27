@@ -310,15 +310,30 @@ class ContextRoute:
         packets.extend(p); blocked.extend(b)
         return packets,blocked
 
-    def retrieve(self, question, *, expand=True):
+    def retrieve(self, question, *, expand=True, allowed_record_ids=None):
         from rank_bm25 import BM25Okapi
         from llama_index.core.schema import TextNode, NodeWithScore
         from llama_index.core.postprocessor import MetadataReplacementPostProcessor
         source = [r for r in self.records.values() if r["kind"] == "source"]
+        scope = None
+        if allowed_record_ids is not None:
+            eligible = set(allowed_record_ids)
+            require(eligible <= {r['id'] for r in source}, 'Unknown retrieval scope record')
+            scope = {'eligible_record_ids': sorted(eligible),
+                     'excluded_record_ids': [r['id'] for r in source if r['id'] not in eligible],
+                     'rule': 'Filter before ranking and after window expansion; no relevance verdict.'}
+            source = [r for r in source if r['id'] in eligible]
+            if not source:
+                return {'record_ids': [], 'hit_ids': [], 'expanded': expand,
+                        'library': 'rank-bm25 + LlamaIndex MetadataReplacementPostProcessor',
+                        'delivered_window_hash': digest([]), 'scope': scope}
         terms = lambda t: re.findall(r"\w+",t.lower())
         bm25 = BM25Okapi([terms(r["text"]) or ["_empty_"] for r in source])
         scores = bm25.get_scores(terms(question))
         order = sorted(range(len(source)),key=lambda n:(-float(scores[n]),source[n]["id"]))
+        if scope is not None:
+            query_terms = set(terms(question))
+            order = [n for n in order if query_terms.intersection(terms(source[n]['text']))]
         selected = [source[n] for n in order[:self.limits.retrieval_hits]]
         ids = []
         postprocess = MetadataReplacementPostProcessor(target_metadata_key="window")
@@ -328,6 +343,8 @@ class ContextRoute:
             ix = ordered.index(row["id"])
             window_ids = (ordered[max(0,ix-self.limits.window_neighbors):ix+self.limits.window_neighbors+1]
                           if expand else [row["id"]])
+            if scope is not None:
+                window_ids = [rid for rid in window_ids if rid in eligible]
             window = "\n".join(self.records[i]["text"] for i in window_ids)
             node = TextNode(id_=row["id"],text=row["text"],metadata={"window":window})
             changed = postprocess.postprocess_nodes([NodeWithScore(node=node,score=1.0)])
@@ -336,7 +353,8 @@ class ContextRoute:
             ids.extend(window_ids)
         return {"record_ids":list(dict.fromkeys(ids)),"hit_ids":[r["id"] for r in selected],
                 "expanded":expand,"library":"rank-bm25 + LlamaIndex MetadataReplacementPostProcessor",
-                "delivered_window_hash":digest(expanded_texts)}
+                "delivered_window_hash":digest(expanded_texts),
+                **({'scope': scope} if scope is not None else {})}
 
     def dependency_packets(self, dependencies):
         packets, blocked = [], []

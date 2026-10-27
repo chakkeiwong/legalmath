@@ -112,8 +112,12 @@ def execute(product, name, calls, *, implementation_identity, admit, refresh=lam
         except LegalMathError as exc:
             if exc.code != 'E_RESOURCE_LIMIT':
                 raise
+            refusal = product.failure(exc)
+            from .review_budget_yield import enabled
+            if enabled(product) and isinstance(exc.details, dict):
+                refusal['resource_details'] = deepcopy(exc.details)
             outcome = {'phase': name, 'execution_complete': False, 'results': blocked,
-                'resource_refusal': product.failure(exc), 'legal_acceptance': False}
+                'resource_refusal': refusal, 'legal_acceptance': False}
             save_exact(directory / 'outcome.json', outcome)
             state.update(status='RESOURCE_BLOCKED', outcome=evidence_file(directory / 'outcome.json', product.root))
             save(path, state)
@@ -131,6 +135,13 @@ def execute(product, name, calls, *, implementation_identity, admit, refresh=lam
                 dispatch_call = product.dispatch._call_direct
             result = dispatch_call(call['key'], call['request'], call['schema'], call['validate'])
         except LegalMathError as exc:
+            from .service_prerequisite import ServiceDeferred, record
+            if isinstance(exc, ServiceDeferred):
+                state.update(status='DEFERRED_SERVICE', service_prerequisite=record(exc))
+                save(path, state)
+                refresh(dict(phase=name, execution_complete=False, results=results,
+                    service_prerequisite=record(exc)))
+                raise
             if exc.code in ('E_AUTHORITY', 'E_INTEGRITY'):
                 # Preserve the running phase. A continuation veto is never
                 # converted into an ordinary failed independent call.
@@ -147,6 +158,7 @@ def execute(product, name, calls, *, implementation_identity, admit, refresh=lam
         retained_row = directory / ('result-' + call['key'] + '.json')
         save_exact(retained_row, row)
         state.setdefault('partial_results', {})[call['key']] = evidence_file(retained_row, product.root)
+        state.pop('service_prerequisite', None)
         save(path, state)
         refresh({'phase': name, 'last_call': row, 'execution_complete': False})
     outcome = {'phase': name, 'results': results,

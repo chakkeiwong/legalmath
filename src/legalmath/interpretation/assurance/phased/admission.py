@@ -39,7 +39,8 @@ def admit(root, base, live, name, logical_calls, *, owner):
         bound = maximum * policy['timeout_seconds'] + replacements * (
             max(max(policy['backoff_seconds']), policy.get('maximum_retry_after_seconds', 0))
             + policy.get('jitter_seconds', 0)) + 305
-        if policy['profile'] in ('counted-service-recovery.v5', 'counted-service-recovery.v6'):
+        from ..bounded_provider import delayed_policy
+        if delayed_policy(policy):
             # Hourly outages are contingencies, not required work. Each actual
             # wait and retry separately checks the unchanged global deadline.
             bound = logical_calls * policy['timeout_seconds'] + 305

@@ -1087,6 +1087,107 @@ def validate(mission, tools, root=ROOT):
                 'Missing source-review repair history')
             verify_refs(root, review_repair)
             detours += 1
+            deployment = review_repair.get('deployment')
+            if deployment:
+                require(deployment.get('profile') == 'review-contract-deployment.v1'
+                    and deployment.get('prior_detours') == detours == 62
+                    and deployment.get('additional_consolidated_revision') == 1
+                    and deployment.get('service_replacements_added') == 200
+                    and deployment.get('calls_added') == 0,
+                    'Unreviewed review-contract deployment')
+                require(any(r['id'] == 'p14-contract-deployment-2026-10-23'
+                    and deployment['review'] in r['result_evidence'] for r in history),
+                    'Deployment lacks its reviewed history')
+                detours += 1
+                isolation = deployment.get('context_isolation')
+                if isolation:
+                    require(isolation.get('profile') == 'corrected-context-isolation.v1'
+                        and isolation.get('prior_detours') == detours == 63
+                        and isolation.get('additional_consolidated_revision') == 1
+                        and isolation.get('calls_added') == 0
+                        and isolation.get('attempts_added') == 0
+                        and isolation.get('service_replacements_added') == 0,
+                        'Unreviewed corrected-context isolation')
+                    require(any(r['id'] == 'p14-corrected-context-isolation-2026-10-23'
+                        and isolation['review'] in r['result_evidence'] for r in history),
+                        'Corrected-context repair lacks reviewed history')
+                    detours += 1
+            quotation = review_repair.get('optional_quote_validation')
+            if quotation:
+                require(quotation.get('profile') == 'optional-answer-quotation-validation.v1'
+                    and quotation.get('prior_detours') == detours == 64
+                    and quotation.get('additional_consolidated_revision') == 1
+                    and quotation.get('calls_added') == quotation.get('attempts_added') == quotation.get('service_replacements_added') == 0,
+                    'Unreviewed optional answer-quotation repair')
+                require(any(r['id'] == 'p14-optional-quotation-integrity-2026-10-23'
+                    and quotation['review'] in r['result_evidence'] for r in history),
+                    'Quotation repair lacks reviewed history')
+                detours += 1
+        window = master.get('window_continuation')
+        if window:
+            require(window.get('profile') == 'deadline-window-continuation.v1'
+                and window.get('prior_detours') == detours == 65
+                and window.get('additional_consolidated_revision') == 1
+                and window.get('additional_task_attempts') == 1
+                and window.get('reopened_nodes') == ['baseline-p14']
+                and window.get('calls_added') == window.get('service_replacements_added') == 0
+                and window.get('attempts_reset') is False
+                and program.get('window_continuation') == window, 'Unreviewed window continuation')
+            require(any(r['id'] == 'integration-window-continuation-2026-10-24'
+                and window['review'] in r['result_evidence'] for r in history), 'Missing continuation history')
+            verify_refs(root, window)
+            detours += 1
+            correction=window.get('service_inheritance')
+            if correction:
+                require(correction.get('profile')=='window-service-inheritance-correction.v1'
+                    and correction.get('calls_added')==correction.get('replacements_added')==correction.get('detours_added')==0
+                    and 'baseline-p14' in correction.get('attempt_additions',{})
+                    and set(correction['attempt_additions']) <= {'baseline-p14','baseline-gatecoin','tool-gatecoin-bm25'}
+                    and all(v==1 for v in correction['attempt_additions'].values()), 'Unreviewed service inheritance correction')
+                require(any(r['id']=='window-service-inheritance-correction-2026-10-24'
+                    and correction['review'] in r['result_evidence'] for r in history),'Missing service inheritance correction history')
+        baseline_corpus = master.get('baseline_corpus_repair')
+        if baseline_corpus:
+            require(baseline_corpus.get('profile') == 'reviewed-baseline-corpus-repair.v1'
+                and baseline_corpus.get('prior_detours') == detours == 66
+                and baseline_corpus.get('additional_consolidated_revision') == 1
+                and baseline_corpus.get('calls_added') == baseline_corpus.get('attempts_added')
+                    == baseline_corpus.get('replacements_added') == 0
+                and baseline_corpus.get('attempts_reset') is False
+                and baseline_corpus.get('reopened_nodes') == []
+                and program.get('baseline_corpus_repair') == baseline_corpus,
+                'Unreviewed baseline/corpus deployment')
+            require(any(r['id'] == 'baseline-corpus-local-deployment-2026-10-26'
+                and baseline_corpus['review'] in r['result_evidence'] for r in history),
+                'Missing baseline/corpus deployment history')
+            verify_refs(root, baseline_corpus)
+            detours += 1
+        retry = master.get('repaired_retry_continuation')
+        if retry:
+            require(retry.get('profile') == 'reviewed-repaired-retry-continuation.v1'
+                and retry.get('prior_detours') == detours == 67
+                and retry.get('additional_consolidated_revision') == 1
+                and retry.get('calls_added') == 0 and retry.get('replacements_added') == 500
+                and retry.get('attempt_additions') == {'baseline-p14':1,'baseline-gatecoin':1}
+                and program.get('repaired_retry_continuation') == retry,
+                'Unreviewed repaired retry continuation')
+            require(any(r['id'] == 'repaired-retry-continuation-2026-10-26'
+                and retry['review'] in r['result_evidence'] for r in history),
+                'Missing repaired retry history')
+            verify_refs(root, retry)
+            detours += 1
+        closure=master.get('product_closure')
+        if closure:
+            require(closure.get('profile')=='reviewed-product-closure.v1'
+                and closure.get('prior_detours')==detours==68
+                and closure.get('additional_consolidated_revision')==1
+                and closure.get('calls_added')==closure.get('attempts_added')==closure.get('replacements_added')==0
+                and closure.get('attempts_reset') is False and closure.get('reopened_nodes')==[]
+                and program.get('product_closure')==closure,'Unreviewed product closure')
+            require(any(r['id']=='product-closure-2026-10-26' and closure['review'] in r['result_evidence']
+                for r in history),'Missing product closure history')
+            verify_refs(root,closure)
+            detours+=1
     else:
         master_state = None
     require(mission["current_task"] in tasks, "No current substantive task")

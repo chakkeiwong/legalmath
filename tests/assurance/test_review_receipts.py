@@ -93,7 +93,8 @@ def test_existing_decoded_repair_path_not_duplicated(tmp_path):
     assert candidate.invalid_wire_reviews(*args) == {}
 
 
-def test_reference_dispatch_runs_one_repair_for_every_malformed_assignment(tmp_path, monkeypatch):
+@pytest.mark.parametrize('explicit_contract', [False, True])
+def test_reference_dispatch_runs_one_repair_for_every_malformed_assignment(tmp_path, monkeypatch, explicit_contract):
     from dataclasses import replace
     from legalmath.interpretation.assurance.phased import group_review
     from legalmath.interpretation.assurance.phased.product import PhasedProduct
@@ -111,7 +112,8 @@ def test_reference_dispatch_runs_one_repair_for_every_malformed_assignment(tmp_p
             self.allowance.path.write_text(json.dumps(dict(maximum=20,calls=[])))
         def complete(self, request, schema, settings):
             self.requests.append(deepcopy(request))
-            ids = list(schema['properties']['assignments']['properties'])
+            ids = ([r['response_key'] for r in request['response_assignment_targets']]
+                if explicit_contract else list(schema['properties']['assignments']['properties']))
             decision = dict(reason='The conditional statement follows from the delivered source.',
                 source_gaps=[], assertion_bindings=[], context_needs=[],
                 review=dict(verdict='ACCEPT', issues=[], support=[dict(span_id=0)]))
@@ -139,7 +141,8 @@ def test_reference_dispatch_runs_one_repair_for_every_malformed_assignment(tmp_p
             return Completion(value, dict(allowance_slot=slot, request_hash=digest(request), response_hash=digest(value)))
 
     provider = WireProvider()
-    p=setup_review_product(tmp_path,provider)
+    from legalmath.interpretation.assurance.phased.review_contract import PROFILE as EXPLICIT
+    p=setup_review_product(tmp_path,provider, review_assignment_profile=EXPLICIT if explicit_contract else None)
     answer=dict(conclusion='Conditional source reading.', support=[], source_gaps=[])
     rows=p.audit_answer('p14',envelope()['original_questions'][0],answer,[])
     assert len(rows)==2 and all(r['status']=='VALIDATED' for r in rows)

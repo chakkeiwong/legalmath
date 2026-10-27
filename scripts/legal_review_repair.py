@@ -83,6 +83,12 @@ def expected_program(old, revision, root, *, plan_reference=None):
 
 def validate_revision(program, root, *, plan_reference=None):
     revision = program[KEY]
+    if revision.get('optional_quote_validation'):
+        from scripts.legal_optional_quote_validation import validate
+        return validate(program, root, plan_reference)
+    if revision.get('deployment'):
+        from scripts.legal_review_deployment import validate
+        return validate(program, root, plan_reference)
     if revision.get('timeout_correction'):
         from scripts.legal_review_timeout_correction import validate
         return validate(program, root, plan_reference)
@@ -148,6 +154,12 @@ def project_state(before, program, now):
 
 
 def validate_state_history(program, state, root):
+    if program[KEY].get('optional_quote_validation'):
+        from scripts.legal_optional_quote_validation import validate_history as check_quote_history
+        check_quote_history(program, state, root)
+    if program[KEY].get('deployment'):
+        from scripts.legal_review_deployment import validate_history
+        validate_history(program, state, root)
     if program[KEY].get('timeout_correction'):
         from scripts.legal_review_timeout_correction import validate_history
         validate_history(program, state, root)
@@ -284,10 +296,10 @@ def verification():
     require(ref(ROOT, BASE/'live-grant.json')['sha256'] == revision['prior_grant']['sha256'], 'Changed original grant')
     binding = read(ROOT/BASE/'current-binding.json')
     require(binding['program'] == ref(ROOT,PROGRAM) and binding['execution_review'] == revision['review']
-        and binding['service_recovery_policy'] == SERVICE_POLICY, 'Wrong repair binding')
+        and binding['service_recovery_policy'] == revision['service_policy'], 'Wrong repair binding')
     for pointer in binding['bindings']: verify(ROOT, pointer)
     prior_service = read(ROOT/binding['review_repair_service_predecessor']['path'])
-    current_service = read(ROOT/WORK/'service/service-recovery.json')
+    current_service = read(ROOT/Path(binding['phase_service_scope']['path']).parent/'service-recovery.json')
     require(current_service['charges'][:24] == prior_service['charges'], 'Lost delayed recovery history')
     view = runner.summary()
     result = dict(calls=len(current['calls']), integration_complete=False,
@@ -310,7 +322,8 @@ def live():
             if running:
                 from scripts.legal_mission_execution import process_alive
                 require(execution.program[KEY].get('receipt_correction') and all(
-                    r.get('master_live') and not process_alive(r.get('live_supervisor')) for r in running),
+                    r.get('master_live') and (r.get('service_checkpoint') or
+                        not process_alive(r.get('live_supervisor'))) for r in running),
                     'A running reservation still has an owner or lacks the reviewed continuation')
                 binding = read(ROOT/BASE/'current-binding.json')
                 circuit = read(ROOT/Path(binding['phase_service_scope']['path']).parent/'service-circuit.json')
@@ -348,6 +361,9 @@ def live():
 
 
 def worker():
+    if read(ROOT/PROGRAM).get(KEY, {}).get('deployment'):
+        from scripts.legal_review_deployment import worker as deployed_worker
+        return deployed_worker()
     import subprocess
     from scripts.legal_mission_execution import process_identity
     with (ROOT/WORK/'worker.lock').open('a') as lock:

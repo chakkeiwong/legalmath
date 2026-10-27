@@ -39,6 +39,10 @@ nonnegative-only financial helper cannot be reused unchanged for this domain.
 Portfolio/exposure/threshold amounts remain nonnegative. Invalid types or units
 produce an input error, not ineligibility. Other client types stay outside the
 initial individual-client profile until separately specified.
+The initial arithmetic consumes assessed integer-cent totals. Allocation or FX
+that produces fractional cents needs retained exact intermediate values and an
+explicit reviewed rounding rule to supply those totals; otherwise it remains
+unresolved. Do not truncate a share or conversion silently at a threshold.
 
 Paragraphs 3.2(c) and 3.4(a)(iii) specify an equal share for joint holdings with
 non-associates in the absence of a written allocation agreement. Known absence
@@ -219,8 +223,8 @@ M06 count unrelated categories (F04/F07); M07 relief to prohibition (F13);
 M08 unknown to false (F02/F10); M09 activation to fulfillment (F14/F15);
 M10 unrelated performance (F14); M11 empty shape targets falsely pass (F17);
 M12 replay after changing profile/evidence (F19/F20); M13 unbound eligible=true
-(F10/F19); M14 omit leverage/noncash exposure (F09). Retain a witness per mutant.
-Add M15 invent a written-allocation prerequisite instead of the equal-share
+(F10/F19); M14 omit leverage/noncash exposure (F09);
+M15 invent a written-allocation prerequisite instead of the equal-share
 rule (F06); M16 reject signed net assets before testing the portfolio alternative
 (F01); M17 treat a signature as the whole prior-information/explanation package
 (F10). Retain a witness per mutant. A surviving mutant blocks the affected claim

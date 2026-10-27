@@ -11,6 +11,8 @@ PROFILE = 'integration-time-extension.v1'
 USER = 'you have 48 hours more.  continue the execution'
 CONTINUATION_PROFILE = 'integration-time-extension.v2'
 CONTINUATION_USER = 'you have 72 hours more.'
+WINDOW_PROFILE = 'integration-time-extension.v3'
+WINDOW_USER = 'you have 72 hours more.  continue'
 
 
 def effective_deadline(root, directory, *, grant=None, binding=None):
@@ -23,10 +25,12 @@ def effective_deadline(root, directory, *, grant=None, binding=None):
         require('effective_deadline_utc' not in binding, 'Unbound extended deadline', 'E_AUTHORITY')
         return grant['deadline_utc']
     extension = read_evidence(pointer, root)
+    renewed = extension.get('profile') == WINDOW_PROFILE
     continuation = extension.get('profile') == CONTINUATION_PROFILE
-    duration, instruction, program_key = ((259200, CONTINUATION_USER, 'time_continuation') if continuation
+    duration, instruction, program_key = ((259200, WINDOW_USER, 'window_continuation') if renewed else
+        (259200, CONTINUATION_USER, 'time_continuation') if continuation
         else (172800, USER, 'synthesis_continuation'))
-    require(extension.get('profile') in (PROFILE, CONTINUATION_PROFILE) and extension.get('approved') is True
+    require(extension.get('profile') in (PROFILE, CONTINUATION_PROFILE, WINDOW_PROFILE) and extension.get('approved') is True
         and extension.get('user_instruction') == instruction
         and extension.get('duration_seconds') == duration, 'Missing explicit time authority', 'E_AUTHORITY')
     original = read_evidence(extension['original_grant'], root)
@@ -53,10 +57,15 @@ def effective_deadline(root, directory, *, grant=None, binding=None):
         and len(before['calls']) == extension['prior_calls']
         and current['calls'][:len(before['calls'])] == before['calls']
         and len(current['calls']) <= current['maximum'], 'Extension lost cumulative charges', 'E_INTEGRITY')
-    if continuation:
+    if renewed:
+        authority = read_evidence(extension['authorization'], root)
+        require(authority == dict(user_instruction=WINDOW_USER, approved_at_utc=extension['approved_at_utc'],
+            duration_seconds=259200, deadline_utc=extension['deadline_utc'], calls_added=0, replacements_added=0),
+            'Unbound renewed user authorization', 'E_AUTHORITY')
+    if continuation or renewed:
         previous = read_evidence(extension['previous_extension'], root)
         previous_binding = read_evidence(extension['prior_binding'], root)
-        require(previous.get('profile') == PROFILE
+        require(previous.get('profile') == (CONTINUATION_PROFILE if renewed else PROFILE)
             and previous_binding.get('time_extension') == extension['previous_extension']
             and previous_binding['program']['sha256'] == extension['prior_program']['sha256'],
             'Extension lost its approved predecessor', 'E_AUTHORITY')

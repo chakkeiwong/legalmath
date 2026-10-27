@@ -6,7 +6,7 @@ from legalmath.interpretation.assurance.bounded_context import require,_indexed_
 from legalmath.interpretation.assurance.bounded_product import AUDIT
 
 
-def select_context(product,qid,item,needs):
+def select_context(product,qid,item,needs,*,scoped=False):
     require(needs and all(n.get('kind')=='SOURCE_TEXT' for n in needs),
         'Only explicit source-text needs can use this bridge','E_DEPENDENCY')
     origin=product.route.records.get(item['origin_id'])
@@ -27,7 +27,10 @@ def select_context(product,qid,item,needs):
             require(matches,'Required locator has no source records','E_DEPENDENCY')
             selected.extend(matches)
         if not selected and need.get('query'):
-            retrieval=product.route.retrieve(need['query'],expand=False)
+            scope = ({'allowed_record_ids': [r['id'] for r in product.route.records.values()
+                if r['kind'] == 'source' and qid in product.acquisition_questions(r)]}
+                if scoped else {})
+            retrieval=product.route.retrieve(need['query'],expand=False,**scope)
             receipts.append(retrieval)
             selected.extend(retrieval['record_ids'])
         require(selected,'Explicit source need has no deliverable context','E_DEPENDENCY')
@@ -41,6 +44,10 @@ def select_context(product,qid,item,needs):
 
 
 def review(product,qid,question,answer,item,initial,needs,*,prefix='',admit=None):
+    if getattr(product, 'review_assignment_profile', None):
+        from .context_disposition import review as explicit_review
+        return explicit_review(product,qid,question,answer,item,initial,
+            prefix=prefix,admit=admit)
     require(initial.get('status')=='VALIDATED' and initial['value']['verdict']=='UNRESOLVED',
         'Context continuation is for unresolved reviews; adverse verdicts need warrant assessment')
     require(initial['value']['considered']==[item['id']],'Initial context review belongs to another item')

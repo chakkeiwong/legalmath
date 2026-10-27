@@ -366,12 +366,13 @@ def verify_tree(value):
 
 
 def corpus(directory):
-    rows, evidence = {}, []
+    rows, evidence, sources = {}, [], {}
     for name in ('2023', '2025', 'handbook'):
         path = BASE / ('ownership-' + name) / 'attempt-3/evidence.json'
         value = read(ROOT / path); verify_tree(value)
         evidence.append(ref(ROOT, path)); evidence.append(value['ownership'])
         ownership = read(ROOT / value['ownership']['path']); verify_tree(ownership)
+        sources[name] = ownership['source']
         if name == 'handbook':
             require(value['verified_pages'] == value['pages'] == 35
                 and not value['page_mismatches'] and not value['cross_page_delivery_gaps'], 'Handbook fidelity mismatch')
@@ -388,6 +389,35 @@ def corpus(directory):
         'remaining': ['Dated legal applicability and later treatment',
             'Source-backed original-answer propositions and positive/false-attribution citation controls']}
     save(directory / 'corpus-reconciliation.json', result)
+    program=read(ROOT / PROGRAM)
+    components=program.get('product_closure',{}).get('corpus_components')
+    components=program.get('product_closure',{}).get('followthrough',{}).get('corpus_components',components)
+    if components is not None:
+        from legalmath.interpretation.assurance.corpus_components import consume
+        outcome=consume(ROOT,components,fidelity=result,reconciled_sources=sources)
+        save(directory/'corpus-components.json',outcome)
+    review = program.get('corpus_review_evidence')
+    if review is not None:
+        from legalmath.interpretation.assurance.corpus_review import evaluate
+        verify(ROOT, review['expected_context'])
+        expected = read(ROOT / review['expected_context']['path'])
+        verify(ROOT, expected['fidelity'])
+        require(read(ROOT / expected['fidelity']['path']) == result,
+            'Corpus review does not bind this exact fidelity reconciliation')
+        require(all(expected['sources'].get(name) == source for name,source in sources.items()),
+            'Corpus review omits or changes reconciled sources')
+        outcome = evaluate(ROOT, expected, review.get('bundle'))
+        save(directory / 'corpus-review.json', outcome)
+        return {'reconciliation': ref(ROOT, directory / 'corpus-reconciliation.json'),
+            'review': ref(ROOT, directory / 'corpus-review.json'),
+            '_node_status': outcome['status'],
+            '_conclusion': ('Scoped corpus review requirements satisfied.' if
+                outcome['corpus_acceptance_complete'] else 'Corpus review remains incomplete: ' +
+                '; '.join(outcome['remaining']))}
+    if components is not None:
+        return {'reconciliation':ref(ROOT,directory/'corpus-reconciliation.json'),
+            'review':ref(ROOT,directory/'corpus-components.json'),'_node_status':'BLOCKED',
+            '_conclusion':'Independent corpus work retained; '+'; '.join(outcome['remaining'])}
     return {'reconciliation': ref(ROOT, directory / 'corpus-reconciliation.json'),
         '_node_status': 'BLOCKED', '_conclusion': 'Judgment ownership and 35 Handbook pages verified; dated applicability and actual answer/citation use remain open.'}
 

@@ -1,5 +1,47 @@
 # Restart here for the legal interpretation mission
 
+## Current checkpoint: 27 October 2026
+
+The campaign is **incomplete**. Read
+[the current checkpoint summary](results/campaign-checkpoint-2026-10-27.md) and
+[the reviewed Git/closure plan](../../plans/legal-closure-git-handoff-2026-10-27.md).
+The executable master remains `integration-master.json`, governed by
+`docs/plans/legal-integration-master-2026-10-13.md`. Earlier entries below are
+retained history and must not be mistaken for the current frontier.
+
+The sole supervisor PID 683177/start 40916867 received a reviewed, safe
+between-phase interrupt on 27 October at 05:09:59 UTC for the user-authorized
+Git integration. There were no reserved provider dispatches, and 7,342 of
+8,100 calls were charged. Await its final refresh receipt and verify the
+process identity before any successor. Preserve all RUNNING reservations.
+The global live window ends at 05:15:09 UTC / 13:15:09 Hong Kong today;
+unused calls do not extend that window. Do not restart after expiry without
+specific authority. P14 remains exhausted at 9/9; evidence's first baseline
+ended FAILED with its actual answer retained and review open.
+
+At the handover, 758 calls remain: 583 protected for P10, 31 for Gatecoin,
+144 for comparisons, zero for P14/evidence and zero unprotected. Service
+replacements are 331/788 and do not add calls. All 24 comparisons and all six
+full tool-effect decisions remain open. Local closure work can continue without
+model calls. Keep four questions, 46 obligations, 35 readings and 26 tools visible.
+
+Runtime acquisition fairness, budget yielding and Unicode validation are
+installed. The reviewed v7 answer/source-comparison semantic package remains
+staged, with 166 candidate tests and 12 measured request constructions; it has
+not received fresh full legal acceptance. The current changed-area suite passes
+446 tests. Historical 529 ACCEPT / 306 REJECT / 916 UNRESOLVED / 8 FAILED P14
+decisions remain unchanged. Local disposition of 121 original and 528
+intervening occurrences does not convert them into fresh ACCEPT decisions.
+
+Per the user's instruction, bulk execution evidence is retained locally and
+excluded from GitHub. See `checkpoint-2026-10-27/README.md` and its hash inventory.
+A Git clone alone is not a complete backup of the campaign. Main is integrated
+in its existing `/tmp/legalmath-main-integration-20261022` worktree; preserve the
+23 premerge source snapshots when revalidating source bindings. Git outcomes
+and post-merge closure status are recorded in the checkpoint summary.
+
+## Earlier execution history
+
 Latest execution, **14 October 2026**: read
 [the substantive execution result](results/substantive-continuation-2026-10-14.md)
 and the current section of `docs/plans/legal-integration-master-2026-10-13.md`.

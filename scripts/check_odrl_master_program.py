@@ -4,12 +4,25 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 PROGRAM = Path('docs/implementation/odrl-master/program.json')
 EXPECTED = {'S00','S01','N02','T03','E04','P05','F06','X07','V08','R08','C09',
             'C09C','Q10','D11','D12','Q13','G14','G15','G16','K17','A18','L19'}
 TERMINAL = {'SUCCEEDED','FAILED','BLOCKED','SKIPPED'}
+SUCCESS_DEPENDENCIES = {
+    'S00': [], 'S01': ['S00'], 'N02': ['S01'], 'T03': ['S01'], 'E04': ['S00'],
+    'P05': ['N02'], 'F06': ['N02','T03','E04','P05'],
+    'X07': ['N02','P05','E04','T03'],
+    'V08': ['X07','F06','T03','E04'], 'R08': ['X07','F06','T03','E04'],
+    'C09': ['F06','T03'], 'C09C': ['C09','E04'],
+    'Q10': ['X07','F06','T03','C09'], 'D11': ['N02','T03'],
+    'D12': ['D11','F06','X07'], 'Q13': ['D12','Q10','T03'],
+    'G14': ['Q10','D11','T03'], 'G15': ['G14','X07'],
+    'G16': ['G15','Q13','G14'], 'K17': ['Q10','Q13','G15'],
+    'A18': ['K17'], 'L19': [],
+}
 
 
 def safe_file(root: Path, name: str) -> Path:
@@ -30,6 +43,12 @@ def validate(program: dict, root: Path = ROOT, *, check_bindings: bool = True) -
     errors = []
     def require(ok, label):
         if not ok: errors.append(label)
+    if not isinstance(program,dict):
+        return {'status':'FAIL','errors':['program must be an object']}
+    for key in ['authority','resources','controller','requirements','completion',
+                'state_contract','evidence_bindings','acceptance_inventory']:
+        require(isinstance(program.get(key),dict),key+': object required')
+    if errors:return {'status':'FAIL','errors':errors}
     require(program.get('schema') == 'legalmath.odrl-master-program.v1','schema')
     require(program.get('status') in {'DRAFT_NOT_EXECUTED','REVIEWED_NOT_EXECUTED'},'plan status')
     a = program.get('authority', {})
@@ -60,7 +79,7 @@ def validate(program: dict, root: Path = ROOT, *, check_bindings: bool = True) -
         for field in ['outputs','acceptance','write_scope','requirements']:
             value=t.get(field)
             require(isinstance(value,list) and bool(value) and all(isinstance(x,str) and x for x in value),name+': '+field)
-        for field in ['owner','recovery','evidence_directory']:
+        for field in ['title','owner','recovery','evidence_directory']:
             require(isinstance(t.get(field),str) and bool(t[field]),name+': '+field)
         for field in ['requires_success','after_completion','on_failure']:
             value=t.get(field)
@@ -86,6 +105,21 @@ def validate(program: dict, root: Path = ROOT, *, check_bindings: bool = True) -
         layers.append(ready);done.update(ready)
     require(done==ids,'acyclic dependency graph')
     if EXPECTED <= ids:
+        for name,required_success in SUCCESS_DEPENDENCIES.items():
+            require(tasks[name]['requires_success']==required_success,
+                    name+': reviewed success dependencies')
+            expected_completion=(sorted(ids-{'L19'}) if name=='L19' else
+                                 ['V08'] if name=='R08' else ['C09C'] if name=='A18' else [])
+            require(sorted(tasks[name]['after_completion'])==expected_completion,
+                    name+': reviewed completion dependencies')
+            require(tasks[name]['on_failure']==(['V08'] if name=='R08' else []),
+                    name+': reviewed failure dependency')
+            require(tasks[name]['any_success']==([['V08','R08']] if name=='Q10' else []),
+                    name+': reviewed alternatives')
+            require(tasks[name]['authority_gate']==('bounded_generation' if name=='G16' else 'local_implementation'),
+                    name+': scoped authority gate')
+            require(tasks[name]['max_attempts']==(1 if name in {'R08','G16'} else 2),
+                    name+': reviewed attempt bound')
         require(tasks['F06']['requires_success'] == ['N02','T03','E04','P05'],
                 'fact binding waits for profile contract')
         require(tasks['X07']['requires_success'] == ['N02','P05','E04','T03'],
@@ -109,6 +143,7 @@ def validate(program: dict, root: Path = ROOT, *, check_bindings: bool = True) -
                 'recovery classification receipt')
     c=program.get('completion',{})
     required={t['id'] for t in rows if t.get('mandatory_for_full_program')}
+    require(required==EXPECTED-{'V08','R08','C09C'},'all required proposal tasks retained')
     require(set(c.get('full_program_requires',[]))==required,'honest full-completion requirements')
     require({'A18','G16','L19'} <= required,'full program includes generation and final assessment')
     require(not {'V08','R08','C09C'} & required,'optional alternatives do not require both engines')
@@ -118,6 +153,11 @@ def validate(program: dict, root: Path = ROOT, *, check_bindings: bool = True) -
     require(c.get('qualification_alternatives')==[['V08','R08']],'full completion keeps evaluator alternative')
     require(c.get('report_is_not_release') is True,'assessment success is not product success')
     require(program.get('state_contract',{}).get('terminal_states')==['SUCCEEDED','FAILED','BLOCKED','SKIPPED'],'explicit terminal states')
+    inventory=program['acceptance_inventory']
+    require(inventory.get('families')==[f'F{i:02}' for i in range(1,21)],'complete case-family inventory')
+    require(inventory.get('mutations')==[f'M{i:02}' for i in range(1,18)],'complete mutation inventory')
+    require(inventory.get('specification_task')=='T03','independent specification owner')
+    require(inventory.get('contract_file')==program.get('contracts'),'acceptance contract identity')
     bindings=program.get('evidence_bindings',{})
     require(isinstance(bindings,dict) and len(bindings)>=20,'retained baseline bindings')
     for name,expected in bindings.items():
@@ -131,6 +171,13 @@ def validate(program: dict, root: Path = ROOT, *, check_bindings: bool = True) -
         for field in ['contracts','review','plan']:
             try:safe_file(root,program[field])
             except (OSError,ValueError,KeyError) as exc:errors.append(str(exc))
+        try:
+            contract=safe_file(root,program['contracts']).read_text()
+            require(re.findall(r'^\| (F\d{2}) \|',contract,re.MULTILINE)==inventory['families'],
+                    'contract case rows match machine inventory')
+            require(set(re.findall(r'\bM\d{2}\b',contract))==set(inventory['mutations']),
+                    'contract mutations match machine inventory')
+        except (OSError,ValueError,KeyError) as exc:errors.append(str(exc))
     return {'status':'PASS' if not errors else 'FAIL','errors':errors,'task_count':len(tasks),
             'requirement_count':len(requirements),'binding_count':len(bindings),'topological_layers':layers,
             'execution_status':'NOT_STARTED','authority':'PLANNING_ONLY',
@@ -167,14 +214,30 @@ def frontier(program: dict, states: dict | None = None, gates: set | None = None
 
 
 def completion(program: dict, states: dict) -> dict:
+    """Check a hypothetical state closure, never execution receipts or authority."""
     c=program['completion']
-    missing=[x for x in c['full_program_requires'] if states.get(x)!='SUCCEEDED']
-    alternatives=all(any(states.get(x)=='SUCCEEDED' for x in g) for g in c['qualification_alternatives'])
+    tasks={t['id']:t for t in program['tasks']}
+    memo={}
+    visiting=set()
+    def succeeded(name):
+        if name in memo:return memo[name]
+        if name in visiting or name not in tasks:return False
+        visiting.add(name)
+        t=tasks[name]
+        result=(states.get(name)=='SUCCEEDED'
+                and all(succeeded(x) for x in t['requires_success'])
+                and all(states.get(x) in TERMINAL for x in t['after_completion'])
+                and all(any(succeeded(x) for x in g) for g in t['any_success'])
+                and (not t['on_failure'] or any(states.get(x)=='FAILED' for x in t['on_failure'])))
+        visiting.remove(name);memo[name]=result
+        return result
+    missing=[x for x in c['full_program_requires'] if not succeeded(x)]
+    alternatives=all(any(succeeded(x) for x in g) for g in c['qualification_alternatives'])
     manual_after=[x for x in c['manual_release_after_completion']
                   if states.get(x) not in TERMINAL]
     full_after=[t['id'] for t in program['tasks'] if t['id']!='L19'
                 and states.get(t['id']) not in TERMINAL]
-    return {'manual_release':(all(states.get(x)=='SUCCEEDED' for x in c['manual_release_requires'])
+    return {'manual_release':(all(succeeded(x) for x in c['manual_release_requires'])
                               and not manual_after),
             'full_program_complete':(not missing and alternatives and not full_after
                                      and states.get('L19')=='SUCCEEDED'),
